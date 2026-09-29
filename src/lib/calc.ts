@@ -1,0 +1,115 @@
+import type { Category, Item, MonthData, Trend } from './types'
+import { TOTAL_MONTHS, fromIndex, keyOf } from './time'
+
+export interface MonthCalc {
+  index: number
+  key: string
+  year: number
+  month: number
+  goal: number
+  budget: number
+  /** Effective earned for this month (actual, or the goal if nothing was entered) */
+  earned: number
+  earnedFromGoal: boolean
+  spent: number
+  itemCount: number
+  cumGoal: number
+  cumBudget: number
+  cumEarned: number
+  cumSpent: number
+  /** Money left = total earned − total spent */
+  cash: number
+  /** Current value of everything bought so far */
+  assets: number
+  netWorth: number
+  hasData: boolean
+}
+
+/** Value of an item after it has been held for `monthsHeld` months. */
+export function valueAfter(item: Item, monthsHeld: number) {
+  const years = Math.max(0, monthsHeld) / 12
+  const r = Math.min(Math.max(item.rate || 0, 0), 100) / 100
+  if (item.trend === 'appreciating') return item.price * (1 + r) ** years
+  if (item.trend === 'depreciating') return item.price * (1 - r) ** years
+  return item.price
+}
+
+export function computeAll(months: Record<string, MonthData>): MonthCalc[] {
+  const assets = new Float64Array(TOTAL_MONTHS)
+  for (let i = 0; i < TOTAL_MONTHS; i++) {
+    const m = months[keyOf(i)]
+    if (!m) continue
+    for (const item of m.items) {
+      for (let t = i; t < TOTAL_MONTHS; t++) assets[t] += valueAfter(item, t - i)
+    }
+  }
+
+  const out: MonthCalc[] = []
+  let cumGoal = 0, cumBudget = 0, cumEarned = 0, cumSpent = 0
+  for (let i = 0; i < TOTAL_MONTHS; i++) {
+    const key = keyOf(i)
+    const m = months[key]
+    const goal = m?.goal ?? 0
+    const budget = m?.budget ?? 0
+    const earnedRaw = m?.earned ?? null
+    const earned = earnedRaw ?? goal
+    const items = m?.items ?? []
+    const spent = items.reduce((s, it) => s + it.price, 0)
+    cumGoal += goal
+    cumBudget += budget
+    cumEarned += earned
+    cumSpent += spent
+    const cash = cumEarned - cumSpent
+    const { year, month } = fromIndex(i)
+    out.push({
+      index: i, key, year, month, goal, budget, earned,
+      earnedFromGoal: earnedRaw === null,
+      spent, itemCount: items.length,
+      cumGoal, cumBudget, cumEarned, cumSpent, cash,
+      assets: assets[i],
+      netWorth: cash + assets[i],
+      hasData: goal > 0 || budget > 0 || earnedRaw !== null || items.length > 0,
+    })
+  }
+  return out
+}
+
+export function lastDataIndex(plan: MonthCalc[], fallback: number) {
+  for (let i = plan.length - 1; i >= 0; i--) if (plan[i].hasData) return i
+  return fallback
+}
+
+export interface Portfolio {
+  byCategory: Record<Category, { value: number; cost: number; count: number }>
+  byTrend: Record<Trend, number>
+  value: number
+  cost: number
+}
+
+export function portfolioAt(months: Record<string, MonthData>, asOf: number): Portfolio {
+  const p: Portfolio = {
+    byCategory: {
+      property: { value: 0, cost: 0, count: 0 },
+      vehicle: { value: 0, cost: 0, count: 0 },
+      status: { value: 0, cost: 0, count: 0 },
+    },
+    byTrend: { appreciating: 0, depreciating: 0, stable: 0 },
+    value: 0,
+    cost: 0,
+  }
+  for (let i = 0; i <= asOf; i++) {
+    const m = months[keyOf(i)]
+    if (!m) continue
+    for (const it of m.items) {
+      const v = valueAfter(it, asOf - i)
+      const c = p.byCategory[it.category]
+      c.value += v
+      c.cost += it.price
+      c.count++
+      p.byTrend[it.trend]++
+      p.value += v
+      p.cost += it.price
+    }
+  }
+  return p
+}
