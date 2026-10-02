@@ -25,6 +25,28 @@ export interface MonthCalc {
   hasData: boolean
 }
 
+/**
+ * What a month lets you spend: its budget, capped by what you earned
+ * (or your goal to make when nothing was entered). No budget = nothing allowed.
+ */
+export function spendLimit(m: MonthData) {
+  const earned = m.earned ?? (m.goal > 0 ? m.goal : Infinity)
+  return Math.min(Math.max(0, m.budget), earned)
+}
+
+/** Items that push their month past its limit (in the order they were added). These show in red. */
+export function overLimitIds(m: MonthData | undefined): Set<string> {
+  const ids = new Set<string>()
+  if (!m) return ids
+  const limit = spendLimit(m)
+  let run = 0
+  for (const it of m.items) {
+    run += it.price
+    if (run > limit + 1e-9) ids.add(it.id)
+  }
+  return ids
+}
+
 /** Value of an item after it has been held for `monthsHeld` months. */
 export function valueAfter(item: Item, monthsHeld: number) {
   const years = Math.max(0, monthsHeld) / 12

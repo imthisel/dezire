@@ -25,12 +25,10 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
   const m = months[monthKey]
   const budget = m?.budget ?? 0
   const spent = (m?.items ?? []).filter((i) => i.id !== editId).reduce((s, i) => s + i.price, 0)
-  const left = budget - spent
-  const check = price && price > 0 ? fitCheck(months, monthKey, price, editId) : null
-  const budgetError = check && !check.ok ? check.error : null
+  const { left, warning: budgetWarning } = fitCheck(months, monthKey, price ?? 0, editId)
   const rateNum = trend === 'stable' ? 0 : Math.min(100, Math.max(0, parseFloat(rate) || 0))
 
-  const ready = !!category && !!trend && name.trim().length > 0 && !!price && price > 0 && !budgetError
+  const ready = !!category && !!trend && name.trim().length > 0 && !!price && price > 0
 
   function pickTrend(t: Trend) {
     setTrend(t)
@@ -42,12 +40,11 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
     const data = { name: name.trim(), category: category!, trend: trend!, price: price!, rate: rateNum }
     const s = useStore.getState()
     const r = editId ? s.updateItem(monthKey, editId, data) : s.addItem(monthKey, data)
-    if (!r.ok) return toast.error(r.error)
-    toast.success(`${editId ? 'Updated' : 'Added'} “${data.name}” in ${labelOfKey(monthKey)}.`)
-    close()
+    toast.result(r, `${editId ? 'Updated' : 'Added'} “${data.name}” in ${labelOfKey(monthKey)}.`)
+    if (r.ok) close()
   }
 
-  const remaining = budget > 0 ? left - (price ?? 0) : 0
+  const remaining = left - (price ?? 0)
 
   return (
     <Modal
@@ -59,7 +56,7 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
           <p className="text-xs text-zinc-500">
             {budget > 0 ? (
               <>
-                Budget left after this:{' '}
+                Left after this:{' '}
                 <span className={`font-semibold tabular-nums ${remaining < 0 ? 'text-red-300' : 'text-zinc-200'}`}>{f(remaining)}</span>
               </>
             ) : (
@@ -92,7 +89,7 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
         <div className="grid grid-cols-3 gap-2 rounded-2xl border border-white/[0.06] bg-black/20 p-3 text-center">
           <Info k="Budget" v={budget > 0 ? f(budget) : '—'} usd={budget > 0 ? u(budget) : ''} />
           <Info k="Already spent" v={f(spent)} usd={u(spent)} />
-          <Info k="Left to spend" v={budget > 0 ? f(Math.max(0, left)) : '—'} usd={budget > 0 ? u(Math.max(0, left)) : ''} cls={left <= 0 && budget > 0 ? 'text-red-300' : 'text-emerald-300'} />
+          <Info k="Left to spend" v={budget > 0 ? f(left) : '—'} usd={budget > 0 ? u(left) : ''} cls={left <= 0 && budget > 0 ? 'text-red-300' : 'text-emerald-300'} />
         </div>
 
         <Step n={1} title="What kind of item is it?" done={!!category}>
@@ -167,10 +164,10 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
           </div>
         </Step>
 
-        {budgetError && (
+        {!!price && budgetWarning && (
           <div role="alert" className="animate-fade flex gap-3 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
-            <p>{budgetError}</p>
+            <p>{budgetWarning} You can still add it.</p>
           </div>
         )}
         <button type="submit" hidden />

@@ -2,6 +2,7 @@ import { useState, type DragEvent, type ReactNode } from 'react'
 import { ClipboardPaste, Plus } from 'lucide-react'
 import { useFmt, usePlan, useStore, useUsd } from '../store'
 import { MONTHS, currentIndex } from '../lib/time'
+import { overLimitIds } from '../lib/calc'
 import { MoneyInput } from './MoneyInput'
 import { ItemRow } from './ItemRow'
 import { drag } from '../dnd'
@@ -13,11 +14,13 @@ export function MonthCard({ index }: { index: number }) {
   const c = usePlan()[index]
   const f = useFmt()
   const u = useUsd()
-  const items = useStore((s) => s.months[c.key]?.items ?? EMPTY)
+  const month = useStore((s) => s.months[c.key])
+  const items = month?.items ?? EMPTY
+  const over = overLimitIds(month)
   const earnedRaw = useStore((s) => s.months[c.key]?.earned ?? null)
   const clipboard = useStore((s) => s.clipboard)
   const { setMonthField, openModal, pasteInto, transferItem } = useStore.getState()
-  const [over, setOver] = useState<null | 'move' | 'copy'>(null)
+  const [dropMode, setDropMode] = useState<null | 'move' | 'copy'>(null)
 
   const today = currentIndex()
   const isCurrent = index === today
@@ -33,32 +36,32 @@ export function MonthCard({ index }: { index: number }) {
     e.preventDefault()
     const copy = isCopy(e) || drag.current.fromKey === c.key
     e.dataTransfer.dropEffect = copy ? 'copy' : 'move'
-    setOver(copy ? 'copy' : 'move')
+    setDropMode(copy ? 'copy' : 'move')
   }
 
   function onDrop(e: DragEvent) {
     e.preventDefault()
-    setOver(null)
+    setDropMode(null)
     const d = drag.current
     drag.current = null
     if (!d || (d.fromKey === c.key && !isCopy(e))) return
     const mode = isCopy(e) ? 'copy' : 'move'
     const r = transferItem(d.fromKey, d.id, c.key, mode)
-    r.ok ? toast.success(`${mode === 'copy' ? 'Copied' : 'Moved'} to ${MONTHS[c.month]} ${c.year}.`) : toast.error(r.error)
+    toast.result(r, `${mode === 'copy' ? 'Copied' : 'Moved'} to ${MONTHS[c.month]} ${c.year}.`)
   }
 
   function paste() {
     const r = pasteInto(c.key)
-    r.ok ? toast.success(`Pasted into ${MONTHS[c.month]} ${c.year}.`) : toast.error(r.error)
+    toast.result(r, `Pasted into ${MONTHS[c.month]} ${c.year}.`)
   }
 
   return (
     <article
       onDragOver={onDragOver}
-      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setOver(null)}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropMode(null)}
       onDrop={onDrop}
       className={`relative flex flex-col rounded-2xl border bg-white/[0.025] p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] transition ${
-        over
+        dropMode
           ? 'border-indigo-400/60 bg-indigo-500/[0.07] ring-2 ring-indigo-400/30'
           : isCurrent
             ? 'border-emerald-400/30'
@@ -135,7 +138,7 @@ export function MonthCard({ index }: { index: number }) {
       {/* Items */}
       <ul className="mt-3 flex flex-1 flex-col gap-1.5">
         {items.map((it) => (
-          <ItemRow key={it.id} item={it} monthKey={c.key} />
+          <ItemRow key={it.id} item={it} monthKey={c.key} over={over.has(it.id)} />
         ))}
         {items.length === 0 && (
           <li className="grid flex-1 place-items-center rounded-xl border border-dashed border-white/[0.08] py-4 text-center text-xs text-zinc-500">
@@ -163,9 +166,9 @@ export function MonthCard({ index }: { index: number }) {
         )}
       </div>
 
-      {over && (
+      {dropMode && (
         <div className="pointer-events-none absolute inset-x-4 bottom-14 rounded-lg bg-indigo-500/90 px-3 py-1.5 text-center text-xs font-medium text-white shadow-lg">
-          {over === 'copy' ? 'Drop to copy here' : 'Drop to move here · hold Ctrl to copy'}
+          {dropMode === 'copy' ? 'Drop to copy here' : 'Drop to move here · hold Ctrl to copy'}
         </div>
       )}
     </article>

@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { Category, Item, MonthData, Result, Trend } from './lib/types'
 import { DEFAULT_USD_RATE, PESO, fmt, fmtUsd } from './lib/money'
 import { currentYear, labelOfKey, END_YEAR, START_YEAR, indexOf, keyOf } from './lib/time'
-import { computeAll, type MonthCalc } from './lib/calc'
+import { computeAll, spendLimit, type MonthCalc } from './lib/calc'
 
 export type Clip = { mode: 'copy' | 'cut'; fromKey: string; item: Item }
 export type ModalState =
@@ -23,24 +23,36 @@ const uid = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2) + Date.now().toString(36)
 
-/** Can an item of `price` fit into the budget of the month `key`? */
+/**
+ * Would an item of `price` push the month `key` past its budget or what was earned / the goal?
+ * Such items are still allowed — they just get flagged in red so they can be moved.
+ */
 export function fitCheck(
   months: Record<string, MonthData>,
   key: string,
   price: number,
   excludeId?: string,
-): Result & { left?: number } {
+): { left: number; warning: string | null } {
   const m = months[key] ?? emptyMonth()
-  const label = labelOfKey(key)
-  if (m.budget <= 0) return fail(`No budget set for ${label}. Set a budget for that month first.`)
   const spent = m.items.filter((i) => i.id !== excludeId).reduce((s, i) => s + i.price, 0)
-  const left = m.budget - spent
-  if (price > left + 1e-9) {
-    return fail(
-      `Over budget for ${label}: this costs ${fmt(price, PESO)} but only ${fmt(Math.max(0, left), PESO)} is left of your ${fmt(m.budget, PESO)} budget.`,
-    )
+  const after = spent + price
+  const p = (n: number) => fmt(n, PESO)
+  const why: string[] = []
+  if (m.budget <= 0) why.push('it has no budget set')
+  else if (after > m.budget + 1e-9) why.push(`this goes ${p(after - m.budget)} over the ${p(m.budget)} budget`)
+  const earned = m.earned ?? m.goal
+  if ((m.earned !== null || m.goal > 0) && after > earned + 1e-9) {
+    why.push(`${p(after - earned)} over the ${p(earned)} ${m.earned === null ? 'goal to make' : 'earned'}`)
   }
-  return { ok: true, left }
+  return {
+    left: spendLimit(m) - spent,
+    warning: why.length ? `Not enough in ${labelOfKey(key)}: ${why.join(', and ')}. Marked red — move it to another month.` : null,
+  }
+}
+
+const warned = (key: string, price: number, months: Record<string, MonthData>, excludeId?: string): Result => {
+  const { warning } = fitCheck(months, key, price, excludeId)
+  return warning ? { ok: true, warning } : OK
 }
 
 interface State {
@@ -114,23 +126,19 @@ export const useStore = create<State>()(
 
       addItem: (key, data) => {
         const { months } = get()
-        const r = fitCheck(months, key, data.price)
-        if (!r.ok) return r
         const m = months[key] ?? emptyMonth()
         const item: Item = { ...data, id: uid(), createdAt: Date.now() }
         set({ months: { ...months, [key]: { ...m, items: [...m.items, item] } } })
-        return OK
+        return warned(key, data.price, months)
       },
 
       updateItem: (key, id, data) => {
         const { months } = get()
-        const r = fitCheck(months, key, data.price, id)
-        if (!r.ok) return r
         const m = months[key] ?? emptyMonth()
         set({
           months: { ...months, [key]: { ...m, items: m.items.map((i) => (i.id === id ? { ...i, ...data } : i)) } },
         })
-        return OK
+        return warned(key, data.price, months, id)
       },
 
       removeItem: (key, id) =>
@@ -147,15 +155,13 @@ export const useStore = create<State>()(
         const item = src?.items.find((i) => i.id === id)
         if (!src || !item) return fail('That item no longer exists.')
         if (mode === 'move' && fromKey === toKey) return OK
-        const r = fitCheck(months, toKey, item.price)
-        if (!r.ok) return r
         const next = { ...months }
         if (mode === 'move') next[fromKey] = { ...src, items: src.items.filter((i) => i.id !== id) }
         const dest = next[toKey] ?? emptyMonth()
         const moved = mode === 'move' ? item : { ...item, id: uid(), createdAt: Date.now() }
         next[toKey] = { ...dest, items: [...dest.items, moved] }
         set({ months: next })
-        return OK
+        return warned(toKey, item.price, months)
       },
 
       copyToClipboard: (key, id, mode) => {
@@ -172,15 +178,13 @@ export const useStore = create<State>()(
           if (r.ok) set({ clipboard: null })
           return r
         }
-        const r = fitCheck(months, toKey, clipboard.item.price)
-        if (!r.ok) return r
         const dest = months[toKey] ?? emptyMonth()
         const copy = { ...clipboard.item, id: uid(), createdAt: Date.now() }
         set({
           months: { ...months, [toKey]: { ...dest, items: [...dest.items, copy] } },
           clipboard: clipboard.mode === 'cut' ? null : clipboard,
         })
-        return OK
+        return warned(toKey, clipboard.item.price, months)
       },
 
       clearClipboard: () => set({ clipboard: null }),

@@ -1,9 +1,10 @@
-import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react'
+import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from 'lucide-react'
 import { useToasts } from '../toast'
 
 const STYLE = {
   error: { icon: AlertCircle, cls: 'border-red-500/40 bg-red-950/90 text-red-100', iconCls: 'text-red-400' },
   success: { icon: CheckCircle2, cls: 'border-emerald-500/40 bg-emerald-950/90 text-emerald-100', iconCls: 'text-emerald-400' },
+  warning: { icon: AlertTriangle, cls: 'border-amber-500/40 bg-amber-950/90 text-amber-100', iconCls: 'text-amber-400' },
   info: { icon: Info, cls: 'border-indigo-500/40 bg-indigo-950/90 text-indigo-100', iconCls: 'text-indigo-300' },
 }
 

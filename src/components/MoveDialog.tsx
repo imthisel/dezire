@@ -22,16 +22,22 @@ export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
   function run(keys: string[]) {
     const s = useStore.getState()
     const errors: string[] = []
+    const warnings: string[] = []
     const done: string[] = []
     for (const k of keys) {
       const r = s.transferItem(monthKey, id, k, mode)
-      r.ok ? done.push(k) : errors.push(r.error)
+      if (!r.ok) errors.push(r.error)
+      else {
+        done.push(k)
+        if (r.warning) warnings.push(r.warning)
+      }
     }
     if (done.length) {
       const where = done.length === 1 ? labelOfKey(done[0]) : `${done.length} months`
       toast.success(`${mode === 'move' ? 'Moved' : 'Copied'} “${item!.name}” to ${where}.`)
       close()
     }
+    warnings.forEach((w) => toast.warning(w))
     errors.forEach((e) => toast.error(e))
   }
 
@@ -106,33 +112,34 @@ export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
             const isSource = key === monthKey && mode === 'move'
             const fit = fitCheck(months, key, item.price)
             const m = months[key]
-            const left = (m?.budget ?? 0) - (m?.items ?? []).reduce((s, i) => s + i.price, 0)
             const on = picked.includes(key)
-            const disabled = isSource || !fit.ok
+            const disabled = isSource
             return (
               <button
                 key={key}
                 disabled={disabled}
-                title={isSource ? 'Item is already here' : fit.ok ? undefined : fit.error}
+                title={isSource ? 'Item is already here' : (fit.warning ?? undefined)}
                 onClick={() => clickMonth(key)}
                 className={`relative rounded-xl border px-2 py-2.5 text-left transition ${
                   on
                     ? 'border-indigo-400/70 bg-indigo-500/20'
                     : disabled
                       ? 'cursor-not-allowed border-white/[0.05] opacity-45'
-                      : 'border-white/10 bg-white/[0.02] hover:border-indigo-400/40 hover:bg-indigo-500/10'
+                      : fit.warning
+                        ? 'border-red-500/40 bg-red-500/[0.06] hover:border-red-400/60 hover:bg-red-500/10'
+                        : 'border-white/10 bg-white/[0.02] hover:border-indigo-400/40 hover:bg-indigo-500/10'
                 }`}
               >
                 <p className="text-sm font-semibold text-white">{label}</p>
-                <p className={`truncate text-[11px] tabular-nums ${fit.ok ? 'text-zinc-400' : 'text-red-300'}`}>
-                  {isSource ? 'current' : !m?.budget ? 'no budget' : `${f(Math.max(0, left), true)} left`}
+                <p className={`truncate text-[11px] tabular-nums ${isSource || !fit.warning ? 'text-zinc-400' : 'text-red-300'}`}>
+                  {isSource ? 'current' : !m?.budget ? 'no budget' : `${f(fit.left, true)} left`}
                 </p>
                 {on && <Check className="absolute right-2 top-2 h-4 w-4 text-indigo-200" />}
               </button>
             )
           })}
         </div>
-        <p className="text-[11px] text-zinc-500">Faded months don't have enough budget left for this item. Hover one to see why.</p>
+        <p className="text-[11px] text-zinc-500">Red months don't have enough budget or earnings for this item. You can still put it there; it'll just be marked red. Hover one to see why.</p>
       </div>
     </Modal>
   )

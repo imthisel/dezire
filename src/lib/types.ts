@@ -22,4 +22,5 @@ export interface MonthData {
   items: Item[]
 }
 
-export type Result = { ok: true } | { ok: false; error: string }
+/** `warning` is set when the change went through but put a month over its limit. */
+export type Result = { ok: true; warning?: string } | { ok: false; error: string }

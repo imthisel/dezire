@@ -1,12 +1,12 @@
 import { useState, type MouseEvent } from 'react'
-import { ArrowRightLeft, Copy, CopyPlus, GripVertical, Pencil, Scissors, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowRightLeft, Copy, CopyPlus, GripVertical, Pencil, Scissors, Trash2 } from 'lucide-react'
 import type { Item } from '../lib/types'
 import { CATEGORY, TREND } from '../lib/meta'
 import { useFmt, useStore, useUsd } from '../store'
 import { drag } from '../dnd'
 import { toast } from '../toast'
 
-export function ItemRow({ item, monthKey }: { item: Item; monthKey: string }) {
+export function ItemRow({ item, monthKey, over = false }: { item: Item; monthKey: string; over?: boolean }) {
   const f = useFmt()
   const u = useUsd()
   const [open, setOpen] = useState(false)
@@ -33,7 +33,7 @@ export function ItemRow({ item, monthKey }: { item: Item; monthKey: string }) {
     { icon: ArrowRightLeft, label: 'Move / copy to…', run: () => s().openModal({ type: 'move', key: monthKey, id: item.id }) },
     {
       icon: CopyPlus, label: 'Duplicate in this month',
-      run: () => { const r = s().transferItem(monthKey, item.id, monthKey, 'copy'); r.ok ? toast.success('Duplicated.') : toast.error(r.error) },
+      run: () => toast.result(s().transferItem(monthKey, item.id, monthKey, 'copy'), 'Duplicated.'),
     },
     { icon: Pencil, label: 'Edit', run: () => s().openModal({ type: 'item', key: monthKey, editId: item.id }) },
     {
@@ -52,7 +52,10 @@ export function ItemRow({ item, monthKey }: { item: Item; monthKey: string }) {
       }}
       onDragEnd={() => (drag.current = null)}
       onClick={() => setOpen((o) => !o)}
-      className={`group relative flex cursor-grab items-center gap-2.5 rounded-xl border py-2 pl-1.5 pr-2 transition active:cursor-grabbing ${t.border} ${t.bg} ${
+      title={over ? 'Not enough budget / earnings this month — move it to another month' : undefined}
+      className={`group relative flex cursor-grab items-center gap-2.5 rounded-xl border py-2 pl-1.5 pr-2 transition active:cursor-grabbing ${
+        over ? 'border-red-500/60 bg-red-500/15 ring-1 ring-red-500/40' : `${t.border} ${t.bg}`
+      } ${
         isCut ? 'border-dashed opacity-45' : 'hover:brightness-125'
       }`}
     >
@@ -61,7 +64,10 @@ export function ItemRow({ item, monthKey }: { item: Item; monthKey: string }) {
         <cat.icon className="h-4 w-4" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-zinc-100">{item.name}</p>
+        <p className={`flex items-center gap-1 truncate text-sm font-medium ${over ? 'text-red-200' : 'text-zinc-100'}`}>
+          {over && <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-400" />}
+          {item.name}
+        </p>
         <p className={`flex items-center gap-1 truncate text-[11px] ${t.text}`}>
           <t.icon className="h-3 w-3 shrink-0" />
           {t.label}
@@ -71,7 +77,7 @@ export function ItemRow({ item, monthKey }: { item: Item; monthKey: string }) {
       </div>
 
       <div className={`shrink-0 text-right ${open ? 'hidden' : 'sm:group-hover:hidden'}`}>
-        <p className="text-sm font-semibold tabular-nums text-zinc-100">{f(item.price)}</p>
+        <p className={`text-sm font-semibold tabular-nums ${over ? 'text-red-300' : 'text-zinc-100'}`}>{f(item.price)}</p>
         <p className="text-[10px] tabular-nums text-zinc-500">≈ {u(item.price)}</p>
       </div>
       <div className={`shrink-0 items-center gap-0.5 ${open ? 'flex' : 'hidden sm:group-hover:flex'}`}>
