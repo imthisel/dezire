@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Download, RotateCcw, Target, Upload } from 'lucide-react'
 import { useStore } from '../store'
 import { toast } from '../toast'
+import { AccountMenu, SaveIndicator } from './AccountMenu'
 
 export function Header() {
   const usdRate = useStore((s) => s.usdRate)
@@ -57,6 +58,7 @@ export function Header() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <SaveIndicator />
         <label className={`${btn} pr-1`} title="Exchange rate used to show US dollar amounts">
           <span className="text-zinc-400">Rate</span>
           <span className="flex h-7 items-center rounded-lg bg-white/5 pl-2 text-white">
@@ -96,6 +98,7 @@ export function Header() {
         <button className={`${btn} hover:border-red-500/40 hover:text-red-300`} onClick={reset} title="Clear everything">
           <RotateCcw className="h-4 w-4" />
         </button>
+        <AccountMenu />
       </div>
     </header>
   )

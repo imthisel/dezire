@@ -7,8 +7,17 @@ import { MoveDialog } from './components/MoveDialog'
 import { GoalModal } from './components/GoalModal'
 import { ClipboardBar } from './components/ClipboardBar'
 import { Toasts } from './components/Toasts'
+import { AuthGate } from './components/AuthGate'
 
 export default function App() {
+  return (
+    <AuthGate>
+      <Planner />
+    </AuthGate>
+  )
+}
+
+function Planner() {
   const modal = useStore((s) => s.modal)
 
   return (
@@ -25,7 +34,7 @@ export default function App() {
           <YearSection />
         </main>
         <footer className="pb-10 text-center text-xs text-zinc-600">
-          Saved automatically in this browser · use Export to back up
+          Saved automatically to your Google account · use Export for an offline backup
         </footer>
       </div>
 
