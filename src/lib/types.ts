@@ -24,3 +24,14 @@ export interface MonthData {
 
 /** `warning` is set when the change went through but put a month over its limit. */
 export type Result = { ok: true; warning?: string } | { ok: false; error: string }
+
+/** The four areas of life a yearly goal can belong to. */
+export type GoalArea = 'mind' | 'body' | 'status' | 'identity'
+
+export interface Goal {
+  id: string
+  text: string
+  area: GoalArea
+  done: boolean
+  createdAt: number
+}

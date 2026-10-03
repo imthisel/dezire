@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Wand2 } from 'lucide-react'
 import { useFmt, usePlan, useStore, useUsd } from '../store'
 import { END_YEAR, START_YEAR, YEARS, currentYear } from '../lib/time'
 import { MonthCard } from './MonthCard'
+import { GoalsSection } from './GoalsSection'
 import { MoneyInput } from './MoneyInput'
 import { card } from './Dashboard'
 import { toast } from '../toast'
@@ -43,6 +44,7 @@ export function YearSection() {
           {year + 1 <= END_YEAR ? year + 1 : ''} <ChevronRight className="h-4 w-4" />
         </button>
       </div>
+      <GoalsSection />
     </section>
   )
 }

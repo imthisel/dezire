@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Category, Item, MonthData, Result, Trend } from './lib/types'
+import type { Category, Goal, GoalArea, Item, MonthData, Result, Trend } from './lib/types'
+import { GOAL_AREA, GOAL_AREAS } from './lib/meta'
 import { DEFAULT_USD_RATE, PESO, fmt, fmtUsd } from './lib/money'
 import { currentYear, labelOfKey, END_YEAR, START_YEAR, indexOf, keyOf } from './lib/time'
 import { computeAll, spendLimit, type MonthCalc } from './lib/calc'
@@ -9,6 +10,7 @@ export type Clip = { mode: 'copy' | 'cut'; fromKey: string; item: Item }
 export type ModalState =
   | { type: 'item'; key: string; editId?: string }
   | { type: 'move'; key: string; id: string }
+  | { type: 'goal'; year: number; editId?: string; area?: GoalArea }
   | null
 export type MonthField = 'goal' | 'budget' | 'earned'
 export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number }
@@ -63,6 +65,10 @@ interface State {
   dashMode: 'plan' | 'today'
   clipboard: Clip | null
   modal: ModalState
+  /** Yearly goals, keyed by year ("2027") */
+  goals: Record<string, Goal[]>
+  /** Custom names for the goal areas; missing = default name */
+  areaLabels: Partial<Record<GoalArea, string>>
 
   setYear: (y: number) => void
   setUsdRate: (r: number) => void
@@ -82,6 +88,13 @@ interface State {
   pasteInto: (key: string) => Result
   clearClipboard: () => void
 
+  addGoal: (year: number, area: GoalArea, text: string) => void
+  updateGoal: (year: number, id: string, patch: Partial<Pick<Goal, 'text' | 'area' | 'done'>>) => void
+  removeGoal: (year: number, id: string) => void
+  /** Copies this year's unfinished goals into the next year (skipping ones already there). Returns how many were copied. */
+  carryOverGoals: (year: number) => number
+  setAreaLabel: (area: GoalArea, label: string) => void
+
   importData: (data: unknown) => Result
   resetAll: () => void
 }
@@ -95,6 +108,8 @@ export const useStore = create<State>()(
       dashMode: 'plan',
       clipboard: null,
       modal: null,
+      goals: {},
+      areaLabels: {},
 
       setYear: (year) => set({ year: Math.min(END_YEAR, Math.max(START_YEAR, year)) }),
       setUsdRate: (r) => set({ usdRate: r > 0 ? r : DEFAULT_USD_RATE }),
@@ -189,9 +204,46 @@ export const useStore = create<State>()(
 
       clearClipboard: () => set({ clipboard: null }),
 
+      addGoal: (year, area, text) =>
+        set((s) => {
+          const goal: Goal = { id: uid(), text: text.trim(), area, done: false, createdAt: Date.now() }
+          return { goals: { ...s.goals, [year]: [...(s.goals[year] ?? []), goal] } }
+        }),
+
+      updateGoal: (year, id, patch) =>
+        set((s) => ({
+          goals: { ...s.goals, [year]: (s.goals[year] ?? []).map((g) => (g.id === id ? { ...g, ...patch } : g)) },
+        })),
+
+      removeGoal: (year, id) =>
+        set((s) => ({ goals: { ...s.goals, [year]: (s.goals[year] ?? []).filter((g) => g.id !== id) } })),
+
+      carryOverGoals: (year) => {
+        const { goals } = get()
+        const next = goals[year + 1] ?? []
+        const seen = new Set(next.map((g) => `${g.area}|${g.text.toLowerCase()}`))
+        const copies = (goals[year] ?? [])
+          .filter((g) => !g.done && !seen.has(`${g.area}|${g.text.toLowerCase()}`))
+          .map((g) => ({ ...g, id: uid(), createdAt: Date.now() }))
+        if (copies.length) set({ goals: { ...goals, [year + 1]: [...next, ...copies] } })
+        return copies.length
+      },
+
+      setAreaLabel: (area, label) =>
+        set((s) => {
+          const { [area]: _old, ...rest } = s.areaLabels
+          const clean = label.trim()
+          return { areaLabels: clean && clean !== GOAL_AREA[area].label ? { ...rest, [area]: clean } : rest }
+        }),
+
       importData: (data) => {
         try {
-          const d = data as { months?: Record<string, Partial<MonthData>>; usdRate?: number }
+          const d = data as {
+            months?: Record<string, Partial<MonthData>>
+            usdRate?: number
+            goals?: Record<string, Partial<Goal>[]>
+            areaLabels?: Record<string, unknown>
+          }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
             return fail('That file is not a Dezire backup.')
           }
@@ -215,19 +267,44 @@ export const useStore = create<State>()(
                 : [],
             }
           }
-          set({ months, usdRate: Number(d.usdRate) > 0 ? Number(d.usdRate) : get().usdRate, clipboard: null })
+          const isArea = (a: unknown): a is GoalArea => GOAL_AREAS.includes(a as GoalArea)
+          const goals: Record<string, Goal[]> = {}
+          for (const [year, list] of Object.entries(d.goals ?? {})) {
+            if (!/^\d{4}$/.test(year) || !Array.isArray(list)) continue
+            goals[year] = list
+              .filter((g) => g && typeof g.text === 'string' && g.text.trim())
+              .map((g) => ({
+                id: g.id || uid(),
+                text: String(g.text).trim(),
+                area: isArea(g.area) ? g.area : 'identity',
+                done: !!g.done,
+                createdAt: Number(g.createdAt) || Date.now(),
+              }))
+          }
+          const areaLabels: Partial<Record<GoalArea, string>> = {}
+          for (const [a, label] of Object.entries(d.areaLabels ?? {})) {
+            if (isArea(a) && typeof label === 'string' && label.trim()) areaLabels[a] = label.trim()
+          }
+          set({ months, goals, areaLabels, usdRate: Number(d.usdRate) > 0 ? Number(d.usdRate) : get().usdRate, clipboard: null })
           return OK
         } catch {
           return fail('Could not read that file.')
         }
       },
 
-      resetAll: () => set({ months: {}, clipboard: null, modal: null }),
+      resetAll: () => set({ months: {}, goals: {}, areaLabels: {}, clipboard: null, modal: null }),
     }),
     {
       name: 'dezire-goal-planner-v1',
       version: 1,
-      partialize: (s) => ({ months: s.months, usdRate: s.usdRate, year: s.year, dashMode: s.dashMode }),
+      partialize: (s) => ({
+        months: s.months,
+        goals: s.goals,
+        areaLabels: s.areaLabels,
+        usdRate: s.usdRate,
+        year: s.year,
+        dashMode: s.dashMode,
+      }),
       // v0 had a selectable currency; amounts are now always pesos.
       migrate: (persisted) => {
         const { currency: _drop, ...rest } = (persisted ?? {}) as Record<string, unknown>
@@ -253,6 +330,12 @@ export function usePlan() {
     planCache = computeAll(months)
   }
   return planCache
+}
+
+/** The name shown for a goal area — the user's custom name, or the default. */
+export function useAreaLabel() {
+  const labels = useStore((s) => s.areaLabels)
+  return (area: GoalArea) => labels[area] || GOAL_AREA[area].label
 }
 
 /** Formats pesos: ₱100,000 */

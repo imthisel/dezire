@@ -4,6 +4,7 @@ import { Dashboard } from './components/Dashboard'
 import { YearSection } from './components/YearSection'
 import { ItemModal } from './components/ItemModal'
 import { MoveDialog } from './components/MoveDialog'
+import { GoalModal } from './components/GoalModal'
 import { ClipboardBar } from './components/ClipboardBar'
 import { Toasts } from './components/Toasts'
 
@@ -32,6 +33,9 @@ export default function App() {
       <Toasts />
       {modal?.type === 'item' && <ItemModal key={`${modal.key}-${modal.editId ?? 'new'}`} monthKey={modal.key} editId={modal.editId} />}
       {modal?.type === 'move' && <MoveDialog key={modal.id} monthKey={modal.key} id={modal.id} />}
+      {modal?.type === 'goal' && (
+        <GoalModal key={`${modal.year}-${modal.editId ?? modal.area ?? 'new'}`} year={modal.year} editId={modal.editId} area={modal.area} />
+      )}
     </div>
   )
 }
