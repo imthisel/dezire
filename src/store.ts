@@ -358,7 +358,7 @@ export const useStore = create<State>()(
                 ? raw.items.map((i) => ({
                     id: i.id || uid(),
                     name: String(i.name ?? 'Item'),
-                    category: (['property', 'vehicle', 'status'].includes(i.category) ? i.category : 'status') as Category,
+                    category: (['property', 'vehicle', 'status', 'other'].includes(i.category) ? i.category : 'other') as Category,
                     trend: (['appreciating', 'depreciating', 'stable'].includes(i.trend) ? i.trend : 'stable') as Trend,
                     price: Number(i.price) || 0,
                     rate: Number(i.rate) || 0,

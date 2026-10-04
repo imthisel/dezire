@@ -114,6 +114,7 @@ export function portfolioAt(months: Record<string, MonthData>, asOf: number): Po
       property: { value: 0, cost: 0, count: 0 },
       vehicle: { value: 0, cost: 0, count: 0 },
       status: { value: 0, cost: 0, count: 0 },
+      other: { value: 0, cost: 0, count: 0 },
     },
     byTrend: { appreciating: 0, depreciating: 0, stable: 0 },
     value: 0,

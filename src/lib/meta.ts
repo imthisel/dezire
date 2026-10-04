@@ -1,5 +1,5 @@
 import {
-  Brain, Briefcase, Car, Crown, Dumbbell, Fingerprint, Gem, Home, Laptop, Lightbulb, Minus, PiggyBank, Rocket, Smartphone, Sparkles, Store,
+  Brain, Briefcase, Car, Crown, Dumbbell, Fingerprint, Gem, Home, Laptop, Lightbulb, Minus, Package, PiggyBank, Rocket, Smartphone, Sparkles, Store,
   TrendingDown, TrendingUp, type LucideIcon,
 } from 'lucide-react'
 import type { Category, GoalArea, SourceKind, SourceStage, Trend } from './types'
@@ -8,6 +8,7 @@ export const CATEGORY: Record<Category, { label: string; short: string; hint: st
   property: { label: 'Land / Property', short: 'Property', hint: 'Land, house, condo, lot', icon: Home },
   vehicle: { label: 'Vehicle', short: 'Vehicle', hint: 'Car, motorbike, boat', icon: Car },
   status: { label: 'Status', short: 'Status', hint: 'Watch, jewelry, luxury', icon: Gem },
+  other: { label: 'Other', short: 'Other', hint: 'Gadgets, art, anything else', icon: Package },
 }
 
 export const TREND: Record<

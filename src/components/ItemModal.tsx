@@ -93,7 +93,7 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
         </div>
 
         <Step n={1} title="What kind of item is it?" done={!!category}>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {(Object.keys(CATEGORY) as Category[]).map((k) => {
               const c = CATEGORY[k]
               const on = category === k
