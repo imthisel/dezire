@@ -1,15 +1,26 @@
-import { useState, type MouseEvent } from 'react'
-import { AlertTriangle, ArrowRightLeft, Copy, CopyPlus, GripVertical, Pencil, Scissors, Trash2 } from 'lucide-react'
+import { useState, type DragEvent, type MouseEvent } from 'react'
+import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Copy, CopyPlus, GripVertical, Pencil, Scissors, Trash2 } from 'lucide-react'
 import type { Item } from '../lib/types'
 import { CATEGORY, TREND } from '../lib/meta'
 import { useFmt, useStore, useUsd } from '../store'
 import { drag } from '../dnd'
 import { toast } from '../toast'
 
-export function ItemRow({ item, monthKey, over = false }: { item: Item; monthKey: string; over?: boolean }) {
+interface Props {
+  item: Item
+  monthKey: string
+  over?: boolean
+  /** Neighbours in the month's list, for Move up / Move down */
+  prevId?: string
+  nextId?: string
+}
+
+export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props) {
   const f = useFmt()
   const u = useUsd()
   const [open, setOpen] = useState(false)
+  /** Where a dragged item would land relative to this one */
+  const [dropAt, setDropAt] = useState<null | 'above' | 'below'>(null)
   const clipboard = useStore((s) => s.clipboard)
   const t = TREND[item.trend]
   const cat = CATEGORY[item.category]
@@ -22,6 +33,12 @@ export function ItemRow({ item, monthKey, over = false }: { item: Item; monthKey
   const s = useStore.getState
 
   const actions = [
+    ...(prevId
+      ? [{ icon: ArrowUp, label: 'Move up', run: () => s().transferItem(monthKey, item.id, monthKey, 'move', { id: prevId, after: false }) }]
+      : []),
+    ...(nextId
+      ? [{ icon: ArrowDown, label: 'Move down', run: () => s().transferItem(monthKey, item.id, monthKey, 'move', { id: nextId, after: true }) }]
+      : []),
     {
       icon: Copy, label: 'Copy (then Paste on any month)',
       run: () => { s().copyToClipboard(monthKey, item.id, 'copy'); toast.info(`Copied “${item.name}”. Click Paste on any month.`) },
@@ -42,6 +59,29 @@ export function ItemRow({ item, monthKey, over = false }: { item: Item; monthKey
     },
   ]
 
+  const half = (e: DragEvent<HTMLLIElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    return e.clientY < r.top + r.height / 2 ? 'above' : 'below'
+  }
+
+  function onDragOver(e: DragEvent<HTMLLIElement>) {
+    const d = drag.current
+    if (!d) return
+    setDropAt(d.id === item.id ? null : half(e))
+  }
+
+  function onDrop(e: DragEvent<HTMLLIElement>) {
+    setDropAt(null)
+    const d = drag.current
+    if (!d || d.id === item.id) return
+    // Handled here; clearing `drag` makes the month card's own drop handler skip it
+    drag.current = null
+    e.preventDefault()
+    const mode = e.ctrlKey || e.altKey || e.metaKey ? 'copy' : 'move'
+    const r = s().transferItem(d.fromKey, d.id, monthKey, mode, { id: item.id, after: half(e) === 'below' })
+    if (d.fromKey !== monthKey || mode === 'copy') toast.result(r, mode === 'copy' ? 'Copied.' : 'Moved.')
+  }
+
   return (
     <li
       draggable
@@ -51,6 +91,9 @@ export function ItemRow({ item, monthKey, over = false }: { item: Item; monthKey
         e.dataTransfer.setData('text/plain', item.name)
       }}
       onDragEnd={() => (drag.current = null)}
+      onDragOver={onDragOver}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropAt(null)}
+      onDrop={onDrop}
       onClick={() => setOpen((o) => !o)}
       title={over ? 'Not enough budget / earnings this month — move it to another month' : undefined}
       className={`group relative flex cursor-grab flex-wrap items-center gap-2.5 rounded-xl border py-2 pl-2.5 pr-2 transition sm:flex-nowrap sm:pl-1.5 active:cursor-grabbing ${
@@ -59,6 +102,11 @@ export function ItemRow({ item, monthKey, over = false }: { item: Item; monthKey
         isCut ? 'border-dashed opacity-45' : 'hover:brightness-125'
       }`}
     >
+      {dropAt && (
+        <span
+          className={`pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-indigo-400 ${dropAt === 'above' ? '-top-1' : '-bottom-1'}`}
+        />
+      )}
       <GripVertical className="hidden h-4 w-4 shrink-0 text-zinc-600 transition group-hover:text-zinc-400 sm:block" />
       <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${t.iconBg} ${t.text}`}>
         <cat.icon className="h-4 w-4" />

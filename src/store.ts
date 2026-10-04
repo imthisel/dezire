@@ -13,6 +13,8 @@ export type ModalState =
   | { type: 'goal'; year: number; editId?: string; area?: GoalArea }
   | null
 export type MonthField = 'goal' | 'budget' | 'earned'
+/** Where to drop an item in a month's list: next to item `id`. Missing = at the end. */
+export type DropAt = { id: string; after: boolean }
 export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number }
 
 const OK: Result = { ok: true }
@@ -82,7 +84,7 @@ interface State {
   addItem: (key: string, data: ItemInput) => Result
   updateItem: (key: string, id: string, data: ItemInput) => Result
   removeItem: (key: string, id: string) => void
-  transferItem: (fromKey: string, id: string, toKey: string, mode: 'copy' | 'move') => Result
+  transferItem: (fromKey: string, id: string, toKey: string, mode: 'copy' | 'move', at?: DropAt) => Result
 
   copyToClipboard: (key: string, id: string, mode: 'copy' | 'cut') => void
   pasteInto: (key: string) => Result
@@ -164,18 +166,24 @@ export const useStore = create<State>()(
           return { months: { ...s.months, [key]: { ...m, items: m.items.filter((i) => i.id !== id) } }, clipboard }
         }),
 
-      transferItem: (fromKey, id, toKey, mode) => {
+      transferItem: (fromKey, id, toKey, mode, at) => {
         const { months } = get()
         const src = months[fromKey]
         const item = src?.items.find((i) => i.id === id)
         if (!src || !item) return fail('That item no longer exists.')
-        if (mode === 'move' && fromKey === toKey) return OK
+        if (mode === 'move' && at?.id === id) return OK
         const next = { ...months }
         if (mode === 'move') next[fromKey] = { ...src, items: src.items.filter((i) => i.id !== id) }
         const dest = next[toKey] ?? emptyMonth()
         const moved = mode === 'move' ? item : { ...item, id: uid(), createdAt: Date.now() }
-        next[toKey] = { ...dest, items: [...dest.items, moved] }
+        const items = [...dest.items]
+        const ti = at ? items.findIndex((i) => i.id === at.id) : -1
+        if (ti < 0) items.push(moved)
+        else items.splice(ti + (at!.after ? 1 : 0), 0, moved)
+        next[toKey] = { ...dest, items }
         set({ months: next })
+        // Reordering inside the same month doesn't change what it spends
+        if (mode === 'move' && fromKey === toKey) return OK
         return warned(toKey, item.price, months)
       },
 

@@ -39,7 +39,7 @@ export function MonthCard({ index }: { index: number }) {
   function onDragOver(e: DragEvent) {
     if (!drag.current) return
     e.preventDefault()
-    const copy = isCopy(e) || drag.current.fromKey === c.key
+    const copy = isCopy(e)
     e.dataTransfer.dropEffect = copy ? 'copy' : 'move'
     setDropMode(copy ? 'copy' : 'move')
   }
@@ -49,9 +49,11 @@ export function MonthCard({ index }: { index: number }) {
     setDropMode(null)
     const d = drag.current
     drag.current = null
-    if (!d || (d.fromKey === c.key && !isCopy(e))) return
+    if (!d) return
     const mode = isCopy(e) ? 'copy' : 'move'
     const r = transferItem(d.fromKey, d.id, c.key, mode)
+    // Dropped on an empty spot of its own month: just sent to the bottom of the list
+    if (d.fromKey === c.key && mode === 'move') return
     toast.result(r, `${mode === 'copy' ? 'Copied' : 'Moved'} to ${MONTHS[c.month]} ${c.year}.`)
   }
 
@@ -178,8 +180,15 @@ export function MonthCard({ index }: { index: number }) {
 
       {/* Items */}
       <ul className="mt-3 flex flex-1 flex-col gap-1.5">
-        {items.map((it) => (
-          <ItemRow key={it.id} item={it} monthKey={c.key} over={over.has(it.id)} />
+        {items.map((it, i) => (
+          <ItemRow
+            key={it.id}
+            item={it}
+            monthKey={c.key}
+            over={over.has(it.id)}
+            prevId={items[i - 1]?.id}
+            nextId={items[i + 1]?.id}
+          />
         ))}
         {items.length === 0 && (
           <li className="grid flex-1 place-items-center rounded-xl border border-dashed border-white/[0.08] py-4 text-center text-xs text-zinc-500">
