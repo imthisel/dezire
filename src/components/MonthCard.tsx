@@ -18,7 +18,6 @@ export function MonthCard({ index }: { index: number }) {
   const month = useStore((s) => s.months[c.key])
   const items = month?.items ?? EMPTY
   const over = overLimitIds(month)
-  const earnedRaw = useStore((s) => s.months[c.key]?.earned ?? null)
   const clipboard = useStore((s) => s.clipboard)
   const { setMonthField, openModal, pasteInto, transferItem } = useStore.getState()
   const [dropMode, setDropMode] = useState<null | 'move' | 'copy'>(null)
@@ -31,6 +30,7 @@ export function MonthCard({ index }: { index: number }) {
   const open = !phone || expanded
   const isPast = index < today
   const left = c.budget - c.spent
+  const risk = c.goal - c.budget
   const pct = c.budget > 0 ? c.spent / c.budget : 0
   const barCls = pct > 1 ? 'bg-red-400' : pct >= 0.85 ? 'bg-amber-300' : 'bg-emerald-400'
 
@@ -116,7 +116,7 @@ export function MonthCard({ index }: { index: number }) {
         </div>
       </header>
 
-      {/* Month label: goal / budget / earned */}
+      {/* Month label: goal / budget / risk */}
       {open && (
       <div className="grid grid-cols-3 gap-2">
         <Field label="Goal to make">
@@ -125,14 +125,15 @@ export function MonthCard({ index }: { index: number }) {
         <Field label="Budget">
           <MoneyInput value={c.budget} onChange={(v) => setMonthField(c.key, 'budget', v)} ariaLabel={`${MONTHS[c.month]} budget`} />
         </Field>
-        <Field label="Earned" hint={earnedRaw === null && c.goal > 0 ? '= goal' : undefined}>
-          <MoneyInput
-            value={earnedRaw}
-            nullable
-            placeholder={c.goal > 0 ? f(c.goal, true).replace(/^[^\d]+/, '') : '0'}
-            onChange={(v) => setMonthField(c.key, 'earned', v)}
-            ariaLabel={`${MONTHS[c.month]} actually earned`}
-          />
+        <Field label="Risk" hint="goal − budget">
+          <div
+            aria-label={`${MONTHS[c.month]} risk (goal minus budget)`}
+            className={`flex h-9 min-w-0 items-center truncate rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 text-sm font-medium tabular-nums ${
+              risk < 0 ? 'text-red-300' : 'text-zinc-300'
+            }`}
+          >
+            {f(risk)}
+          </div>
         </Field>
       </div>
       )}
