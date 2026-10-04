@@ -52,35 +52,34 @@ export function GoalModal({ year, editId, area: preset }: { year: number; editId
       onClose={close}
       width="max-w-2xl"
       footer={
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-zinc-500">
-            {added > 0 ? (
-              <span className="text-emerald-300">
-                {added} goal{added > 1 ? 's' : ''} added
-              </span>
-            ) : (
-              <span className="hidden items-center gap-1 sm:inline-flex">
-                <CornerDownLeft className="h-3 w-3" /> Enter to save · Shift+Enter for a new line
-              </span>
-            )}
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {added > 0 ? (
+            <p className="text-xs text-emerald-300">
+              {added} goal{added > 1 ? 's' : ''} added
+            </p>
+          ) : (
+            <p className="hidden items-center gap-1 text-xs text-zinc-500 sm:inline-flex">
+              <CornerDownLeft className="h-3 w-3" /> Enter to save · Shift+Enter for a new line
+            </p>
+          )}
           <div className="flex gap-2">
-            <button onClick={close} className="h-10 rounded-xl px-4 text-sm font-medium text-zinc-300 transition hover:bg-white/5">
+            <button onClick={close} className="h-11 rounded-xl px-3 text-sm font-medium text-zinc-300 transition hover:bg-white/5 sm:h-10 sm:px-4">
               {added > 0 ? 'Done' : 'Cancel'}
             </button>
             {!editing && (
               <button
                 onClick={() => save(true)}
                 disabled={!ready}
-                className="h-10 rounded-xl border border-white/10 px-4 text-sm font-medium text-zinc-200 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-11 flex-1 whitespace-nowrap rounded-xl border border-white/10 px-3 text-sm font-medium text-zinc-200 sm:h-10 sm:flex-none sm:px-4 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Add &amp; another
+                <span className="sm:hidden">+ Another</span>
+                <span className="hidden sm:inline">Add &amp; another</span>
               </button>
             )}
             <button
               onClick={() => save()}
               disabled={!ready}
-              className="h-10 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-400 px-5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+              className="h-11 flex-1 rounded-xl bg-gradient-to-r sm:h-10 sm:flex-none from-indigo-500 to-indigo-400 px-5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
             >
               {editing ? 'Save changes' : 'Add goal'}
             </button>
@@ -126,6 +125,7 @@ export function GoalModal({ year, editId, area: preset }: { year: number; editId
           <textarea
             ref={input}
             rows={2}
+            enterKeyHint="done"
             value={text}
             disabled={!area}
             onChange={(e) => setText(e.target.value)}

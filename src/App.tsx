@@ -8,6 +8,7 @@ import { GoalModal } from './components/GoalModal'
 import { ClipboardBar } from './components/ClipboardBar'
 import { Toasts } from './components/Toasts'
 import { AuthGate } from './components/AuthGate'
+import { MobileNav } from './components/MobileNav'
 
 export default function App() {
   return (
@@ -29,15 +30,16 @@ function Planner() {
 
       <div className="relative">
         <Header />
-        <main className="mx-auto max-w-[1440px] space-y-8 px-4 pb-32 sm:px-6 lg:px-8">
+        <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-16 sm:space-y-8 sm:px-6 sm:pb-32 lg:px-8">
           <Dashboard />
           <YearSection />
         </main>
-        <footer className="pb-10 text-center text-xs text-zinc-600">
+        <footer className="px-4 pb-28 text-center text-xs text-zinc-600 sm:pb-10">
           Saved automatically to your Google account · use Export for an offline backup
         </footer>
       </div>
 
+      <MobileNav />
       <ClipboardBar />
       <Toasts />
       {modal?.type === 'item' && <ItemModal key={`${modal.key}-${modal.editId ?? 'new'}`} monthKey={modal.key} editId={modal.editId} />}

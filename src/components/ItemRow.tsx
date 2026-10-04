@@ -53,13 +53,13 @@ export function ItemRow({ item, monthKey, over = false }: { item: Item; monthKey
       onDragEnd={() => (drag.current = null)}
       onClick={() => setOpen((o) => !o)}
       title={over ? 'Not enough budget / earnings this month — move it to another month' : undefined}
-      className={`group relative flex cursor-grab items-center gap-2.5 rounded-xl border py-2 pl-1.5 pr-2 transition active:cursor-grabbing ${
+      className={`group relative flex cursor-grab flex-wrap items-center gap-2.5 rounded-xl border py-2 pl-2.5 pr-2 transition sm:flex-nowrap sm:pl-1.5 active:cursor-grabbing ${
         over ? 'border-red-500/60 bg-red-500/15 ring-1 ring-red-500/40' : `${t.border} ${t.bg}`
       } ${
         isCut ? 'border-dashed opacity-45' : 'hover:brightness-125'
       }`}
     >
-      <GripVertical className="h-4 w-4 shrink-0 text-zinc-600 transition group-hover:text-zinc-400" />
+      <GripVertical className="hidden h-4 w-4 shrink-0 text-zinc-600 transition group-hover:text-zinc-400 sm:block" />
       <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${t.iconBg} ${t.text}`}>
         <cat.icon className="h-4 w-4" />
       </span>
@@ -72,22 +72,26 @@ export function ItemRow({ item, monthKey, over = false }: { item: Item; monthKey
           <t.icon className="h-3 w-3 shrink-0" />
           {t.label}
           {item.trend !== 'stable' && item.rate > 0 && <span className="opacity-80">· {item.rate}%/yr</span>}
-          <span className="text-zinc-500">· {cat.short}</span>
+          <span className="hidden text-zinc-500 sm:inline">· {cat.short}</span>
         </p>
       </div>
 
-      <div className={`shrink-0 text-right ${open ? 'hidden' : 'sm:group-hover:hidden'}`}>
+      <div className={`shrink-0 text-right ${open ? 'max-sm:block sm:hidden' : 'sm:group-hover:hidden'}`}>
         <p className={`text-sm font-semibold tabular-nums ${over ? 'text-red-300' : 'text-zinc-100'}`}>{f(item.price)}</p>
         <p className="text-[10px] tabular-nums text-zinc-500">≈ {u(item.price)}</p>
       </div>
-      <div className={`shrink-0 items-center gap-0.5 ${open ? 'flex' : 'hidden sm:group-hover:flex'}`}>
+      <div
+        className={`shrink-0 items-center gap-0.5 max-sm:w-full max-sm:justify-between max-sm:border-t max-sm:border-white/[0.06] max-sm:pt-1.5 ${
+          open ? 'animate-fade flex' : 'hidden sm:group-hover:flex'
+        }`}
+      >
         {actions.map((a) => (
           <button
             key={a.label}
             title={a.label}
             aria-label={a.label}
             onClick={act(a.run)}
-            className={`grid h-7 w-7 place-items-center rounded-md text-zinc-400 transition hover:bg-white/10 ${
+            className={`grid h-9 w-9 place-items-center rounded-lg text-zinc-400 transition hover:bg-white/10 sm:h-7 sm:w-7 sm:rounded-md ${
               a.danger ? 'hover:text-red-300' : 'hover:text-white'
             }`}
           >

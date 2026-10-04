@@ -11,7 +11,7 @@ const STYLE = {
 export function Toasts() {
   const { toasts, dismiss } = useToasts()
   return (
-    <div className="pointer-events-none fixed inset-x-4 top-4 z-[60] flex flex-col items-end gap-2 sm:left-auto sm:right-6 sm:top-6 sm:w-[400px]">
+    <div className="pointer-events-none fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[60] flex flex-col items-end gap-2 sm:left-auto sm:right-6 sm:top-6 sm:w-[400px]">
       {toasts.map((t) => {
         const s = STYLE[t.kind]
         return (

@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type ReactNode } from 'react'
-import { ClipboardPaste, Plus } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ClipboardPaste, Plus } from 'lucide-react'
 import { useFmt, usePlan, useStore, useUsd } from '../store'
 import { MONTHS, currentIndex } from '../lib/time'
 import { overLimitIds } from '../lib/calc'
@@ -7,6 +7,7 @@ import { MoneyInput } from './MoneyInput'
 import { ItemRow } from './ItemRow'
 import { drag } from '../dnd'
 import { toast } from '../toast'
+import { useIsPhone } from '../lib/useMedia'
 
 const EMPTY: never[] = []
 
@@ -24,6 +25,10 @@ export function MonthCard({ index }: { index: number }) {
 
   const today = currentIndex()
   const isCurrent = index === today
+  // On phones months are collapsed to a summary; tap to open. The current month starts open.
+  const phone = useIsPhone()
+  const [expanded, setExpanded] = useState(isCurrent)
+  const open = !phone || expanded
   const isPast = index < today
   const left = c.budget - c.spent
   const pct = c.budget > 0 ? c.spent / c.budget : 0
@@ -60,7 +65,8 @@ export function MonthCard({ index }: { index: number }) {
       onDragOver={onDragOver}
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropMode(null)}
       onDrop={onDrop}
-      className={`relative flex flex-col rounded-2xl border bg-white/[0.025] p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] transition ${
+      onClick={phone && !open ? () => setExpanded(true) : undefined}
+      className={`relative flex min-w-0 flex-col rounded-2xl border bg-white/[0.025] p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] transition ${
         dropMode
           ? 'border-indigo-400/60 bg-indigo-500/[0.07] ring-2 ring-indigo-400/30'
           : isCurrent
@@ -69,8 +75,17 @@ export function MonthCard({ index }: { index: number }) {
       }`}
     >
       {/* Header */}
-      <header className="mb-3 flex items-start justify-between gap-3">
-        <div>
+      <header
+        {...(phone && {
+          role: 'button',
+          tabIndex: 0,
+          'aria-expanded': expanded,
+          onClick: () => setExpanded((e) => !e),
+          onKeyDown: (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setExpanded((x) => !x)),
+        })}
+        className={`flex items-start justify-between gap-3 ${open ? 'mb-3' : ''} ${phone ? 'cursor-pointer' : ''}`}
+      >
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h3 className={`text-lg font-semibold tracking-tight ${isPast ? 'text-zinc-300' : 'text-white'}`}>{MONTHS[c.month]}</h3>
             {isCurrent && (
@@ -79,16 +94,30 @@ export function MonthCard({ index }: { index: number }) {
               </span>
             )}
           </div>
-          <p className="text-xs text-zinc-500">{c.year}</p>
+          <p className="text-xs text-zinc-500">
+            {phone && !open ? (
+              <span className="text-zinc-400">
+                Goal {f(c.goal, true)} · Budget {f(c.budget, true)}
+              </span>
+            ) : (
+              c.year
+            )}
+          </p>
         </div>
-        <div className="text-right">
+        <div className="flex shrink-0 items-start gap-2 text-right">
+          <div>
           <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Net worth</p>
           <p className={`text-sm font-semibold tabular-nums ${c.netWorth < 0 ? 'text-red-300' : 'text-indigo-200'}`}>{f(c.netWorth)}</p>
           <p className="text-[11px] tabular-nums text-zinc-500">≈ {u(c.netWorth)}</p>
+          </div>
+          {phone && (
+            <ChevronDown className={`mt-1 h-5 w-5 text-zinc-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+          )}
         </div>
       </header>
 
       {/* Month label: goal / budget / earned */}
+      {open && (
       <div className="grid grid-cols-3 gap-2">
         <Field label="Goal to make">
           <MoneyInput value={c.goal} onChange={(v) => setMonthField(c.key, 'goal', v)} ariaLabel={`${MONTHS[c.month]} goal`} />
@@ -106,10 +135,11 @@ export function MonthCard({ index }: { index: number }) {
           />
         </Field>
       </div>
+      )}
 
       {/* Budget usage */}
       <div className="mt-3">
-        <div className="mb-1.5 flex items-center justify-between text-xs">
+        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs">
           <span className="text-zinc-400">
             Spent <span className="font-medium tabular-nums text-zinc-200">{f(c.spent)}</span>
             {c.budget > 0 && <span className="text-zinc-500"> of {f(c.budget)}</span>}
@@ -117,7 +147,7 @@ export function MonthCard({ index }: { index: number }) {
           {c.budget > 0 ? (
             <span className={`font-medium tabular-nums ${left < 0 ? 'text-red-300' : 'text-zinc-300'}`}>
               {left < 0 ? `${f(-left)} over` : `${f(left)} left`}
-              <span className="font-normal text-zinc-500"> · {u(Math.abs(left), true)}</span>
+              <span className="hidden font-normal text-zinc-500 sm:inline"> · {u(Math.abs(left), true)}</span>
             </span>
           ) : (
             <span className="text-zinc-500">No budget yet</span>
@@ -128,6 +158,16 @@ export function MonthCard({ index }: { index: number }) {
         </div>
       </div>
 
+      {!open && items.length > 0 && (
+        <p className={`mt-2.5 flex items-center gap-1.5 text-xs ${over.size ? 'text-red-300' : 'text-zinc-400'}`}>
+          {over.size > 0 && <AlertTriangle className="h-3.5 w-3.5" />}
+          {items.length} item{items.length > 1 ? 's' : ''}
+          {over.size > 0 && ` · ${over.size} over the limit`}
+        </p>
+      )}
+
+      {open && (
+        <>
       {/* Running totals (everything from Jan 2026 up to this month) */}
       <div className="mt-3 grid grid-cols-3 divide-x divide-white/[0.06] rounded-xl border border-white/[0.06] bg-black/20">
         <Total k="Total earned" v={f(c.cumEarned, true)} usd={u(c.cumEarned, true)} cls="text-emerald-300" />
@@ -142,7 +182,7 @@ export function MonthCard({ index }: { index: number }) {
         ))}
         {items.length === 0 && (
           <li className="grid flex-1 place-items-center rounded-xl border border-dashed border-white/[0.08] py-4 text-center text-xs text-zinc-500">
-            No items yet · add one or drop one here
+            {phone ? 'No items yet' : 'No items yet · add one or drop one here'}
           </li>
         )}
       </ul>
@@ -165,6 +205,9 @@ export function MonthCard({ index }: { index: number }) {
           </button>
         )}
       </div>
+
+        </>
+      )}
 
       {dropMode && (
         <div className="pointer-events-none absolute inset-x-4 bottom-14 rounded-lg bg-indigo-500/90 px-3 py-1.5 text-center text-xs font-medium text-white shadow-lg">

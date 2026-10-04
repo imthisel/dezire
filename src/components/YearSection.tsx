@@ -17,7 +17,7 @@ export function YearSection() {
     <section className="space-y-4">
       <YearTabs />
       <YearSummary />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 12 }, (_, m) => (
           <MonthCard key={start + m} index={start + m} />
         ))}
@@ -57,10 +57,14 @@ function YearTabs() {
   const scroller = useRef<HTMLDivElement>(null)
   const thisYear = currentYear()
 
+  const first = useRef(true)
   useEffect(() => {
-    scroller.current
-      ?.querySelector<HTMLElement>(`[data-year="${year}"]`)
-      ?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    const strip = scroller.current
+    const tab = strip?.querySelector<HTMLElement>(`[data-year="${year}"]`)
+    if (!strip || !tab) return
+    // Scroll only the tab strip sideways; scrollIntoView would also scroll the whole page.
+    strip.scrollTo({ left: tab.offsetLeft - (strip.clientWidth - tab.offsetWidth) / 2, behavior: first.current ? 'auto' : 'smooth' })
+    first.current = false
   }, [year])
 
   return (
@@ -69,7 +73,7 @@ function YearTabs() {
         <button
           onClick={() => setYear(year - 1)}
           disabled={year <= START_YEAR}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 text-zinc-300 transition hover:bg-white/5 disabled:opacity-30"
+          className="hidden h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 text-zinc-300 transition hover:bg-white/5 disabled:opacity-30 sm:grid"
           aria-label="Previous year"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -86,7 +90,7 @@ function YearTabs() {
                 onClick={() => setYear(y)}
                 onDragEnter={() => setYear(y)}
                 onDragOver={(e) => e.preventDefault()}
-                className={`relative flex min-w-[76px] shrink-0 flex-col items-center rounded-xl px-3 py-1.5 transition ${
+                className={`relative flex min-w-[70px] shrink-0 flex-col items-center rounded-xl px-3 py-1.5 transition ${
                   active
                     ? 'bg-gradient-to-b from-indigo-500/30 to-indigo-500/10 text-white ring-1 ring-indigo-400/50'
                     : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-200'
@@ -104,7 +108,7 @@ function YearTabs() {
         <button
           onClick={() => setYear(year + 1)}
           disabled={year >= END_YEAR}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 text-zinc-300 transition hover:bg-white/5 disabled:opacity-30"
+          className="hidden h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 text-zinc-300 transition hover:bg-white/5 disabled:opacity-30 sm:grid"
           aria-label="Next year"
         >
           <ChevronRight className="h-4 w-4" />
@@ -132,18 +136,21 @@ function YearSummary() {
 
   return (
     <div className={`${card} p-4 sm:p-5`}>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-baseline gap-3">
-          <h2 className="text-3xl font-bold tracking-tight text-white">{year}</h2>
-          <span className="text-sm text-zinc-500">year at a glance</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-baseline gap-3">
+          <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{year}</h2>
+          <span className="truncate text-sm text-zinc-500">year at a glance</span>
         </div>
         <button
           onClick={() => setOpen((o) => !o)}
-          className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+          className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
             open ? 'border-indigo-400/50 bg-indigo-500/15 text-indigo-100' : 'border-white/10 text-zinc-300 hover:bg-white/5'
           }`}
         >
-          <Wand2 className="h-4 w-4" /> Fill whole year
+          <Wand2 className="h-4 w-4" />
+          <span>
+            Fill <span className="hidden sm:inline">whole </span>year
+          </span>
         </button>
       </div>
 
@@ -157,16 +164,16 @@ function YearSummary() {
       </div>
 
       {open && (
-        <div className="animate-fade mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-white/10 bg-black/20 p-4">
-          <label className="w-40">
+        <div className="animate-fade mt-4 grid grid-cols-2 items-end gap-3 rounded-xl border border-white/10 bg-black/20 p-4 sm:flex sm:flex-wrap">
+          <label className="min-w-0 sm:w-40">
             <span className="mb-1 block text-xs text-zinc-400">Goal every month</span>
             <MoneyInput value={goal} nullable onChange={setGoal} placeholder="e.g. 100k" />
           </label>
-          <label className="w-40">
+          <label className="min-w-0 sm:w-40">
             <span className="mb-1 block text-xs text-zinc-400">Budget every month</span>
             <MoneyInput value={budget} nullable onChange={setBudget} placeholder="e.g. 50k" />
           </label>
-          <label className="flex h-9 items-center gap-2 text-sm text-zinc-300">
+          <label className="col-span-2 flex h-9 items-center gap-2 text-sm text-zinc-300">
             <input type="checkbox" checked={onlyEmpty} onChange={(e) => setOnlyEmpty(e.target.checked)} className="accent-indigo-400" />
             Only fill empty months
           </label>
@@ -177,7 +184,7 @@ function YearSummary() {
               toast.success(`Applied to all 12 months of ${year}.`)
               setOpen(false)
             }}
-            className="h-9 rounded-lg bg-indigo-500 px-4 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-40"
+            className="col-span-2 h-10 rounded-lg bg-indigo-500 px-4 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-40 sm:h-9"
           >
             Apply to {year}
           </button>

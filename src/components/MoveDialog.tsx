@@ -59,18 +59,18 @@ export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
       width="max-w-lg"
       footer={
         mode === 'copy' ? (
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-zinc-500">Pick one or more months, across any years.</p>
             <button
               disabled={!picked.length}
               onClick={() => run(picked)}
-              className="h-10 rounded-xl bg-indigo-500 px-5 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-40"
+              className="h-11 rounded-xl sm:h-10 bg-indigo-500 px-5 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-40"
             >
               Copy to {picked.length || ''} month{picked.length === 1 ? '' : 's'}
             </button>
           </div>
         ) : (
-          <p className="text-xs text-zinc-500">Click a month to move the item there.</p>
+          <p className="text-xs text-zinc-500">Tap a month to move the item there.</p>
         )
       }
     >
@@ -139,7 +139,7 @@ export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
             )
           })}
         </div>
-        <p className="text-[11px] text-zinc-500">Red months don't have enough budget or earnings for this item. You can still put it there; it'll just be marked red. Hover one to see why.</p>
+        <p className="text-[11px] text-zinc-500">Red months don't have enough budget or earnings for this item. You can still put it there; it'll just be marked red.</p>
       </div>
     </Modal>
   )

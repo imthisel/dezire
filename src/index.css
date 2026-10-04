@@ -38,6 +38,8 @@ html {
 
 body {
   margin: 0;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
   font-family: var(--font-sans);
   font-feature-settings: "cv11", "ss01";
 }
@@ -47,6 +49,19 @@ body {
 }
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+/* iPhones zoom the whole page when a box with text under 16px is focused. */
+@media (max-width: 639px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 ::selection {

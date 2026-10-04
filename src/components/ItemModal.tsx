@@ -52,7 +52,7 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
       subtitle={labelOfKey(monthKey)}
       onClose={close}
       footer={
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-zinc-500">
             {budget > 0 ? (
               <>
@@ -64,13 +64,13 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
             )}
           </p>
           <div className="flex gap-2">
-            <button onClick={close} className="h-10 rounded-xl px-4 text-sm font-medium text-zinc-300 transition hover:bg-white/5">
+            <button onClick={close} className="h-11 flex-1 rounded-xl border border-white/10 px-4 text-sm font-medium text-zinc-300 transition hover:bg-white/5 sm:h-10 sm:flex-none sm:border-transparent">
               Cancel
             </button>
             <button
               onClick={save}
               disabled={!ready}
-              className="h-10 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-400 px-5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+              className="h-11 flex-[2] rounded-xl sm:h-10 sm:flex-none bg-gradient-to-r from-indigo-500 to-indigo-400 px-5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
             >
               {editId ? 'Save changes' : 'Add item'}
             </button>
@@ -86,7 +86,7 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
         }}
       >
         {/* Budget info */}
-        <div className="grid grid-cols-3 gap-2 rounded-2xl border border-white/[0.06] bg-black/20 p-3 text-center">
+        <div className="grid grid-cols-3 gap-2 rounded-2xl border border-white/[0.06] bg-black/20 p-2.5 text-center sm:p-3">
           <Info k="Budget" v={budget > 0 ? f(budget) : '—'} usd={budget > 0 ? u(budget) : ''} />
           <Info k="Already spent" v={f(spent)} usd={u(spent)} />
           <Info k="Left to spend" v={budget > 0 ? f(left) : '—'} usd={budget > 0 ? u(left) : ''} cls={left <= 0 && budget > 0 ? 'text-red-300' : 'text-emerald-300'} />

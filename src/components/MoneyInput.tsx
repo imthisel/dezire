@@ -42,7 +42,7 @@ export function MoneyInput({ value, onChange, placeholder = '0', nullable, class
   const pad = size === 'md' ? 'h-11 pl-8 text-base' : 'h-9 pl-6 text-sm'
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative min-w-0 ${className}`}>
       <span
         className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-zinc-500 ${size === 'md' ? 'left-3 text-base' : 'left-2.5 text-xs'}`}
       >
@@ -66,7 +66,7 @@ export function MoneyInput({ value, onChange, placeholder = '0', nullable, class
         }}
         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         onChange={(e) => handle(e.target.value)}
-        className={`w-full rounded-lg border bg-black/30 pr-2 font-medium tabular-nums text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:bg-black/50 ${pad} ${
+        className={`w-full min-w-0 rounded-lg border bg-black/30 pr-2 font-medium tabular-nums text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:bg-black/50 ${pad} ${
           bad
             ? 'border-red-500/60 focus:ring-2 focus:ring-red-500/30'
             : 'border-white/10 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20'

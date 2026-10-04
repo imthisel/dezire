@@ -31,11 +31,11 @@ export function GoalsSection() {
       {/* Header */}
       <div className="relative flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 via-fuchsia-400 to-amber-300 shadow-lg shadow-fuchsia-500/20">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 via-fuchsia-400 to-amber-300 shadow-lg shadow-fuchsia-500/20">
             <Flag className="h-5 w-5 text-white" strokeWidth={2.5} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-white">
+            <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               {year} <span className="text-zinc-400">goals</span>
             </h2>
             <p className="text-sm text-zinc-500">
@@ -47,19 +47,20 @@ export function GoalsSection() {
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full gap-2 sm:w-auto">
           {open > 0 && year < END_YEAR && (
             <button
               onClick={carryOver}
               title={`Copy unfinished goals into ${year + 1}`}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 px-3 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
+              className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-white/10 px-3 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white sm:h-10 sm:flex-none sm:gap-2"
             >
-              Carry unfinished <ArrowRight className="h-4 w-4" /> {year + 1}
+              <span className="sm:hidden">Carry</span>
+              <span className="hidden sm:inline">Carry unfinished</span> <ArrowRight className="h-4 w-4" /> {year + 1}
             </button>
           )}
           <button
             onClick={() => openModal({ type: 'goal', year })}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-400 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:brightness-110"
+            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl sm:h-10 sm:flex-none bg-gradient-to-r from-indigo-500 to-indigo-400 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:brightness-110"
           >
             <Plus className="h-4 w-4" strokeWidth={2.5} /> Add goal
           </button>
@@ -89,7 +90,7 @@ export function GoalsSection() {
       )}
 
       {/* Areas */}
-      <div className="relative mt-5 grid gap-3 md:grid-cols-2">
+      <div className="relative mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
         {GOAL_AREAS.map((a) => (
           <AreaCard key={a} area={a} year={year} goals={goals.filter((g) => g.area === a)} />
         ))}
@@ -108,7 +109,7 @@ function AreaCard({ area, year, goals }: { area: GoalArea; year: number; goals: 
 
   return (
     <article
-      className={`group/card relative flex flex-col overflow-hidden rounded-2xl border bg-gradient-to-b ${a.glow} to-transparent to-40% p-4 transition ${
+      className={`group/card relative flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-gradient-to-b ${a.glow} to-transparent to-40% p-3.5 transition sm:p-4 ${
         complete ? a.border : 'border-white/[0.07] hover:border-white/[0.12]'
       }`}
     >
@@ -142,7 +143,7 @@ function AreaCard({ area, year, goals }: { area: GoalArea; year: number; goals: 
       {goals.length > 0 && (
         <button
           onClick={() => openModal({ type: 'goal', year, area })}
-          className={`mt-2 inline-flex items-center gap-1.5 self-start rounded-lg px-2 py-1.5 text-xs font-medium text-zinc-500 transition hover:bg-white/5 ${a.hoverText}`}
+          className={`mt-2 inline-flex items-center gap-1.5 self-start rounded-lg px-2 py-2 text-xs font-medium sm:py-1.5 text-zinc-500 transition hover:bg-white/5 ${a.hoverText}`}
         >
           <Plus className="h-3.5 w-3.5" /> Add to this area
         </button>
@@ -200,15 +201,15 @@ function AreaName({ area }: { area: GoalArea }) {
         title="Rename this area (applies to every year)"
         className="-ml-1.5 flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left transition hover:bg-white/5"
       >
-        <h3 className="truncate text-base font-semibold text-white">{label}</h3>
-        <Pencil className="h-3 w-3 shrink-0 text-zinc-600 opacity-0 transition group-hover/name:opacity-100" />
+        <h3 className="break-words text-base font-semibold leading-snug text-white sm:truncate">{label}</h3>
+        <Pencil className="h-3 w-3 shrink-0 text-zinc-600 transition sm:opacity-0 sm:group-hover/name:opacity-100" />
       </button>
       {custom && (
         <button
           onClick={() => setAreaLabel(area, '')}
           title={`Reset to “${GOAL_AREA[area].label}”`}
           aria-label="Reset name"
-          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-zinc-600 opacity-0 transition hover:bg-white/5 hover:text-zinc-300 group-hover/name:opacity-100"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 sm:h-6 sm:w-6 sm:opacity-0 sm:group-hover/name:opacity-100"
         >
           <RotateCcw className="h-3 w-3" />
         </button>
@@ -240,13 +241,13 @@ function GoalRow({ goal, year }: { goal: Goal; year: number }) {
   }
 
   return (
-    <li className="group/row animate-fade flex items-start gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-white/[0.04]">
+    <li className="group/row animate-fade flex items-start gap-2.5 rounded-xl px-1.5 py-1 transition hover:bg-white/[0.04] sm:px-2 sm:py-1.5">
       <button
         onClick={toggle}
         role="checkbox"
         aria-checked={goal.done}
         aria-label={goal.done ? 'Mark as not done' : 'Mark as done'}
-        className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition ${
+        className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition sm:h-5 sm:w-5 ${
           goal.done ? a.check : `border-zinc-600 ${a.hoverBorder}`
         }`}
       >
@@ -276,7 +277,7 @@ function GoalRow({ goal, year }: { goal: Goal; year: number }) {
             setEditing(true)
           }}
           title="Double-click to edit"
-          className={`min-w-0 flex-1 cursor-text break-words text-sm leading-6 transition ${
+          className={`min-w-0 flex-1 cursor-text break-words py-0.5 text-[15px] leading-6 transition sm:py-0 sm:text-sm ${
             goal.done ? 'text-zinc-500 line-through decoration-zinc-600' : 'text-zinc-100'
           }`}
         >
@@ -285,12 +286,12 @@ function GoalRow({ goal, year }: { goal: Goal; year: number }) {
       )}
 
       {!editing && (
-        <div className="flex shrink-0 items-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100">
+        <div className="-my-1 flex shrink-0 items-center opacity-100 sm:my-0 sm:gap-0.5 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100">
           <button
             onClick={() => openModal({ type: 'goal', year, editId: goal.id })}
             title="Edit or change area"
             aria-label="Edit goal"
-            className="grid h-7 w-7 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-white"
+            className="grid h-9 w-9 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 sm:h-7 sm:w-7 hover:text-white"
           >
             <Pencil className="h-3.5 w-3.5" />
           </button>
@@ -301,7 +302,7 @@ function GoalRow({ goal, year }: { goal: Goal; year: number }) {
             }}
             title="Delete"
             aria-label="Delete goal"
-            className="grid h-7 w-7 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-red-300"
+            className="grid h-9 w-9 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 sm:h-7 sm:w-7 hover:text-red-300"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
