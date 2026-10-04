@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Category, Goal, GoalArea, Item, MonthData, Result, Trend } from './lib/types'
-import { GOAL_AREA, GOAL_AREAS } from './lib/meta'
+import type { Category, Goal, GoalArea, IncomeSource, Item, MonthData, PlanStep, Result, SourceKind, SourceStage, Trend } from './lib/types'
+import { GOAL_AREA, GOAL_AREAS, SOURCE_KINDS, SOURCE_STAGES } from './lib/meta'
 import { DEFAULT_USD_RATE, PESO, fmt, fmtUsd } from './lib/money'
 import { currentYear, labelOfKey, END_YEAR, START_YEAR, indexOf, keyOf } from './lib/time'
 import { computeAll, spendLimit, type MonthCalc } from './lib/calc'
@@ -12,6 +12,8 @@ export type ModalState =
   | { type: 'move'; key: string; id: string }
   | { type: 'goal'; year: number; editId?: string; area?: GoalArea }
   | null
+export type View = 'planner' | 'plan'
+export type SourcePatch = Partial<Omit<IncomeSource, 'id' | 'createdAt' | 'steps'>>
 export type MonthField = 'goal' | 'budget' | 'earned'
 /** Where to drop an item in a month's list: next to item `id`. Missing = at the end. */
 export type DropAt = { id: string; after: boolean }
@@ -54,6 +56,32 @@ export function fitCheck(
   }
 }
 
+const num = (v: unknown) => Math.max(0, Number(v) || 0)
+
+/** Cleans up money plans coming from a backup file or the cloud. */
+function parseSources(list: unknown): IncomeSource[] {
+  if (!Array.isArray(list)) return []
+  return list
+    .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
+    .map((x) => ({
+      id: typeof x.id === 'string' && x.id ? x.id : uid(),
+      name: typeof x.name === 'string' ? x.name : '',
+      kind: SOURCE_KINDS.includes(x.kind as SourceKind) ? (x.kind as SourceKind) : 'other',
+      stage: SOURCE_STAGES.includes(x.stage as SourceStage) ? (x.stage as SourceStage) : 'idea',
+      monthlyGoal: num(x.monthlyGoal),
+      price: num(x.price),
+      costPerSale: num(x.costPerSale),
+      monthlyCosts: num(x.monthlyCosts),
+      steps: Array.isArray(x.steps)
+        ? (x.steps as Partial<PlanStep>[])
+            .filter((st) => !!st && typeof st.text === 'string' && !!st.text.trim())
+            .map((st) => ({ id: st.id || uid(), text: st.text!.trim(), done: !!st.done }))
+        : [],
+      notes: typeof x.notes === 'string' ? x.notes : '',
+      createdAt: Number(x.createdAt) || Date.now(),
+    }))
+}
+
 const warned = (key: string, price: number, months: Record<string, MonthData>, excludeId?: string): Result => {
   const { warning } = fitCheck(months, key, price, excludeId)
   return warning ? { ok: true, warning } : OK
@@ -71,6 +99,18 @@ interface State {
   goals: Record<string, Goal[]>
   /** Custom names for the goal areas; missing = default name */
   areaLabels: Partial<Record<GoalArea, string>>
+  /** Money plan: the ways I'm going to make the money */
+  sources: IncomeSource[]
+
+  /** Which page is showing */
+  view: View
+  /** Sidebar shown on wide screens (remembered) */
+  sidebar: boolean
+  /** Sidebar slid open on small screens (not remembered) */
+  drawer: boolean
+  setView: (v: View) => void
+  setSidebar: (open: boolean) => void
+  setDrawer: (open: boolean) => void
 
   setYear: (y: number) => void
   setUsdRate: (r: number) => void
@@ -97,6 +137,13 @@ interface State {
   carryOverGoals: (year: number) => number
   setAreaLabel: (area: GoalArea, label: string) => void
 
+  addSource: (kind: SourceKind) => string
+  updateSource: (id: string, patch: SourcePatch) => void
+  removeSource: (id: string) => void
+  addStep: (sourceId: string, text: string) => void
+  updateStep: (sourceId: string, stepId: string, patch: Partial<Omit<PlanStep, 'id'>>) => void
+  removeStep: (sourceId: string, stepId: string) => void
+
   importData: (data: unknown) => Result
   resetAll: () => void
 }
@@ -112,6 +159,14 @@ export const useStore = create<State>()(
       modal: null,
       goals: {},
       areaLabels: {},
+      sources: [],
+      view: 'planner',
+      sidebar: true,
+      drawer: false,
+
+      setView: (view) => set({ view }),
+      setSidebar: (sidebar) => set({ sidebar }),
+      setDrawer: (drawer) => set({ drawer }),
 
       setYear: (year) => set({ year: Math.min(END_YEAR, Math.max(START_YEAR, year)) }),
       setUsdRate: (r) => set({ usdRate: r > 0 ? r : DEFAULT_USD_RATE }),
@@ -244,6 +299,42 @@ export const useStore = create<State>()(
           return { areaLabels: clean && clean !== GOAL_AREA[area].label ? { ...rest, [area]: clean } : rest }
         }),
 
+      addSource: (kind) => {
+        const source: IncomeSource = {
+          id: uid(), name: '', kind, stage: 'idea', monthlyGoal: 0, price: 0, costPerSale: 0, monthlyCosts: 0,
+          steps: [], notes: '', createdAt: Date.now(),
+        }
+        set((s) => ({ sources: [...s.sources, source] }))
+        return source.id
+      },
+
+      updateSource: (id, patch) =>
+        set((s) => ({ sources: s.sources.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
+
+      removeSource: (id) => set((s) => ({ sources: s.sources.filter((x) => x.id !== id) })),
+
+      addStep: (sourceId, text) => {
+        const clean = text.trim()
+        if (!clean) return
+        set((s) => ({
+          sources: s.sources.map((x) =>
+            x.id === sourceId ? { ...x, steps: [...x.steps, { id: uid(), text: clean, done: false }] } : x,
+          ),
+        }))
+      },
+
+      updateStep: (sourceId, stepId, patch) =>
+        set((s) => ({
+          sources: s.sources.map((x) =>
+            x.id === sourceId ? { ...x, steps: x.steps.map((st) => (st.id === stepId ? { ...st, ...patch } : st)) } : x,
+          ),
+        })),
+
+      removeStep: (sourceId, stepId) =>
+        set((s) => ({
+          sources: s.sources.map((x) => (x.id === sourceId ? { ...x, steps: x.steps.filter((st) => st.id !== stepId) } : x)),
+        })),
+
       importData: (data) => {
         try {
           const d = data as {
@@ -251,6 +342,7 @@ export const useStore = create<State>()(
             usdRate?: number
             goals?: Record<string, Partial<Goal>[]>
             areaLabels?: Record<string, unknown>
+            sources?: unknown
           }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
             return fail('That file is not a Dezire backup.')
@@ -293,14 +385,14 @@ export const useStore = create<State>()(
           for (const [a, label] of Object.entries(d.areaLabels ?? {})) {
             if (isArea(a) && typeof label === 'string' && label.trim()) areaLabels[a] = label.trim()
           }
-          set({ months, goals, areaLabels, usdRate: Number(d.usdRate) > 0 ? Number(d.usdRate) : get().usdRate, clipboard: null })
+          set({ months, goals, areaLabels, sources: parseSources(d.sources), usdRate: Number(d.usdRate) > 0 ? Number(d.usdRate) : get().usdRate, clipboard: null })
           return OK
         } catch {
           return fail('Could not read that file.')
         }
       },
 
-      resetAll: () => set({ months: {}, goals: {}, areaLabels: {}, clipboard: null, modal: null }),
+      resetAll: () => set({ months: {}, goals: {}, areaLabels: {}, sources: [], clipboard: null, modal: null }),
     }),
     {
       name: 'dezire-goal-planner-v1',
@@ -309,9 +401,12 @@ export const useStore = create<State>()(
         months: s.months,
         goals: s.goals,
         areaLabels: s.areaLabels,
+        sources: s.sources,
         usdRate: s.usdRate,
         year: s.year,
         dashMode: s.dashMode,
+        view: s.view,
+        sidebar: s.sidebar,
       }),
       // v0 had a selectable currency; amounts are now always pesos.
       migrate: (persisted) => {

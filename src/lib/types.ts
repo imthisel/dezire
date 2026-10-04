@@ -35,3 +35,33 @@ export interface Goal {
   done: boolean
   createdAt: number
 }
+
+/** What kind of money-maker a plan is. */
+export type SourceKind = 'business' | 'job' | 'freelance' | 'online' | 'invest' | 'other'
+/** How far along it is. */
+export type SourceStage = 'idea' | 'starting' | 'running'
+
+export interface PlanStep {
+  id: string
+  text: string
+  done: boolean
+}
+
+/** One way of making money, with an optional goal, money math and to-do steps. Every field is optional to fill in. */
+export interface IncomeSource {
+  id: string
+  name: string
+  kind: SourceKind
+  stage: SourceStage
+  /** How much I want to make from this each month (0 = not set) */
+  monthlyGoal: number
+  /** What one sale / client / shift brings in (0 = not set) */
+  price: number
+  /** What each sale costs me to make or deliver */
+  costPerSale: number
+  /** Fixed costs every month (rent, tools, ads…) */
+  monthlyCosts: number
+  steps: PlanStep[]
+  notes: string
+  createdAt: number
+}

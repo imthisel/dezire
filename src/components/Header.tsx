@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { Download, RotateCcw, Target, Upload } from 'lucide-react'
+import { Download, Menu, PanelLeftClose, PanelLeftOpen, RotateCcw, Target, Upload } from 'lucide-react'
 import { useStore } from '../store'
 import { toast } from '../toast'
 import { AccountMenu, SaveIndicator } from './AccountMenu'
+import { toggleSidebar, useDocked } from './Sidebar'
 
 export function Header() {
+  const docked = useDocked()
+  const sidebar = useStore((s) => s.sidebar)
   const usdRate = useStore((s) => s.usdRate)
   const setUsdRate = useStore((s) => s.setUsdRate)
   const [rateText, setRateText] = useState(String(usdRate))
@@ -13,9 +16,9 @@ export function Header() {
   useEffect(() => setRateText(String(usdRate)), [usdRate])
 
   function exportData() {
-    const { months, usdRate, goals, areaLabels } = useStore.getState()
+    const { months, usdRate, goals, areaLabels, sources } = useStore.getState()
     const blob = new Blob(
-      [JSON.stringify({ app: 'dezire', version: 2, exportedAt: new Date().toISOString(), currency: 'PHP', usdRate, months, goals, areaLabels }, null, 2)],
+      [JSON.stringify({ app: 'dezire', version: 3, exportedAt: new Date().toISOString(), currency: 'PHP', usdRate, months, goals, areaLabels, sources }, null, 2)],
       { type: 'application/json' },
     )
     const a = document.createElement('a')
@@ -36,7 +39,7 @@ export function Header() {
   }
 
   function reset() {
-    if (confirm('Delete ALL money goals, budgets, items and yearly goals from 2026–2040? This cannot be undone.')) {
+    if (confirm('Delete ALL money goals, budgets, items, yearly goals and money plans from 2026–2040? This cannot be undone.')) {
       useStore.getState().resetAll()
       toast.info('Everything was cleared.')
     }
@@ -89,6 +92,14 @@ export function Header() {
     <header className="mx-auto max-w-[1440px] px-4 pb-5 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 sm:py-6 lg:px-8">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
+          <button
+            onClick={() => toggleSidebar(docked)}
+            title={docked && sidebar ? 'Hide sidebar' : 'Show sidebar'}
+            aria-label={docked && sidebar ? 'Hide sidebar' : 'Show sidebar'}
+            className="-ml-1 grid h-10 w-10 shrink-0 place-items-center rounded-xl text-zinc-400 transition hover:bg-white/5 hover:text-white"
+          >
+            {docked && sidebar ? <PanelLeftClose className="h-5 w-5" /> : docked ? <PanelLeftOpen className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-indigo-400 to-emerald-400 shadow-lg shadow-indigo-500/20 sm:h-11 sm:w-11">
             <Target className="h-5 w-5 text-white sm:h-6 sm:w-6" strokeWidth={2.5} />
           </div>

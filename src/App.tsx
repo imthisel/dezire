@@ -2,6 +2,7 @@ import { useStore } from './store'
 import { Header } from './components/Header'
 import { Dashboard } from './components/Dashboard'
 import { YearSection } from './components/YearSection'
+import { MoneyPlan } from './components/MoneyPlan'
 import { ItemModal } from './components/ItemModal'
 import { MoveDialog } from './components/MoveDialog'
 import { GoalModal } from './components/GoalModal'
@@ -9,6 +10,7 @@ import { ClipboardBar } from './components/ClipboardBar'
 import { Toasts } from './components/Toasts'
 import { AuthGate } from './components/AuthGate'
 import { MobileNav } from './components/MobileNav'
+import { Sidebar } from './components/Sidebar'
 
 export default function App() {
   return (
@@ -20,6 +22,8 @@ export default function App() {
 
 function Planner() {
   const modal = useStore((s) => s.modal)
+  const view = useStore((s) => s.view)
+  const sidebar = useStore((s) => s.sidebar)
 
   return (
     <div className="relative min-h-screen overflow-x-clip bg-[#07080c] text-zinc-100 antialiased">
@@ -28,11 +32,19 @@ function Planner() {
         <div className="absolute -top-32 right-0 h-[360px] w-[480px] rounded-full bg-emerald-500/10 blur-[120px]" />
       </div>
 
-      <div className="relative">
+      <Sidebar />
+
+      <div className={`relative transition-[padding] duration-200 ease-out ${sidebar ? 'lg:pl-64' : ''}`}>
         <Header />
         <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-16 sm:space-y-8 sm:px-6 sm:pb-32 lg:px-8">
-          <Dashboard />
-          <YearSection />
+          {view === 'plan' ? (
+            <MoneyPlan />
+          ) : (
+            <>
+              <Dashboard />
+              <YearSection />
+            </>
+          )}
         </main>
         <footer className="px-4 pb-28 text-center text-xs text-zinc-600 sm:pb-10">
           Saved automatically to your Google account · use Export for an offline backup
