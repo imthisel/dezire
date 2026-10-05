@@ -30,23 +30,29 @@ export interface MonthCalc {
 }
 
 /**
- * What a month lets you spend: its budget, capped by what you earned
- * (or your goal to make when nothing was entered). No budget = nothing allowed.
+ * The money a month has to spend: its budget, capped by what you earned (or your goal to make
+ * when nothing was entered). Whatever isn't set doesn't limit anything, so a month with neither is unlimited.
  */
 export function spendLimit(m: MonthData, goal = m.goal) {
+  const budget = m.budget > 0 ? m.budget : Infinity
   const earned = m.earned ?? (goal > 0 ? goal : Infinity)
-  return Math.min(Math.max(0, m.budget), earned)
+  return Math.min(budget, earned)
 }
 
-/** Items that push their month past its limit (in list order). These show in red. `goal` = the month's effective goal. */
+/**
+ * Items shown in red. Goes down the list from the top adding up prices: the first item that doesn't fit
+ * in the money available is marked, and so is everything below it. `goal` = the month's effective goal.
+ */
 export function overLimitIds(m: MonthData | undefined, goal?: number): Set<string> {
   const ids = new Set<string>()
   if (!m) return ids
   const limit = spendLimit(m, goal)
   let run = 0
+  let over = false
   for (const it of m.items) {
     run += it.price
-    if (run > limit + 1e-9) ids.add(it.id)
+    if (run > limit + 1e-9) over = true
+    if (over) ids.add(it.id)
   }
   return ids
 }

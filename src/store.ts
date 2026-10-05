@@ -30,8 +30,9 @@ const uid = () =>
     : Math.random().toString(36).slice(2) + Date.now().toString(36)
 
 /**
- * Would an item of `price` push the month `key` past its budget or what was earned / the goal?
- * Such items are still allowed — they just get flagged in red so they can be moved.
+ * Would an item of `price` push the month `key` past the money it has to spend (its budget, or what was
+ * earned / the goal)? A month with no budget isn't a problem by itself. Such items are still allowed —
+ * they just get flagged in red so they can be moved.
  */
 export function fitCheck(
   months: Record<string, MonthData>,
@@ -46,8 +47,7 @@ export function fitCheck(
   const after = spent + price
   const p = (n: number) => fmt(n, PESO)
   const why: string[] = []
-  if (m.budget <= 0) why.push('it has no budget set')
-  else if (after > m.budget + 1e-9) why.push(`this goes ${p(after - m.budget)} over the ${p(m.budget)} budget`)
+  if (m.budget > 0 && after > m.budget + 1e-9) why.push(`this goes ${p(after - m.budget)} over the ${p(m.budget)} budget`)
   const earned = m.earned ?? goal
   if ((m.earned !== null || goal > 0) && after > earned + 1e-9) {
     why.push(`${p(after - earned)} over the ${p(earned)} ${m.earned === null ? 'goal to make' : 'earned'}`)
