@@ -6,7 +6,11 @@ export interface MonthCalc {
   key: string
   year: number
   month: number
+  /** Goal to make: worked out from the net worth goal when there is one, otherwise the typed goal */
   goal: number
+  /** Net worth wanted by the end of the month (null = not set) */
+  netWorthGoal: number | null
+  goalFromNetWorth: boolean
   budget: number
   /** Effective earned for this month (actual, or the goal if nothing was entered) */
   earned: number
@@ -29,16 +33,16 @@ export interface MonthCalc {
  * What a month lets you spend: its budget, capped by what you earned
  * (or your goal to make when nothing was entered). No budget = nothing allowed.
  */
-export function spendLimit(m: MonthData) {
-  const earned = m.earned ?? (m.goal > 0 ? m.goal : Infinity)
+export function spendLimit(m: MonthData, goal = m.goal) {
+  const earned = m.earned ?? (goal > 0 ? goal : Infinity)
   return Math.min(Math.max(0, m.budget), earned)
 }
 
-/** Items that push their month past its limit (in the order they were added). These show in red. */
-export function overLimitIds(m: MonthData | undefined): Set<string> {
+/** Items that push their month past its limit (in list order). These show in red. `goal` = the month's effective goal. */
+export function overLimitIds(m: MonthData | undefined, goal?: number): Set<string> {
   const ids = new Set<string>()
   if (!m) return ids
-  const limit = spendLimit(m)
+  const limit = spendLimit(m, goal)
   let run = 0
   for (const it of m.items) {
     run += it.price
@@ -71,12 +75,18 @@ export function computeAll(months: Record<string, MonthData>): MonthCalc[] {
   for (let i = 0; i < TOTAL_MONTHS; i++) {
     const key = keyOf(i)
     const m = months[key]
-    const goal = m?.goal ?? 0
     const budget = m?.budget ?? 0
     const earnedRaw = m?.earned ?? null
-    const earned = earnedRaw ?? goal
     const items = m?.items ?? []
     const spent = items.reduce((s, it) => s + it.price, 0)
+    // A net worth goal decides the goal to make: whatever is still missing at the end of the month.
+    // (Things bought this month don't change it: the cash spent becomes an asset of the same value.)
+    const netWorthGoal = m?.netWorthGoal ?? null
+    const goal =
+      netWorthGoal !== null
+        ? Math.max(0, Math.round((netWorthGoal - (cumEarned - cumSpent - spent + assets[i])) * 100) / 100)
+        : (m?.goal ?? 0)
+    const earned = earnedRaw ?? goal
     cumGoal += goal
     cumBudget += budget
     cumEarned += earned
@@ -84,13 +94,13 @@ export function computeAll(months: Record<string, MonthData>): MonthCalc[] {
     const cash = cumEarned - cumSpent
     const { year, month } = fromIndex(i)
     out.push({
-      index: i, key, year, month, goal, budget, earned,
+      index: i, key, year, month, goal, netWorthGoal, goalFromNetWorth: netWorthGoal !== null, budget, earned,
       earnedFromGoal: earnedRaw === null,
       spent, itemCount: items.length,
       cumGoal, cumBudget, cumEarned, cumSpent, cash,
       assets: assets[i],
       netWorth: cash + assets[i],
-      hasData: goal > 0 || budget > 0 || earnedRaw !== null || items.length > 0,
+      hasData: goal > 0 || budget > 0 || earnedRaw !== null || netWorthGoal !== null || items.length > 0,
     })
   }
   return out

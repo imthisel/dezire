@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type ReactNode } from 'react'
-import { AlertTriangle, ChevronDown, ClipboardPaste, Plus } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ClipboardPaste, Lock, Plus, Target } from 'lucide-react'
 import { useFmt, usePlan, useStore, useUsd } from '../store'
 import { MONTHS, currentIndex } from '../lib/time'
 import { overLimitIds } from '../lib/calc'
@@ -17,7 +17,7 @@ export function MonthCard({ index }: { index: number }) {
   const u = useUsd()
   const month = useStore((s) => s.months[c.key])
   const items = month?.items ?? EMPTY
-  const over = overLimitIds(month)
+  const over = overLimitIds(month, c.goal)
   const clipboard = useStore((s) => s.clipboard)
   const { setMonthField, openModal, pasteInto, transferItem } = useStore.getState()
   const [dropMode, setDropMode] = useState<null | 'move' | 'copy'>(null)
@@ -31,6 +31,9 @@ export function MonthCard({ index }: { index: number }) {
   const isPast = index < today
   const left = c.budget - c.spent
   const risk = c.goal - c.budget
+  const nwGoal = c.netWorthGoal
+  // Only possible when an "earned" amount was saved for this month that doesn't match the worked-out goal.
+  const nwShort = nwGoal !== null ? nwGoal - c.netWorth : 0
   const pct = c.budget > 0 ? c.spent / c.budget : 0
   const barCls = pct > 1 ? 'bg-red-400' : pct >= 0.85 ? 'bg-amber-300' : 'bg-emerald-400'
 
@@ -118,24 +121,63 @@ export function MonthCard({ index }: { index: number }) {
         </div>
       </header>
 
+      {/* Net worth goal (optional) — when set it decides the goal to make */}
+      {open && (
+      <div
+        className={`mb-2 flex items-center gap-2.5 rounded-xl border p-2 pl-2.5 transition ${
+          nwGoal !== null ? 'border-indigo-400/25 bg-indigo-500/[0.07]' : 'border-white/[0.06] bg-black/10'
+        }`}
+      >
+        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${nwGoal !== null ? 'bg-indigo-500/20 text-indigo-200' : 'bg-white/5 text-zinc-500'}`}>
+          <Target className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[10px] font-medium uppercase tracking-wider text-zinc-400">Net worth goal</p>
+          <p className={`truncate text-[11px] ${nwGoal === null ? 'text-zinc-600' : nwShort > 0.005 ? 'text-amber-300' : 'text-emerald-300'}`}>
+            {nwGoal === null
+              ? 'Optional · by the end of the month'
+              : nwShort > 0.005
+                ? `${f(nwShort, true)} short of it`
+                : c.goal === 0 && c.netWorth > nwGoal
+                  ? `Already there · ${f(c.netWorth - nwGoal, true)} above`
+                  : `Needs ${f(c.goal, true)} made this month`}
+          </p>
+        </div>
+        <MoneyInput
+          value={nwGoal}
+          nullable
+          placeholder="Not set"
+          onChange={(v) => setMonthField(c.key, 'netWorthGoal', v)}
+          className="w-32 shrink-0 sm:w-36"
+          ariaLabel={`${MONTHS[c.month]} net worth goal by the end of the month`}
+        />
+      </div>
+      )}
+
       {/* Month label: goal / budget / risk */}
       {open && (
       <div className="grid grid-cols-3 gap-2">
-        <Field label="Goal to make">
-          <MoneyInput value={c.goal} onChange={(v) => setMonthField(c.key, 'goal', v)} ariaLabel={`${MONTHS[c.month]} goal`} />
+        <Field label="Goal to make" hint={c.goalFromNetWorth ? 'auto' : undefined}>
+          {c.goalFromNetWorth ? (
+            <ReadOnly
+              title="Worked out from your net worth goal. Clear the net worth goal to type your own."
+              ariaLabel={`${MONTHS[c.month]} goal to make, worked out from the net worth goal`}
+              cls="border-indigo-400/20 bg-indigo-500/[0.06] text-indigo-100"
+            >
+              <Lock className="mr-1.5 h-3 w-3 shrink-0 text-indigo-300/70" />
+              <span className="truncate">{f(c.goal)}</span>
+            </ReadOnly>
+          ) : (
+            <MoneyInput value={c.goal} onChange={(v) => setMonthField(c.key, 'goal', v)} ariaLabel={`${MONTHS[c.month]} goal`} />
+          )}
         </Field>
         <Field label="Budget">
           <MoneyInput value={c.budget} onChange={(v) => setMonthField(c.key, 'budget', v)} ariaLabel={`${MONTHS[c.month]} budget`} />
         </Field>
         <Field label="Risk" hint="goal − budget">
-          <div
-            aria-label={`${MONTHS[c.month]} risk (goal minus budget)`}
-            className={`flex h-9 min-w-0 items-center truncate rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 text-sm font-medium tabular-nums ${
-              risk < 0 ? 'text-red-300' : 'text-zinc-300'
-            }`}
-          >
-            {f(risk)}
-          </div>
+          <ReadOnly ariaLabel={`${MONTHS[c.month]} risk (goal minus budget)`} cls={`border-white/[0.06] bg-white/[0.03] ${risk < 0 ? 'text-red-300' : 'text-zinc-300'}`}>
+            <span className="truncate">{f(risk)}</span>
+          </ReadOnly>
         </Field>
       </div>
       )}
@@ -225,6 +267,19 @@ export function MonthCard({ index }: { index: number }) {
         </div>
       )}
     </article>
+  )
+}
+
+/** A box that looks like an input but is worked out for you. */
+function ReadOnly({ children, cls, title, ariaLabel }: { children: ReactNode; cls: string; title?: string; ariaLabel: string }) {
+  return (
+    <div
+      title={title}
+      aria-label={ariaLabel}
+      className={`flex h-9 min-w-0 items-center rounded-lg border px-2.5 text-sm font-medium tabular-nums ${cls}`}
+    >
+      {children}
+    </div>
   )
 }
 

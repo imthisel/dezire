@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { Category, Goal, GoalArea, IncomeSource, Item, MonthData, PlanStep, Result, SourceKind, SourceStage, Trend } from './lib/types'
 import { GOAL_AREA, GOAL_AREAS, SOURCE_KINDS, SOURCE_STAGES } from './lib/meta'
 import { DEFAULT_USD_RATE, PESO, fmt, fmtUsd } from './lib/money'
-import { currentYear, labelOfKey, END_YEAR, START_YEAR, indexOf, keyOf } from './lib/time'
+import { currentYear, labelOfKey, END_YEAR, START_YEAR, indexOf, indexOfKey, keyOf } from './lib/time'
 import { computeAll, spendLimit, type MonthCalc } from './lib/calc'
 
 export type Clip = { mode: 'copy' | 'cut'; fromKey: string; item: Item }
@@ -14,7 +14,7 @@ export type ModalState =
   | null
 export type View = 'planner' | 'plan'
 export type SourcePatch = Partial<Omit<IncomeSource, 'id' | 'createdAt' | 'steps'>>
-export type MonthField = 'goal' | 'budget' | 'earned'
+export type MonthField = 'goal' | 'budget' | 'earned' | 'netWorthGoal'
 /** Where to drop an item in a month's list: next to item `id`. Missing = at the end. */
 export type DropAt = { id: string; after: boolean }
 export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number }
@@ -22,7 +22,7 @@ export type ItemInput = { name: string; category: Category; trend: Trend; price:
 const OK: Result = { ok: true }
 const fail = (error: string): Result => ({ ok: false, error })
 
-export const emptyMonth = (): MonthData => ({ goal: 0, budget: 0, earned: null, items: [] })
+export const emptyMonth = (): MonthData => ({ goal: 0, budget: 0, netWorthGoal: null, earned: null, items: [] })
 
 const uid = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -39,19 +39,21 @@ export function fitCheck(
   price: number,
   excludeId?: string,
 ): { left: number; warning: string | null } {
-  const m = months[key] ?? emptyMonth()
+  const m = { ...emptyMonth(), ...months[key] }
+  // With a net worth goal, the goal to make is worked out from it (and buying things doesn't change it).
+  const goal = m.netWorthGoal !== null ? computeAll(months)[indexOfKey(key)].goal : m.goal
   const spent = m.items.filter((i) => i.id !== excludeId).reduce((s, i) => s + i.price, 0)
   const after = spent + price
   const p = (n: number) => fmt(n, PESO)
   const why: string[] = []
   if (m.budget <= 0) why.push('it has no budget set')
   else if (after > m.budget + 1e-9) why.push(`this goes ${p(after - m.budget)} over the ${p(m.budget)} budget`)
-  const earned = m.earned ?? m.goal
-  if ((m.earned !== null || m.goal > 0) && after > earned + 1e-9) {
+  const earned = m.earned ?? goal
+  if ((m.earned !== null || goal > 0) && after > earned + 1e-9) {
     why.push(`${p(after - earned)} over the ${p(earned)} ${m.earned === null ? 'goal to make' : 'earned'}`)
   }
   return {
-    left: spendLimit(m) - spent,
+    left: spendLimit(m, goal) - spent,
     warning: why.length ? `Not enough in ${labelOfKey(key)}: ${why.join(', and ')}. Marked red — move it to another month.` : null,
   }
 }
@@ -178,7 +180,7 @@ export const useStore = create<State>()(
       setMonthField: (key, field, value) =>
         set((s) => {
           const m = s.months[key] ?? emptyMonth()
-          const v = field === 'earned' ? value : (value ?? 0)
+          const v = field === 'earned' || field === 'netWorthGoal' ? value : (value ?? 0)
           return { months: { ...s.months, [key]: { ...m, [field]: v } } }
         }),
 
@@ -354,6 +356,7 @@ export const useStore = create<State>()(
             months[key] = {
               goal: Number(raw.goal) || 0,
               budget: Number(raw.budget) || 0,
+              netWorthGoal: raw.netWorthGoal == null || !Number.isFinite(Number(raw.netWorthGoal)) ? null : Number(raw.netWorthGoal),
               earned: raw.earned == null ? null : Number(raw.earned) || 0,
               items: Array.isArray(raw.items)
                 ? raw.items.map((i) => ({

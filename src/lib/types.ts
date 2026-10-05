@@ -13,8 +13,10 @@ export interface Item {
 }
 
 export interface MonthData {
-  /** How much I want to make this month */
+  /** How much I want to make this month (typed by hand; ignored while `netWorthGoal` is set) */
   goal: number
+  /** Net worth I want by the end of this month. When set, the goal to make is worked out from it. null = not set. */
+  netWorthGoal: number | null
   /** How much I allow myself to spend this month */
   budget: number
   /** What I actually earned. null = assume I hit my goal. */
