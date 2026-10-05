@@ -1,19 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useStore, type View } from './store'
 
-/** Places the sidebar and the phone tab bar can jump to. On the Money plan page there's also `plan-add` and `source-<id>`. */
-export type Section = 'overview' | 'years' | 'goals' | 'plan'
+/** Places the sidebar and the phone tab bar can jump to. Also `month-<key>`, and on the Money plan page `plan-add` and `source-<id>`. */
+export type Section = 'overview' | 'years' | 'goals' | 'favorites' | 'plan'
 
 export const PLANNER_SECTIONS = ['overview', 'years', 'goals'] as const
 
 /** Room for the sticky year tabs, so a section isn't hidden underneath them. */
 const OFFSET = 72
 
-const viewOf = (id: string): View => (id.startsWith('plan') || id.startsWith('source-') ? 'plan' : 'planner')
+const viewOf = (id: string): View =>
+  id === 'favorites' ? 'favorites' : id.startsWith('plan') || id.startsWith('source-') ? 'plan' : 'planner'
 
 function scrollTo(id: string, instant: boolean) {
   const behavior = instant ? 'instant' : 'smooth'
-  if (id === 'overview' || id === 'plan') return window.scrollTo({ top: 0, behavior })
+  if (id === 'overview' || id === 'plan' || id === 'favorites') return window.scrollTo({ top: 0, behavior })
   const el = document.getElementById(id)
   if (!el) return
   const offset = id === 'years' ? 0 : viewOf(id) === 'plan' ? 16 : OFFSET
@@ -29,6 +30,12 @@ export function goTo(id: string) {
   s.setDrawer(false)
   // Let the other page render before measuring where the section is.
   requestAnimationFrame(() => requestAnimationFrame(() => scrollTo(id, switched)))
+}
+
+/** Opens the Planner on the month `key` ("2027-03"). */
+export function goToMonth(key: string) {
+  useStore.getState().setYear(Number(key.slice(0, 4)))
+  goTo(`month-${key}`)
 }
 
 /** The section currently on screen: 'plan' on the Money plan page, otherwise whichever planner section is being read. */
@@ -53,5 +60,5 @@ export function useActiveSection(): Section {
     return () => window.removeEventListener('scroll', onScroll)
   }, [view])
 
-  return view === 'plan' ? 'plan' : current
+  return view === 'planner' ? current : view
 }

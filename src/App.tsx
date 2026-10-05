@@ -3,6 +3,7 @@ import { Header } from './components/Header'
 import { Dashboard } from './components/Dashboard'
 import { YearSection } from './components/YearSection'
 import { MoneyPlan } from './components/MoneyPlan'
+import { Favorites } from './components/Favorites'
 import { ItemModal } from './components/ItemModal'
 import { MoveDialog } from './components/MoveDialog'
 import { GoalModal } from './components/GoalModal'
@@ -39,6 +40,8 @@ function Planner() {
         <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-16 sm:space-y-8 sm:px-6 sm:pb-32 lg:px-8">
           {view === 'plan' ? (
             <MoneyPlan />
+          ) : view === 'favorites' ? (
+            <Favorites />
           ) : (
             <>
               <Dashboard />

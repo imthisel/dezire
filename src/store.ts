@@ -12,7 +12,7 @@ export type ModalState =
   | { type: 'move'; key: string; id: string }
   | { type: 'goal'; year: number; editId?: string; area?: GoalArea }
   | null
-export type View = 'planner' | 'plan'
+export type View = 'planner' | 'plan' | 'favorites'
 export type SourcePatch = Partial<Omit<IncomeSource, 'id' | 'createdAt' | 'steps'>>
 export type MonthField = 'goal' | 'budget' | 'earned' | 'netWorthGoal'
 /** Where to drop an item in a month's list: next to item `id`. Missing = at the end. */
@@ -127,6 +127,8 @@ interface State {
   addItem: (key: string, data: ItemInput) => Result
   updateItem: (key: string, id: string, data: ItemInput) => Result
   removeItem: (key: string, id: string) => void
+  /** Stars / unstars an item. Returns whether it is now a favorite. */
+  toggleFavorite: (key: string, id: string) => boolean
   transferItem: (fromKey: string, id: string, toKey: string, mode: 'copy' | 'move', at?: DropAt) => Result
 
   copyToClipboard: (key: string, id: string, mode: 'copy' | 'cut') => void
@@ -214,6 +216,20 @@ export const useStore = create<State>()(
           months: { ...months, [key]: { ...m, items: m.items.map((i) => (i.id === id ? { ...i, ...data } : i)) } },
         })
         return warned(key, data.price, months, id)
+      },
+
+      toggleFavorite: (key, id) => {
+        const m = get().months[key]
+        const item = m?.items.find((i) => i.id === id)
+        if (!m || !item) return false
+        const favorite = !item.favorite
+        set((s) => ({
+          months: {
+            ...s.months,
+            [key]: { ...m, items: m.items.map((i) => (i.id === id ? { ...i, favorite } : i)) },
+          },
+        }))
+        return favorite
       },
 
       removeItem: (key, id) =>
@@ -367,6 +383,7 @@ export const useStore = create<State>()(
                     price: Number(i.price) || 0,
                     rate: Number(i.rate) || 0,
                     createdAt: Number(i.createdAt) || Date.now(),
+                    ...(i.favorite ? { favorite: true } : {}),
                   }))
                 : [],
             }

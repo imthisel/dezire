@@ -67,6 +67,7 @@ export function MonthCard({ index }: { index: number }) {
 
   return (
     <article
+      id={`month-${c.key}`}
       onDragOver={onDragOver}
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropMode(null)}
       onDrop={onDrop}

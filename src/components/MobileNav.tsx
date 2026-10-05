@@ -1,10 +1,11 @@
-import { CalendarDays, Flag, LayoutDashboard, Rocket } from 'lucide-react'
+import { CalendarDays, Flag, LayoutDashboard, Rocket, Star } from 'lucide-react'
 import { goTo, useActiveSection, type Section } from '../nav'
 
 const SECTIONS: { id: Section; label: string; icon: typeof Flag }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'years', label: 'Months', icon: CalendarDays },
   { id: 'goals', label: 'Goals', icon: Flag },
+  { id: 'favorites', label: 'Favorites', icon: Star },
   { id: 'plan', label: 'Money plan', icon: Rocket },
 ]
 

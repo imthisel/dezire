@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
-import { CalendarDays, Flag, LayoutDashboard, PanelLeftClose, Plus, Rocket, Target, X } from 'lucide-react'
+import { CalendarDays, Flag, LayoutDashboard, PanelLeftClose, Plus, Rocket, Star, Target, X } from 'lucide-react'
 import { useFmt, useStore } from '../store'
 import { SOURCE_KIND } from '../lib/meta'
 import { useMedia } from '../lib/useMedia'
@@ -20,6 +20,7 @@ export function Sidebar() {
   const sidebar = useStore((s) => s.sidebar)
   const drawer = useStore((s) => s.drawer)
   const sources = useStore((s) => s.sources)
+  const favorites = useStore((s) => Object.values(s.months).reduce((n, m) => n + m.items.filter((i) => i.favorite).length, 0))
   const active = useActiveSection()
   const f = useFmt()
   const shown = docked ? sidebar : drawer
@@ -72,6 +73,14 @@ export function Sidebar() {
             <Link icon={LayoutDashboard} label="Overview" on={active === 'overview'} onClick={() => goTo('overview')} />
             <Link icon={CalendarDays} label="Months" on={active === 'years'} onClick={() => goTo('years')} />
             <Link icon={Flag} label="Yearly goals" on={active === 'goals'} onClick={() => goTo('goals')} />
+            <Link
+              icon={Star}
+              label="Favorites"
+              on={active === 'favorites'}
+              onClick={() => goTo('favorites')}
+              badge={favorites || undefined}
+              iconCls="text-amber-300"
+            />
           </Group>
 
           <Group label="Making the money">
@@ -123,7 +132,7 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function Link({ icon: Icon, label, on, onClick, badge }: { icon: typeof Flag; label: string; on: boolean; onClick: () => void; badge?: number }) {
+function Link({ icon: Icon, label, on, onClick, badge, iconCls }: { icon: typeof Flag; label: string; on: boolean; onClick: () => void; badge?: number; iconCls?: string }) {
   return (
     <button
       onClick={onClick}
@@ -132,7 +141,7 @@ function Link({ icon: Icon, label, on, onClick, badge }: { icon: typeof Flag; la
         on ? 'bg-white/[0.07] text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-200'
       }`}
     >
-      <Icon className={`h-4 w-4 ${on ? 'text-indigo-300' : ''}`} />
+      <Icon className={`h-4 w-4 ${on ? (iconCls ?? 'text-indigo-300') : ''} ${on && iconCls ? 'fill-current' : ''}`} />
       <span className="flex-1 text-left">{label}</span>
       {badge !== undefined && <span className="rounded-full bg-white/[0.08] px-1.5 text-[11px] tabular-nums text-zinc-400">{badge}</span>}
     </button>

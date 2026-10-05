@@ -10,6 +10,8 @@ export interface Item {
   /** Yearly % the value grows (appreciating) or drops (depreciating). Ignored when stable. */
   rate: number
   createdAt: number
+  /** Starred: shown on the Favorites page and highlighted in its month */
+  favorite?: boolean
 }
 
 export interface MonthData {

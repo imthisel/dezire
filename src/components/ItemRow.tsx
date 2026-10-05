@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type MouseEvent } from 'react'
-import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Copy, CopyPlus, GripVertical, Pencil, Scissors, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Copy, CopyPlus, GripVertical, Pencil, Scissors, Star, Trash2 } from 'lucide-react'
 import type { Item } from '../lib/types'
 import { CATEGORY, TREND } from '../lib/meta'
 import { useFmt, useStore, useUsd } from '../store'
@@ -31,6 +31,12 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
     fn()
   }
   const s = useStore.getState
+  const fav = !!item.favorite
+
+  function toggleFav() {
+    const now = s().toggleFavorite(monthKey, item.id)
+    toast.info(now ? `★ Added “${item.name}” to Favorites.` : `Removed “${item.name}” from Favorites.`)
+  }
 
   const actions = [
     ...(prevId
@@ -99,6 +105,9 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
       className={`group relative flex cursor-grab flex-wrap items-center gap-2.5 rounded-xl border py-2 pl-2.5 pr-2 transition sm:flex-nowrap sm:pl-1.5 active:cursor-grabbing ${
         over ? 'border-red-500/60 bg-red-500/15 ring-1 ring-red-500/40' : `${t.border} ${t.bg}`
       } ${
+        // Favorites get a gold glow and edge on top of the trend colour, so the trend still shows.
+        fav ? `bg-gradient-to-r from-amber-300/[0.16] via-amber-300/[0.04] to-transparent ${over ? '' : 'ring-1 ring-amber-300/45'}` : ''
+      } ${
         isCut ? 'border-dashed opacity-45' : 'hover:brightness-125'
       }`}
     >
@@ -107,9 +116,15 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
           className={`pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-indigo-400 ${dropAt === 'above' ? '-top-1' : '-bottom-1'}`}
         />
       )}
+      {fav && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-l-[11px] bg-gradient-to-b from-amber-200 to-amber-400" />}
       <GripVertical className="hidden h-4 w-4 shrink-0 text-zinc-600 transition group-hover:text-zinc-400 sm:block" />
-      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${t.iconBg} ${t.text}`}>
+      <span className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-lg ${t.iconBg} ${t.text}`}>
         <cat.icon className="h-4 w-4" />
+        {fav && (
+          <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[#14120a] ring-1 ring-amber-300/60">
+            <Star className="h-2.5 w-2.5 fill-amber-300 text-amber-300" />
+          </span>
+        )}
       </span>
       <div className="min-w-0 flex-1">
         <p className={`flex items-center gap-1 truncate text-sm font-medium ${over ? 'text-red-200' : 'text-zinc-100'}`}>
@@ -124,6 +139,18 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
         </p>
       </div>
 
+      <button
+        onClick={act(toggleFav)}
+        onDragStart={(e) => e.preventDefault()}
+        title={fav ? 'Remove from Favorites' : 'Add to Favorites'}
+        aria-label={fav ? 'Remove from Favorites' : 'Add to Favorites'}
+        aria-pressed={fav}
+        className={`-mx-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg transition active:scale-90 ${
+          fav ? 'text-amber-300 hover:bg-amber-300/10' : 'text-zinc-600 hover:bg-white/10 hover:text-amber-300'
+        }`}
+      >
+        <Star className={`h-4 w-4 ${fav ? 'fill-amber-300' : ''}`} strokeWidth={fav ? 2 : 1.75} />
+      </button>
       <div className={`shrink-0 text-right ${open ? 'max-sm:block sm:hidden' : 'sm:group-hover:hidden'}`}>
         <p className={`text-sm font-semibold tabular-nums ${over ? 'text-red-300' : 'text-zinc-100'}`}>{f(item.price)}</p>
         <p className="text-[10px] tabular-nums text-zinc-500">≈ {u(item.price)}</p>
