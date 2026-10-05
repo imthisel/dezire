@@ -92,7 +92,8 @@ interface State {
   /** Pesos per 1 US dollar */
   usdRate: number
   year: number
-  dashMode: 'plan' | 'today'
+  /** Overview shows the whole plan, or only the selected year */
+  dashMode: 'plan' | 'year'
   clipboard: Clip | null
   modal: ModalState
   /** Yearly goals, keyed by year ("2027") */
@@ -114,7 +115,7 @@ interface State {
 
   setYear: (y: number) => void
   setUsdRate: (r: number) => void
-  setDashMode: (m: 'plan' | 'today') => void
+  setDashMode: (m: 'plan' | 'year') => void
   openModal: (m: ModalState) => void
   closeModal: () => void
 

@@ -108,7 +108,8 @@ export interface Portfolio {
   cost: number
 }
 
-export function portfolioAt(months: Record<string, MonthData>, asOf: number): Portfolio {
+/** Items bought from month `from` up to `asOf`, valued as of `asOf`. */
+export function portfolioAt(months: Record<string, MonthData>, asOf: number, from = 0): Portfolio {
   const p: Portfolio = {
     byCategory: {
       property: { value: 0, cost: 0, count: 0 },
@@ -120,7 +121,7 @@ export function portfolioAt(months: Record<string, MonthData>, asOf: number): Po
     value: 0,
     cost: 0,
   }
-  for (let i = 0; i <= asOf; i++) {
+  for (let i = from; i <= asOf; i++) {
     const m = months[keyOf(i)]
     if (!m) continue
     for (const it of m.items) {

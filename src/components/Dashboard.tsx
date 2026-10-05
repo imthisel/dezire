@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
-import { ArrowDownRight, ArrowUpRight, Landmark, PiggyBank, Wallet } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Landmark, PiggyBank, Wallet } from 'lucide-react'
 import { useFmt, usePlan, useStore, useUsd } from '../store'
 import { lastDataIndex, portfolioAt } from '../lib/calc'
-import { currentIndex, labelOf } from '../lib/time'
+import { END_YEAR, START_YEAR, currentIndex, indexOf, labelOf } from '../lib/time'
 import { CATEGORY, TREND } from '../lib/meta'
 import type { Category, Trend } from '../lib/types'
 import { NetWorthChart } from './NetWorthChart'
@@ -14,41 +14,82 @@ export const card =
 export function Dashboard() {
   const plan = usePlan()
   const months = useStore((s) => s.months)
-  const mode = useStore((s) => s.dashMode)
+  const yearMode = useStore((s) => s.dashMode) === 'year'
   const setMode = useStore((s) => s.setDashMode)
+  const year = useStore((s) => s.year)
+  const setYear = useStore((s) => s.setYear)
   const f = useFmt()
   const u = useUsd()
   const phone = useIsPhone()
 
-  const today = currentIndex()
-  const asOf = mode === 'today' ? today : lastDataIndex(plan, today)
+  // Whole plan: running totals up to the last month with anything in it.
+  // Year: only the 12 months of the selected year; net worth and assets as of its December.
+  const first = yearMode ? indexOf(year, 0) : 0
+  const asOf = yearMode ? first + 11 : lastDataIndex(plan, currentIndex())
   const c = plan[asOf]
-  const port = portfolioAt(months, asOf)
-  const goalPct = c.cumGoal > 0 ? Math.round((c.cumEarned / c.cumGoal) * 100) : null
+  const before = first > 0 ? plan[first - 1] : null
+  const t = {
+    goal: c.cumGoal - (before?.cumGoal ?? 0),
+    budget: c.cumBudget - (before?.cumBudget ?? 0),
+    earned: c.cumEarned - (before?.cumEarned ?? 0),
+    spent: c.cumSpent - (before?.cumSpent ?? 0),
+  }
+  const left = t.earned - t.spent
+  const nwChange = c.netWorth - (before?.netWorth ?? 0)
+  const port = portfolioAt(months, asOf, first)
+  const goalPct = t.goal > 0 ? Math.round((t.earned / t.goal) * 100) : null
   const gain = port.value - port.cost
+  const yr = yearMode ? ` in ${year}` : ''
 
   return (
     <section id="overview" className="space-y-4">
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-400">Overview</h2>
-          <p className="text-sm text-zinc-500">
-            As of <span className="text-zinc-300">{labelOf(asOf)}</span>
-            <span className="hidden sm:inline">{mode === 'plan' ? ' · everything you have planned so far' : ' · up to this month'}</span>
-          </p>
+          {yearMode ? (
+            <div className="flex items-center gap-1 text-sm text-zinc-500">
+              <button
+                onClick={() => setYear(year - 1)}
+                disabled={year <= START_YEAR}
+                aria-label="Previous year"
+                className="-ml-1.5 grid h-7 w-7 place-items-center rounded-lg transition hover:bg-white/5 hover:text-white disabled:opacity-30"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="font-medium tabular-nums text-zinc-200">{year}</span>
+              <button
+                onClick={() => setYear(year + 1)}
+                disabled={year >= END_YEAR}
+                aria-label="Next year"
+                className="grid h-7 w-7 place-items-center rounded-lg transition hover:bg-white/5 hover:text-white disabled:opacity-30"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <span className="hidden sm:inline">· January to December only</span>
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500">
+              As of <span className="text-zinc-300">{labelOf(asOf)}</span>
+              <span className="hidden sm:inline"> · everything you have planned so far</span>
+            </p>
+          )}
         </div>
         <div className="inline-flex shrink-0 rounded-xl border border-white/10 bg-white/[0.03] p-1 text-sm">
-          {(['plan', 'today'] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={`rounded-lg px-2.5 py-1.5 font-medium transition sm:px-3 ${
-                mode === m ? 'bg-white/10 text-white shadow' : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              {m === 'plan' ? 'Whole plan' : 'Today'}
-            </button>
-          ))}
+          {(['plan', 'year'] as const).map((m) => {
+            const on = (m === 'year') === yearMode
+            return (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                aria-pressed={on}
+                className={`rounded-lg px-2.5 py-1.5 font-medium transition sm:px-3 ${
+                  on ? 'bg-white/10 text-white shadow' : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {m === 'plan' ? 'Whole plan' : 'Year'}
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -57,50 +98,55 @@ export function Dashboard() {
           netWorth={c.netWorth}
           cash={c.cash}
           assets={c.assets}
-          earned={c.cumEarned}
-          spent={c.cumSpent}
+          earned={t.earned}
+          spent={t.spent}
+          left={left}
           goalPct={goalPct}
-          budgetPct={c.cumBudget > 0 ? c.cumSpent / c.cumBudget : undefined}
+          budgetPct={t.budget > 0 ? t.spent / t.budget : undefined}
         />
       ) : (
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat
           icon={<ArrowUpRight className="h-4 w-4" />}
           iconCls="bg-emerald-500/15 text-emerald-300"
-          label="Total earned"
-          value={f(c.cumEarned)}
-          usd={u(c.cumEarned)}
-          sub={goalPct !== null ? `${goalPct}% of ${f(c.cumGoal, true)} goal` : 'Set a monthly goal to start'}
+          label={yearMode ? `Earned in ${year}` : 'Total earned'}
+          value={f(t.earned)}
+          usd={u(t.earned)}
+          sub={goalPct !== null ? `${goalPct}% of ${f(t.goal, true)} goal${yr}` : 'Set a monthly goal to start'}
           progress={goalPct !== null ? goalPct / 100 : undefined}
         />
         <Stat
           icon={<ArrowDownRight className="h-4 w-4" />}
           iconCls="bg-red-500/15 text-red-300"
-          label="Total spent"
-          value={f(c.cumSpent)}
-          usd={u(c.cumSpent)}
-          sub={c.cumBudget > 0 ? `of ${f(c.cumBudget, true)} budgeted` : 'No budgets set yet'}
-          progress={c.cumBudget > 0 ? c.cumSpent / c.cumBudget : undefined}
+          label={yearMode ? `Spent in ${year}` : 'Total spent'}
+          value={f(t.spent)}
+          usd={u(t.spent)}
+          sub={t.budget > 0 ? `of ${f(t.budget, true)} budgeted${yr}` : `No budgets set${yr} yet`}
+          progress={t.budget > 0 ? t.spent / t.budget : undefined}
           warn
         />
         <Stat
           icon={<Wallet className="h-4 w-4" />}
           iconCls="bg-sky-500/15 text-sky-300"
-          label="Money left"
-          value={f(c.cash)}
-          usd={u(c.cash)}
-          valueCls={c.cash < 0 ? 'text-red-300' : undefined}
-          sub="Total earned − total spent"
+          label={yearMode ? `Saved in ${year}` : 'Money left'}
+          value={f(left)}
+          usd={u(left)}
+          valueCls={left < 0 ? 'text-red-300' : undefined}
+          sub={yearMode ? `Earned − spent in ${year}` : 'Total earned − total spent'}
         />
         <Stat
           highlight
           icon={<Landmark className="h-4 w-4" />}
           iconCls="bg-indigo-500/20 text-indigo-200"
-          label="Net worth"
+          label={yearMode ? `Net worth, end of ${year}` : 'Net worth'}
           value={f(c.netWorth)}
           usd={u(c.netWorth)}
           valueCls={c.netWorth < 0 ? 'text-red-300' : undefined}
-          sub={`${f(c.cash, true)} cash + ${f(c.assets, true)} in assets`}
+          sub={
+            yearMode
+              ? `${nwChange >= 0 ? '+' : ''}${f(nwChange, true)} during ${year}`
+              : `${f(c.cash, true)} cash + ${f(c.assets, true)} in assets`
+          }
         />
       </div>
       )}
@@ -116,7 +162,7 @@ export function Dashboard() {
 
         <div className={`${card} flex min-w-0 flex-col p-4 sm:p-5`}>
           <div className="mb-4 flex items-baseline justify-between gap-3">
-            <h3 className="font-semibold text-white">Assets</h3>
+            <h3 className="font-semibold text-white">{yearMode ? `Bought in ${year}` : 'Assets'}</h3>
             <span className="truncate text-sm tabular-nums text-zinc-300">{f(port.value)} <span className="text-zinc-500">· {u(port.value)}</span></span>
           </div>
 
@@ -124,7 +170,7 @@ export function Dashboard() {
             <div className="grid flex-1 place-items-center py-8 text-center text-sm text-zinc-500">
               <div>
                 <PiggyBank className="mx-auto mb-2 h-8 w-8 text-zinc-600" />
-                Items you add to a month show up here.
+                {yearMode ? `Nothing bought in ${year} yet.` : 'Items you add to a month show up here.'}
               </div>
             </div>
           ) : (
@@ -225,6 +271,7 @@ function PhoneStats(p: {
   assets: number
   earned: number
   spent: number
+  left: number
   goalPct: number | null
   budgetPct?: number
 }) {
@@ -260,7 +307,7 @@ function PhoneStats(p: {
       <div className="grid grid-cols-3 gap-2.5">
         <MiniStat icon={<ArrowUpRight className="h-3.5 w-3.5" />} iconCls="bg-emerald-500/15 text-emerald-300" label="Earned" value={f(p.earned, true)} usd={u(p.earned, true)} progress={p.goalPct !== null ? p.goalPct / 100 : undefined} />
         <MiniStat icon={<ArrowDownRight className="h-3.5 w-3.5" />} iconCls="bg-red-500/15 text-red-300" label="Spent" value={f(p.spent, true)} usd={u(p.spent, true)} progress={p.budgetPct} warn />
-        <MiniStat icon={<Wallet className="h-3.5 w-3.5" />} iconCls="bg-sky-500/15 text-sky-300" label="Left" value={f(p.cash, true)} usd={u(p.cash, true)} valueCls={p.cash < 0 ? 'text-red-300' : undefined} />
+        <MiniStat icon={<Wallet className="h-3.5 w-3.5" />} iconCls="bg-sky-500/15 text-sky-300" label="Left" value={f(p.left, true)} usd={u(p.left, true)} valueCls={p.left < 0 ? 'text-red-300' : undefined} />
       </div>
     </div>
   )
