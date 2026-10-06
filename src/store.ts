@@ -164,6 +164,8 @@ interface State {
   addGoal: (year: number, area: GoalArea, text: string) => void
   updateGoal: (year: number, id: string, patch: Partial<Pick<Goal, 'text' | 'area' | 'done'>>) => void
   removeGoal: (year: number, id: string) => void
+  /** Moves a goal into `area`, next to goal `at` (or to the end of that area). */
+  moveGoal: (year: number, id: string, area: GoalArea, at?: DropAt) => void
   /** Copies this year's unfinished goals into the next year (skipping ones already there). Returns how many were copied. */
   carryOverGoals: (year: number) => number
   setAreaLabel: (area: GoalArea, label: string) => void
@@ -338,6 +340,22 @@ export const useStore = create<State>()(
         set((s) => ({
           goals: { ...s.goals, [year]: (s.goals[year] ?? []).map((g) => (g.id === id ? { ...g, ...patch } : g)) },
         })),
+
+      moveGoal: (year, id, area, at) =>
+        set((s) => {
+          const list = s.goals[year] ?? []
+          const goal = list.find((g) => g.id === id)
+          if (!goal || at?.id === id) return {}
+          const rest = list.filter((g) => g.id !== id)
+          let i = at ? rest.findIndex((g) => g.id === at.id) : -1
+          if (i < 0) {
+            // End of the area: right after its last goal.
+            const last = rest.map((g) => g.area).lastIndexOf(area)
+            i = last < 0 ? rest.length : last + 1
+          } else if (at!.after) i++
+          rest.splice(i, 0, { ...goal, area })
+          return { goals: { ...s.goals, [year]: rest } }
+        }),
 
       removeGoal: (year, id) =>
         set((s) => ({ goals: { ...s.goals, [year]: (s.goals[year] ?? []).filter((g) => g.id !== id) } })),

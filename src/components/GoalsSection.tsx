@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
-import { ArrowRight, Check, Flag, Pencil, Plus, RotateCcw, Trash2, Trophy } from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from 'react'
+import {
+  ArrowDown, ArrowRight, ArrowUp, Check, Flag, GripVertical, MoreHorizontal, Pencil, Plus, RotateCcw, Trash2, Trophy,
+} from 'lucide-react'
 import { useAreaLabel, useStore } from '../store'
 import { GOAL_AREA, GOAL_AREAS } from '../lib/meta'
 import { END_YEAR } from '../lib/time'
 import type { Goal, GoalArea } from '../lib/types'
 import { card } from './Dashboard'
 import { toast } from '../toast'
+import { goalDrag } from '../dnd'
 
 const EMPTY: never[] = []
 
@@ -102,15 +105,36 @@ export function GoalsSection() {
 function AreaCard({ area, year, goals }: { area: GoalArea; year: number; goals: Goal[] }) {
   const a = GOAL_AREA[area]
   const openModal = useStore((s) => s.openModal)
+  const label = useAreaLabel()
   const done = goals.filter((g) => g.done).length
   const complete = goals.length > 0 && done === goals.length
-  // Unfinished first, finished sink to the bottom; otherwise keep the order they were added in.
-  const sorted = [...goals].sort((x, y) => Number(x.done) - Number(y.done))
+  const [dropping, setDropping] = useState(false)
+
+  // Dropped on the card itself (not on a goal): goes to the end of this area.
+  function onDragOver(e: DragEvent) {
+    if (!goalDrag.current) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDropping(true)
+  }
+  function onDrop(e: DragEvent) {
+    e.preventDefault()
+    setDropping(false)
+    const d = goalDrag.current
+    goalDrag.current = null
+    if (!d) return
+    const from = useStore.getState().goals[year]?.find((g) => g.id === d.id)
+    useStore.getState().moveGoal(year, d.id, area)
+    if (from && from.area !== area) toast.info(`Moved to ${label(area)}.`)
+  }
 
   return (
     <article
-      className={`group/card relative flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-gradient-to-b ${a.glow} to-transparent to-40% p-3.5 transition sm:p-4 ${
-        complete ? a.border : 'border-white/[0.07] hover:border-white/[0.12]'
+      onDragOver={onDragOver}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropping(false)}
+      onDrop={onDrop}
+      className={`group/card relative flex min-w-0 flex-col rounded-2xl border bg-gradient-to-b ${a.glow} to-transparent to-40% p-3.5 transition sm:p-4 ${
+        dropping ? `${a.border} ring-2 ${a.ring}` : complete ? a.border : 'border-white/[0.07] hover:border-white/[0.12]'
       }`}
     >
       <header className="mb-3 flex items-start gap-3">
@@ -124,17 +148,20 @@ function AreaCard({ area, year, goals }: { area: GoalArea; year: number; goals: 
         {goals.length > 0 && <Ring done={done} total={goals.length} color={a.stroke} complete={complete} />}
       </header>
 
+      {/* In the order you put them: drag, or use ⋯ → Move up / down */}
       <ul className="flex flex-1 flex-col gap-1">
-        {sorted.map((g) => (
-          <GoalRow key={g.id} goal={g} year={year} />
+        {goals.map((g, i) => (
+          <GoalRow key={g.id} goal={g} year={year} prevId={goals[i - 1]?.id} nextId={goals[i + 1]?.id} />
         ))}
         {goals.length === 0 && (
           <li>
             <button
               onClick={() => openModal({ type: 'goal', year, area })}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/[0.09] py-5 text-sm text-zinc-500 transition hover:border-white/20 hover:text-zinc-300"
+              className={`flex w-full items-center justify-center gap-2 rounded-xl border border-dashed py-5 text-sm transition ${
+                dropping ? `${a.border} ${a.text}` : 'border-white/[0.09] text-zinc-500 hover:border-white/20 hover:text-zinc-300'
+              }`}
             >
-              <Plus className="h-4 w-4" /> No goals here yet
+              {dropping ? 'Drop here' : <><Plus className="h-4 w-4" /> No goals here yet</>}
             </button>
           </li>
         )}
@@ -218,11 +245,12 @@ function AreaName({ area }: { area: GoalArea }) {
   )
 }
 
-function GoalRow({ goal, year }: { goal: Goal; year: number }) {
+function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; prevId?: string; nextId?: string }) {
   const a = GOAL_AREA[goal.area]
   const { updateGoal, removeGoal, openModal } = useStore.getState()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(goal.text)
+  const [dropAt, setDropAt] = useState<null | 'above' | 'below'>(null)
   const input = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -240,8 +268,53 @@ function GoalRow({ goal, year }: { goal: Goal; year: number }) {
     if (!goal.done) toast.success(`Done: “${goal.text}”`)
   }
 
+  const half = (e: DragEvent<HTMLLIElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    return e.clientY < r.top + r.height / 2 ? 'above' : 'below'
+  }
+
+  function onDragOver(e: DragEvent<HTMLLIElement>) {
+    const d = goalDrag.current
+    if (!d || d.year !== year) return
+    setDropAt(d.id === goal.id ? null : half(e))
+  }
+
+  function onDrop(e: DragEvent<HTMLLIElement>) {
+    setDropAt(null)
+    const d = goalDrag.current
+    if (!d || d.year !== year || d.id === goal.id) return
+    // Handled here; clearing it makes the area card's own drop handler skip it.
+    goalDrag.current = null
+    e.preventDefault()
+    const from = useStore.getState().goals[year]?.find((g) => g.id === d.id)
+    useStore.getState().moveGoal(year, d.id, goal.area, { id: goal.id, after: half(e) === 'below' })
+    if (from && from.area !== goal.area) toast.info(`Moved to ${useStore.getState().areaLabels[goal.area] || a.label}.`)
+  }
+
   return (
-    <li className="group/row animate-fade flex items-start gap-2.5 rounded-xl px-1.5 py-1 transition hover:bg-white/[0.04] sm:px-2 sm:py-1.5">
+    <li
+      draggable={!editing}
+      onDragStart={(e) => {
+        goalDrag.current = { year, id: goal.id }
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', goal.text)
+      }}
+      onDragEnd={() => (goalDrag.current = null)}
+      onDragOver={onDragOver}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropAt(null)}
+      onDrop={onDrop}
+      className="group/row animate-fade relative flex items-start gap-2.5 rounded-xl px-1.5 py-1 transition hover:bg-white/[0.04] sm:cursor-grab sm:px-2 sm:py-1.5 sm:active:cursor-grabbing"
+    >
+      {dropAt && (
+        <span
+          className={`pointer-events-none absolute inset-x-1 h-0.5 rounded-full ${dropAt === 'above' ? '-top-0.5' : '-bottom-0.5'}`}
+          style={{ background: a.stroke }}
+        />
+      )}
+      <GripVertical
+        aria-hidden
+        className="pointer-events-none absolute -left-2.5 top-1/2 hidden h-3.5 w-3.5 -translate-y-1/2 text-zinc-600 opacity-0 transition sm:block sm:group-hover/row:opacity-100"
+      />
       <button
         onClick={toggle}
         role="checkbox"
@@ -276,8 +349,8 @@ function GoalRow({ goal, year }: { goal: Goal; year: number }) {
             setDraft(goal.text)
             setEditing(true)
           }}
-          title="Double-click to edit"
-          className={`min-w-0 flex-1 cursor-text break-words py-0.5 text-[15px] leading-6 transition sm:py-0 sm:text-sm ${
+          title="Double-click to edit · drag to move"
+          className={`min-w-0 flex-1 break-words py-0.5 text-[15px] leading-6 transition sm:py-0 sm:text-sm ${
             goal.done ? 'text-zinc-500 line-through decoration-zinc-600' : 'text-zinc-100'
           }`}
         >
@@ -286,12 +359,12 @@ function GoalRow({ goal, year }: { goal: Goal; year: number }) {
       )}
 
       {!editing && (
-        <div className="-my-1 flex shrink-0 items-center opacity-100 sm:my-0 sm:gap-0.5 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100">
+        <div className="-my-1 flex shrink-0 items-center opacity-100 sm:my-0 sm:gap-0.5 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100 sm:has-[[aria-expanded=true]]:opacity-100">
           <button
             onClick={() => openModal({ type: 'goal', year, editId: goal.id })}
-            title="Edit or change area"
+            title="Edit"
             aria-label="Edit goal"
-            className="grid h-9 w-9 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 sm:h-7 sm:w-7 hover:text-white"
+            className="hidden h-7 w-7 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-white sm:grid"
           >
             <Pencil className="h-3.5 w-3.5" />
           </button>
@@ -302,13 +375,126 @@ function GoalRow({ goal, year }: { goal: Goal; year: number }) {
             }}
             title="Delete"
             aria-label="Delete goal"
-            className="grid h-9 w-9 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 sm:h-7 sm:w-7 hover:text-red-300"
+            className="hidden h-7 w-7 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-red-300 sm:grid"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
+          <GoalMenu goal={goal} year={year} prevId={prevId} nextId={nextId} />
         </div>
       )}
     </li>
+  )
+}
+
+/** ⋯ menu: move up / down, move to another area, edit, delete. Works everywhere, including phones (no dragging there). */
+function GoalMenu({ goal, year, prevId, nextId }: { goal: Goal; year: number; prevId?: string; nextId?: string }) {
+  const label = useAreaLabel()
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number; up: boolean } | null>(null)
+  const btn = useRef<HTMLButtonElement>(null)
+  const menu = useRef<HTMLDivElement>(null)
+  const s = useStore.getState
+
+  // Fixed position next to the button, flipped upward near the bottom of the screen, so cards never clip it.
+  useLayoutEffect(() => {
+    if (!open || !btn.current) return
+    const r = btn.current.getBoundingClientRect()
+    const h = menu.current?.offsetHeight ?? 300
+    const up = r.bottom + h + 8 > window.innerHeight && r.top - h - 8 > 0
+    setPos({ top: up ? r.top - h - 4 : r.bottom + 4, left: Math.max(8, Math.min(r.right - 224, window.innerWidth - 232)), up })
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const close = (e: Event) => {
+      if (e.type === 'keydown' && (e as KeyboardEvent).key !== 'Escape') return
+      if (e.type === 'pointerdown' && (menu.current?.contains(e.target as Node) || btn.current?.contains(e.target as Node))) return
+      setOpen(false)
+    }
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('keydown', close)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('pointerdown', close)
+      window.removeEventListener('keydown', close)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [open])
+
+  const run = (fn: () => void) => () => {
+    fn()
+    setOpen(false)
+  }
+  const moveTo = (area: GoalArea) => {
+    s().moveGoal(year, goal.id, area)
+    toast.info(`Moved to ${label(area)}.`)
+  }
+
+  const item = 'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition disabled:pointer-events-none disabled:opacity-30'
+
+  return (
+    <>
+      <button
+        ref={btn}
+        onClick={() => {
+          setPos(null)
+          setOpen((o) => !o)
+        }}
+        aria-label="More: move, edit, delete"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Move, edit, delete"
+        className={`grid h-9 w-9 place-items-center rounded-md transition hover:bg-white/10 hover:text-white sm:h-7 sm:w-7 ${open ? 'bg-white/10 text-white' : 'text-zinc-500'}`}
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open && (
+        <div
+          ref={menu}
+          role="menu"
+          style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden', top: 0, left: 0 }}
+          className={`fixed z-[60] w-56 rounded-xl border border-white/10 bg-[#0e1016]/95 p-1.5 shadow-2xl shadow-black/60 backdrop-blur-xl ${pos ? 'animate-fade' : ''}`}
+        >
+          <button role="menuitem" disabled={!prevId} onClick={run(() => s().moveGoal(year, goal.id, goal.area, { id: prevId!, after: false }))} className={`${item} text-zinc-200 hover:bg-white/[0.07]`}>
+            <ArrowUp className="h-4 w-4 text-zinc-400" /> Move up
+          </button>
+          <button role="menuitem" disabled={!nextId} onClick={run(() => s().moveGoal(year, goal.id, goal.area, { id: nextId!, after: true }))} className={`${item} text-zinc-200 hover:bg-white/[0.07]`}>
+            <ArrowDown className="h-4 w-4 text-zinc-400" /> Move down
+          </button>
+
+          <p className="mt-1.5 border-t border-white/[0.06] px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Move to</p>
+          {GOAL_AREAS.filter((x) => x !== goal.area).map((x) => {
+            const ga = GOAL_AREA[x]
+            return (
+              <button key={x} role="menuitem" onClick={run(() => moveTo(x))} className={`${item} text-zinc-200 hover:bg-white/[0.07]`}>
+                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-md ${ga.iconBg} ${ga.text}`}>
+                  <ga.icon className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0 flex-1 truncate">{label(x)}</span>
+              </button>
+            )
+          })}
+
+          <div className="mt-1.5 border-t border-white/[0.06] pt-1.5">
+            <button role="menuitem" onClick={run(() => s().openModal({ type: 'goal', year, editId: goal.id }))} className={`${item} text-zinc-200 hover:bg-white/[0.07]`}>
+              <Pencil className="h-4 w-4 text-zinc-400" /> Edit
+            </button>
+            <button
+              role="menuitem"
+              onClick={run(() => {
+                s().removeGoal(year, goal.id)
+                toast.info(`Deleted “${goal.text}”.`)
+              })}
+              className={`${item} text-red-300 hover:bg-red-500/10`}
+            >
+              <Trash2 className="h-4 w-4" /> Delete
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
