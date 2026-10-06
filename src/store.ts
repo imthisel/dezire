@@ -60,6 +60,22 @@ export function fitCheck(
   }
 }
 
+/** Kinds that no longer exist, and what they became. "Other" was merged into "Status & Other". */
+const OLD_CATEGORY: Record<string, Category> = { other: 'status' }
+const toCategory = (c: unknown): Category =>
+  OLD_CATEGORY[c as string] ?? ((['property', 'vehicle', 'status', 'travel'] as unknown[]).includes(c) ? (c as Category) : 'status')
+
+/** Saved months from an older version, with item kinds brought up to date. */
+function migrateMonths(months: unknown) {
+  if (!months || typeof months !== 'object') return months
+  return Object.fromEntries(
+    Object.entries(months as Record<string, MonthData>).map(([k, m]) => [
+      k,
+      m && Array.isArray(m.items) ? { ...m, items: m.items.map((i) => ({ ...i, category: toCategory(i.category) })) } : m,
+    ]),
+  )
+}
+
 const num = (v: unknown) => Math.max(0, Number(v) || 0)
 
 /** Cleans up money plans coming from a backup file or the cloud. */
@@ -395,7 +411,7 @@ export const useStore = create<State>()(
                 ? raw.items.map((i) => ({
                     id: i.id || uid(),
                     name: String(i.name ?? 'Item'),
-                    category: (['property', 'vehicle', 'status', 'other'].includes(i.category) ? i.category : 'other') as Category,
+                    category: toCategory(i.category),
                     trend: (['appreciating', 'depreciating', 'stable'].includes(i.trend) ? i.trend : 'stable') as Trend,
                     price: Number(i.price) || 0,
                     rate: Number(i.rate) || 0,
@@ -434,7 +450,7 @@ export const useStore = create<State>()(
     }),
     {
       name: 'dezire-goal-planner-v1',
-      version: 1,
+      version: 2,
       partialize: (s) => ({
         months: s.months,
         goals: s.goals,
@@ -449,6 +465,7 @@ export const useStore = create<State>()(
         assetPeriod: s.assetPeriod,
       }),
       // v0 had a selectable currency; amounts are now always pesos.
+      // v1 had an "Other" item kind; it's now part of "Status & Other".
       migrate: (persisted) => {
         const { currency: _drop, ...rest } = (persisted ?? {}) as Record<string, unknown>
         return {
@@ -456,6 +473,8 @@ export const useStore = create<State>()(
           year: currentYear(),
           dashMode: 'plan',
           ...rest,
+          ...(rest.months ? { months: migrateMonths(rest.months) } : {}),
+          ...(rest.assetCat === 'other' ? { assetCat: 'status' } : {}),
           usdRate: Number(rest.usdRate) > 0 ? Number(rest.usdRate) : DEFAULT_USD_RATE,
         } as Pick<State, 'months' | 'usdRate' | 'year' | 'dashMode'>
       },
