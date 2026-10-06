@@ -45,8 +45,6 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
   }
 
   const remaining = left - (price ?? 0)
-  // No budget and no goal: nothing to count down from.
-  const limited = Number.isFinite(left)
 
   return (
     <Modal
@@ -56,14 +54,8 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
       footer={
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-zinc-500">
-            {limited ? (
-              <>
-                Left after this:{' '}
-                <span className={`font-semibold tabular-nums ${remaining < 0 ? 'text-red-300' : 'text-zinc-200'}`}>{f(remaining)}</span>
-              </>
-            ) : (
-              'No budget or goal set for this month, so there is no limit'
-            )}
+            Left after this:{' '}
+            <span className={`font-semibold tabular-nums ${remaining < 0 ? 'text-red-300' : 'text-zinc-200'}`}>{f(remaining)}</span>
           </p>
           <div className="flex gap-2">
             <button onClick={close} className="h-11 flex-1 rounded-xl border border-white/10 px-4 text-sm font-medium text-zinc-300 transition hover:bg-white/5 sm:h-10 sm:flex-none sm:border-transparent">
@@ -91,7 +83,7 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
         <div className="grid grid-cols-3 gap-2 rounded-2xl border border-white/[0.06] bg-black/20 p-2.5 text-center sm:p-3">
           <Info k="Budget" v={budget > 0 ? f(budget) : '—'} usd={budget > 0 ? u(budget) : ''} />
           <Info k="Already spent" v={f(spent)} usd={u(spent)} />
-          <Info k="Left to spend" v={limited ? f(left) : '—'} usd={limited ? u(left) : ''} cls={left <= 0 && limited ? 'text-red-300' : 'text-emerald-300'} />
+          <Info k="Left to spend" v={f(left)} usd={u(left)} cls={left <= 0 ? 'text-red-300' : 'text-emerald-300'} />
         </div>
 
         <Step n={1} title="What kind of item is it?" done={!!category}>

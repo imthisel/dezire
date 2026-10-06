@@ -101,7 +101,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropAt(null)}
       onDrop={onDrop}
       onClick={() => setOpen((o) => !o)}
-      title={over ? 'Not enough budget / earnings this month — move it to another month' : undefined}
+      title={over ? 'Not enough money left (or over the budget) this month — move it to another month' : undefined}
       className={`group relative flex cursor-grab flex-wrap items-center gap-2.5 rounded-xl border py-2 pl-2.5 pr-2 transition sm:flex-nowrap sm:pl-1.5 active:cursor-grabbing ${
         over ? 'border-red-500/60 bg-red-500/15 ring-1 ring-red-500/40' : `${t.border} ${t.bg}`
       } ${

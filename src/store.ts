@@ -30,9 +30,9 @@ const uid = () =>
     : Math.random().toString(36).slice(2) + Date.now().toString(36)
 
 /**
- * Would an item of `price` push the month `key` past the money it has to spend (its budget, or what was
- * earned / the goal)? A month with no budget isn't a problem by itself. Such items are still allowed —
- * they just get flagged in red so they can be moved.
+ * Would an item of `price` push the month `key` past the money it has to spend (the money left going into
+ * the month, capped by its budget)? A month with no budget isn't a problem by itself. Such items are still
+ * allowed — they just get flagged in red so they can be moved.
  */
 export function fitCheck(
   months: Record<string, MonthData>,
@@ -41,19 +41,18 @@ export function fitCheck(
   excludeId?: string,
 ): { left: number; warning: string | null } {
   const m = { ...emptyMonth(), ...months[key] }
-  // With a net worth goal, the goal to make is worked out from it (and buying things doesn't change it).
-  const goal = m.netWorthGoal !== null ? computeAll(months)[indexOfKey(key)].goal : m.goal
+  // Money left before this month's items (doesn't depend on them, so excluding one changes nothing).
+  const available = planOf(months)[indexOfKey(key)].available
   const spent = m.items.filter((i) => i.id !== excludeId).reduce((s, i) => s + i.price, 0)
   const after = spent + price
   const p = (n: number) => fmt(n, PESO)
   const why: string[] = []
   if (m.budget > 0 && after > m.budget + 1e-9) why.push(`this goes ${p(after - m.budget)} over the ${p(m.budget)} budget`)
-  const earned = m.earned ?? goal
-  if ((m.earned !== null || goal > 0) && after > earned + 1e-9) {
-    why.push(`${p(after - earned)} over the ${p(earned)} ${m.earned === null ? 'goal to make' : 'earned'}`)
+  if (after > available + 1e-9) {
+    why.push(available > 0 ? `this goes ${p(after - available)} over the ${p(available)} money left` : 'there is no money left')
   }
   return {
-    left: spendLimit(m, goal) - spent,
+    left: spendLimit(m, available) - spent,
     warning: why.length ? `Not enough in ${labelOfKey(key)}: ${why.join(', and ')}. Marked red — move it to another month.` : null,
   }
 }
@@ -447,13 +446,15 @@ export const useStore = create<State>()(
 /** Running totals for every month 2026–2040, recomputed only when data changes. */
 let planCacheKey: unknown = null
 let planCache: MonthCalc[] = []
-export function usePlan() {
-  const months = useStore((s) => s.months)
+function planOf(months: Record<string, MonthData>) {
   if (months !== planCacheKey) {
     planCacheKey = months
     planCache = computeAll(months)
   }
   return planCache
+}
+export function usePlan() {
+  return planOf(useStore((s) => s.months))
 }
 
 /** The name shown for a goal area — the user's custom name, or the default. */

@@ -17,7 +17,7 @@ export function MonthCard({ index }: { index: number }) {
   const u = useUsd()
   const month = useStore((s) => s.months[c.key])
   const items = month?.items ?? EMPTY
-  const over = overLimitIds(month, c.goal)
+  const over = overLimitIds(month, c.available)
   const clipboard = useStore((s) => s.clipboard)
   const { setMonthField, openModal, pasteInto, transferItem } = useStore.getState()
   const [dropMode, setDropMode] = useState<null | 'move' | 'copy'>(null)

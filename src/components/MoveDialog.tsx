@@ -131,7 +131,7 @@ export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
               >
                 <p className="text-sm font-semibold text-white">{label}</p>
                 <p className={`truncate text-[11px] tabular-nums ${isSource || !fit.warning ? 'text-zinc-400' : 'text-red-300'}`}>
-                  {isSource ? 'current' : !Number.isFinite(fit.left) ? 'no limit' : `${f(fit.left, true)} left`}
+                  {isSource ? 'current' : `${f(fit.left, true)} left`}
                 </p>
                 {on && <Check className="absolute right-2 top-2 h-4 w-4 text-indigo-200" />}
               </button>

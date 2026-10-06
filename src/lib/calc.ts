@@ -23,6 +23,8 @@ export interface MonthCalc {
   cumSpent: number
   /** Money left = total earned − total spent */
   cash: number
+  /** Money left before this month's items: everything earned up to and including this month − everything spent before it */
+  available: number
   /** Current value of everything bought so far */
   assets: number
   netWorth: number
@@ -30,23 +32,21 @@ export interface MonthCalc {
 }
 
 /**
- * The money a month has to spend: its budget, capped by what you earned (or your goal to make
- * when nothing was entered). Whatever isn't set doesn't limit anything, so a month with neither is unlimited.
+ * The money a month has to spend: the money left going into its items (`available`, see MonthCalc),
+ * capped by its budget when one is set.
  */
-export function spendLimit(m: MonthData, goal = m.goal) {
-  const budget = m.budget > 0 ? m.budget : Infinity
-  const earned = m.earned ?? (goal > 0 ? goal : Infinity)
-  return Math.min(budget, earned)
+export function spendLimit(m: MonthData, available: number) {
+  return Math.min(m.budget > 0 ? m.budget : Infinity, available)
 }
 
 /**
  * Items shown in red. Goes down the list from the top adding up prices: the first item that doesn't fit
- * in the money available is marked, and so is everything below it. `goal` = the month's effective goal.
+ * in the money available is marked, and so is everything below it. `available` = the month's money left before its items.
  */
-export function overLimitIds(m: MonthData | undefined, goal?: number): Set<string> {
+export function overLimitIds(m: MonthData | undefined, available: number): Set<string> {
   const ids = new Set<string>()
   if (!m) return ids
-  const limit = spendLimit(m, goal)
+  const limit = spendLimit(m, available)
   let run = 0
   let over = false
   for (const it of m.items) {
@@ -104,6 +104,7 @@ export function computeAll(months: Record<string, MonthData>): MonthCalc[] {
       earnedFromGoal: earnedRaw === null,
       spent, itemCount: items.length,
       cumGoal, cumBudget, cumEarned, cumSpent, cash,
+      available: cash + spent,
       assets: assets[i],
       netWorth: cash + assets[i],
       hasData: goal > 0 || budget > 0 || earnedRaw !== null || netWorthGoal !== null || items.length > 0,
