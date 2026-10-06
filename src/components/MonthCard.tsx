@@ -1,5 +1,6 @@
 import { useEffect, useState, type DragEvent, type ReactNode } from 'react'
-import { AlertTriangle, ChevronDown, ClipboardPaste, Lock, Plus, StickyNote, Target, X } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ClipboardPaste, Plus, StickyNote, Target, X } from 'lucide-react'
+import { fitText } from '../lib/money'
 import { useFmt, usePlan, useStore, useUsd } from '../store'
 import { MONTHS, currentIndex } from '../lib/time'
 import { overLimitIds } from '../lib/calc'
@@ -36,7 +37,7 @@ export function MonthCard({ index }: { index: number }) {
   const open = !phone || expanded
   const isPast = index < today
   const left = c.budget - c.spent
-  const risk = c.goal - c.budget
+  const overBudget = c.budget > 0 && c.spent > c.budget
   const nwGoal = c.netWorthGoal
   // Only possible when an "earned" amount was saved for this month that doesn't match the worked-out goal.
   const nwShort = nwGoal !== null ? nwGoal - c.netWorth : 0
@@ -218,19 +219,17 @@ export function MonthCard({ index }: { index: number }) {
       </div>
       )}
 
-      {/* Month label: goal / budget / risk */}
+      {/* Month label: goal / budget / spent. Phones: goal and budget side by side, spent below, so big amounts fit. */}
       {open && (
-      <div className="grid grid-cols-3 gap-2">
-        <Field label="Goal to make" hint={c.goalFromNetWorth ? 'auto' : undefined}>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <Field label="Goal to make">
           {c.goalFromNetWorth ? (
             <ReadOnly
               title="Worked out from your net worth goal. Clear the net worth goal to type your own."
               ariaLabel={`${MONTHS[c.month]} goal to make, worked out from the net worth goal`}
               cls="border-indigo-400/20 bg-indigo-500/[0.06] text-indigo-100"
-            >
-              <Lock className="mr-1.5 h-3 w-3 shrink-0 text-indigo-300/70" />
-              <span className="truncate">{f(c.goal)}</span>
-            </ReadOnly>
+              text={f(c.goal)}
+            />
           ) : (
             <MoneyInput value={c.goal} onChange={(v) => setMonthField(c.key, 'goal', v)} ariaLabel={`${MONTHS[c.month]} goal`} />
           )}
@@ -238,10 +237,13 @@ export function MonthCard({ index }: { index: number }) {
         <Field label="Budget">
           <MoneyInput value={c.budget} onChange={(v) => setMonthField(c.key, 'budget', v)} ariaLabel={`${MONTHS[c.month]} budget`} />
         </Field>
-        <Field label="Risk" hint="goal − budget">
-          <ReadOnly ariaLabel={`${MONTHS[c.month]} risk (goal minus budget)`} cls={`border-white/[0.06] bg-white/[0.03] ${risk < 0 ? 'text-red-300' : 'text-zinc-300'}`}>
-            <span className="truncate">{f(risk)}</span>
-          </ReadOnly>
+        <Field label="Spent" hint="this month" className="col-span-2 sm:col-span-1">
+          <ReadOnly
+            title="Total of this month's items"
+            ariaLabel={`${MONTHS[c.month]} spent this month`}
+            cls={`border-white/[0.06] bg-white/[0.03] ${overBudget ? 'text-red-300' : 'text-zinc-300'}`}
+            text={f(c.spent)}
+          />
         </Field>
       </div>
       )}
@@ -334,22 +336,22 @@ export function MonthCard({ index }: { index: number }) {
   )
 }
 
-/** A box that looks like an input but is worked out for you. */
-function ReadOnly({ children, cls, title, ariaLabel }: { children: ReactNode; cls: string; title?: string; ariaLabel: string }) {
+/** A box that looks like an input but is worked out for you. Long amounts get smaller text so they show in full. */
+function ReadOnly({ text, cls, title, ariaLabel }: { text: string; cls: string; title?: string; ariaLabel: string }) {
   return (
     <div
-      title={title}
+      title={title ?? text}
       aria-label={ariaLabel}
-      className={`flex h-9 min-w-0 items-center rounded-lg border px-2.5 text-sm font-medium tabular-nums ${cls}`}
+      className={`flex h-9 min-w-0 items-center whitespace-nowrap rounded-lg border px-2 font-medium tabular-nums tracking-tight ${fitText(text)} ${cls}`}
     >
-      {children}
+      {text}
     </div>
   )
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+function Field({ label, hint, className = '', children }: { label: string; hint?: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <label className="min-w-0">
+    <label className={`min-w-0 ${className}`}>
       <span className="mb-1 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider text-zinc-500">
         {label}
         {hint && <span className="normal-case tracking-normal text-zinc-600">{hint}</span>}

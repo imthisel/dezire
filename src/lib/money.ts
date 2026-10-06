@@ -16,6 +16,9 @@ export function parseMoney(input: string): number | null {
   return Math.round(parseFloat(m[1]) * mult * 100) / 100
 }
 
+/** Smaller text for long amounts, so ₱12,500,000 still fits a small box in full instead of being cut off. */
+export const fitText = (text: string) => (text.length > 12 ? 'text-xs' : text.length > 10 ? 'text-[13px]' : 'text-sm')
+
 export const plain = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 })
 
 const compact1 = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })

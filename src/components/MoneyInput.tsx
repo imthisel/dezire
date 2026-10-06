@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { PESO, parseMoney, plain } from '../lib/money'
+import { PESO, fitText, parseMoney, plain } from '../lib/money'
 
 interface Props {
   value: number | null
@@ -39,7 +39,8 @@ export function MoneyInput({ value, onChange, placeholder = '0', nullable, class
     }
   }
 
-  const pad = size === 'md' ? 'h-11 pl-8 text-base' : 'h-9 pl-6 text-sm'
+  // (Phones always use 16px in inputs so iPhones don't zoom in; see index.css.)
+  const pad = size === 'md' ? 'h-11 pl-8 text-base' : `h-9 pl-6 ${fitText(text)}`
 
   return (
     <div className={`relative min-w-0 ${className}`}>
