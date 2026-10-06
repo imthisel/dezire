@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { AlertTriangle, Check } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, StickyNote } from 'lucide-react'
 import { fitCheck, useFmt, useStore, useUsd } from '../store'
 import { CATEGORY, TREND } from '../lib/meta'
 import { labelOfKey } from '../lib/time'
@@ -21,6 +21,8 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
   const [price, setPrice] = useState<number | null>(editing?.price ?? null)
   const [rate, setRate] = useState<string>(editing ? String(editing.rate) : '')
   const [rateTouched, setRateTouched] = useState(!!editing)
+  const [notes, setNotes] = useState(editing?.notes ?? '')
+  const [notesOpen, setNotesOpen] = useState(!!editing?.notes)
 
   const m = months[monthKey]
   const budget = m?.budget ?? 0
@@ -37,7 +39,7 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
 
   function save() {
     if (!ready) return
-    const data = { name: name.trim(), category: category!, trend: trend!, price: price!, rate: rateNum }
+    const data = { name: name.trim(), category: category!, trend: trend!, price: price!, rate: rateNum, notes: notes.trim() }
     const s = useStore.getState()
     const r = editId ? s.updateItem(monthKey, editId, data) : s.addItem(monthKey, data)
     toast.result(r, `${editId ? 'Updated' : 'Added'} “${data.name}” in ${labelOfKey(monthKey)}.`)
@@ -157,6 +159,35 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
             <p className="text-[11px] text-zinc-500">Tip: you can type 250k, 1.5m, or 250,000 (all amounts are in pesos).</p>
           </div>
         </Step>
+
+        {/* Notes (optional, folded away until asked for) */}
+        <section>
+          <button
+            type="button"
+            onClick={() => setNotesOpen((o) => !o)}
+            aria-expanded={notesOpen}
+            className="group flex w-full items-center gap-2.5 text-left"
+          >
+            <span className={`grid h-6 w-6 place-items-center rounded-full transition ${notes.trim() ? 'bg-amber-300/20 text-amber-200' : 'bg-white/10 text-zinc-300'}`}>
+              <StickyNote className="h-3.5 w-3.5" />
+            </span>
+            <span className="text-sm font-semibold text-zinc-200">Notes</span>
+            <span className="rounded-full bg-white/[0.06] px-1.5 py-px text-[10px] font-medium uppercase tracking-wider text-zinc-500">optional</span>
+            {!notesOpen && notes.trim() && <span className="min-w-0 flex-1 truncate text-xs text-zinc-500">{notes.trim()}</span>}
+            <ChevronDown className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform group-hover:text-zinc-300 ${notesOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {notesOpen && (
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              autoFocus={!editing?.notes}
+              rows={3}
+              maxLength={2000}
+              placeholder="Anything to remember: where to buy it, the exact model, why you want it, a link…"
+              className="animate-fade mt-2.5 block min-h-[5.5rem] w-full resize-y rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base leading-relaxed text-zinc-100 outline-none transition [field-sizing:content] placeholder:text-zinc-600 hover:border-white/20 focus:border-amber-300/50 focus:ring-2 focus:ring-amber-300/15 sm:text-sm"
+            />
+          )}
+        </section>
 
         {!!price && budgetWarning && (
           <div role="alert" className="animate-fade flex gap-3 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">

@@ -1,5 +1,5 @@
 import { useEffect, useState, type DragEvent, type ReactNode } from 'react'
-import { AlertTriangle, ChevronDown, ClipboardPaste, Lock, Plus, Target } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ClipboardPaste, Lock, Plus, StickyNote, Target, X } from 'lucide-react'
 import { useFmt, usePlan, useStore, useUsd } from '../store'
 import { MONTHS, currentIndex } from '../lib/time'
 import { overLimitIds } from '../lib/calc'
@@ -19,8 +19,11 @@ export function MonthCard({ index }: { index: number }) {
   const items = month?.items ?? EMPTY
   const over = overLimitIds(month, c.available)
   const clipboard = useStore((s) => s.clipboard)
-  const { setMonthField, openModal, pasteInto, transferItem } = useStore.getState()
+  const { setMonthField, setMonthNotes, openModal, pasteInto, transferItem } = useStore.getState()
   const [dropMode, setDropMode] = useState<null | 'move' | 'copy'>(null)
+  const notes = month?.notes ?? ''
+  const hasNotes = notes.trim().length > 0
+  const [notesOpen, setNotesOpen] = useState(false)
 
   const today = currentIndex()
   const isCurrent = index === today
@@ -97,6 +100,11 @@ export function MonthCard({ index }: { index: number }) {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h3 className={`text-lg font-semibold tracking-tight ${isPast ? 'text-zinc-300' : 'text-white'}`}>{MONTHS[c.month]}</h3>
+            {hasNotes && !open && (
+              <StickyNote aria-label="This month has notes" className="h-3.5 w-3.5 text-amber-200/60">
+                <title>This month has notes</title>
+              </StickyNote>
+            )}
             {isCurrent && (
               <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
                 This month
@@ -114,6 +122,29 @@ export function MonthCard({ index }: { index: number }) {
           </p>
         </div>
         <div className="flex shrink-0 items-start gap-2 text-right">
+          {open && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setNotesOpen((o) => !o)
+              }}
+              onKeyDown={(e) => e.stopPropagation()}
+              aria-expanded={notesOpen}
+              aria-label={notesOpen ? 'Hide notes' : hasNotes ? 'Show notes' : 'Add a note for this month'}
+              title={notesOpen ? 'Hide notes' : hasNotes ? 'Show notes' : 'Add a note for this month'}
+              className={`relative mt-0.5 inline-flex h-8 items-center gap-1.5 rounded-lg border px-2 text-xs font-medium transition ${
+                notesOpen
+                  ? 'border-amber-200/30 bg-amber-200/10 text-amber-100'
+                  : hasNotes
+                    ? 'border-amber-200/20 text-amber-100/80 hover:bg-amber-200/10'
+                    : 'border-white/10 text-zinc-400 hover:border-amber-200/30 hover:text-amber-100'
+              }`}
+            >
+              <StickyNote className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Notes</span>
+              {hasNotes && !notesOpen && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-300 ring-2 ring-[#0b0c11]" />}
+            </button>
+          )}
           <div>
           <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Net worth</p>
           <p className={`text-sm font-semibold tabular-nums ${c.netWorth < 0 ? 'text-red-300' : 'text-indigo-200'}`}>{f(c.netWorth)}</p>
@@ -124,6 +155,35 @@ export function MonthCard({ index }: { index: number }) {
           )}
         </div>
       </header>
+
+      {/* Month notes: hidden until opened */}
+      {open && notesOpen && (
+        <div className="animate-fade mb-3 rounded-xl border border-amber-200/15 bg-amber-200/[0.035] p-2.5 pb-1.5">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-amber-100/70">
+              <StickyNote className="h-3.5 w-3.5" /> Notes for {MONTHS[c.month]}
+            </span>
+            <button
+              onClick={() => setNotesOpen(false)}
+              title="Hide notes"
+              aria-label="Hide notes"
+              className="grid h-7 w-7 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <textarea
+            value={notes}
+            onChange={(e) => setMonthNotes(c.key, e.target.value)}
+            autoFocus={!hasNotes}
+            rows={3}
+            maxLength={4000}
+            aria-label={`Notes for ${MONTHS[c.month]} ${c.year}`}
+            placeholder="Reminders, plans, what happened this month… Saves as you type."
+            className="block min-h-[4.5rem] w-full resize-y rounded-lg bg-transparent px-1 py-1 text-base leading-relaxed text-zinc-200 outline-none [field-sizing:content] placeholder:text-zinc-600 focus:bg-black/20 sm:text-sm"
+          />
+        </div>
+      )}
 
       {/* Net worth goal (optional) — when set it decides the goal to make */}
       {open && (

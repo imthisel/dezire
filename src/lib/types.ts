@@ -12,6 +12,8 @@ export interface Item {
   createdAt: number
   /** Starred: shown on the Favorites page and highlighted in its month */
   favorite?: boolean
+  /** Free text, shown when the item is clicked open */
+  notes?: string
 }
 
 export interface MonthData {
@@ -24,6 +26,8 @@ export interface MonthData {
   /** What I actually earned. null = assume I hit my goal. */
   earned: number | null
   items: Item[]
+  /** Free text for the month, shown when its Notes are opened */
+  notes?: string
 }
 
 /** `warning` is set when the change went through but put a month over its limit. */

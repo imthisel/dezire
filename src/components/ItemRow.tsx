@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type MouseEvent } from 'react'
-import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Copy, CopyPlus, GripVertical, Pencil, Scissors, Star, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Copy, CopyPlus, GripVertical, Pencil, Plus, Scissors, Star, StickyNote, Trash2 } from 'lucide-react'
 import type { Item } from '../lib/types'
 import { CATEGORY, TREND } from '../lib/meta'
 import { useFmt, useStore, useUsd } from '../store'
@@ -32,6 +32,8 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
   }
   const s = useStore.getState
   const fav = !!item.favorite
+  const note = item.notes?.trim() ?? ''
+  const edit = () => s().openModal({ type: 'item', key: monthKey, editId: item.id })
 
   function toggleFav() {
     const now = s().toggleFavorite(monthKey, item.id)
@@ -58,7 +60,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
       icon: CopyPlus, label: 'Duplicate in this month',
       run: () => toast.result(s().transferItem(monthKey, item.id, monthKey, 'copy'), 'Duplicated.'),
     },
-    { icon: Pencil, label: 'Edit', run: () => s().openModal({ type: 'item', key: monthKey, editId: item.id }) },
+    { icon: Pencil, label: 'Edit', run: edit },
     {
       icon: Trash2, label: 'Delete', danger: true,
       run: () => { s().removeItem(monthKey, item.id); toast.info(`Deleted “${item.name}”.`) },
@@ -102,7 +104,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
       onDrop={onDrop}
       onClick={() => setOpen((o) => !o)}
       title={over ? 'Not enough money left (or over the budget) this month — move it to another month' : undefined}
-      className={`group relative flex cursor-grab flex-wrap items-center gap-2.5 rounded-xl border py-2 pl-2.5 pr-2 transition sm:flex-nowrap sm:pl-1.5 active:cursor-grabbing ${
+      className={`group relative flex cursor-grab flex-wrap items-center gap-2.5 rounded-xl border py-2 pl-2.5 pr-2 transition sm:pl-1.5 ${open ? '' : 'sm:flex-nowrap'} active:cursor-grabbing ${
         over ? 'border-red-500/60 bg-red-500/15 ring-1 ring-red-500/40' : `${t.border} ${t.bg}`
       } ${
         // Favorites get a gold glow and edge on top of the trend colour, so the trend still shows.
@@ -129,7 +131,12 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
       <div className="min-w-0 flex-1">
         <p className={`flex items-center gap-1 truncate text-sm font-medium ${over ? 'text-red-200' : 'text-zinc-100'}`}>
           {over && <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-400" />}
-          {item.name}
+          <span className="truncate">{item.name}</span>
+          {note && !open && (
+            <StickyNote aria-label="Has a note" className="h-3 w-3 shrink-0 text-amber-200/60">
+              <title>Has a note · click to read</title>
+            </StickyNote>
+          )}
         </p>
         <p className={`flex items-center gap-1 truncate text-[11px] ${t.text}`}>
           <t.icon className="h-3 w-3 shrink-0" />
@@ -156,7 +163,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
         <p className="text-[10px] tabular-nums text-zinc-500">≈ {u(item.price)}</p>
       </div>
       <div
-        className={`shrink-0 items-center gap-0.5 max-sm:w-full max-sm:justify-between max-sm:border-t max-sm:border-white/[0.06] max-sm:pt-1.5 ${
+        className={`shrink-0 items-center gap-0.5 max-sm:order-last max-sm:w-full max-sm:justify-between max-sm:border-t max-sm:border-white/[0.06] max-sm:pt-1.5 ${
           open ? 'animate-fade flex' : 'hidden sm:group-hover:flex'
         }`}
       >
@@ -174,6 +181,33 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
           </button>
         ))}
       </div>
+
+      {/* Note: only shown once the item is clicked open */}
+      {open && (
+        <div className="animate-fade basis-full" onClick={(e) => e.stopPropagation()}>
+          {note ? (
+            <div className="flex gap-2.5 rounded-lg border border-amber-200/15 bg-black/30 py-2 pl-2.5 pr-1.5">
+              <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-200/70" />
+              <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-zinc-300">{note}</p>
+              <button
+                onClick={edit}
+                title="Edit note"
+                aria-label="Edit note"
+                className="-my-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-white"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={edit}
+              className="inline-flex h-7 items-center gap-1.5 rounded-md px-1 text-xs text-zinc-500 transition hover:text-amber-200"
+            >
+              <Plus className="h-3 w-3" /> Add a note
+            </button>
+          )}
+        </div>
+      )}
     </li>
   )
 }

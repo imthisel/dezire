@@ -20,7 +20,7 @@ export type SourcePatch = Partial<Omit<IncomeSource, 'id' | 'createdAt' | 'steps
 export type MonthField = 'goal' | 'budget' | 'earned' | 'netWorthGoal'
 /** Where to drop an item in a month's list: next to item `id`. Missing = at the end. */
 export type DropAt = { id: string; after: boolean }
-export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number }
+export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string }
 
 const OK: Result = { ok: true }
 const fail = (error: string): Result => ({ ok: false, error })
@@ -147,6 +147,7 @@ interface State {
   closeModal: () => void
 
   setMonthField: (key: string, field: MonthField, value: number | null) => void
+  setMonthNotes: (key: string, notes: string) => void
   fillYear: (year: number, goal: number | null, budget: number | null, onlyEmpty: boolean) => void
 
   addItem: (key: string, data: ItemInput) => Result
@@ -223,6 +224,9 @@ export const useStore = create<State>()(
           const v = field === 'earned' || field === 'netWorthGoal' ? value : (value ?? 0)
           return { months: { ...s.months, [key]: { ...m, [field]: v } } }
         }),
+
+      setMonthNotes: (key, notes) =>
+        set((s) => ({ months: { ...s.months, [key]: { ...(s.months[key] ?? emptyMonth()), notes } } })),
 
       fillYear: (year, goal, budget, onlyEmpty) =>
         set((s) => {
@@ -422,8 +426,10 @@ export const useStore = create<State>()(
                     rate: Number(i.rate) || 0,
                     createdAt: Number(i.createdAt) || Date.now(),
                     ...(i.favorite ? { favorite: true } : {}),
+                    ...(typeof i.notes === 'string' && i.notes.trim() ? { notes: i.notes } : {}),
                   }))
                 : [],
+              ...(typeof raw.notes === 'string' && raw.notes.trim() ? { notes: raw.notes } : {}),
             }
           }
           const isArea = (a: unknown): a is GoalArea => GOAL_AREAS.includes(a as GoalArea)
