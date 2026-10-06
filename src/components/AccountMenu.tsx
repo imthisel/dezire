@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, Check, CloudOff, Loader2, LogOut } from 'lucide-react'
+import { AlertCircle, Cake, Check, CloudOff, Loader2, LogOut } from 'lucide-react'
 import { signOut, useCloud, type SaveStatus } from '../cloud'
 import { toast } from '../toast'
+import { BirthdayInput } from './Birthday'
 
 const STATUS: Record<SaveStatus, { label: string; cls: string; icon: typeof Check; spin?: boolean }> = {
   saved: { label: 'Saved', cls: 'text-emerald-300', icon: Check },
@@ -54,7 +55,7 @@ export function AccountMenu() {
         <Avatar url={user.photoURL} name={name} />
       </button>
       {open && (
-        <div className="animate-fade absolute right-0 top-11 z-50 w-64 overflow-hidden rounded-2xl border border-white/10 bg-[#0e1016] shadow-2xl shadow-black/60">
+        <div className="animate-fade absolute right-0 top-11 z-50 w-72 overflow-hidden rounded-2xl border border-white/10 bg-[#0e1016] shadow-2xl shadow-black/60">
           <div className="flex items-center gap-3 border-b border-white/[0.06] p-4">
             <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-white/10">
               <Avatar url={user.photoURL} name={name} />
@@ -63,6 +64,13 @@ export function AccountMenu() {
               <p className="truncate text-sm font-semibold text-white">{user.displayName || 'Signed in'}</p>
               <p className="truncate text-xs text-zinc-500">{user.email}</p>
             </div>
+          </div>
+          <div className="border-b border-white/[0.06] p-4">
+            <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-zinc-400">
+              <Cake className="h-3.5 w-3.5 text-pink-300" /> Birthday
+              <span className="font-normal text-zinc-600">· shows your age on your birth month</span>
+            </p>
+            <BirthdayInput />
           </div>
           <button
             onClick={async () => {

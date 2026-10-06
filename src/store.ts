@@ -122,6 +122,9 @@ interface State {
   areaLabels: Partial<Record<GoalArea, string>>
   /** Money plan: the ways I'm going to make the money */
   sources: IncomeSource[]
+  /** "YYYY-MM-DD", for showing my age on my birth month. null = not set. */
+  birthday: string | null
+  setBirthday: (b: string | null) => void
 
   /** Which page is showing */
   view: View
@@ -193,6 +196,8 @@ export const useStore = create<State>()(
       goals: {},
       areaLabels: {},
       sources: [],
+      birthday: null,
+      setBirthday: (b) => set({ birthday: b && /^\d{4}-\d{2}-\d{2}$/.test(b) ? b : null }),
       view: 'planner',
       sidebar: true,
       drawer: false,
@@ -422,6 +427,7 @@ export const useStore = create<State>()(
             goals?: Record<string, Partial<Goal>[]>
             areaLabels?: Record<string, unknown>
             sources?: unknown
+            birthday?: unknown
           }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
             return fail('That file is not a Dezire backup.')
@@ -468,14 +474,15 @@ export const useStore = create<State>()(
           for (const [a, label] of Object.entries(d.areaLabels ?? {})) {
             if (isArea(a) && typeof label === 'string' && label.trim()) areaLabels[a] = label.trim()
           }
-          set({ months, goals, areaLabels, sources: parseSources(d.sources), usdRate: Number(d.usdRate) > 0 ? Number(d.usdRate) : get().usdRate, clipboard: null })
+          const birthday = typeof d.birthday === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.birthday) ? d.birthday : null
+          set({ months, goals, areaLabels, sources: parseSources(d.sources), birthday, usdRate: Number(d.usdRate) > 0 ? Number(d.usdRate) : get().usdRate, clipboard: null })
           return OK
         } catch {
           return fail('Could not read that file.')
         }
       },
 
-      resetAll: () => set({ months: {}, goals: {}, areaLabels: {}, sources: [], clipboard: null, modal: null }),
+      resetAll: () => set({ months: {}, goals: {}, areaLabels: {}, sources: [], birthday: null, clipboard: null, modal: null }),
     }),
     {
       name: 'dezire-goal-planner-v1',
@@ -485,6 +492,7 @@ export const useStore = create<State>()(
         goals: s.goals,
         areaLabels: s.areaLabels,
         sources: s.sources,
+        birthday: s.birthday,
         usdRate: s.usdRate,
         year: s.year,
         dashMode: s.dashMode,

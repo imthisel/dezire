@@ -1,6 +1,7 @@
 import { useEffect, useState, type DragEvent, type ReactNode } from 'react'
-import { AlertTriangle, ChevronDown, ClipboardPaste, Plus, StickyNote, Target, X } from 'lucide-react'
+import { AlertTriangle, Cake, ChevronDown, ClipboardPaste, Plus, StickyNote, Target, X } from 'lucide-react'
 import { fitText } from '../lib/money'
+import { ageIn, turnsLabel, useBirthday } from './Birthday'
 import { useFmt, usePlan, useStore, useUsd } from '../store'
 import { MONTHS, currentIndex } from '../lib/time'
 import { overLimitIds } from '../lib/calc'
@@ -25,6 +26,9 @@ export function MonthCard({ index }: { index: number }) {
   const notes = month?.notes ?? ''
   const hasNotes = notes.trim().length > 0
   const [notesOpen, setNotesOpen] = useState(false)
+  // Birth month: show the age you turn this year.
+  const birthday = useBirthday()
+  const age = birthday?.month === c.month ? ageIn(birthday, c.year) : null
 
   const today = currentIndex()
   const isCurrent = index === today
@@ -99,12 +103,20 @@ export function MonthCard({ index }: { index: number }) {
         className={`flex items-start justify-between gap-3 ${open ? 'mb-3' : ''} ${phone ? 'cursor-pointer' : ''}`}
       >
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <h3 className={`text-lg font-semibold tracking-tight ${isPast ? 'text-zinc-300' : 'text-white'}`}>{MONTHS[c.month]}</h3>
             {hasNotes && !open && (
               <StickyNote aria-label="This month has notes" className="h-3.5 w-3.5 text-amber-200/60">
                 <title>This month has notes</title>
               </StickyNote>
+            )}
+            {age !== null && (
+              <span
+                title={age === 0 ? 'The month you were born' : `You turn ${age} this month`}
+                className="inline-flex items-center gap-1 rounded-full bg-pink-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-pink-200 ring-1 ring-pink-400/25"
+              >
+                <Cake className="h-3 w-3" /> {turnsLabel(age)}
+              </span>
             )}
             {isCurrent && (
               <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">

@@ -16,9 +16,9 @@ export function Header() {
   useEffect(() => setRateText(String(usdRate)), [usdRate])
 
   function exportData() {
-    const { months, usdRate, goals, areaLabels, sources } = useStore.getState()
+    const { months, usdRate, goals, areaLabels, sources, birthday } = useStore.getState()
     const blob = new Blob(
-      [JSON.stringify({ app: 'dezire', version: 3, exportedAt: new Date().toISOString(), currency: 'PHP', usdRate, months, goals, areaLabels, sources }, null, 2)],
+      [JSON.stringify({ app: 'dezire', version: 3, exportedAt: new Date().toISOString(), currency: 'PHP', usdRate, months, goals, areaLabels, sources, birthday }, null, 2)],
       { type: 'application/json' },
     )
     const a = document.createElement('a')
@@ -39,7 +39,7 @@ export function Header() {
   }
 
   function reset() {
-    if (confirm('Delete ALL money goals, budgets, items, yearly goals and money plans from 2026–2040? This cannot be undone.')) {
+    if (confirm('Delete ALL money goals, budgets, items, yearly goals, money plans and your birthday from 2026–2040? This cannot be undone.')) {
       useStore.getState().resetAll()
       toast.info('Everything was cleared.')
     }
