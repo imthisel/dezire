@@ -1,4 +1,4 @@
-import { useState, type DragEvent, type ReactNode } from 'react'
+import { useEffect, useState, type DragEvent, type ReactNode } from 'react'
 import { AlertTriangle, ChevronDown, ClipboardPaste, Lock, Plus, Target } from 'lucide-react'
 import { useFmt, usePlan, useStore, useUsd } from '../store'
 import { MONTHS, currentIndex } from '../lib/time'
@@ -24,9 +24,12 @@ export function MonthCard({ index }: { index: number }) {
 
   const today = currentIndex()
   const isCurrent = index === today
-  // On phones months are collapsed to a summary; tap to open. The current month starts open.
+  // On phones months are collapsed to a summary; tap to open. The current month starts open,
+  // or every month does with "Open all months" on. Flipping that switch resets any month tapped open/closed.
   const phone = useIsPhone()
-  const [expanded, setExpanded] = useState(isCurrent)
+  const openAll = useStore((s) => s.openAllMonths)
+  const [expanded, setExpanded] = useState(openAll || isCurrent)
+  useEffect(() => setExpanded(openAll || isCurrent), [openAll, isCurrent])
   const open = !phone || expanded
   const isPast = index < today
   const left = c.budget - c.spent

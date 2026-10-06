@@ -129,6 +129,9 @@ interface State {
   sidebar: boolean
   /** Sidebar slid open on small screens (not remembered) */
   drawer: boolean
+  /** Phones: show every month card unfolded instead of just the current one (remembered) */
+  openAllMonths: boolean
+  setOpenAllMonths: (on: boolean) => void
   setView: (v: View) => void
   assetCat: AssetCat
   assetPeriod: AssetPeriod
@@ -190,6 +193,8 @@ export const useStore = create<State>()(
       view: 'planner',
       sidebar: true,
       drawer: false,
+      openAllMonths: false,
+      setOpenAllMonths: (openAllMonths) => set({ openAllMonths }),
 
       setView: (view) => set({ view }),
       assetCat: 'all',
@@ -461,6 +466,7 @@ export const useStore = create<State>()(
         dashMode: s.dashMode,
         view: s.view,
         sidebar: s.sidebar,
+        openAllMonths: s.openAllMonths,
         assetCat: s.assetCat,
         assetPeriod: s.assetPeriod,
       }),

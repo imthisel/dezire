@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Wand2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ListCollapse, ListTree, Wand2 } from 'lucide-react'
 import { useFmt, usePlan, useStore, useUsd } from '../store'
 import { END_YEAR, START_YEAR, YEARS, currentYear } from '../lib/time'
 import { MonthCard } from './MonthCard'
@@ -17,6 +17,7 @@ export function YearSection() {
     <section className="space-y-4">
       <YearTabs />
       <YearSummary />
+      <OpenAllToggle />
       <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 12 }, (_, m) => (
           <MonthCard key={start + m} index={start + m} />
@@ -46,6 +47,36 @@ export function YearSection() {
       </div>
       <GoalsSection />
     </section>
+  )
+}
+
+/** Phones only: unfold every month at once instead of tapping each one. */
+function OpenAllToggle() {
+  const on = useStore((s) => s.openAllMonths)
+  const set = useStore((s) => s.setOpenAllMonths)
+  const Icon = on ? ListTree : ListCollapse
+  return (
+    <button
+      role="switch"
+      aria-checked={on}
+      onClick={() => set(!on)}
+      className={`flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition active:scale-[0.99] sm:hidden ${
+        on ? 'border-indigo-400/30 bg-indigo-500/[0.08]' : 'border-white/[0.07] bg-white/[0.025]'
+      }`}
+    >
+      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${on ? 'bg-indigo-500/20 text-indigo-200' : 'bg-white/5 text-zinc-400'}`}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-zinc-100">Open all months</span>
+        <span className="block truncate text-xs text-zinc-500">
+          {on ? 'Every month and its items are showing' : 'Only this month is open · tap a month to open it'}
+        </span>
+      </span>
+      <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${on ? 'bg-indigo-500' : 'bg-white/15'}`}>
+        <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all duration-200 ${on ? 'left-6' : 'left-1'}`} />
+      </span>
+    </button>
   )
 }
 
