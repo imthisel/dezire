@@ -12,7 +12,10 @@ export type ModalState =
   | { type: 'move'; key: string; id: string }
   | { type: 'goal'; year: number; editId?: string; area?: GoalArea }
   | null
-export type View = 'planner' | 'plan' | 'favorites'
+export type View = 'planner' | 'plan' | 'favorites' | 'assets'
+/** Assets page: which kind of item, and which years */
+export type AssetCat = 'all' | Category
+export type AssetPeriod = { mode: 'all' | 'year' | 'range'; from: number; to: number }
 export type SourcePatch = Partial<Omit<IncomeSource, 'id' | 'createdAt' | 'steps'>>
 export type MonthField = 'goal' | 'budget' | 'earned' | 'netWorthGoal'
 /** Where to drop an item in a month's list: next to item `id`. Missing = at the end. */
@@ -111,6 +114,10 @@ interface State {
   /** Sidebar slid open on small screens (not remembered) */
   drawer: boolean
   setView: (v: View) => void
+  assetCat: AssetCat
+  assetPeriod: AssetPeriod
+  setAssetCat: (c: AssetCat) => void
+  setAssetPeriod: (p: Partial<AssetPeriod>) => void
   setSidebar: (open: boolean) => void
   setDrawer: (open: boolean) => void
 
@@ -169,6 +176,17 @@ export const useStore = create<State>()(
       drawer: false,
 
       setView: (view) => set({ view }),
+      assetCat: 'all',
+      assetPeriod: { mode: 'all', from: currentYear(), to: Math.min(END_YEAR, currentYear() + 4) },
+      setAssetCat: (assetCat) => set({ assetCat }),
+      setAssetPeriod: (p) =>
+        set((s) => {
+          const clamp = (y: number) => Math.min(END_YEAR, Math.max(START_YEAR, y))
+          const next = { ...s.assetPeriod, ...p }
+          const from = clamp(Math.min(next.from, next.to))
+          const to = clamp(Math.max(next.from, next.to))
+          return { assetPeriod: { mode: next.mode, from, to } }
+        }),
       setSidebar: (sidebar) => set({ sidebar }),
       setDrawer: (drawer) => set({ drawer }),
 
@@ -427,6 +445,8 @@ export const useStore = create<State>()(
         dashMode: s.dashMode,
         view: s.view,
         sidebar: s.sidebar,
+        assetCat: s.assetCat,
+        assetPeriod: s.assetPeriod,
       }),
       // v0 had a selectable currency; amounts are now always pesos.
       migrate: (persisted) => {

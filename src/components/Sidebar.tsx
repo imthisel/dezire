@@ -1,7 +1,8 @@
 import { useEffect, type ReactNode } from 'react'
-import { CalendarDays, Flag, LayoutDashboard, PanelLeftClose, Plus, Rocket, Star, Target, X } from 'lucide-react'
+import { CalendarDays, Flag, Gem, LayoutDashboard, PanelLeftClose, Plus, Rocket, Star, Target, X } from 'lucide-react'
 import { useFmt, useStore } from '../store'
-import { SOURCE_KIND } from '../lib/meta'
+import { CATEGORY, SOURCE_KIND } from '../lib/meta'
+import type { Category } from '../lib/types'
 import { useMedia } from '../lib/useMedia'
 import { goTo, useActiveSection } from '../nav'
 
@@ -21,6 +22,15 @@ export function Sidebar() {
   const drawer = useStore((s) => s.drawer)
   const sources = useStore((s) => s.sources)
   const favorites = useStore((s) => Object.values(s.months).reduce((n, m) => n + m.items.filter((i) => i.favorite).length, 0))
+  const assetCat = useStore((s) => s.assetCat)
+  // "property:3,vehicle:1,…" keeps the selector's result a plain string, so it only re-renders on real changes.
+  const assetCounts = useStore((s) => {
+    const n: Record<string, number> = {}
+    for (const m of Object.values(s.months)) for (const i of m.items) n[i.category] = (n[i.category] ?? 0) + 1
+    return (Object.keys(CATEGORY) as Category[]).map((c) => n[c] ?? 0).join(',')
+  })
+    .split(',')
+    .map(Number)
   const active = useActiveSection()
   const f = useFmt()
   const shown = docked ? sidebar : drawer
@@ -81,6 +91,37 @@ export function Sidebar() {
               badge={favorites || undefined}
               iconCls="text-amber-300"
             />
+          </Group>
+
+          <Group label="What you own">
+            <Link
+              icon={Gem}
+              label="Assets"
+              on={active === 'assets' && assetCat === 'all'}
+              onClick={() => goTo('assets')}
+              badge={assetCounts.reduce((a, b) => a + b, 0) || undefined}
+            />
+            <ul className="ml-[1.4rem] mt-1 space-y-0.5 border-l border-white/[0.07] pl-2">
+              {(Object.keys(CATEGORY) as Category[]).map((c, i) => {
+                const cat = CATEGORY[c]
+                const on = active === 'assets' && assetCat === c
+                return (
+                  <li key={c}>
+                    <button
+                      onClick={() => goTo(`assets-${c}`)}
+                      aria-current={on ? 'page' : undefined}
+                      className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition ${
+                        on ? 'bg-white/[0.07] text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      <cat.icon className={`h-3.5 w-3.5 shrink-0 ${on ? 'text-indigo-300' : ''}`} />
+                      <span className="min-w-0 flex-1 truncate">{cat.label}</span>
+                      {assetCounts[i] > 0 && <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">{assetCounts[i]}</span>}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
           </Group>
 
           <Group label="Making the money">

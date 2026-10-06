@@ -1,12 +1,13 @@
-import { CalendarDays, Flag, LayoutDashboard, Rocket, Star } from 'lucide-react'
+import { CalendarDays, Flag, Gem, LayoutDashboard, Rocket, Star } from 'lucide-react'
 import { goTo, useActiveSection, type Section } from '../nav'
 
 const SECTIONS: { id: Section; label: string; icon: typeof Flag }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'years', label: 'Months', icon: CalendarDays },
   { id: 'goals', label: 'Goals', icon: Flag },
+  { id: 'assets', label: 'Assets', icon: Gem },
   { id: 'favorites', label: 'Favorites', icon: Star },
-  { id: 'plan', label: 'Money plan', icon: Rocket },
+  { id: 'plan', label: 'Plan', icon: Rocket },
 ]
 
 /** Bottom tab bar on phones that jumps between the main sections of the app. */
@@ -23,13 +24,13 @@ export function MobileNav() {
               key={s.id}
               onClick={() => goTo(s.id)}
               aria-current={on ? 'true' : undefined}
-              className={`relative flex flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-medium transition ${
+              className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-medium transition ${
                 on ? 'text-white' : 'text-zinc-500 active:text-zinc-300'
               }`}
             >
               <span className={`absolute top-0 h-0.5 w-8 rounded-full bg-indigo-400 transition-opacity ${on ? 'opacity-100' : 'opacity-0'}`} />
               <s.icon className={`h-5 w-5 ${on ? 'text-indigo-300' : ''}`} strokeWidth={on ? 2.4 : 2} />
-              {s.label}
+              <span className="max-w-full truncate px-0.5">{s.label}</span>
             </button>
           )
         })}

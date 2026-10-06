@@ -4,6 +4,7 @@ import { Dashboard } from './components/Dashboard'
 import { YearSection } from './components/YearSection'
 import { MoneyPlan } from './components/MoneyPlan'
 import { Favorites } from './components/Favorites'
+import { Assets } from './components/Assets'
 import { ItemModal } from './components/ItemModal'
 import { MoveDialog } from './components/MoveDialog'
 import { GoalModal } from './components/GoalModal'
@@ -42,6 +43,8 @@ function Planner() {
             <MoneyPlan />
           ) : view === 'favorites' ? (
             <Favorites />
+          ) : view === 'assets' ? (
+            <Assets />
           ) : (
             <>
               <Dashboard />
