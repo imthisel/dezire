@@ -20,7 +20,7 @@ export type SourcePatch = Partial<Omit<IncomeSource, 'id' | 'createdAt' | 'steps
 export type MonthField = 'goal' | 'budget' | 'earned' | 'netWorthGoal'
 /** Where to drop an item in a month's list: next to item `id`. Missing = at the end. */
 export type DropAt = { id: string; after: boolean }
-export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string }
+export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string; propertyId?: string }
 
 const OK: Result = { ok: true }
 const fail = (error: string): Result => ({ ok: false, error })
@@ -156,6 +156,8 @@ interface State {
   addItem: (key: string, data: ItemInput) => Result
   updateItem: (key: string, id: string, data: ItemInput) => Result
   removeItem: (key: string, id: string) => void
+  /** Makes exactly `vehicleIds` the vehicles kept at property `propertyId` (others kept there are unassigned). */
+  setVehiclesAt: (propertyId: string, vehicleIds: string[]) => void
   /** Stars / unstars an item. Returns whether it is now a favorite. */
   toggleFavorite: (key: string, id: string) => boolean
   transferItem: (fromKey: string, id: string, toKey: string, mode: 'copy' | 'move', at?: DropAt) => Result
@@ -255,8 +257,26 @@ export const useStore = create<State>()(
         const m = months[key] ?? emptyMonth()
         const item: Item = { ...data, id: uid(), createdAt: Date.now() }
         set({ months: { ...months, [key]: { ...m, items: [...m.items, item] } } })
-        return warned(key, data.price, months)
+        return { ...warned(key, data.price, months), id: item.id }
       },
+
+      setVehiclesAt: (propertyId, vehicleIds) =>
+        set((s) => {
+          const want = new Set(vehicleIds)
+          const months = { ...s.months }
+          for (const [k, m] of Object.entries(months)) {
+            let changed = false
+            const items = m.items.map((i) => {
+              if (i.category !== 'vehicle') return i
+              const here = i.propertyId === propertyId
+              if (want.has(i.id) && !here) return (changed = true), { ...i, propertyId }
+              if (!want.has(i.id) && here) return (changed = true), { ...i, propertyId: undefined }
+              return i
+            })
+            if (changed) months[k] = { ...m, items }
+          }
+          return { months }
+        }),
 
       updateItem: (key, id, data) => {
         const { months } = get()
@@ -286,7 +306,14 @@ export const useStore = create<State>()(
           const m = s.months[key]
           if (!m) return {}
           const clipboard = s.clipboard?.mode === 'cut' && s.clipboard.item.id === id ? null : s.clipboard
-          return { months: { ...s.months, [key]: { ...m, items: m.items.filter((i) => i.id !== id) } }, clipboard }
+          const months = { ...s.months, [key]: { ...m, items: m.items.filter((i) => i.id !== id) } }
+          // Vehicles kept at a deleted property are no longer kept anywhere.
+          for (const [k, mo] of Object.entries(months)) {
+            if (mo.items.some((i) => i.propertyId === id)) {
+              months[k] = { ...mo, items: mo.items.map((i) => (i.propertyId === id ? { ...i, propertyId: undefined } : i)) }
+            }
+          }
+          return { months, clipboard }
         }),
 
       transferItem: (fromKey, id, toKey, mode, at) => {
@@ -451,6 +478,7 @@ export const useStore = create<State>()(
                     createdAt: Number(i.createdAt) || Date.now(),
                     ...(i.favorite ? { favorite: true } : {}),
                     ...(typeof i.notes === 'string' && i.notes.trim() ? { notes: i.notes } : {}),
+                    ...(typeof i.propertyId === 'string' && i.propertyId ? { propertyId: i.propertyId } : {}),
                   }))
                 : [],
               ...(typeof raw.notes === 'string' && raw.notes.trim() ? { notes: raw.notes } : {}),
@@ -532,6 +560,36 @@ function planOf(months: Record<string, MonthData>) {
 }
 export function usePlan() {
   return planOf(useStore((s) => s.months))
+}
+
+export type Placed = { item: Item; key: string }
+export type ItemIndex = {
+  /** Every item by id */
+  byId: Map<string, Placed>
+  /** Every Land / Property item, in month order */
+  properties: Placed[]
+  /** Vehicles kept at each property (by property id), in month order */
+  vehiclesAt: Map<string, Placed[]>
+}
+
+let indexKey: unknown = null
+let indexCache: ItemIndex = { byId: new Map(), properties: [], vehiclesAt: new Map() }
+/** Lookups across all months (which property a vehicle is kept at, and the reverse), rebuilt only when data changes. */
+export function useItemIndex(): ItemIndex {
+  const months = useStore((s) => s.months)
+  if (months !== indexKey) {
+    indexKey = months
+    const byId = new Map<string, Placed>()
+    for (const key of Object.keys(months).sort()) for (const item of months[key].items) byId.set(item.id, { item, key })
+    const properties = [...byId.values()].filter((p) => p.item.category === 'property')
+    const vehiclesAt = new Map<string, Placed[]>()
+    for (const p of byId.values()) {
+      const at = p.item.category === 'vehicle' && p.item.propertyId ? byId.get(p.item.propertyId) : undefined
+      if (at?.item.category === 'property') vehiclesAt.set(at.item.id, [...(vehiclesAt.get(at.item.id) ?? []), p])
+    }
+    indexCache = { byId, properties, vehiclesAt }
+  }
+  return indexCache
 }
 
 /** The name shown for a goal area — the user's custom name, or the default. */

@@ -14,6 +14,8 @@ export interface Item {
   favorite?: boolean
   /** Free text, shown when the item is clicked open */
   notes?: string
+  /** Vehicles only: id of the Land / Property item it's kept at (any month) */
+  propertyId?: string
 }
 
 export interface MonthData {
@@ -31,7 +33,7 @@ export interface MonthData {
 }
 
 /** `warning` is set when the change went through but put a month over its limit. */
-export type Result = { ok: true; warning?: string } | { ok: false; error: string }
+export type Result = { ok: true; warning?: string; /** id of a newly added item */ id?: string } | { ok: false; error: string }
 
 /** The four areas of life a yearly goal can belong to. */
 export type GoalArea = 'mind' | 'body' | 'status' | 'identity'

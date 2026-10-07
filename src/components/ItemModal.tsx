@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import { AlertTriangle, Check, ChevronDown, StickyNote } from 'lucide-react'
-import { fitCheck, useFmt, useStore, useUsd } from '../store'
+import { AlertTriangle, Car, Check, ChevronDown, Home, StickyNote } from 'lucide-react'
+import { fitCheck, useFmt, useItemIndex, useStore, useUsd } from '../store'
 import { CATEGORY, TREND } from '../lib/meta'
 import { labelOfKey } from '../lib/time'
 import type { Category, Trend } from '../lib/types'
@@ -23,6 +23,21 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
   const [rateTouched, setRateTouched] = useState(!!editing)
   const [notes, setNotes] = useState(editing?.notes ?? '')
   const [notesOpen, setNotesOpen] = useState(!!editing?.notes)
+  const index = useItemIndex()
+  // Only keep a link to a property that still exists.
+  // Property: which vehicles are kept here (ticked in this window, saved with it).
+  const vehicles = [...index.byId.values()].filter((p) => p.item.category === 'vehicle' && p.item.id !== editId)
+  const [kept, setKept] = useState<Set<string>>(() => new Set((editId ? (index.vehiclesAt.get(editId) ?? []) : []).map((v) => v.item.id)))
+  const toggleKept = (id: string) =>
+    setKept((k) => {
+      const n = new Set(k)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  const [propertyId, setPropertyId] = useState<string | null>(
+    editing?.propertyId && index.byId.get(editing.propertyId)?.item.category === 'property' ? editing.propertyId : null,
+  )
 
   const m = months[monthKey]
   const budget = m?.budget ?? 0
@@ -39,9 +54,12 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
 
   function save() {
     if (!ready) return
-    const data = { name: name.trim(), category: category!, trend: trend!, price: price!, rate: rateNum, notes: notes.trim() }
+    const data = { name: name.trim(), category: category!, trend: trend!, price: price!, rate: rateNum, notes: notes.trim(), propertyId: category === 'vehicle' && propertyId ? propertyId : undefined }
     const s = useStore.getState()
     const r = editId ? s.updateItem(monthKey, editId, data) : s.addItem(monthKey, data)
+    // A property keeps the vehicles ticked below; anything that's no longer a property keeps none.
+    const pid = editId ?? (r.ok ? r.id : undefined)
+    if (pid && (category === 'property' || editing?.category === 'property')) s.setVehiclesAt(pid, category === 'property' ? [...kept] : [])
     toast.result(r, `${editId ? 'Updated' : 'Added'} “${data.name}” in ${labelOfKey(monthKey)}.`)
     if (r.ok) close()
   }
@@ -160,6 +178,96 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
           </div>
         </Step>
 
+        {/* Vehicles: which property it's kept at (optional) */}
+        {category === 'vehicle' && (
+          <section className="animate-fade">
+            <div className="mb-2.5 flex items-center gap-2.5">
+              <span className={`grid h-6 w-6 place-items-center rounded-full transition ${propertyId ? 'bg-teal-400/20 text-teal-200' : 'bg-white/10 text-zinc-300'}`}>
+                <Home className="h-3.5 w-3.5" />
+              </span>
+              <h3 className="text-sm font-semibold text-zinc-200">Where is it kept?</h3>
+              <span className="rounded-full bg-white/[0.06] px-1.5 py-px text-[10px] font-medium uppercase tracking-wider text-zinc-500">optional</span>
+            </div>
+            {index.properties.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-white/10 px-3 py-3 text-xs text-zinc-500">
+                Add a <span className="text-zinc-300">Land / Property</span> item to any month and you can keep this vehicle there.
+              </p>
+            ) : (
+              <div className="scrollbar-none -mx-1 max-h-56 space-y-1.5 overflow-y-auto px-1 py-0.5" role="radiogroup" aria-label="Where is it kept?">
+                <PlaceOption on={!propertyId} onClick={() => setPropertyId(null)} title="Not at a property" sub="Leave it unassigned" />
+                {index.properties.map((p) => {
+                  const here = (index.vehiclesAt.get(p.item.id) ?? []).filter((v) => v.item.id !== editId).length
+                  return (
+                    <PlaceOption
+                      key={p.item.id}
+                      on={propertyId === p.item.id}
+                      onClick={() => setPropertyId(p.item.id)}
+                      title={p.item.name}
+                      sub={`${labelOfKey(p.key)} · ${f(p.item.price, true)}`}
+                      count={here}
+                      home
+                    />
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Properties: tick the vehicles kept here (optional) */}
+        {category === 'property' && (
+          <section className="animate-fade">
+            <div className="mb-2.5 flex items-center gap-2.5">
+              <span className={`grid h-6 w-6 place-items-center rounded-full transition ${kept.size ? 'bg-teal-400/20 text-teal-200' : 'bg-white/10 text-zinc-300'}`}>
+                <Car className="h-3.5 w-3.5" />
+              </span>
+              <h3 className="text-sm font-semibold text-zinc-200">Vehicles kept here</h3>
+              <span className="rounded-full bg-white/[0.06] px-1.5 py-px text-[10px] font-medium uppercase tracking-wider text-zinc-500">optional</span>
+              {kept.size > 0 && <span className="ml-auto text-xs tabular-nums text-teal-200/80">{kept.size} selected</span>}
+            </div>
+            {vehicles.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-white/10 px-3 py-3 text-xs text-zinc-500">
+                Add a <span className="text-zinc-300">Vehicle</span> item to any month and you can keep it here.
+              </p>
+            ) : (
+              <div className="scrollbar-none -mx-1 max-h-56 space-y-1.5 overflow-y-auto px-1 py-0.5">
+                {vehicles.map((v) => {
+                  const on = kept.has(v.item.id)
+                  const other = v.item.propertyId && v.item.propertyId !== editId ? index.byId.get(v.item.propertyId) : undefined
+                  const elsewhere = other?.item.category === 'property' ? other.item.name : null
+                  const t = TREND[v.item.trend]
+                  return (
+                    <button
+                      key={v.item.id}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={on}
+                      onClick={() => toggleKept(v.item.id)}
+                      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
+                        on ? 'border-teal-400/60 bg-teal-500/10 ring-2 ring-teal-400/40' : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]'
+                      }`}
+                    >
+                      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${t.iconBg} ${t.text}`}>
+                        <Car className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className={`block truncate text-sm font-medium ${on ? 'text-white' : 'text-zinc-200'}`}>{v.item.name}</span>
+                        <span className="block truncate text-[11px] text-zinc-500">
+                          {labelOfKey(v.key)} · {f(v.item.price, true)}
+                          {elsewhere && (on ? <span className="text-amber-200/80"> · moves here from {elsewhere}</span> : ` · at ${elsewhere}`)}
+                        </span>
+                      </span>
+                      <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 transition ${on ? 'border-teal-400 bg-teal-400' : 'border-zinc-600'}`}>
+                        {on && <Check className="h-3 w-3 text-black" strokeWidth={3.5} />}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
         {/* Notes (optional, folded away until asked for) */}
         <section>
           <button
@@ -216,6 +324,36 @@ function Step({ n, title, done, children }: { n: number; title: string; done: bo
       </div>
       {children}
     </section>
+  )
+}
+
+function PlaceOption({ on, onClick, title, sub, count = 0, home }: { on: boolean; onClick: () => void; title: string; sub: string; count?: number; home?: boolean }) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={on}
+      onClick={onClick}
+      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
+        on ? 'border-teal-400/60 bg-teal-500/10 ring-2 ring-teal-400/40' : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]'
+      }`}
+    >
+      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${home ? (on ? 'bg-teal-400/20 text-teal-200' : 'bg-white/5 text-zinc-400') : 'bg-white/5 text-zinc-500'}`}>
+        {home ? <Home className="h-4 w-4" /> : <span className="text-base leading-none">—</span>}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={`block truncate text-sm font-medium ${on ? 'text-white' : 'text-zinc-200'}`}>{title}</span>
+        <span className="block truncate text-[11px] text-zinc-500">{sub}</span>
+      </span>
+      {count > 0 && (
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] tabular-nums text-zinc-400" title={`${count} other vehicle${count > 1 ? 's' : ''} kept here`}>
+          <Car className="h-3 w-3" /> {count}
+        </span>
+      )}
+      <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition ${on ? 'border-teal-400 bg-teal-400' : 'border-zinc-600'}`}>
+        {on && <Check className="h-3 w-3 text-black" strokeWidth={3.5} />}
+      </span>
+    </button>
   )
 }
 

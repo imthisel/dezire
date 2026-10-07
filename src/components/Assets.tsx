@@ -8,6 +8,7 @@ import type { Category, Item, Trend } from '../lib/types'
 import { card } from './Dashboard'
 import { goTo, goToMonth } from '../nav'
 import { toast } from '../toast'
+import { Kept } from './Kept'
 
 type Asset = { item: Item; key: string; index: number; year: number }
 type Sort = 'date' | 'price' | 'value' | 'name'
@@ -398,6 +399,8 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel }: { asset: As
           {item.trend !== 'stable' && item.rate > 0 && <span className="opacity-80">· {item.rate}%/yr</span>}
         </span>
       </div>
+
+      <Kept item={item} />
 
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
         <p className="min-w-0 truncate text-xs text-zinc-400">

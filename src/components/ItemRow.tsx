@@ -1,8 +1,10 @@
 import { useState, type DragEvent, type MouseEvent } from 'react'
-import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Copy, CopyPlus, GripVertical, Pencil, Plus, Scissors, Star, StickyNote, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Car, Copy, CopyPlus, GripVertical, Home, Pencil, Plus, Scissors, Star, StickyNote, Trash2 } from 'lucide-react'
 import type { Item } from '../lib/types'
 import { CATEGORY, TREND } from '../lib/meta'
-import { useFmt, useStore, useUsd } from '../store'
+import { useFmt, useItemIndex, useStore, useUsd } from '../store'
+import { labelOfKey } from '../lib/time'
+import { goToMonth } from '../nav'
 import { drag } from '../dnd'
 import { toast } from '../toast'
 
@@ -33,6 +35,13 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
   const s = useStore.getState
   const fav = !!item.favorite
   const note = item.notes?.trim() ?? ''
+  const index = useItemIndex()
+  const isProperty = item.category === 'property'
+  const isVehicle = item.category === 'vehicle'
+  // Property: vehicles kept here. Vehicle: the property it's kept at (if it still exists).
+  const vehicles = isProperty ? (index.vehiclesAt.get(item.id) ?? []) : []
+  const keptAt = isVehicle && item.propertyId ? index.byId.get(item.propertyId) : undefined
+  const home = keptAt?.item.category === 'property' ? keptAt : undefined
   const edit = () => s().openModal({ type: 'item', key: monthKey, editId: item.id })
 
   function toggleFav() {
@@ -132,6 +141,17 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
         <p className={`flex items-center gap-1 truncate text-sm font-medium ${over ? 'text-red-200' : 'text-zinc-100'}`}>
           {over && <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-400" />}
           <span className="truncate">{item.name}</span>
+          {!open && vehicles.length > 0 && (
+            <span title={`${vehicles.length} vehicle${vehicles.length > 1 ? 's' : ''} kept here`} className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-medium tabular-nums text-teal-200/70">
+              <Car className="h-3 w-3" />
+              {vehicles.length}
+            </span>
+          )}
+          {!open && home && (
+            <Home aria-label={`Kept at ${home.item.name}`} className="h-3 w-3 shrink-0 text-teal-200/60">
+              <title>Kept at {home.item.name}</title>
+            </Home>
+          )}
           {note && !open && (
             <StickyNote aria-label="Has a note" className="h-3 w-3 shrink-0 text-amber-200/60">
               <title>Has a note · click to read</title>
@@ -181,6 +201,62 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
           </button>
         ))}
       </div>
+
+      {/* Property: the vehicles kept here. Vehicle: where it's kept. Only shown once clicked open. */}
+      {open && isProperty && (
+        <div className="animate-fade basis-full rounded-lg border border-teal-300/15 bg-black/30 p-2" onClick={(e) => e.stopPropagation()}>
+          <p className="mb-1 flex items-center gap-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-wider text-teal-100/70">
+            <Car className="h-3.5 w-3.5" /> Vehicles kept here
+            {vehicles.length > 0 && <span className="tabular-nums text-teal-100/40">· {vehicles.length}</span>}
+          </p>
+          {vehicles.length === 0 ? (
+            <p className="px-0.5 pb-0.5 text-xs text-zinc-500">None yet. Open a vehicle and pick this property under “Where is it kept?”.</p>
+          ) : (
+            <ul className="space-y-0.5">
+              {vehicles.map((v) => {
+                const vt = TREND[v.item.trend]
+                return (
+                  <li key={v.item.id}>
+                    <button
+                      onClick={() => (v.key === monthKey ? s().openModal({ type: 'item', key: v.key, editId: v.item.id }) : goToMonth(v.key))}
+                      title={v.key === monthKey ? 'Edit this vehicle' : `Open ${labelOfKey(v.key)}`}
+                      className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left transition hover:bg-white/[0.06]"
+                    >
+                      <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-md ${vt.iconBg} ${vt.text}`}>
+                        <Car className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-xs font-medium text-zinc-200">{v.item.name}</span>
+                      <span className="shrink-0 text-[11px] text-zinc-500">{labelOfKey(v.key)}</span>
+                      <span className="w-16 shrink-0 text-right text-xs font-semibold tabular-nums text-zinc-300">{f(v.item.price, true)}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+      {open && isVehicle && (
+        <div className="animate-fade basis-full" onClick={(e) => e.stopPropagation()}>
+          {home ? (
+            <button
+              onClick={() => goToMonth(home.key)}
+              title={`Open ${labelOfKey(home.key)}`}
+              className="flex w-full items-center gap-2 rounded-lg border border-teal-300/15 bg-black/30 px-2.5 py-2 text-left transition hover:bg-black/40"
+            >
+              <Home className="h-3.5 w-3.5 shrink-0 text-teal-200/80" />
+              <span className="min-w-0 flex-1 truncate text-xs text-zinc-300">
+                Kept at <span className="font-medium text-white">{home.item.name}</span>
+              </span>
+              <span className="shrink-0 text-[11px] text-zinc-500">{labelOfKey(home.key)}</span>
+            </button>
+          ) : (
+            <button onClick={edit} className="inline-flex h-7 items-center gap-1.5 rounded-md px-1 text-xs text-zinc-500 transition hover:text-teal-200">
+              <Home className="h-3 w-3" /> Keep it at a property
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Note: only shown once the item is clicked open */}
       {open && (
