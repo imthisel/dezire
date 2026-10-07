@@ -158,6 +158,8 @@ interface State {
   removeItem: (key: string, id: string) => void
   /** Makes exactly `vehicleIds` the vehicles kept at property `propertyId` (others kept there are unassigned). */
   setVehiclesAt: (propertyId: string, vehicleIds: string[]) => void
+  /** Keeps one vehicle at property `propertyId` (null = not kept anywhere). */
+  keepVehicleAt: (vehicleId: string, propertyId: string | null) => void
   /** Stars / unstars an item. Returns whether it is now a favorite. */
   toggleFavorite: (key: string, id: string) => boolean
   transferItem: (fromKey: string, id: string, toKey: string, mode: 'copy' | 'move', at?: DropAt) => Result
@@ -276,6 +278,18 @@ export const useStore = create<State>()(
             if (changed) months[k] = { ...m, items }
           }
           return { months }
+        }),
+
+      keepVehicleAt: (vehicleId, propertyId) =>
+        set((s) => {
+          for (const [k, m] of Object.entries(s.months)) {
+            const at = m.items.findIndex((i) => i.id === vehicleId && i.category === 'vehicle')
+            if (at < 0) continue
+            const items = [...m.items]
+            items[at] = { ...items[at], propertyId: propertyId ?? undefined }
+            return { months: { ...s.months, [k]: { ...m, items } } }
+          }
+          return {}
         }),
 
       updateItem: (key, id, data) => {

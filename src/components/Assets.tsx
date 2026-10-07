@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { ArrowUpDown, CalendarDays, CalendarRange, ChevronDown, Gem, Infinity as All, Pencil, Plus, Star } from 'lucide-react'
-import { useFmt, useStore, useUsd, type AssetCat, type AssetPeriod } from '../store'
+import { useFmt, useItemIndex, useStore, useUsd, type AssetCat, type AssetPeriod } from '../store'
 import { CATEGORY, TREND } from '../lib/meta'
 import { valueAfter } from '../lib/calc'
 import { END_YEAR, MONTHS_SHORT, START_YEAR, TOTAL_MONTHS, YEARS, currentYear, fromIndex, indexOf, indexOfKey } from '../lib/time'
@@ -8,7 +8,8 @@ import type { Category, Item, Trend } from '../lib/types'
 import { card } from './Dashboard'
 import { goTo, goToMonth } from '../nav'
 import { toast } from '../toast'
-import { Kept } from './Kept'
+import { Kept, dragVehicle } from './Kept'
+import { useVehicleDrag, vehicleDrag } from '../dnd'
 
 type Asset = { item: Item; key: string; index: number; year: number }
 type Sort = 'date' | 'price' | 'value' | 'name'
@@ -353,6 +354,23 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel }: { asset: As
   const later = valueAfter(item, asOf - index)
   const change = later - item.price
   const { month, year } = fromIndex(index)
+  const items = useItemIndex()
+  const isVehicle = item.category === 'vehicle'
+  // Property cards take a dragged vehicle (unless it's already kept here).
+  const dragging = useVehicleDrag()
+  const dragged = dragging ? items.byId.get(dragging) : undefined
+  const target = item.category === 'property' && !!dragged && dragged.item.propertyId !== item.id
+  const [over, setOver] = useState(false)
+
+  function drop() {
+    const v = vehicleDrag.get()
+    setOver(false)
+    vehicleDrag.set(null)
+    const placed = v ? items.byId.get(v) : undefined
+    if (!placed || placed.item.category !== 'vehicle' || placed.item.propertyId === item.id) return
+    useStore.getState().keepVehicleAt(placed.item.id, item.id)
+    toast.info(`Keeping “${placed.item.name}” at ${item.name}.`)
+  }
 
   function star() {
     const now = useStore.getState().toggleFavorite(key, item.id)
@@ -361,10 +379,42 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel }: { asset: As
 
   return (
     <article
+      {...(isVehicle ? dragVehicle(item.id, item.name) : {})}
+      onDragOver={
+        target
+          ? (e) => {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'move'
+              setOver(true)
+            }
+          : undefined
+      }
+      onDragLeave={target ? (e) => !e.currentTarget.contains(e.relatedTarget as Node) && setOver(false) : undefined}
+      onDrop={
+        target
+          ? (e) => {
+              e.preventDefault()
+              drop()
+            }
+          : undefined
+      }
+      title={isVehicle ? 'Drag onto a property to keep it there' : undefined}
       className={`relative min-w-0 overflow-hidden rounded-2xl border p-4 transition ${t.border} ${t.bg} ${
         fav ? 'bg-gradient-to-br from-amber-300/[0.12] via-transparent to-transparent ring-1 ring-amber-300/30' : ''
+      } ${isVehicle ? 'cursor-grab active:cursor-grabbing' : ''} ${dragging === item.id ? 'opacity-50' : ''} ${
+        target ? (over ? 'ring-2 ring-teal-300/80' : 'ring-1 ring-teal-300/40') : ''
       }`}
     >
+      {target && (
+        <span
+          aria-hidden
+          className={`pointer-events-none absolute right-12 top-3 rounded-full px-2 py-0.5 text-[10px] font-medium transition ${
+            over ? 'bg-teal-400/25 text-teal-100' : 'bg-black/40 text-teal-200/70'
+          }`}
+        >
+          Drop to keep here
+        </span>
+      )}
       {fav && <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-200 to-amber-400" />}
       <div className="flex items-start gap-3">
         <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${t.iconBg} ${t.text}`}>
@@ -400,7 +450,7 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel }: { asset: As
         </span>
       </div>
 
-      <Kept item={item} />
+      <Kept item={item} drag />
 
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
         <p className="min-w-0 truncate text-xs text-zinc-400">

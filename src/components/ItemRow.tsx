@@ -6,6 +6,7 @@ import { useFmt, useItemIndex, useStore, useUsd } from '../store'
 import { labelOfKey } from '../lib/time'
 import { goToMonth } from '../nav'
 import { drag } from '../dnd'
+import { NotYet } from './Kept'
 import { toast } from '../toast'
 
 interface Props {
@@ -226,6 +227,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
                         <Car className="h-3.5 w-3.5" />
                       </span>
                       <span className="min-w-0 flex-1 truncate text-xs font-medium text-zinc-200">{v.item.name}</span>
+                      <NotYet vehicleKey={v.key} propertyKey={monthKey} />
                       <span className="shrink-0 text-[11px] text-zinc-500">{labelOfKey(v.key)}</span>
                       <span className="w-16 shrink-0 text-right text-xs font-semibold tabular-nums text-zinc-300">{f(v.item.price, true)}</span>
                     </button>

@@ -3,6 +3,7 @@ import { AlertTriangle, Car, Check, ChevronDown, Home, StickyNote } from 'lucide
 import { fitCheck, useFmt, useItemIndex, useStore, useUsd } from '../store'
 import { CATEGORY, TREND } from '../lib/meta'
 import { labelOfKey } from '../lib/time'
+import { NotYet } from './Kept'
 import type { Category, Trend } from '../lib/types'
 import { Modal } from './Modal'
 import { MoneyInput } from './MoneyInput'
@@ -206,6 +207,7 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
                       sub={`${labelOfKey(p.key)} · ${f(p.item.price, true)}`}
                       count={here}
                       home
+                      tag={<NotYet vehicleKey={monthKey} propertyKey={p.key} />}
                     />
                   )
                 })}
@@ -251,7 +253,10 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
                         <Car className="h-4 w-4" />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className={`block truncate text-sm font-medium ${on ? 'text-white' : 'text-zinc-200'}`}>{v.item.name}</span>
+                        <span className="flex items-baseline gap-2">
+                          <span className={`truncate text-sm font-medium ${on ? 'text-white' : 'text-zinc-200'}`}>{v.item.name}</span>
+                          <NotYet vehicleKey={v.key} propertyKey={monthKey} />
+                        </span>
                         <span className="block truncate text-[11px] text-zinc-500">
                           {labelOfKey(v.key)} · {f(v.item.price, true)}
                           {elsewhere && (on ? <span className="text-amber-200/80"> · moves here from {elsewhere}</span> : ` · at ${elsewhere}`)}
@@ -327,7 +332,7 @@ function Step({ n, title, done, children }: { n: number; title: string; done: bo
   )
 }
 
-function PlaceOption({ on, onClick, title, sub, count = 0, home }: { on: boolean; onClick: () => void; title: string; sub: string; count?: number; home?: boolean }) {
+function PlaceOption({ on, onClick, title, sub, count = 0, home, tag }: { on: boolean; onClick: () => void; title: string; sub: string; count?: number; home?: boolean; tag?: ReactNode }) {
   return (
     <button
       type="button"
@@ -342,7 +347,10 @@ function PlaceOption({ on, onClick, title, sub, count = 0, home }: { on: boolean
         {home ? <Home className="h-4 w-4" /> : <span className="text-base leading-none">—</span>}
       </span>
       <span className="min-w-0 flex-1">
-        <span className={`block truncate text-sm font-medium ${on ? 'text-white' : 'text-zinc-200'}`}>{title}</span>
+        <span className="flex items-baseline gap-2">
+          <span className={`truncate text-sm font-medium ${on ? 'text-white' : 'text-zinc-200'}`}>{title}</span>
+          {tag}
+        </span>
         <span className="block truncate text-[11px] text-zinc-500">{sub}</span>
       </span>
       {count > 0 && (
