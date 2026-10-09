@@ -1,4 +1,4 @@
-export type Category = 'property' | 'vehicle' | 'status' | 'travel'
+export type Category = 'property' | 'vehicle' | 'investment' | 'status' | 'travel'
 export type Trend = 'appreciating' | 'depreciating' | 'stable'
 
 export interface Item {

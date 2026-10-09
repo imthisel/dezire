@@ -63,7 +63,7 @@ export function fitCheck(
 /** Kinds that no longer exist, and what they became. "Other" was merged into "Status & Other". */
 const OLD_CATEGORY: Record<string, Category> = { other: 'status' }
 const toCategory = (c: unknown): Category =>
-  OLD_CATEGORY[c as string] ?? ((['property', 'vehicle', 'status', 'travel'] as unknown[]).includes(c) ? (c as Category) : 'status')
+  OLD_CATEGORY[c as string] ?? ((['property', 'vehicle', 'investment', 'status', 'travel'] as unknown[]).includes(c) ? (c as Category) : 'status')
 
 /** Saved months from an older version, with item kinds brought up to date. */
 function migrateMonths(months: unknown) {

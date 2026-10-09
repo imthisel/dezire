@@ -131,6 +131,7 @@ export function portfolioAt(months: Record<string, MonthData>, asOf: number, fro
     byCategory: {
       property: { value: 0, cost: 0, count: 0 },
       vehicle: { value: 0, cost: 0, count: 0 },
+      investment: { value: 0, cost: 0, count: 0 },
       status: { value: 0, cost: 0, count: 0 },
       travel: { value: 0, cost: 0, count: 0 },
     },

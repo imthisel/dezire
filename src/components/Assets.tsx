@@ -22,6 +22,7 @@ const KIND: Record<AssetCat, { title: string; empty: string; grad: string; bar: 
   all: { title: 'All assets', empty: 'assets', grad: 'from-indigo-400 via-violet-400 to-emerald-400', bar: '' },
   property: { title: 'Land & property', empty: 'land or property', grad: 'from-teal-300 to-emerald-500', bar: 'bg-teal-400' },
   vehicle: { title: 'Vehicles', empty: 'vehicles', grad: 'from-cyan-300 to-sky-500', bar: 'bg-cyan-400' },
+  investment: { title: 'Investments', empty: 'investments', grad: 'from-lime-300 to-green-500', bar: 'bg-lime-400' },
   status: { title: 'Status & other', empty: 'status or other items', grad: 'from-fuchsia-300 to-pink-500', bar: 'bg-fuchsia-400' },
   travel: { title: 'Travel', empty: 'trips', grad: 'from-amber-300 to-orange-500', bar: 'bg-orange-400' },
 }
