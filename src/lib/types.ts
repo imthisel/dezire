@@ -1,5 +1,18 @@
-export type Category = 'property' | 'vehicle' | 'investment' | 'status' | 'travel'
+/** Id of one of the user's item kinds (see `ItemKind`). The starter kinds keep fixed ids: 'property', 'vehicle', 'investment', 'status', 'travel'. */
+export type Category = string
 export type Trend = 'appreciating' | 'depreciating' | 'stable'
+
+/** A kind of item, made and named by the user. Items point to it by `id`. */
+export interface ItemKind {
+  id: string
+  label: string
+  /** Examples shown under the name, e.g. "Car, motorbike, boat" */
+  hint: string
+  /** Key into KIND_ICONS */
+  icon: string
+  /** Key into KIND_COLORS */
+  color: string
+}
 
 export interface Item {
   id: string

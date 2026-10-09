@@ -1,11 +1,12 @@
-import { useState, type ReactNode } from 'react'
-import { AlertTriangle, Car, Check, ChevronDown, Home, StickyNote } from 'lucide-react'
-import { fitCheck, useFmt, useItemIndex, useStore, useUsd } from '../store'
-import { CATEGORY, TREND } from '../lib/meta'
+import { useCallback, useState, type ReactNode } from 'react'
+import { AlertTriangle, Car, Check, ChevronDown, Home, Settings2, StickyNote } from 'lucide-react'
+import { fitCheck, useFmt, useItemIndex, useKindOf, useKinds, useStore, useUsd } from '../store'
+import { TREND, kindColor, kindIcon } from '../lib/meta'
 import { labelOfKey } from '../lib/time'
 import { NotYet } from './Kept'
 import type { Category, Trend } from '../lib/types'
 import { Modal } from './Modal'
+import { KindsModal } from './KindsModal'
 import { MoneyInput } from './MoneyInput'
 import { toast } from '../toast'
 
@@ -16,7 +17,13 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
   const close = useStore((s) => s.closeModal)
   const editing = editId ? months[monthKey]?.items.find((i) => i.id === editId) : undefined
 
-  const [category, setCategory] = useState<Category | null>(editing?.category ?? null)
+  const kinds = useKinds()
+  const kindOf = useKindOf()
+  const [picked, setCategory] = useState<Category | null>(editing?.category ?? null)
+  // With only one kind there's nothing to pick. A kind deleted while this is open is no longer picked.
+  const category = kinds.length === 1 ? kinds[0].id : kinds.some((k) => k.id === picked) ? picked : null
+  const [managing, setManaging] = useState(false)
+  const stopManaging = useCallback(() => setManaging(false), [])
   const [trend, setTrend] = useState<Trend | null>(editing?.trend ?? null)
   const [name, setName] = useState(editing?.name ?? '')
   const [price, setPrice] = useState<number | null>(editing?.price ?? null)
@@ -107,16 +114,29 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
           <Info k="Left to spend" v={f(left)} usd={u(left)} cls={left <= 0 ? 'text-red-300' : 'text-emerald-300'} />
         </div>
 
-        <Step n={1} title="What kind of item is it?" done={!!category}>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            {(Object.keys(CATEGORY) as Category[]).map((k) => {
-              const c = CATEGORY[k]
-              const on = category === k
+        <Step
+          n={1}
+          title="What kind of item is it?"
+          done={!!category}
+          aside={
+            <button
+              type="button"
+              onClick={() => setManaging(true)}
+              className="-my-1 ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-zinc-400 transition hover:bg-white/5 hover:text-white"
+            >
+              <Settings2 className="h-3.5 w-3.5" /> Edit kinds
+            </button>
+          }
+        >
+          <div className={`grid grid-cols-2 gap-2 ${KIND_COLS[Math.min(kinds.length, 6)]}`}>
+            {kinds.map((k) => {
+              const Icon = kindIcon(k)
+              const on = category === k.id
               return (
-                <Choice key={k} on={on} onClick={() => setCategory(k)} ringCls="ring-indigo-400/70" onCls="border-indigo-400/60 bg-indigo-500/15">
-                  <c.icon className={`h-6 w-6 ${on ? 'text-indigo-200' : 'text-zinc-400'}`} />
-                  <span className="text-sm font-semibold text-white">{c.label}</span>
-                  <span className="text-[11px] leading-tight text-zinc-500">{c.hint}</span>
+                <Choice key={k.id} on={on} onClick={() => setCategory(k.id)} ringCls="ring-indigo-400/70" onCls="border-indigo-400/60 bg-indigo-500/15">
+                  <Icon className={`h-6 w-6 ${on ? kindColor(k).text : 'text-zinc-400'}`} />
+                  <span className="break-words text-sm font-semibold text-white">{k.label}</span>
+                  {k.hint.trim() && <span className="text-[11px] leading-tight text-zinc-500">{k.hint}</span>}
                 </Choice>
               )
             })}
@@ -148,7 +168,7 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={category ? `e.g. ${CATEGORY[category].hint.split(',')[0]}` : 'e.g. Toyota Fortuner'}
+                placeholder={category && kindOf(category).hint.trim() ? `e.g. ${kindOf(category).hint.split(',')[0].trim()}` : 'e.g. Toyota Fortuner'}
                 className="h-11 w-full rounded-lg border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20"
               />
             </label>
@@ -191,7 +211,11 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
             </div>
             {index.properties.length === 0 ? (
               <p className="rounded-xl border border-dashed border-white/10 px-3 py-3 text-xs text-zinc-500">
-                Add a <span className="text-zinc-300">Land / Property</span> item to any month and you can keep this vehicle there.
+                {kinds.some((k) => k.id === 'property') ? (
+                  <>Add a <span className="text-zinc-300">{kindOf('property').label}</span> item to any month and you can keep this vehicle there.</>
+                ) : (
+                  'Add the starter kind “Land / Property” back (Edit kinds) to keep vehicles at a property.'
+                )}
               </p>
             ) : (
               <div className="scrollbar-none -mx-1 max-h-56 space-y-1.5 overflow-y-auto px-1 py-0.5" role="radiogroup" aria-label="Where is it kept?">
@@ -229,7 +253,7 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
             </div>
             {vehicles.length === 0 ? (
               <p className="rounded-xl border border-dashed border-white/10 px-3 py-3 text-xs text-zinc-500">
-                Add a <span className="text-zinc-300">Vehicle</span> item to any month and you can keep it here.
+                Add a <span className="text-zinc-300">{kindOf('vehicle').label}</span> item to any month and you can keep it here.
               </p>
             ) : (
               <div className="scrollbar-none -mx-1 max-h-56 space-y-1.5 overflow-y-auto px-1 py-0.5">
@@ -310,11 +334,16 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
         )}
         <button type="submit" hidden />
       </form>
+      {/* Outside the form, so pressing Enter in it doesn't submit this item */}
+      {managing && <KindsModal onClose={stopManaging} />}
     </Modal>
   )
 }
 
-function Step({ n, title, done, children }: { n: number; title: string; done: boolean; children: ReactNode }) {
+/** Columns for the kind picker on wider screens, by how many kinds there are (written out so Tailwind keeps them). */
+const KIND_COLS = ['', 'sm:grid-cols-1', 'sm:grid-cols-2', 'sm:grid-cols-3', 'sm:grid-cols-4', 'sm:grid-cols-5', 'sm:grid-cols-3']
+
+function Step({ n, title, done, aside, children }: { n: number; title: string; done: boolean; aside?: ReactNode; children: ReactNode }) {
   return (
     <section>
       <div className="mb-2.5 flex items-center gap-2.5">
@@ -326,6 +355,7 @@ function Step({ n, title, done, children }: { n: number; title: string; done: bo
           {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : n}
         </span>
         <h3 className="text-sm font-semibold text-zinc-200">{title}</h3>
+        {aside}
       </div>
       {children}
     </section>

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Category, Goal, GoalArea, IncomeSource, Item, MonthData, PlanStep, Result, SourceKind, SourceStage, Trend } from './lib/types'
-import { GOAL_AREA, GOAL_AREAS, SOURCE_KINDS, SOURCE_STAGES } from './lib/meta'
+import type { Category, Goal, GoalArea, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, SourceKind, SourceStage, Trend } from './lib/types'
+import { DEFAULT_KINDS, GOAL_AREA, GOAL_AREAS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_KIND, guessIcon } from './lib/meta'
 import { DEFAULT_USD_RATE, PESO, fmt, fmtUsd } from './lib/money'
 import { currentYear, labelOfKey, END_YEAR, START_YEAR, indexOf, indexOfKey, keyOf } from './lib/time'
 import { computeAll, spendLimit, type MonthCalc } from './lib/calc'
@@ -11,6 +11,7 @@ export type ModalState =
   | { type: 'item'; key: string; editId?: string }
   | { type: 'move'; key: string; id: string }
   | { type: 'goal'; year: number; editId?: string; area?: GoalArea }
+  | { type: 'kinds' }
   | null
 export type View = 'planner' | 'plan' | 'favorites' | 'assets'
 /** Assets page: which kind of item, and which years */
@@ -20,6 +21,7 @@ export type SourcePatch = Partial<Omit<IncomeSource, 'id' | 'createdAt' | 'steps
 export type MonthField = 'goal' | 'budget' | 'earned' | 'netWorthGoal'
 /** Where to drop an item in a month's list: next to item `id`. Missing = at the end. */
 export type DropAt = { id: string; after: boolean }
+export type KindPatch = Partial<Omit<ItemKind, 'id'>>
 export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string; propertyId?: string }
 
 const OK: Result = { ok: true }
@@ -62,8 +64,45 @@ export function fitCheck(
 
 /** Kinds that no longer exist, and what they became. "Other" was merged into "Status & Other". */
 const OLD_CATEGORY: Record<string, Category> = { other: 'status' }
-const toCategory = (c: unknown): Category =>
-  OLD_CATEGORY[c as string] ?? ((['property', 'vehicle', 'investment', 'status', 'travel'] as unknown[]).includes(c) ? (c as Category) : 'status')
+/** An item's kind, brought up to date and checked against `kinds` (unknown kinds go to the first one). */
+const toCategory = (c: unknown, kinds: ItemKind[] = DEFAULT_KINDS): Category => {
+  const id = OLD_CATEGORY[c as string] ?? c
+  return kinds.some((k) => k.id === id) ? (id as Category) : kinds[0].id
+}
+
+export const MAX_KIND_NAME = 32
+
+/** Cleans up item kinds coming from a backup file or the cloud. null = none saved (use the starter kinds). */
+function parseKinds(list: unknown): ItemKind[] | null {
+  if (!Array.isArray(list)) return null
+  const seen = new Set<string>()
+  const kinds: ItemKind[] = []
+  for (const x of list as Record<string, unknown>[]) {
+    if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !x.id || typeof x.label !== 'string' || seen.has(x.id)) continue
+    seen.add(x.id)
+    kinds.push({
+      id: x.id,
+      label: x.label.trim().slice(0, MAX_KIND_NAME) || 'Untitled',
+      hint: typeof x.hint === 'string' ? x.hint.slice(0, 80) : '',
+      icon: typeof x.icon === 'string' && x.icon in KIND_ICONS ? x.icon : 'box',
+      color: typeof x.color === 'string' && x.color in KIND_COLORS ? x.color : 'slate',
+    })
+  }
+  return kinds.length ? kinds : null
+}
+
+/** Drops "kept at" links that no longer make sense: only a vehicle can be kept, and only at a property. */
+function cleanLinks(months: Record<string, MonthData>) {
+  const kindOf = new Map<string, Category>()
+  for (const m of Object.values(months)) for (const i of m.items) kindOf.set(i.id, i.category)
+  const ok = (i: Item) => !i.propertyId || (i.category === 'vehicle' && kindOf.get(i.propertyId) === 'property')
+  const out = { ...months }
+  for (const [k, m] of Object.entries(months)) {
+    if (m.items.every(ok)) continue
+    out[k] = { ...m, items: m.items.map((i) => (ok(i) ? i : { ...i, propertyId: undefined })) }
+  }
+  return out
+}
 
 /** Saved months from an older version, with item kinds brought up to date. */
 function migrateMonths(months: unknown) {
@@ -122,6 +161,17 @@ interface State {
   areaLabels: Partial<Record<GoalArea, string>>
   /** Money plan: the ways I'm going to make the money */
   sources: IncomeSource[]
+  /** The kinds items can be (always at least one), in the order they're shown */
+  kinds: ItemKind[]
+  /** Adds a kind named `label` with a fitting icon and an unused colour. Returns its id. */
+  addKind: (label: string) => string
+  /** Adds back one of the starter kinds that was deleted. */
+  restoreKind: (id: string) => void
+  updateKind: (id: string, patch: KindPatch) => void
+  /** Moves a kind to position `to` in the list. */
+  moveKind: (id: string, to: number) => void
+  /** Deletes a kind. Its items move to kind `moveTo` (needed when it has any). The last kind can't be deleted. */
+  removeKind: (id: string, moveTo?: string) => Result
   /** "YYYY-MM-DD", for showing my age on my birth month. null = not set. */
   birthday: string | null
   setBirthday: (b: string | null) => void
@@ -200,6 +250,7 @@ export const useStore = create<State>()(
       goals: {},
       areaLabels: {},
       sources: [],
+      kinds: DEFAULT_KINDS,
       birthday: null,
       setBirthday: (b) => set({ birthday: b && /^\d{4}-\d{2}-\d{2}$/.test(b) ? b : null }),
       view: 'planner',
@@ -253,6 +304,64 @@ export const useStore = create<State>()(
           }
           return { months: next }
         }),
+
+      addKind: (label) => {
+        const { kinds } = get()
+        const name = label.trim().slice(0, MAX_KIND_NAME) || 'New kind'
+        const used = new Set(kinds.map((k) => k.color))
+        const colors = Object.keys(KIND_COLORS)
+        const color = colors.find((c) => !used.has(c)) ?? colors[kinds.length % colors.length]
+        const kind: ItemKind = { id: uid(), label: name, hint: '', icon: guessIcon(name), color }
+        set({ kinds: [...kinds, kind] })
+        return kind.id
+      },
+
+      restoreKind: (id) =>
+        set((s) => {
+          const kind = DEFAULT_KINDS.find((k) => k.id === id)
+          return kind && !s.kinds.some((k) => k.id === id) ? { kinds: [...s.kinds, kind] } : {}
+        }),
+
+      updateKind: (id, patch) =>
+        set((s) => ({
+          kinds: s.kinds.map((k) =>
+            k.id === id
+              ? {
+                  ...k,
+                  ...patch,
+                  label: patch.label === undefined ? k.label : patch.label.trim().slice(0, MAX_KIND_NAME) || k.label,
+                  hint: patch.hint === undefined ? k.hint : patch.hint.slice(0, 80),
+                }
+              : k,
+          ),
+        })),
+
+      moveKind: (id, to) =>
+        set((s) => {
+          const from = s.kinds.findIndex((k) => k.id === id)
+          if (from < 0 || from === to) return {}
+          const kinds = [...s.kinds]
+          const [kind] = kinds.splice(from, 1)
+          kinds.splice(Math.max(0, Math.min(kinds.length, to)), 0, kind)
+          return { kinds }
+        }),
+
+      removeKind: (id, moveTo) => {
+        const { kinds, months, assetCat } = get()
+        if (kinds.length <= 1) return fail('You need at least one kind of item.')
+        const used = Object.values(months).some((m) => m.items.some((i) => i.category === id))
+        if (used && (!moveTo || moveTo === id || !kinds.some((k) => k.id === moveTo))) return fail('Pick a kind to move its items to first.')
+        let next = months
+        if (used) {
+          next = { ...months }
+          for (const [k, m] of Object.entries(months)) {
+            if (m.items.some((i) => i.category === id)) next[k] = { ...m, items: m.items.map((i) => (i.category === id ? { ...i, category: moveTo! } : i)) }
+          }
+          next = cleanLinks(next)
+        }
+        set({ kinds: kinds.filter((k) => k.id !== id), months: next, ...(assetCat === id ? { assetCat: 'all' as const } : {}) })
+        return OK
+      },
 
       addItem: (key, data) => {
         const { months } = get()
@@ -469,10 +578,12 @@ export const useStore = create<State>()(
             areaLabels?: Record<string, unknown>
             sources?: unknown
             birthday?: unknown
+            kinds?: unknown
           }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
             return fail('That file is not a Dezire backup.')
           }
+          const kinds = parseKinds(d.kinds) ?? DEFAULT_KINDS
           const months: Record<string, MonthData> = {}
           for (const [key, raw] of Object.entries(d.months)) {
             if (!/^\d{4}-\d{2}$/.test(key) || !raw) continue
@@ -485,7 +596,7 @@ export const useStore = create<State>()(
                 ? raw.items.map((i) => ({
                     id: i.id || uid(),
                     name: String(i.name ?? 'Item'),
-                    category: toCategory(i.category),
+                    category: toCategory(i.category, kinds),
                     trend: (['appreciating', 'depreciating', 'stable'].includes(i.trend) ? i.trend : 'stable') as Trend,
                     price: Number(i.price) || 0,
                     rate: Number(i.rate) || 0,
@@ -517,20 +628,21 @@ export const useStore = create<State>()(
             if (isArea(a) && typeof label === 'string' && label.trim()) areaLabels[a] = label.trim()
           }
           const birthday = typeof d.birthday === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.birthday) ? d.birthday : null
-          set({ months, goals, areaLabels, sources: parseSources(d.sources), birthday, usdRate: Number(d.usdRate) > 0 ? Number(d.usdRate) : get().usdRate, clipboard: null })
+          set({ months, kinds, goals, areaLabels, sources: parseSources(d.sources), birthday, usdRate: Number(d.usdRate) > 0 ? Number(d.usdRate) : get().usdRate, clipboard: null })
           return OK
         } catch {
           return fail('Could not read that file.')
         }
       },
 
-      resetAll: () => set({ months: {}, goals: {}, areaLabels: {}, sources: [], birthday: null, clipboard: null, modal: null }),
+      resetAll: () => set({ months: {}, kinds: DEFAULT_KINDS, goals: {}, areaLabels: {}, sources: [], birthday: null, clipboard: null, modal: null }),
     }),
     {
       name: 'dezire-goal-planner-v1',
-      version: 2,
+      version: 3,
       partialize: (s) => ({
         months: s.months,
+        kinds: s.kinds,
         goals: s.goals,
         areaLabels: s.areaLabels,
         sources: s.sources,
@@ -546,6 +658,7 @@ export const useStore = create<State>()(
       }),
       // v0 had a selectable currency; amounts are now always pesos.
       // v1 had an "Other" item kind; it's now part of "Status & Other".
+      // v2 had a fixed list of item kinds; they're now the starter kinds, which can be changed.
       migrate: (persisted) => {
         const { currency: _drop, ...rest } = (persisted ?? {}) as Record<string, unknown>
         return {
@@ -553,10 +666,11 @@ export const useStore = create<State>()(
           year: currentYear(),
           dashMode: 'plan',
           ...rest,
+          kinds: parseKinds(rest.kinds) ?? DEFAULT_KINDS,
           ...(rest.months ? { months: migrateMonths(rest.months) } : {}),
           ...(rest.assetCat === 'other' ? { assetCat: 'status' } : {}),
           usdRate: Number(rest.usdRate) > 0 ? Number(rest.usdRate) : DEFAULT_USD_RATE,
-        } as Pick<State, 'months' | 'usdRate' | 'year' | 'dashMode'>
+        } as Pick<State, 'months' | 'kinds' | 'usdRate' | 'year' | 'dashMode'>
       },
     },
   ),
@@ -604,6 +718,15 @@ export function useItemIndex(): ItemIndex {
     indexCache = { byId, properties, vehiclesAt }
   }
   return indexCache
+}
+
+/** The user's item kinds, in order. */
+export const useKinds = () => useStore((s) => s.kinds)
+
+/** Looks up a kind by id (a placeholder if it no longer exists). */
+export function useKindOf() {
+  const kinds = useKinds()
+  return (id: Category) => kinds.find((k) => k.id === id) ?? UNKNOWN_KIND
 }
 
 /** The name shown for a goal area — the user's custom name, or the default. */

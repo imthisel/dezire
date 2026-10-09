@@ -1,8 +1,8 @@
 import { useState, type DragEvent, type MouseEvent } from 'react'
 import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Car, Copy, CopyPlus, GripVertical, Home, Pencil, Plus, Scissors, Star, StickyNote, Trash2 } from 'lucide-react'
 import type { Item } from '../lib/types'
-import { CATEGORY, TREND } from '../lib/meta'
-import { useFmt, useItemIndex, useStore, useUsd } from '../store'
+import { TREND, kindIcon } from '../lib/meta'
+import { useFmt, useItemIndex, useKindOf, useStore, useUsd } from '../store'
 import { labelOfKey } from '../lib/time'
 import { goToMonth } from '../nav'
 import { drag } from '../dnd'
@@ -26,7 +26,8 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
   const [dropAt, setDropAt] = useState<null | 'above' | 'below'>(null)
   const clipboard = useStore((s) => s.clipboard)
   const t = TREND[item.trend]
-  const cat = CATEGORY[item.category]
+  const kind = useKindOf()(item.category)
+  const KindIcon = kindIcon(kind)
   const isCut = clipboard?.mode === 'cut' && clipboard.item.id === item.id
 
   const act = (fn: () => void) => (e: MouseEvent) => {
@@ -131,7 +132,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
       {fav && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-l-[11px] bg-gradient-to-b from-amber-200 to-amber-400" />}
       <GripVertical className="hidden h-4 w-4 shrink-0 text-zinc-600 transition group-hover:text-zinc-400 sm:block" />
       <span className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-lg ${t.iconBg} ${t.text}`}>
-        <cat.icon className="h-4 w-4" />
+        <KindIcon className="h-4 w-4" />
         {fav && (
           <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[#14120a] ring-1 ring-amber-300/60">
             <Star className="h-2.5 w-2.5 fill-amber-300 text-amber-300" />
@@ -163,7 +164,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
           <t.icon className="h-3 w-3 shrink-0" />
           {t.label}
           {item.trend !== 'stable' && item.rate > 0 && <span className="opacity-80">· {item.rate}%/yr</span>}
-          <span className="hidden text-zinc-500 sm:inline">· {cat.short}</span>
+          <span className="hidden truncate text-zinc-500 sm:inline">· {kind.label}</span>
         </p>
       </div>
 

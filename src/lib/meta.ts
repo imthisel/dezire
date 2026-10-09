@@ -1,16 +1,84 @@
 import {
-  Brain, Briefcase, CandlestickChart, Car, Crown, Dumbbell, Fingerprint, Gem, Home, Laptop, Lightbulb, Minus, PiggyBank, Plane, Rocket, Smartphone, Sparkles, Store,
-  TrendingDown, TrendingUp, type LucideIcon,
+  Baby, Bike, Bitcoin, BookOpen, Brain, Briefcase, Building2, Camera, CandlestickChart, Car, Coins, Crown, Dumbbell, Fingerprint, Gamepad2, Gem, Gift,
+  GraduationCap, HeartPulse, Home, Landmark, Laptop, Lightbulb, Minus, Music, Package, Palette, PawPrint, PiggyBank, Plane, Rocket, Sailboat, Shirt,
+  Smartphone, Sparkles, Store, Tent, Trees, TrendingDown, TrendingUp, Watch, Wrench, type LucideIcon,
 } from 'lucide-react'
-import type { Category, GoalArea, SourceKind, SourceStage, Trend } from './types'
+import type { GoalArea, ItemKind, SourceKind, SourceStage, Trend } from './types'
 
-export const CATEGORY: Record<Category, { label: string; short: string; hint: string; icon: LucideIcon }> = {
-  property: { label: 'Land / Property', short: 'Property', hint: 'Land, house, condo, lot', icon: Home },
-  vehicle: { label: 'Vehicle', short: 'Vehicle', hint: 'Car, motorbike, boat', icon: Car },
-  investment: { label: 'Investments', short: 'Investments', hint: 'Stocks, crypto, funds, risky bets', icon: CandlestickChart },
-  status: { label: 'Status & Other', short: 'Status & other', hint: 'Watch, jewelry, gadgets, anything else', icon: Gem },
-  travel: { label: 'Travel', short: 'Travel', hint: 'Trip, flights, hotel, vacation', icon: Plane },
+/** Icons a kind of item can use, by name. */
+export const KIND_ICONS: Record<string, LucideIcon> = {
+  home: Home, building: Building2, land: Trees, car: Car, bike: Bike, boat: Sailboat, plane: Plane,
+  stocks: CandlestickChart, crypto: Bitcoin, savings: PiggyBank, bank: Landmark, coins: Coins, business: Briefcase, shop: Store,
+  gem: Gem, watch: Watch, phone: Smartphone, laptop: Laptop, games: Gamepad2, clothes: Shirt, art: Palette, music: Music,
+  camera: Camera, books: BookOpen, school: GraduationCap, health: HeartPulse, fitness: Dumbbell, pets: PawPrint, baby: Baby,
+  gift: Gift, camping: Tent, tools: Wrench, box: Package, other: Sparkles,
 }
+
+/** Colours a kind of item can use (written out in full so Tailwind keeps them). */
+export const KIND_COLORS: Record<string, { label: string; grad: string; bar: string; text: string; soft: string; ring: string }> = {
+  teal: { label: 'Teal', grad: 'from-teal-300 to-emerald-500', bar: 'bg-teal-400', text: 'text-teal-300', soft: 'bg-teal-500/15', ring: 'ring-teal-300' },
+  cyan: { label: 'Cyan', grad: 'from-cyan-300 to-sky-500', bar: 'bg-cyan-400', text: 'text-cyan-300', soft: 'bg-cyan-500/15', ring: 'ring-cyan-300' },
+  blue: { label: 'Blue', grad: 'from-sky-300 to-blue-500', bar: 'bg-blue-400', text: 'text-blue-300', soft: 'bg-blue-500/15', ring: 'ring-blue-300' },
+  violet: { label: 'Violet', grad: 'from-violet-300 to-indigo-500', bar: 'bg-violet-400', text: 'text-violet-300', soft: 'bg-violet-500/15', ring: 'ring-violet-300' },
+  pink: { label: 'Pink', grad: 'from-fuchsia-300 to-pink-500', bar: 'bg-fuchsia-400', text: 'text-fuchsia-300', soft: 'bg-fuchsia-500/15', ring: 'ring-fuchsia-300' },
+  rose: { label: 'Rose', grad: 'from-rose-300 to-red-500', bar: 'bg-rose-400', text: 'text-rose-300', soft: 'bg-rose-500/15', ring: 'ring-rose-300' },
+  orange: { label: 'Orange', grad: 'from-amber-300 to-orange-500', bar: 'bg-orange-400', text: 'text-orange-300', soft: 'bg-orange-500/15', ring: 'ring-orange-300' },
+  yellow: { label: 'Yellow', grad: 'from-yellow-200 to-amber-400', bar: 'bg-yellow-300', text: 'text-yellow-200', soft: 'bg-yellow-400/15', ring: 'ring-yellow-200' },
+  lime: { label: 'Lime', grad: 'from-lime-300 to-green-500', bar: 'bg-lime-400', text: 'text-lime-300', soft: 'bg-lime-500/15', ring: 'ring-lime-300' },
+  slate: { label: 'Grey', grad: 'from-zinc-300 to-slate-500', bar: 'bg-zinc-400', text: 'text-zinc-300', soft: 'bg-white/10', ring: 'ring-zinc-300' },
+}
+
+/** The kinds every new account starts with. Their ids are fixed (old items and the property ↔ vehicle link use them). */
+export const DEFAULT_KINDS: ItemKind[] = [
+  { id: 'property', label: 'Land / Property', hint: 'Land, house, condo, lot', icon: 'home', color: 'teal' },
+  { id: 'vehicle', label: 'Vehicle', hint: 'Car, motorbike, boat', icon: 'car', color: 'cyan' },
+  { id: 'investment', label: 'Investments', hint: 'Stocks, crypto, funds, risky bets', icon: 'stocks', color: 'lime' },
+  { id: 'status', label: 'Status & Other', hint: 'Watch, jewelry, gadgets, anything else', icon: 'gem', color: 'pink' },
+  { id: 'travel', label: 'Travel', hint: 'Trip, flights, hotel, vacation', icon: 'plane', color: 'orange' },
+]
+
+/** Shown for an item whose kind no longer exists (e.g. deleted on another device a moment ago). */
+export const UNKNOWN_KIND: ItemKind = { id: '', label: 'No kind', hint: '', icon: 'box', color: 'slate' }
+
+export const kindIcon = (k: ItemKind) => KIND_ICONS[k.icon] ?? Package
+export const kindColor = (k: ItemKind) => KIND_COLORS[k.color] ?? KIND_COLORS.slate
+
+/** Words in a new kind's name that suggest an icon, so it starts with a fitting one. */
+const ICON_WORDS: [RegExp, string][] = [
+  [/house|home|condo|apartment|property|real estate|rental/, 'home'],
+  [/building|office|commercial/, 'building'],
+  [/land|lot|farm|garden/, 'land'],
+  [/car|vehicle|truck|suv|auto/, 'car'],
+  [/bike|bicycle|motor/, 'bike'],
+  [/boat|yacht|ship/, 'boat'],
+  [/travel|trip|flight|vacation|holiday/, 'plane'],
+  [/stock|invest|fund|etf|share|trading|forex/, 'stocks'],
+  [/crypto|bitcoin|btc|eth|coin/, 'crypto'],
+  [/sav|emergency|piggy/, 'savings'],
+  [/bank|bond|insurance|pension|retire/, 'bank'],
+  [/gold|silver|cash|money/, 'coins'],
+  [/business|startup|company|franchise/, 'business'],
+  [/shop|store|stall/, 'shop'],
+  [/jewel|status|luxury|ring|diamond/, 'gem'],
+  [/watch/, 'watch'],
+  [/phone|gadget|tech/, 'phone'],
+  [/laptop|computer|pc/, 'laptop'],
+  [/game|console/, 'games'],
+  [/cloth|fashion|shoe|sneaker|bag/, 'clothes'],
+  [/art|paint|collect/, 'art'],
+  [/music|guitar|piano|instrument/, 'music'],
+  [/camera|photo/, 'camera'],
+  [/book/, 'books'],
+  [/school|educat|course|study|tuition/, 'school'],
+  [/health|medical|doctor/, 'health'],
+  [/gym|fitness|sport/, 'fitness'],
+  [/pet|dog|cat/, 'pets'],
+  [/baby|kid|child|family/, 'baby'],
+  [/gift|wedding|party|event/, 'gift'],
+  [/camp|outdoor/, 'camping'],
+  [/tool|equipment|repair/, 'tools'],
+]
+export const guessIcon = (name: string) => ICON_WORDS.find(([re]) => re.test(name.toLowerCase()))?.[1] ?? 'box'
 
 export const TREND: Record<
   Trend,

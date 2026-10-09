@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Landmark, PiggyBank, Wallet } from 'lucide-react'
-import { useFmt, usePlan, useStore, useUsd } from '../store'
+import { useFmt, useKinds, usePlan, useStore, useUsd } from '../store'
 import { lastDataIndex, portfolioAt } from '../lib/calc'
 import { END_YEAR, START_YEAR, currentIndex, indexOf, labelOf } from '../lib/time'
-import { CATEGORY, TREND } from '../lib/meta'
-import type { Category, Trend } from '../lib/types'
+import { TREND, kindColor, kindIcon } from '../lib/meta'
+import type { Trend } from '../lib/types'
 import { NetWorthChart } from './NetWorthChart'
 import { useIsPhone } from '../lib/useMedia'
 
@@ -37,6 +37,7 @@ export function Dashboard() {
   const left = t.earned - t.spent
   const nwChange = c.netWorth - (before?.netWorth ?? 0)
   const port = portfolioAt(months, asOf, first)
+  const kinds = useKinds()
   const goalPct = t.goal > 0 ? Math.round((t.earned / t.goal) * 100) : null
   const gain = port.value - port.cost
   const yr = yearMode ? ` in ${year}` : ''
@@ -176,21 +177,21 @@ export function Dashboard() {
           ) : (
             <>
               <div className="space-y-3">
-                {(Object.keys(CATEGORY) as Category[]).map((k) => {
-                  const cat = CATEGORY[k]
-                  const v = port.byCategory[k]
+                {kinds.map((k) => {
+                  const Icon = kindIcon(k)
+                  const v = port.byCategory[k.id] ?? { value: 0, count: 0 }
                   const share = port.value > 0 ? v.value / port.value : 0
                   return (
-                    <div key={k}>
+                    <div key={k.id}>
                       <div className="mb-1.5 flex items-center justify-between text-sm">
                         <span className="flex items-center gap-2 text-zinc-300">
-                          <cat.icon className="h-4 w-4 text-zinc-400" /> {cat.short}
+                          <Icon className={`h-4 w-4 shrink-0 ${kindColor(k).text}`} /> <span className="truncate">{k.label}</span>
                           <span className="text-xs text-zinc-500">×{v.count}</span>
                         </span>
                         <span className="tabular-nums text-zinc-200">{f(v.value, true)} <span className="text-xs text-zinc-500">· {u(v.value, true)}</span></span>
                       </div>
                       <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
-                        <div className="h-full rounded-full bg-indigo-400/80 transition-all" style={{ width: `${share * 100}%` }} />
+                        <div className={`h-full rounded-full ${kindColor(k).bar} opacity-80 transition-all`} style={{ width: `${share * 100}%` }} />
                       </div>
                     </div>
                   )

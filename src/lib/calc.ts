@@ -119,6 +119,7 @@ export function lastDataIndex(plan: MonthCalc[], fallback: number) {
 }
 
 export interface Portfolio {
+  /** By kind id; kinds with nothing bought are missing */
   byCategory: Record<Category, { value: number; cost: number; count: number }>
   byTrend: Record<Trend, number>
   value: number
@@ -128,13 +129,7 @@ export interface Portfolio {
 /** Items bought from month `from` up to `asOf`, valued as of `asOf`. */
 export function portfolioAt(months: Record<string, MonthData>, asOf: number, from = 0): Portfolio {
   const p: Portfolio = {
-    byCategory: {
-      property: { value: 0, cost: 0, count: 0 },
-      vehicle: { value: 0, cost: 0, count: 0 },
-      investment: { value: 0, cost: 0, count: 0 },
-      status: { value: 0, cost: 0, count: 0 },
-      travel: { value: 0, cost: 0, count: 0 },
-    },
+    byCategory: {},
     byTrend: { appreciating: 0, depreciating: 0, stable: 0 },
     value: 0,
     cost: 0,
@@ -144,7 +139,7 @@ export function portfolioAt(months: Record<string, MonthData>, asOf: number, fro
     if (!m) continue
     for (const it of m.items) {
       const v = valueAfter(it, asOf - i)
-      const c = p.byCategory[it.category]
+      const c = (p.byCategory[it.category] ??= { value: 0, cost: 0, count: 0 })
       c.value += v
       c.cost += it.price
       c.count++

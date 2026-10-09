@@ -1,10 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { ArrowUpDown, CalendarDays, CalendarRange, ChevronDown, Gem, Infinity as All, Pencil, Plus, Star } from 'lucide-react'
-import { useFmt, useItemIndex, useStore, useUsd, type AssetCat, type AssetPeriod } from '../store'
-import { CATEGORY, TREND } from '../lib/meta'
+import { ArrowUpDown, CalendarDays, CalendarRange, ChevronDown, Gem, Infinity as All, Pencil, Plus, Settings2, Star } from 'lucide-react'
+import { useFmt, useItemIndex, useKindOf, useKinds, useStore, useUsd, type AssetCat, type AssetPeriod } from '../store'
+import { TREND, kindColor, kindIcon } from '../lib/meta'
 import { valueAfter } from '../lib/calc'
 import { END_YEAR, MONTHS_SHORT, START_YEAR, TOTAL_MONTHS, YEARS, currentYear, fromIndex, indexOf, indexOfKey } from '../lib/time'
-import type { Category, Item, Trend } from '../lib/types'
+import type { Item, Trend } from '../lib/types'
 import { card } from './Dashboard'
 import { goTo, goToMonth } from '../nav'
 import { toast } from '../toast'
@@ -14,18 +14,7 @@ import { useVehicleDrag, vehicleDrag } from '../dnd'
 type Asset = { item: Item; key: string; index: number; year: number }
 type Sort = 'date' | 'price' | 'value' | 'name'
 
-const CATS = Object.keys(CATEGORY) as Category[]
 const TRENDS = Object.keys(TREND) as Trend[]
-
-/** Page titles and a colour per kind (written out in full so Tailwind keeps them). */
-const KIND: Record<AssetCat, { title: string; empty: string; grad: string; bar: string }> = {
-  all: { title: 'All assets', empty: 'assets', grad: 'from-indigo-400 via-violet-400 to-emerald-400', bar: '' },
-  property: { title: 'Land & property', empty: 'land or property', grad: 'from-teal-300 to-emerald-500', bar: 'bg-teal-400' },
-  vehicle: { title: 'Vehicles', empty: 'vehicles', grad: 'from-cyan-300 to-sky-500', bar: 'bg-cyan-400' },
-  investment: { title: 'Investments', empty: 'investments', grad: 'from-lime-300 to-green-500', bar: 'bg-lime-400' },
-  status: { title: 'Status & other', empty: 'status or other items', grad: 'from-fuchsia-300 to-pink-500', bar: 'bg-fuchsia-400' },
-  travel: { title: 'Travel', empty: 'trips', grad: 'from-amber-300 to-orange-500', bar: 'bg-orange-400' },
-}
 
 const SORTS: { id: Sort; label: string }[] = [
   { id: 'date', label: 'Date bought' },
@@ -48,7 +37,9 @@ const periodLabel = (p: AssetPeriod) =>
 export function Assets() {
   const months = useStore((s) => s.months)
   const picked = useStore((s) => s.assetCat)
-  const cat: AssetCat = picked in KIND ? picked : 'all'
+  const kinds = useKinds()
+  const kind = kinds.find((k) => k.id === picked)
+  const cat: AssetCat = kind ? kind.id : 'all'
   const period = useStore((s) => s.assetPeriod)
   const { setAssetCat } = useStore.getState()
   const f = useFmt()
@@ -90,8 +81,9 @@ export function Assets() {
   const worth = ofKind.reduce((s, a) => s + valueAfter(a.item, asOf - a.index), 0)
   const change = worth - paid
   const changePct = paid > 0 ? (change / paid) * 100 : 0
-  const k = KIND[cat]
-  const HeadIcon = cat === 'all' ? Gem : CATEGORY[cat].icon
+  const title = kind ? kind.label : 'All assets'
+  const HeadIcon = kind ? kindIcon(kind) : Gem
+  const headGrad = kind ? kindColor(kind).grad : 'from-indigo-400 via-violet-400 to-emerald-400'
   const byYear = sort === 'date'
   const years = byYear ? [...new Set(shown.map((a) => a.year))] : []
 
@@ -102,11 +94,11 @@ export function Assets() {
 
         {/* Title */}
         <div className="relative flex items-center gap-3">
-          <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br shadow-lg shadow-black/30 ${k.grad}`}>
+          <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br shadow-lg shadow-black/30 ${headGrad}`}>
             <HeadIcon className="h-5 w-5 text-white" strokeWidth={2.5} />
           </div>
           <div className="min-w-0">
-            <h2 className="truncate text-xl font-bold tracking-tight text-white sm:text-2xl">{k.title}</h2>
+            <h2 className="truncate text-xl font-bold tracking-tight text-white sm:text-2xl">{title}</h2>
             <p className="truncate text-sm text-zinc-400">
               {ofKind.length} item{ofKind.length === 1 ? '' : 's'} · {periodLabel(period)}
             </p>
@@ -115,10 +107,11 @@ export function Assets() {
 
         {/* Kind tabs (same as the sidebar's sub-tabs; handy on phones) */}
         <div className="scrollbar-none relative -mx-4 mt-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0" role="tablist" aria-label="Kind">
-          {(['all', ...CATS] as AssetCat[]).map((c) => {
+          {[null, ...kinds].map((kd) => {
+            const c: AssetCat = kd ? kd.id : 'all'
             const on = cat === c
-            const n = c === 'all' ? inPeriod.length : inPeriod.filter((a) => a.item.category === c).length
-            const Icon = c === 'all' ? Gem : CATEGORY[c].icon
+            const n = kd ? inPeriod.filter((a) => a.item.category === c).length : inPeriod.length
+            const Icon = kd ? kindIcon(kd) : Gem
             return (
               <button
                 key={c}
@@ -129,12 +122,19 @@ export function Assets() {
                   on ? 'border-indigo-400/60 bg-indigo-500/15 text-white' : 'border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-200'
                 }`}
               >
-                <Icon className={`h-4 w-4 ${on ? 'text-indigo-300' : ''}`} />
-                {c === 'all' ? 'All' : CATEGORY[c].short}
+                <Icon className={`h-4 w-4 ${on ? (kd ? kindColor(kd).text : 'text-indigo-300') : ''}`} />
+                {kd ? kd.label : 'All'}
                 <span className={`tabular-nums ${on ? 'text-indigo-200/70' : 'text-zinc-600'}`}>{n}</span>
               </button>
             )
           })}
+          <button
+            onClick={() => useStore.getState().openModal({ type: 'kinds' })}
+            title="Add, rename or delete kinds"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-dashed border-white/15 px-3 text-sm font-medium text-zinc-500 transition hover:border-white/30 hover:text-zinc-200"
+          >
+            <Settings2 className="h-4 w-4" /> Edit kinds
+          </button>
         </div>
 
         <PeriodPicker period={period} />
@@ -156,17 +156,17 @@ export function Assets() {
         {cat === 'all' && worth > 0 && (
           <div className="relative mt-4">
             <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-white/5">
-              {CATS.map((c) => {
-                const v = inPeriod.filter((a) => a.item.category === c).reduce((s, a) => s + valueAfter(a.item, asOf - a.index), 0)
-                return v > 0 ? <div key={c} className={`h-full ${KIND[c].bar}`} style={{ width: `${(v / worth) * 100}%` }} title={`${CATEGORY[c].short}: ${f(v)}`} /> : null
+              {kinds.map((kd) => {
+                const v = inPeriod.filter((a) => a.item.category === kd.id).reduce((s, a) => s + valueAfter(a.item, asOf - a.index), 0)
+                return v > 0 ? <div key={kd.id} className={`h-full ${kindColor(kd).bar}`} style={{ width: `${(v / worth) * 100}%` }} title={`${kd.label}: ${f(v)}`} /> : null
               })}
             </div>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400">
-              {CATS.map((c) => {
-                const v = inPeriod.filter((a) => a.item.category === c).reduce((s, a) => s + valueAfter(a.item, asOf - a.index), 0)
+              {kinds.map((kd) => {
+                const v = inPeriod.filter((a) => a.item.category === kd.id).reduce((s, a) => s + valueAfter(a.item, asOf - a.index), 0)
                 return v > 0 ? (
-                  <button key={c} onClick={() => setAssetCat(c)} className="inline-flex items-center gap-1.5 transition hover:text-white">
-                    <span className={`h-2 w-2 rounded-full ${KIND[c].bar}`} /> {CATEGORY[c].short}
+                  <button key={kd.id} onClick={() => setAssetCat(kd.id)} className="inline-flex items-center gap-1.5 transition hover:text-white">
+                    <span className={`h-2 w-2 rounded-full ${kindColor(kd).bar}`} /> {kd.label}
                     <span className="tabular-nums text-zinc-500">{Math.round((v / worth) * 100)}%</span>
                   </button>
                 ) : null
@@ -183,7 +183,7 @@ export function Assets() {
               <HeadIcon className="h-6 w-6" />
             </span>
             <h3 className="text-base font-semibold text-white">
-              No {k.empty} {period.mode === 'all' ? 'yet' : `in ${periodLabel(period)}`}
+              No {kind ? `“${kind.label}” items` : 'assets'} {period.mode === 'all' ? 'yet' : `in ${periodLabel(period)}`}
             </h3>
             <p className="mt-1 text-sm text-zinc-400">
               {period.mode === 'all'
@@ -350,7 +350,8 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel }: { asset: As
   const f = useFmt()
   const u = useUsd()
   const t = TREND[item.trend]
-  const cat = CATEGORY[item.category]
+  const kind = useKindOf()(item.category)
+  const KindIcon = kindIcon(kind)
   const fav = !!item.favorite
   const later = valueAfter(item, asOf - index)
   const change = later - item.price
@@ -419,12 +420,12 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel }: { asset: As
       {fav && <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-200 to-amber-400" />}
       <div className="flex items-start gap-3">
         <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${t.iconBg} ${t.text}`}>
-          <cat.icon className="h-5 w-5" />
+          <KindIcon className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
           <h4 className="truncate font-semibold text-white">{item.name}</h4>
           <p className="truncate text-xs text-zinc-400">
-            {cat.short} · {MONTHS_SHORT[month]} {year}
+            {kind.label} · {MONTHS_SHORT[month]} {year}
           </p>
         </div>
         <button

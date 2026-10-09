@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { CalendarDays, Pencil, Star } from 'lucide-react'
-import { useFmt, useStore, useUsd } from '../store'
-import { CATEGORY, TREND } from '../lib/meta'
+import { useFmt, useKindOf, useStore, useUsd } from '../store'
+import { TREND, kindIcon } from '../lib/meta'
 import { valueAfter } from '../lib/calc'
 import { END_YEAR, TOTAL_MONTHS, indexOfKey, labelOf } from '../lib/time'
 import type { Item, Trend } from '../lib/types'
@@ -122,7 +122,8 @@ function FavCard({ fav: { item, key, index } }: { fav: Fav }) {
   const f = useFmt()
   const u = useUsd()
   const t = TREND[item.trend]
-  const cat = CATEGORY[item.category]
+  const kind = useKindOf()(item.category)
+  const KindIcon = kindIcon(kind)
   const later = valueAfter(item, TOTAL_MONTHS - 1 - index)
   const change = later - item.price
 
@@ -138,12 +139,12 @@ function FavCard({ fav: { item, key, index } }: { fav: Fav }) {
       <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-200 to-amber-400" />
       <div className="flex items-start gap-3">
         <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${t.iconBg} ${t.text}`}>
-          <cat.icon className="h-5 w-5" />
+          <KindIcon className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
           <h4 className="truncate font-semibold text-white">{item.name}</h4>
           <p className="truncate text-xs text-zinc-400">
-            {cat.short} · {labelOf(index)}
+            {kind.label} · {labelOf(index)}
           </p>
         </div>
         <button

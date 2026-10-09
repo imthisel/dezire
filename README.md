@@ -16,7 +16,7 @@ Production build: `npm run build`, then `npm run preview`.
 
 - **Each month** has a *Goal to make*, a *Budget*, and an optional *Earned* amount. If Earned is left blank, the goal is used.
 - **Running totals** (Total earned, Total spent, Money left) add up every month from January 2026 onward.
-- **Items** can be Land/Property, Vehicle, Investment or Status, and each one is Appreciating (green), Depreciating (red) or Stable (blue). An item is blocked with an error if it would go over that month's budget.
+- **Items** have a kind: Land/Property, Vehicle, Investments, Status & Other and Travel to start with. Add, rename, recolour, reorder or delete kinds with **Edit kinds** (Assets, the sidebar, or the Add item window); there is always at least one. Each item is Appreciating (green), Depreciating (red) or Stable (blue). An item is blocked with an error if it would go over that month's budget.
 - **Net worth** = money left + the current value of your items (using the yearly % you set).
 - **Moving items:** drag an item to another month (hold **Ctrl** to copy, or drag onto a year tab to switch years). You can also use the Copy / Cut / Paste buttons, or the ⇄ "Move / copy to…" dialog, which can copy to several months at once.
 - **Currency:** everything is entered and stored in Philippine Pesos (₱). A US dollar equivalent is shown under each amount, based on the rate in the header (default ₱62.70 = $1, so ₱100,000 ≈ $1,595). Change the rate any time.

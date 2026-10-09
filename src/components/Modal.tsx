@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 interface Props {
@@ -10,19 +11,25 @@ interface Props {
   width?: string
 }
 
+/** Open modals, newest last: Esc only closes the one on top (one can open over another). */
+const open: object[] = []
+
 export function Modal({ title, subtitle, onClose, children, footer, width = 'max-w-xl' }: Props) {
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const me = {}
+    open.push(me)
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && open[open.length - 1] === me && onClose()
     window.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
+      open.splice(open.indexOf(me), 1)
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
     }
   }, [onClose])
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true">
       <div className="animate-fade absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div
@@ -47,6 +54,7 @@ export function Modal({ title, subtitle, onClose, children, footer, width = 'max
           <div className="border-t border-white/[0.06] bg-black/20 px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-4">{footer}</div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
