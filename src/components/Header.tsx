@@ -16,9 +16,9 @@ export function Header() {
   useEffect(() => setRateText(String(usdRate)), [usdRate])
 
   function exportData() {
-    const { months, usdRate, goals, areaLabels, sources, birthday } = useStore.getState()
+    const { months, kinds, usdRate, goals, goalAreas, sources, birthday } = useStore.getState()
     const blob = new Blob(
-      [JSON.stringify({ app: 'dezire', version: 3, exportedAt: new Date().toISOString(), currency: 'PHP', usdRate, months, goals, areaLabels, sources, birthday }, null, 2)],
+      [JSON.stringify({ app: 'dezire', version: 3, exportedAt: new Date().toISOString(), currency: 'PHP', usdRate, months, kinds, goals, goalAreas, sources, birthday }, null, 2)],
       { type: 'application/json' },
     )
     const a = document.createElement('a')

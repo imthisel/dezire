@@ -48,8 +48,20 @@ export interface MonthData {
 /** `warning` is set when the change went through but put a month over its limit. */
 export type Result = { ok: true; warning?: string; /** id of a newly added item */ id?: string } | { ok: false; error: string }
 
-/** The four areas of life a yearly goal can belong to. */
-export type GoalArea = 'mind' | 'body' | 'status' | 'identity'
+/** Id of one of the user's goal areas (see `GoalAreaDef`). The starter areas keep fixed ids: 'mind', 'body', 'status', 'identity'. */
+export type GoalArea = string
+
+/** An area of life a yearly goal can belong to, made and named by the user. Goals point to it by `id`. */
+export interface GoalAreaDef {
+  id: string
+  label: string
+  /** What fits in it, shown under the name, e.g. "Fitness, training, food, sleep" */
+  hint: string
+  /** Key into GOAL_ICONS */
+  icon: string
+  /** Key into GOAL_COLORS */
+  color: string
+}
 
 export interface Goal {
   id: string

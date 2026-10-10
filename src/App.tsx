@@ -9,6 +9,7 @@ import { ItemModal } from './components/ItemModal'
 import { MoveDialog } from './components/MoveDialog'
 import { GoalModal } from './components/GoalModal'
 import { KindsModal } from './components/KindsModal'
+import { GoalAreasModal } from './components/GoalAreasModal'
 import { ClipboardBar } from './components/ClipboardBar'
 import { Toasts } from './components/Toasts'
 import { AuthGate } from './components/AuthGate'
@@ -64,6 +65,7 @@ function Planner() {
       {modal?.type === 'item' && <ItemModal key={`${modal.key}-${modal.editId ?? 'new'}`} monthKey={modal.key} editId={modal.editId} />}
       {modal?.type === 'move' && <MoveDialog key={modal.id} monthKey={modal.key} id={modal.id} />}
       {modal?.type === 'kinds' && <KindsModal onClose={useStore.getState().closeModal} />}
+      {modal?.type === 'goalAreas' && <GoalAreasModal onClose={useStore.getState().closeModal} openId={modal.openId} add={modal.add} />}
       {modal?.type === 'goal' && (
         <GoalModal key={`${modal.year}-${modal.editId ?? modal.area ?? 'new'}`} year={modal.year} editId={modal.editId} area={modal.area} />
       )}

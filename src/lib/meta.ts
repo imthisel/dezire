@@ -1,9 +1,10 @@
 import {
   Baby, Bike, Bitcoin, BookOpen, Brain, Briefcase, Building2, Camera, CandlestickChart, Car, Coins, Crown, Dumbbell, Fingerprint, Gamepad2, Gem, Gift,
   GraduationCap, HeartPulse, Home, Landmark, Laptop, Lightbulb, Minus, Music, Package, Palette, PawPrint, PiggyBank, Plane, Rocket, Sailboat, Shirt,
-  Smartphone, Sparkles, Store, Tent, Trees, TrendingDown, TrendingUp, Watch, Wrench, type LucideIcon,
+  Smartphone, Sparkles, Store, Tent, Trees, TrendingDown, TrendingUp, Watch, Wrench, Target, Heart, Star, Users, Sun, Mountain, Flame, Smile,
+  Compass, Leaf, type LucideIcon,
 } from 'lucide-react'
-import type { GoalArea, ItemKind, SourceKind, SourceStage, Trend } from './types'
+import type { GoalAreaDef, ItemKind, SourceKind, SourceStage, Trend } from './types'
 
 /** Icons a kind of item can use, by name. */
 export const KIND_ICONS: Record<string, LucideIcon> = {
@@ -105,42 +106,117 @@ export const TREND: Record<
   },
 }
 
-export const GOAL_AREAS: GoalArea[] = ['mind', 'body', 'status', 'identity']
+/** Icons a goal area can use, by name: the item icons plus a few for life goals. */
+export const GOAL_ICONS: Record<string, LucideIcon> = {
+  brain: Brain, fitness: Dumbbell, crown: Crown, identity: Fingerprint, target: Target, heart: Heart, star: Star, people: Users,
+  sun: Sun, mountain: Mountain, flame: Flame, smile: Smile, compass: Compass, leaf: Leaf,
+  ...KIND_ICONS,
+}
 
-/** Tailwind classes are written out in full so they survive the build. */
-export const GOAL_AREA: Record<
-  GoalArea,
+/** Colours a goal area can use. Tailwind classes are written out in full so they survive the build. */
+export const GOAL_COLORS: Record<
+  string,
   {
-    label: string; hint: string; placeholder: string; icon: LucideIcon
-    text: string; bg: string; border: string; ring: string; iconBg: string; check: string; glow: string; stroke: string
+    label: string
+    /** For the progress bar, ring and drop line */
+    stroke: string
+    text: string; bg: string; border: string; ring: string; iconBg: string; check: string; glow: string
     hoverText: string; hoverBorder: string
   }
 > = {
-  mind: {
-    label: 'IQ / Career', hint: 'Learning, skills, work, income', placeholder: 'e.g. Get promoted to senior',
-    icon: Brain,
+  sky: {
+    label: 'Sky', stroke: '#38bdf8',
     text: 'text-sky-300', bg: 'bg-sky-500/10', border: 'border-sky-400/40', ring: 'ring-sky-400/60',
-    iconBg: 'bg-sky-500/15', check: 'border-sky-400 bg-sky-400', glow: 'from-sky-500/[0.08]', hoverText: 'hover:text-sky-300', hoverBorder: 'hover:border-sky-400', stroke: '#38bdf8',
+    iconBg: 'bg-sky-500/15', check: 'border-sky-400 bg-sky-400', glow: 'from-sky-500/[0.08]', hoverText: 'hover:text-sky-300', hoverBorder: 'hover:border-sky-400',
   },
-  body: {
-    label: 'Physical health / Sports', hint: 'Fitness, training, food, sleep', placeholder: 'e.g. Run a half marathon',
-    icon: Dumbbell,
+  orange: {
+    label: 'Orange', stroke: '#fb923c',
     text: 'text-orange-300', bg: 'bg-orange-500/10', border: 'border-orange-400/40', ring: 'ring-orange-400/60',
-    iconBg: 'bg-orange-500/15', check: 'border-orange-400 bg-orange-400', glow: 'from-orange-500/[0.08]', hoverText: 'hover:text-orange-300', hoverBorder: 'hover:border-orange-400', stroke: '#fb923c',
+    iconBg: 'bg-orange-500/15', check: 'border-orange-400 bg-orange-400', glow: 'from-orange-500/[0.08]', hoverText: 'hover:text-orange-300', hoverBorder: 'hover:border-orange-400',
   },
-  status: {
-    label: 'Status', hint: 'Reputation, network, lifestyle', placeholder: 'e.g. Speak at a conference',
-    icon: Crown,
+  amber: {
+    label: 'Amber', stroke: '#fbbf24',
     text: 'text-amber-300', bg: 'bg-amber-500/10', border: 'border-amber-400/40', ring: 'ring-amber-400/60',
-    iconBg: 'bg-amber-500/15', check: 'border-amber-400 bg-amber-400', glow: 'from-amber-500/[0.08]', hoverText: 'hover:text-amber-300', hoverBorder: 'hover:border-amber-400', stroke: '#fbbf24',
+    iconBg: 'bg-amber-500/15', check: 'border-amber-400 bg-amber-400', glow: 'from-amber-500/[0.08]', hoverText: 'hover:text-amber-300', hoverBorder: 'hover:border-amber-400',
   },
-  identity: {
-    label: 'Identity', hint: 'Who you are, values, habits', placeholder: 'e.g. Become someone who reads daily',
-    icon: Fingerprint,
+  fuchsia: {
+    label: 'Pink', stroke: '#e879f9',
     text: 'text-fuchsia-300', bg: 'bg-fuchsia-500/10', border: 'border-fuchsia-400/40', ring: 'ring-fuchsia-400/60',
-    iconBg: 'bg-fuchsia-500/15', check: 'border-fuchsia-400 bg-fuchsia-400', glow: 'from-fuchsia-500/[0.08]', hoverText: 'hover:text-fuchsia-300', hoverBorder: 'hover:border-fuchsia-400', stroke: '#e879f9',
+    iconBg: 'bg-fuchsia-500/15', check: 'border-fuchsia-400 bg-fuchsia-400', glow: 'from-fuchsia-500/[0.08]', hoverText: 'hover:text-fuchsia-300', hoverBorder: 'hover:border-fuchsia-400',
+  },
+  emerald: {
+    label: 'Green', stroke: '#34d399',
+    text: 'text-emerald-300', bg: 'bg-emerald-500/10', border: 'border-emerald-400/40', ring: 'ring-emerald-400/60',
+    iconBg: 'bg-emerald-500/15', check: 'border-emerald-400 bg-emerald-400', glow: 'from-emerald-500/[0.08]', hoverText: 'hover:text-emerald-300', hoverBorder: 'hover:border-emerald-400',
+  },
+  teal: {
+    label: 'Teal', stroke: '#2dd4bf',
+    text: 'text-teal-300', bg: 'bg-teal-500/10', border: 'border-teal-400/40', ring: 'ring-teal-400/60',
+    iconBg: 'bg-teal-500/15', check: 'border-teal-400 bg-teal-400', glow: 'from-teal-500/[0.08]', hoverText: 'hover:text-teal-300', hoverBorder: 'hover:border-teal-400',
+  },
+  violet: {
+    label: 'Violet', stroke: '#a78bfa',
+    text: 'text-violet-300', bg: 'bg-violet-500/10', border: 'border-violet-400/40', ring: 'ring-violet-400/60',
+    iconBg: 'bg-violet-500/15', check: 'border-violet-400 bg-violet-400', glow: 'from-violet-500/[0.08]', hoverText: 'hover:text-violet-300', hoverBorder: 'hover:border-violet-400',
+  },
+  rose: {
+    label: 'Red', stroke: '#fb7185',
+    text: 'text-rose-300', bg: 'bg-rose-500/10', border: 'border-rose-400/40', ring: 'ring-rose-400/60',
+    iconBg: 'bg-rose-500/15', check: 'border-rose-400 bg-rose-400', glow: 'from-rose-500/[0.08]', hoverText: 'hover:text-rose-300', hoverBorder: 'hover:border-rose-400',
+  },
+  lime: {
+    label: 'Lime', stroke: '#a3e635',
+    text: 'text-lime-300', bg: 'bg-lime-500/10', border: 'border-lime-400/40', ring: 'ring-lime-400/60',
+    iconBg: 'bg-lime-500/15', check: 'border-lime-400 bg-lime-400', glow: 'from-lime-500/[0.08]', hoverText: 'hover:text-lime-300', hoverBorder: 'hover:border-lime-400',
+  },
+  slate: {
+    label: 'Grey', stroke: '#a1a1aa',
+    text: 'text-zinc-200', bg: 'bg-white/[0.06]', border: 'border-zinc-400/40', ring: 'ring-zinc-400/60',
+    iconBg: 'bg-white/10', check: 'border-zinc-300 bg-zinc-300', glow: 'from-white/[0.05]', hoverText: 'hover:text-zinc-200', hoverBorder: 'hover:border-zinc-300',
   },
 }
+
+/** The areas every new account starts with. Their ids are fixed (goals saved before areas were editable use them). */
+export const DEFAULT_GOAL_AREAS: GoalAreaDef[] = [
+  { id: 'mind', label: 'IQ / Career', hint: 'Learning, skills, work, income', icon: 'brain', color: 'sky' },
+  { id: 'body', label: 'Physical health / Sports', hint: 'Fitness, training, food, sleep', icon: 'fitness', color: 'orange' },
+  { id: 'status', label: 'Status', hint: 'Reputation, network, lifestyle', icon: 'crown', color: 'amber' },
+  { id: 'identity', label: 'Identity', hint: 'Who you are, values, habits', icon: 'identity', color: 'fuchsia' },
+]
+
+/** Example goals for the starter areas, shown in the empty goal box. */
+const GOAL_PLACEHOLDER: Record<string, string> = {
+  mind: 'e.g. Get promoted to senior',
+  body: 'e.g. Run a half marathon',
+  status: 'e.g. Speak at a conference',
+  identity: 'e.g. Become someone who reads daily',
+}
+export const goalPlaceholder = (a: GoalAreaDef) => GOAL_PLACEHOLDER[a.id] ?? 'Write your goal'
+
+/** Shown for a goal whose area no longer exists (e.g. deleted on another device a moment ago). */
+export const UNKNOWN_AREA: GoalAreaDef = { id: '', label: 'No area', hint: '', icon: 'other', color: 'slate' }
+
+/** Words in a new area's name that suggest an icon; falls back to the item-kind words, then a target. */
+const AREA_WORDS: [RegExp, string][] = [
+  [/mind|iq|brain|learn|skill|career|work|job/, 'brain'],
+  [/body|health|fit|sport|gym|run/, 'fitness'],
+  [/status|fame|reputation/, 'crown'],
+  [/identity|self|habit|value/, 'identity'],
+  [/love|relationship|partner|dating|romance/, 'heart'],
+  [/friend|social|network|people|community/, 'people'],
+  [/spirit|faith|god|church|soul|peace|mental/, 'sun'],
+  [/advent|challenge|climb/, 'mountain'],
+  [/fun|joy|happy|hobby|hobbies/, 'smile'],
+  [/nature|environment|green|eco/, 'leaf'],
+]
+export const guessAreaIcon = (name: string) => {
+  const n = name.toLowerCase()
+  const icon = AREA_WORDS.find(([re]) => re.test(n))?.[1] ?? guessIcon(n)
+  return icon === 'box' ? 'target' : icon
+}
+
+export const areaIcon = (a: GoalAreaDef) => GOAL_ICONS[a.icon] ?? Sparkles
+export const areaColor = (a: GoalAreaDef) => GOAL_COLORS[a.color] ?? GOAL_COLORS.slate
 
 /** Ways of making money, for the Money plan page. `calc` = the "how many sales do I need" math makes sense for it. */
 export const SOURCE_KINDS: SourceKind[] = ['business', 'freelance', 'online', 'job', 'invest', 'other']

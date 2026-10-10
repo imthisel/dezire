@@ -1,7 +1,10 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Category, Goal, GoalArea, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, SourceKind, SourceStage, Trend } from './lib/types'
-import { DEFAULT_KINDS, GOAL_AREA, GOAL_AREAS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_KIND, guessIcon } from './lib/meta'
+import type { Category, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, SourceKind, SourceStage, Trend } from './lib/types'
+import {
+  DEFAULT_GOAL_AREAS, DEFAULT_KINDS, GOAL_COLORS, GOAL_ICONS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_AREA, UNKNOWN_KIND,
+  guessAreaIcon, guessIcon,
+} from './lib/meta'
 import { DEFAULT_USD_RATE, PESO, fmt, fmtUsd } from './lib/money'
 import { currentYear, labelOfKey, END_YEAR, START_YEAR, indexOf, indexOfKey, keyOf } from './lib/time'
 import { computeAll, spendLimit, type MonthCalc } from './lib/calc'
@@ -12,6 +15,8 @@ export type ModalState =
   | { type: 'move'; key: string; id: string }
   | { type: 'goal'; year: number; editId?: string; area?: GoalArea }
   | { type: 'kinds' }
+  /** `openId`: the area to show unfolded. `add`: start with the cursor in the new-area box. */
+  | { type: 'goalAreas'; openId?: string; add?: boolean }
   | null
 export type View = 'planner' | 'plan' | 'favorites' | 'assets'
 /** Assets page: which kind of item, and which years */
@@ -22,6 +27,7 @@ export type MonthField = 'goal' | 'budget' | 'earned' | 'netWorthGoal'
 /** Where to drop an item in a month's list: next to item `id`. Missing = at the end. */
 export type DropAt = { id: string; after: boolean }
 export type KindPatch = Partial<Omit<ItemKind, 'id'>>
+export type AreaPatch = Partial<Omit<GoalAreaDef, 'id'>>
 export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string; propertyId?: string }
 
 const OK: Result = { ok: true }
@@ -91,6 +97,36 @@ function parseKinds(list: unknown): ItemKind[] | null {
   return kinds.length ? kinds : null
 }
 
+export const MAX_AREA_NAME = 40
+
+/**
+ * Cleans up goal areas coming from a backup file or the cloud. Older saves only have `areaLabels`
+ * (custom names for the four fixed areas): those become the starter areas with the names applied.
+ */
+function parseGoalAreas(list: unknown, oldLabels?: unknown): GoalAreaDef[] {
+  if (Array.isArray(list)) {
+    const seen = new Set<string>()
+    const areas: GoalAreaDef[] = []
+    for (const x of list as Record<string, unknown>[]) {
+      if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !x.id || typeof x.label !== 'string' || seen.has(x.id)) continue
+      seen.add(x.id)
+      areas.push({
+        id: x.id,
+        label: x.label.trim().slice(0, MAX_AREA_NAME) || 'Untitled',
+        hint: typeof x.hint === 'string' ? x.hint.slice(0, 80) : '',
+        icon: typeof x.icon === 'string' && x.icon in GOAL_ICONS ? x.icon : 'target',
+        color: typeof x.color === 'string' && x.color in GOAL_COLORS ? x.color : 'slate',
+      })
+    }
+    if (areas.length) return areas
+  }
+  const labels = oldLabels && typeof oldLabels === 'object' ? (oldLabels as Record<string, unknown>) : {}
+  return DEFAULT_GOAL_AREAS.map((a) => {
+    const l = labels[a.id]
+    return typeof l === 'string' && l.trim() ? { ...a, label: l.trim().slice(0, MAX_AREA_NAME) } : a
+  })
+}
+
 /** Drops "kept at" links that no longer make sense: only a vehicle can be kept, and only at a property. */
 function cleanLinks(months: Record<string, MonthData>) {
   const kindOf = new Map<string, Category>()
@@ -157,8 +193,17 @@ interface State {
   modal: ModalState
   /** Yearly goals, keyed by year ("2027") */
   goals: Record<string, Goal[]>
-  /** Custom names for the goal areas; missing = default name */
-  areaLabels: Partial<Record<GoalArea, string>>
+  /** The areas goals can belong to (always at least one), in the order they're shown */
+  goalAreas: GoalAreaDef[]
+  /** Adds an area named `label` with a fitting icon and an unused colour. Returns its id. */
+  addArea: (label: string) => string
+  /** Adds back one of the starter areas that was deleted. */
+  restoreArea: (id: string) => void
+  updateArea: (id: string, patch: AreaPatch) => void
+  /** Moves an area to position `to` in the list. */
+  moveArea: (id: string, to: number) => void
+  /** Deletes an area. Its goals (in every year) move to area `moveTo` (needed when it has any). The last area can't be deleted. */
+  removeArea: (id: string, moveTo?: string) => Result
   /** Money plan: the ways I'm going to make the money */
   sources: IncomeSource[]
   /** The kinds items can be (always at least one), in the order they're shown */
@@ -225,7 +270,6 @@ interface State {
   moveGoal: (year: number, id: string, area: GoalArea, at?: DropAt) => void
   /** Copies this year's unfinished goals into the next year (skipping ones already there). Returns how many were copied. */
   carryOverGoals: (year: number) => number
-  setAreaLabel: (area: GoalArea, label: string) => void
 
   addSource: (kind: SourceKind) => string
   updateSource: (id: string, patch: SourcePatch) => void
@@ -248,7 +292,7 @@ export const useStore = create<State>()(
       clipboard: null,
       modal: null,
       goals: {},
-      areaLabels: {},
+      goalAreas: DEFAULT_GOAL_AREAS,
       sources: [],
       kinds: DEFAULT_KINDS,
       birthday: null,
@@ -526,12 +570,62 @@ export const useStore = create<State>()(
         return copies.length
       },
 
-      setAreaLabel: (area, label) =>
+      addArea: (label) => {
+        const { goalAreas } = get()
+        const name = label.trim().slice(0, MAX_AREA_NAME) || 'New area'
+        const used = new Set(goalAreas.map((a) => a.color))
+        const colors = Object.keys(GOAL_COLORS)
+        const color = colors.find((c) => !used.has(c)) ?? colors[goalAreas.length % colors.length]
+        const area: GoalAreaDef = { id: uid(), label: name, hint: '', icon: guessAreaIcon(name), color }
+        set({ goalAreas: [...goalAreas, area] })
+        return area.id
+      },
+
+      restoreArea: (id) =>
         set((s) => {
-          const { [area]: _old, ...rest } = s.areaLabels
-          const clean = label.trim()
-          return { areaLabels: clean && clean !== GOAL_AREA[area].label ? { ...rest, [area]: clean } : rest }
+          const area = DEFAULT_GOAL_AREAS.find((a) => a.id === id)
+          return area && !s.goalAreas.some((a) => a.id === id) ? { goalAreas: [...s.goalAreas, area] } : {}
         }),
+
+      updateArea: (id, patch) =>
+        set((s) => ({
+          goalAreas: s.goalAreas.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  ...patch,
+                  label: patch.label === undefined ? a.label : patch.label.trim().slice(0, MAX_AREA_NAME) || a.label,
+                  hint: patch.hint === undefined ? a.hint : patch.hint.slice(0, 80),
+                }
+              : a,
+          ),
+        })),
+
+      moveArea: (id, to) =>
+        set((s) => {
+          const from = s.goalAreas.findIndex((a) => a.id === id)
+          if (from < 0 || from === to) return {}
+          const goalAreas = [...s.goalAreas]
+          const [area] = goalAreas.splice(from, 1)
+          goalAreas.splice(Math.max(0, Math.min(goalAreas.length, to)), 0, area)
+          return { goalAreas }
+        }),
+
+      removeArea: (id, moveTo) => {
+        const { goalAreas, goals } = get()
+        if (goalAreas.length <= 1) return fail('You need at least one goal area.')
+        const used = Object.values(goals).some((list) => list.some((g) => g.area === id))
+        if (used && (!moveTo || moveTo === id || !goalAreas.some((a) => a.id === moveTo))) return fail('Pick an area to move its goals to first.')
+        let next = goals
+        if (used) {
+          next = { ...goals }
+          for (const [y, list] of Object.entries(goals)) {
+            if (list.some((g) => g.area === id)) next[y] = list.map((g) => (g.area === id ? { ...g, area: moveTo! } : g))
+          }
+        }
+        set({ goalAreas: goalAreas.filter((a) => a.id !== id), goals: next })
+        return OK
+      },
 
       addSource: (kind) => {
         const source: IncomeSource = {
@@ -575,6 +669,7 @@ export const useStore = create<State>()(
             months?: Record<string, Partial<MonthData>>
             usdRate?: number
             goals?: Record<string, Partial<Goal>[]>
+            goalAreas?: unknown
             areaLabels?: Record<string, unknown>
             sources?: unknown
             birthday?: unknown
@@ -609,7 +704,8 @@ export const useStore = create<State>()(
               ...(typeof raw.notes === 'string' && raw.notes.trim() ? { notes: raw.notes } : {}),
             }
           }
-          const isArea = (a: unknown): a is GoalArea => GOAL_AREAS.includes(a as GoalArea)
+          const goalAreas = parseGoalAreas(d.goalAreas, d.areaLabels)
+          const isArea = (a: unknown): a is GoalArea => goalAreas.some((x) => x.id === a)
           const goals: Record<string, Goal[]> = {}
           for (const [year, list] of Object.entries(d.goals ?? {})) {
             if (!/^\d{4}$/.test(year) || !Array.isArray(list)) continue
@@ -618,33 +714,29 @@ export const useStore = create<State>()(
               .map((g) => ({
                 id: g.id || uid(),
                 text: String(g.text).trim(),
-                area: isArea(g.area) ? g.area : 'identity',
+                area: isArea(g.area) ? g.area : goalAreas[goalAreas.length - 1].id,
                 done: !!g.done,
                 createdAt: Number(g.createdAt) || Date.now(),
               }))
           }
-          const areaLabels: Partial<Record<GoalArea, string>> = {}
-          for (const [a, label] of Object.entries(d.areaLabels ?? {})) {
-            if (isArea(a) && typeof label === 'string' && label.trim()) areaLabels[a] = label.trim()
-          }
           const birthday = typeof d.birthday === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.birthday) ? d.birthday : null
-          set({ months, kinds, goals, areaLabels, sources: parseSources(d.sources), birthday, usdRate: Number(d.usdRate) > 0 ? Number(d.usdRate) : get().usdRate, clipboard: null })
+          set({ months, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, usdRate: Number(d.usdRate) > 0 ? Number(d.usdRate) : get().usdRate, clipboard: null })
           return OK
         } catch {
           return fail('Could not read that file.')
         }
       },
 
-      resetAll: () => set({ months: {}, kinds: DEFAULT_KINDS, goals: {}, areaLabels: {}, sources: [], birthday: null, clipboard: null, modal: null }),
+      resetAll: () => set({ months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, clipboard: null, modal: null }),
     }),
     {
       name: 'dezire-goal-planner-v1',
-      version: 3,
+      version: 4,
       partialize: (s) => ({
         months: s.months,
         kinds: s.kinds,
         goals: s.goals,
-        areaLabels: s.areaLabels,
+        goalAreas: s.goalAreas,
         sources: s.sources,
         birthday: s.birthday,
         usdRate: s.usdRate,
@@ -659,18 +751,20 @@ export const useStore = create<State>()(
       // v0 had a selectable currency; amounts are now always pesos.
       // v1 had an "Other" item kind; it's now part of "Status & Other".
       // v2 had a fixed list of item kinds; they're now the starter kinds, which can be changed.
+      // v3 had four fixed goal areas with optional custom names; they're now the starter areas, which can be changed.
       migrate: (persisted) => {
-        const { currency: _drop, ...rest } = (persisted ?? {}) as Record<string, unknown>
+        const { currency: _drop, areaLabels, ...rest } = (persisted ?? {}) as Record<string, unknown>
         return {
           months: {},
           year: currentYear(),
           dashMode: 'plan',
           ...rest,
           kinds: parseKinds(rest.kinds) ?? DEFAULT_KINDS,
+          goalAreas: parseGoalAreas(rest.goalAreas, areaLabels),
           ...(rest.months ? { months: migrateMonths(rest.months) } : {}),
           ...(rest.assetCat === 'other' ? { assetCat: 'status' } : {}),
           usdRate: Number(rest.usdRate) > 0 ? Number(rest.usdRate) : DEFAULT_USD_RATE,
-        } as Pick<State, 'months' | 'kinds' | 'usdRate' | 'year' | 'dashMode'>
+        } as Pick<State, 'months' | 'kinds' | 'goalAreas' | 'usdRate' | 'year' | 'dashMode'>
       },
     },
   ),
@@ -729,10 +823,13 @@ export function useKindOf() {
   return (id: Category) => kinds.find((k) => k.id === id) ?? UNKNOWN_KIND
 }
 
-/** The name shown for a goal area — the user's custom name, or the default. */
-export function useAreaLabel() {
-  const labels = useStore((s) => s.areaLabels)
-  return (area: GoalArea) => labels[area] || GOAL_AREA[area].label
+/** The user's goal areas, in order. */
+export const useGoalAreas = () => useStore((s) => s.goalAreas)
+
+/** Looks up a goal area by id (a placeholder if it no longer exists). */
+export function useAreaOf() {
+  const areas = useGoalAreas()
+  return (id: GoalArea) => areas.find((a) => a.id === id) ?? UNKNOWN_AREA
 }
 
 /** Formats pesos: ₱100,000 */

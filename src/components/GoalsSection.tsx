@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from 'react'
 import {
-  ArrowDown, ArrowRight, ArrowUp, Check, Flag, GripVertical, MoreHorizontal, Pencil, Plus, RotateCcw, Trash2, Trophy,
+  ArrowDown, ArrowRight, ArrowUp, Check, Flag, GripVertical, MoreHorizontal, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2, Trophy,
 } from 'lucide-react'
-import { useAreaLabel, useStore } from '../store'
-import { GOAL_AREA, GOAL_AREAS } from '../lib/meta'
+import { MAX_AREA_NAME, useAreaOf, useGoalAreas, useStore } from '../store'
+import { DEFAULT_GOAL_AREAS, areaColor, areaIcon } from '../lib/meta'
 import { END_YEAR } from '../lib/time'
-import type { Goal, GoalArea } from '../lib/types'
+import type { Goal, GoalAreaDef } from '../lib/types'
 import { card } from './Dashboard'
 import { toast } from '../toast'
 import { goalDrag } from '../dnd'
@@ -15,6 +15,7 @@ const EMPTY: never[] = []
 export function GoalsSection() {
   const year = useStore((s) => s.year)
   const goals = useStore((s) => s.goals[year] ?? EMPTY)
+  const areas = useGoalAreas()
   const openModal = useStore((s) => s.openModal)
 
   const done = goals.filter((g) => g.done).length
@@ -51,6 +52,14 @@ export function GoalsSection() {
           </div>
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
+          <button
+            onClick={() => openModal({ type: 'goalAreas' })}
+            title="Rename, add, restyle or remove goal areas"
+            aria-label="Edit goal areas"
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-white/10 px-3 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white sm:h-10"
+          >
+            <SlidersHorizontal className="h-4 w-4" /> <span className="hidden sm:inline">Areas</span>
+          </button>
           {open > 0 && year < END_YEAR && (
             <button
               onClick={carryOver}
@@ -78,13 +87,13 @@ export function GoalsSection() {
             <span className="font-semibold tabular-nums text-zinc-200">{Math.round(pct * 100)}%</span>
           </div>
           <div className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-white/5">
-            {GOAL_AREAS.map((a) => {
-              const n = goals.filter((g) => g.area === a && g.done).length
+            {areas.map((a) => {
+              const n = goals.filter((g) => g.area === a.id && g.done).length
               return n ? (
                 <div
-                  key={a}
+                  key={a.id}
                   className="h-full transition-all duration-500"
-                  style={{ width: `${(n / goals.length) * 100}%`, background: GOAL_AREA[a].stroke }}
+                  style={{ width: `${(n / goals.length) * 100}%`, background: areaColor(a).stroke }}
                 />
               ) : null
             })}
@@ -94,18 +103,24 @@ export function GoalsSection() {
 
       {/* Areas */}
       <div className="relative mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
-        {GOAL_AREAS.map((a) => (
-          <AreaCard key={a} area={a} year={year} goals={goals.filter((g) => g.area === a)} />
+        {areas.map((a) => (
+          <AreaCard key={a.id} area={a} year={year} goals={goals.filter((g) => g.area === a.id)} />
         ))}
+        <button
+          onClick={() => openModal({ type: 'goalAreas', add: true })}
+          className="flex min-h-[4.5rem] items-center justify-center gap-2 rounded-2xl border border-dashed border-white/[0.09] text-sm text-zinc-500 transition hover:border-white/20 hover:text-zinc-300"
+        >
+          <Plus className="h-4 w-4" /> New area
+        </button>
       </div>
     </section>
   )
 }
 
-function AreaCard({ area, year, goals }: { area: GoalArea; year: number; goals: Goal[] }) {
-  const a = GOAL_AREA[area]
+function AreaCard({ area, year, goals }: { area: GoalAreaDef; year: number; goals: Goal[] }) {
+  const a = areaColor(area)
+  const Icon = areaIcon(area)
   const openModal = useStore((s) => s.openModal)
-  const label = useAreaLabel()
   const done = goals.filter((g) => g.done).length
   const complete = goals.length > 0 && done === goals.length
   const [dropping, setDropping] = useState(false)
@@ -124,8 +139,8 @@ function AreaCard({ area, year, goals }: { area: GoalArea; year: number; goals: 
     goalDrag.current = null
     if (!d) return
     const from = useStore.getState().goals[year]?.find((g) => g.id === d.id)
-    useStore.getState().moveGoal(year, d.id, area)
-    if (from && from.area !== area) toast.info(`Moved to ${label(area)}.`)
+    useStore.getState().moveGoal(year, d.id, area.id)
+    if (from && from.area !== area.id) toast.info(`Moved to ${area.label}.`)
   }
 
   return (
@@ -138,12 +153,17 @@ function AreaCard({ area, year, goals }: { area: GoalArea; year: number; goals: 
       }`}
     >
       <header className="mb-3 flex items-start gap-3">
-        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${a.iconBg} ${a.text}`}>
-          <a.icon className="h-5 w-5" />
-        </span>
+        <button
+          onClick={() => openModal({ type: 'goalAreas', openId: area.id })}
+          title="Change icon, colour or name"
+          aria-label={`Customize ${area.label}`}
+          className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl transition hover:ring-2 ${a.ring} ${a.iconBg} ${a.text}`}
+        >
+          <Icon className="h-5 w-5" />
+        </button>
         <div className="min-w-0 flex-1">
           <AreaName area={area} />
-          <p className="truncate text-xs text-zinc-500">{a.hint}</p>
+          <p className="truncate text-xs text-zinc-500">{area.hint}</p>
         </div>
         {goals.length > 0 && <Ring done={done} total={goals.length} color={a.stroke} complete={complete} />}
       </header>
@@ -156,7 +176,7 @@ function AreaCard({ area, year, goals }: { area: GoalArea; year: number; goals: 
         {goals.length === 0 && (
           <li>
             <button
-              onClick={() => openModal({ type: 'goal', year, area })}
+              onClick={() => openModal({ type: 'goal', year, area: area.id })}
               className={`flex w-full items-center justify-center gap-2 rounded-xl border border-dashed py-5 text-sm transition ${
                 dropping ? `${a.border} ${a.text}` : 'border-white/[0.09] text-zinc-500 hover:border-white/20 hover:text-zinc-300'
               }`}
@@ -169,7 +189,7 @@ function AreaCard({ area, year, goals }: { area: GoalArea; year: number; goals: 
 
       {goals.length > 0 && (
         <button
-          onClick={() => openModal({ type: 'goal', year, area })}
+          onClick={() => openModal({ type: 'goal', year, area: area.id })}
           className={`mt-2 inline-flex items-center gap-1.5 self-start rounded-lg px-2 py-2 text-xs font-medium sm:py-1.5 text-zinc-500 transition hover:bg-white/5 ${a.hoverText}`}
         >
           <Plus className="h-3.5 w-3.5" /> Add to this area
@@ -180,10 +200,11 @@ function AreaCard({ area, year, goals }: { area: GoalArea; year: number; goals: 
 }
 
 /** The area's name — click it to rename. */
-function AreaName({ area }: { area: GoalArea }) {
-  const label = useAreaLabel()(area)
-  const custom = useStore((s) => !!s.areaLabels[area])
-  const setAreaLabel = useStore((s) => s.setAreaLabel)
+function AreaName({ area }: { area: GoalAreaDef }) {
+  const label = area.label
+  const starter = DEFAULT_GOAL_AREAS.find((d) => d.id === area.id)
+  const custom = !!starter && starter.label !== label
+  const updateArea = useStore((s) => s.updateArea)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(label)
   const input = useRef<HTMLInputElement>(null)
@@ -193,7 +214,7 @@ function AreaName({ area }: { area: GoalArea }) {
   }, [editing])
 
   function commit() {
-    setAreaLabel(area, draft)
+    updateArea(area.id, { label: draft })
     setEditing(false)
   }
 
@@ -202,7 +223,7 @@ function AreaName({ area }: { area: GoalArea }) {
       <input
         ref={input}
         value={draft}
-        maxLength={40}
+        maxLength={MAX_AREA_NAME}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
@@ -233,8 +254,8 @@ function AreaName({ area }: { area: GoalArea }) {
       </button>
       {custom && (
         <button
-          onClick={() => setAreaLabel(area, '')}
-          title={`Reset to “${GOAL_AREA[area].label}”`}
+          onClick={() => updateArea(area.id, { label: starter!.label })}
+          title={`Reset to “${starter!.label}”`}
           aria-label="Reset name"
           className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 sm:h-6 sm:w-6 sm:opacity-0 sm:group-hover/name:opacity-100"
         >
@@ -246,7 +267,8 @@ function AreaName({ area }: { area: GoalArea }) {
 }
 
 function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; prevId?: string; nextId?: string }) {
-  const a = GOAL_AREA[goal.area]
+  const area = useAreaOf()(goal.area)
+  const a = areaColor(area)
   const { updateGoal, removeGoal, openModal } = useStore.getState()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(goal.text)
@@ -288,7 +310,7 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
     e.preventDefault()
     const from = useStore.getState().goals[year]?.find((g) => g.id === d.id)
     useStore.getState().moveGoal(year, d.id, goal.area, { id: goal.id, after: half(e) === 'below' })
-    if (from && from.area !== goal.area) toast.info(`Moved to ${useStore.getState().areaLabels[goal.area] || a.label}.`)
+    if (from && from.area !== goal.area) toast.info(`Moved to ${area.label}.`)
   }
 
   return (
@@ -388,7 +410,7 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
 
 /** ⋯ menu: move up / down, move to another area, edit, delete. Works everywhere, including phones (no dragging there). */
 function GoalMenu({ goal, year, prevId, nextId }: { goal: Goal; year: number; prevId?: string; nextId?: string }) {
-  const label = useAreaLabel()
+  const areas = useGoalAreas()
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number; up: boolean } | null>(null)
   const btn = useRef<HTMLButtonElement>(null)
@@ -427,9 +449,9 @@ function GoalMenu({ goal, year, prevId, nextId }: { goal: Goal; year: number; pr
     fn()
     setOpen(false)
   }
-  const moveTo = (area: GoalArea) => {
-    s().moveGoal(year, goal.id, area)
-    toast.info(`Moved to ${label(area)}.`)
+  const moveTo = (area: GoalAreaDef) => {
+    s().moveGoal(year, goal.id, area.id)
+    toast.info(`Moved to ${area.label}.`)
   }
 
   const item = 'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition disabled:pointer-events-none disabled:opacity-30'
@@ -465,14 +487,15 @@ function GoalMenu({ goal, year, prevId, nextId }: { goal: Goal; year: number; pr
           </button>
 
           <p className="mt-1.5 border-t border-white/[0.06] px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Move to</p>
-          {GOAL_AREAS.filter((x) => x !== goal.area).map((x) => {
-            const ga = GOAL_AREA[x]
+          {areas.filter((x) => x.id !== goal.area).map((x) => {
+            const ga = areaColor(x)
+            const Icon = areaIcon(x)
             return (
-              <button key={x} role="menuitem" onClick={run(() => moveTo(x))} className={`${item} text-zinc-200 hover:bg-white/[0.07]`}>
+              <button key={x.id} role="menuitem" onClick={run(() => moveTo(x))} className={`${item} text-zinc-200 hover:bg-white/[0.07]`}>
                 <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-md ${ga.iconBg} ${ga.text}`}>
-                  <ga.icon className="h-3.5 w-3.5" />
+                  <Icon className="h-3.5 w-3.5" />
                 </span>
-                <span className="min-w-0 flex-1 truncate">{label(x)}</span>
+                <span className="min-w-0 flex-1 truncate">{x.label}</span>
               </button>
             )
           })}
