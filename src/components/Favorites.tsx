@@ -1,9 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { CalendarDays, Pencil, Star } from 'lucide-react'
+import { BarChart3, CalendarDays, Pencil, Star } from 'lucide-react'
 import { useFmt, useKindOf, useStore, useUsd } from '../store'
 import { TREND, kindIcon } from '../lib/meta'
 import { valueAfter } from '../lib/calc'
-import { END_YEAR, TOTAL_MONTHS, indexOfKey, labelOf } from '../lib/time'
+import { END_YEAR, TOTAL_MONTHS, currentYear, indexOfKey, labelOf } from '../lib/time'
 import type { Item, Trend } from '../lib/types'
 import { card } from './Dashboard'
 import { goTo, goToMonth } from '../nav'
@@ -103,18 +103,166 @@ export function Favorites() {
           </div>
         </section>
       ) : (
-        years.map((y) => (
-          <section key={y} className="space-y-2.5">
-            <h3 className="px-1 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-400">{y}</h3>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {shown.filter((x) => x.year === y).map((x) => (
-                <FavCard key={x.item.id} fav={x} />
-              ))}
-            </div>
-          </section>
-        ))
+        <>
+          <YearTotals favs={shown} filter={filter} />
+          {years.map((y) => {
+            const inYear = shown.filter((x) => x.year === y)
+            const sum = inYear.reduce((s, x) => s + x.item.price, 0)
+            return (
+              <section key={y} id={`fav-year-${y}`} className="scroll-mt-4 space-y-2.5">
+                <div className="flex items-baseline justify-between gap-3 px-1">
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                    {y}{' '}
+                    <span className="font-medium normal-case tracking-normal text-zinc-600">
+                      · {inYear.length} item{inYear.length > 1 ? 's' : ''}
+                    </span>
+                  </h3>
+                  <p className="shrink-0 text-sm font-semibold tabular-nums text-zinc-300">{f(sum)}</p>
+                </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {inYear.map((x) => (
+                    <FavCard key={x.item.id} fav={x} />
+                  ))}
+                </div>
+              </section>
+            )
+          })}
+        </>
       )}
     </div>
+  )
+}
+
+/** How much the shown favorites cost in each year: a bar per year split by trend, with the running total. */
+function YearTotals({ favs, filter }: { favs: Fav[]; filter: Filter }) {
+  const f = useFmt()
+  const u = useUsd()
+  const now = currentYear()
+
+  const rows = useMemo(() => {
+    const by = new Map<number, { total: number; count: number; trend: Record<Trend, number> }>()
+    for (const x of favs) {
+      const r = by.get(x.year) ?? { total: 0, count: 0, trend: { appreciating: 0, depreciating: 0, stable: 0 } }
+      r.total += x.item.price
+      r.count++
+      r.trend[x.item.trend] += x.item.price
+      by.set(x.year, r)
+    }
+    let run = 0
+    return [...by.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([year, r]) => ({ year, ...r, running: (run += r.total) }))
+  }, [favs])
+
+  if (!rows.length) return null
+  const grand = rows[rows.length - 1].running
+  const max = Math.max(...rows.map((r) => r.total))
+  const top = rows.reduce((a, b) => (b.total > a.total ? b : a))
+  const jump = (y: number) => document.getElementById(`fav-year-${y}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  return (
+    <section className={`${card} p-4 sm:p-6`}>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-300">
+            <BarChart3 className="h-[18px] w-[18px]" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="font-semibold text-white">Total by year</h3>
+            <p className="truncate text-xs text-zinc-500">
+              What your favorites cost each year{filter !== 'all' && <> · {TREND[filter].label.toLowerCase()} only</>}
+            </p>
+          </div>
+        </div>
+        {rows.length > 1 && (
+          <dl className="flex gap-5 text-right">
+            <div>
+              <dt className="text-[11px] font-medium text-zinc-500">Average / year</dt>
+              <dd className="text-sm font-semibold tabular-nums text-zinc-200">{f(grand / rows.length, true)}</dd>
+            </div>
+            <div>
+              <dt className="text-[11px] font-medium text-zinc-500">Biggest year</dt>
+              <dd className="text-sm font-semibold tabular-nums text-amber-200">
+                {top.year} <span className="font-normal text-zinc-500">· {f(top.total, true)}</span>
+              </dd>
+            </div>
+          </dl>
+        )}
+      </div>
+
+      <ul className="mt-4 grid grid-cols-1 gap-x-6 gap-y-1 lg:grid-cols-2">
+        {rows.map((r) => {
+          const share = grand > 0 ? Math.round((r.total / grand) * 100) : 0
+          return (
+            <li key={r.year}>
+              <button
+                onClick={() => jump(r.year)}
+                title={`Show ${r.year}`}
+                className="group -mx-2 block w-[calc(100%+1rem)] rounded-xl px-2 py-2.5 text-left transition hover:bg-white/[0.04]"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="flex min-w-0 items-baseline gap-2">
+                    <span className="text-base font-bold tabular-nums text-white">{r.year}</span>
+                    {r.year === now && (
+                      <span className="rounded-full bg-amber-300/15 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wider text-amber-200">
+                        This year
+                      </span>
+                    )}
+                    <span className="truncate text-xs text-zinc-500">
+                      {r.count} item{r.count > 1 ? 's' : ''}
+                    </span>
+                  </p>
+                  <p className="shrink-0 text-right">
+                    <span className="text-base font-bold tabular-nums text-white">{f(r.total)}</span>
+                    <span className="ml-1.5 hidden text-[11px] tabular-nums text-zinc-500 sm:inline">≈ {u(r.total, true)}</span>
+                  </p>
+                </div>
+
+                {/* Bar length = this year vs. the biggest year; its colours = how much went to each trend */}
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/[0.05]">
+                  <div
+                    className="flex h-full overflow-hidden rounded-full transition-[width] duration-500 group-hover:brightness-125"
+                    style={{ width: `${max > 0 ? Math.max((r.total / max) * 100, 2) : 0}%` }}
+                  >
+                    {TRENDS.map((k) =>
+                      r.trend[k] > 0 ? (
+                        <span
+                          key={k}
+                          title={`${TREND[k].label}: ${f(r.trend[k])}`}
+                          className={`h-full ${TREND[k].solid}`}
+                          style={{ width: `${(r.trend[k] / r.total) * 100}%` }}
+                        />
+                      ) : null,
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-1.5 flex justify-between gap-3 text-[11px] tabular-nums text-zinc-500">
+                  <span>{share}% of all</span>
+                  <span>
+                    Running total <span className="font-medium text-zinc-300">{f(r.running, true)}</span>
+                  </span>
+                </div>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-white/[0.06] pt-3">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+          {TRENDS.filter((k) => rows.some((r) => r.trend[k] > 0)).map((k) => (
+            <span key={k} className="inline-flex items-center gap-1.5">
+              <span className={`h-2 w-2 rounded-full ${TREND[k].solid}`} /> {TREND[k].label}
+            </span>
+          ))}
+        </div>
+        <p className="text-sm text-zinc-400">
+          All years <span className="ml-1 font-bold tabular-nums text-white">{f(grand)}</span>
+          <span className="ml-1.5 text-[11px] tabular-nums text-zinc-500">≈ {u(grand, true)}</span>
+        </p>
+      </div>
+    </section>
   )
 }
 
