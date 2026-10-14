@@ -219,6 +219,9 @@ interface State {
   removeKind: (id: string, moveTo?: string) => Result
   /** "YYYY-MM-DD", for showing my age on my birth month. null = not set. */
   birthday: string | null
+  /** Free text for each year, keyed by year ("2027"), shown at the top of the year */
+  yearNotes: Record<string, string>
+  setYearNote: (year: number, text: string) => void
   setBirthday: (b: string | null) => void
 
   /** Which page is showing */
@@ -297,6 +300,12 @@ export const useStore = create<State>()(
       kinds: DEFAULT_KINDS,
       birthday: null,
       setBirthday: (b) => set({ birthday: b && /^\d{4}-\d{2}-\d{2}$/.test(b) ? b : null }),
+      yearNotes: {},
+      setYearNote: (year, text) =>
+        set((s) => {
+          const { [year]: _old, ...rest } = s.yearNotes
+          return { yearNotes: text ? { ...rest, [year]: text } : rest }
+        }),
       view: 'planner',
       sidebar: true,
       drawer: false,
@@ -673,6 +682,7 @@ export const useStore = create<State>()(
             areaLabels?: Record<string, unknown>
             sources?: unknown
             birthday?: unknown
+            yearNotes?: unknown
             kinds?: unknown
           }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
@@ -720,14 +730,20 @@ export const useStore = create<State>()(
               }))
           }
           const birthday = typeof d.birthday === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.birthday) ? d.birthday : null
-          set({ months, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, usdRate: Number(d.usdRate) > 0 ? Number(d.usdRate) : get().usdRate, clipboard: null })
+          const yearNotes: Record<string, string> = {}
+          if (d.yearNotes && typeof d.yearNotes === 'object') {
+            for (const [year, text] of Object.entries(d.yearNotes)) {
+              if (/^\d{4}$/.test(year) && typeof text === 'string' && text.trim()) yearNotes[year] = text
+            }
+          }
+          set({ months, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, yearNotes, usdRate: Number(d.usdRate) > 0 ? Number(d.usdRate) : get().usdRate, clipboard: null })
           return OK
         } catch {
           return fail('Could not read that file.')
         }
       },
 
-      resetAll: () => set({ months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, clipboard: null, modal: null }),
+      resetAll: () => set({ months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
       name: 'dezire-goal-planner-v1',
@@ -739,6 +755,7 @@ export const useStore = create<State>()(
         goalAreas: s.goalAreas,
         sources: s.sources,
         birthday: s.birthday,
+        yearNotes: s.yearNotes,
         usdRate: s.usdRate,
         year: s.year,
         dashMode: s.dashMode,

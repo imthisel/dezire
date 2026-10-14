@@ -8,6 +8,7 @@ import { MoneyInput } from './MoneyInput'
 import { card } from './Dashboard'
 import { toast } from '../toast'
 import { BirthdayNote } from './Birthday'
+import { YearNote } from './YearNote'
 
 export function YearSection() {
   const year = useStore((s) => s.year)
@@ -17,6 +18,7 @@ export function YearSection() {
   return (
     <section className="space-y-4">
       <YearTabs />
+      <YearNote key={year} year={year} />
       <YearSummary />
       <OpenAllToggle />
       <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">

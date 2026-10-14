@@ -22,8 +22,8 @@ const SAVE_DELAY = 800
 
 /** The part of the app's state that belongs to the account. */
 const snapshot = () => {
-  const { months, kinds, goals, goalAreas, sources, birthday, usdRate } = useStore.getState()
-  return { months, kinds, goals, goalAreas, sources, birthday, usdRate }
+  const { months, kinds, goals, goalAreas, sources, birthday, yearNotes, usdRate } = useStore.getState()
+  return { months, kinds, goals, goalAreas, sources, birthday, yearNotes, usdRate }
 }
 
 let stopSync: (() => Promise<void>) | null = null
@@ -84,7 +84,7 @@ async function connect(user: User) {
   }
   const unsubStore = useStore.subscribe((s, prev) => {
     if (applyingRemote) return
-    if (s.months === prev.months && s.kinds === prev.kinds && s.goals === prev.goals && s.goalAreas === prev.goalAreas && s.sources === prev.sources && s.birthday === prev.birthday && s.usdRate === prev.usdRate) return
+    if (s.months === prev.months && s.kinds === prev.kinds && s.goals === prev.goals && s.goalAreas === prev.goalAreas && s.sources === prev.sources && s.birthday === prev.birthday && s.yearNotes === prev.yearNotes && s.usdRate === prev.usdRate) return
     pending = true
     useCloud.setState({ status: navigator.onLine ? 'saving' : 'offline' })
     clearTimeout(timer)

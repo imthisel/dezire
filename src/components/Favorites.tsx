@@ -3,12 +3,13 @@ import { BarChart3, CalendarDays, Pencil, Star } from 'lucide-react'
 import { useFmt, useKindOf, useStore, useUsd } from '../store'
 import { TREND, kindIcon } from '../lib/meta'
 import { valueAfter } from '../lib/calc'
-import { END_YEAR, TOTAL_MONTHS, currentYear, indexOfKey, labelOf } from '../lib/time'
+import { END_YEAR, TOTAL_MONTHS, YEARS, currentYear, indexOfKey, labelOf } from '../lib/time'
 import type { Item, Trend } from '../lib/types'
 import { card } from './Dashboard'
 import { goTo, goToMonth } from '../nav'
 import { toast } from '../toast'
 import { Kept } from './Kept'
+import { YearNote } from './YearNote'
 
 type Fav = { item: Item; key: string; index: number; year: number }
 type Filter = 'all' | Trend
@@ -119,6 +120,7 @@ export function Favorites() {
                   </h3>
                   <p className="shrink-0 text-sm font-semibold tabular-nums text-zinc-300">{f(sum)}</p>
                 </div>
+                <YearNote year={y} compact />
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {inYear.map((x) => (
                     <FavCard key={x.item.id} fav={x} />
@@ -148,16 +150,19 @@ function YearTotals({ favs, filter }: { favs: Fav[]; filter: Filter }) {
       r.trend[x.item.trend] += x.item.price
       by.set(x.year, r)
     }
+    // Every year of the plan, so years with nothing starred show as ₱0 instead of disappearing.
     let run = 0
-    return [...by.entries()]
-      .sort(([a], [b]) => a - b)
-      .map(([year, r]) => ({ year, ...r, running: (run += r.total) }))
+    return YEARS.map((year) => {
+      const r = by.get(year) ?? { total: 0, count: 0, trend: { appreciating: 0, depreciating: 0, stable: 0 } }
+      return { year, ...r, running: (run += r.total) }
+    })
   }, [favs])
 
-  if (!rows.length) return null
+  const used = rows.filter((r) => r.count > 0)
+  if (!used.length) return null
   const grand = rows[rows.length - 1].running
   const max = Math.max(...rows.map((r) => r.total))
-  const top = rows.reduce((a, b) => (b.total > a.total ? b : a))
+  const top = used.reduce((a, b) => (b.total > a.total ? b : a))
   const jump = (y: number) => document.getElementById(`fav-year-${y}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   return (
@@ -168,17 +173,17 @@ function YearTotals({ favs, filter }: { favs: Fav[]; filter: Filter }) {
             <BarChart3 className="h-[18px] w-[18px]" />
           </span>
           <div className="min-w-0">
-            <h3 className="font-semibold text-white">Total by year</h3>
+            <h3 className="font-semibold text-white">Total per year</h3>
             <p className="truncate text-xs text-zinc-500">
               What your favorites cost each year{filter !== 'all' && <> · {TREND[filter].label.toLowerCase()} only</>}
             </p>
           </div>
         </div>
-        {rows.length > 1 && (
+        {used.length > 1 && (
           <dl className="flex gap-5 text-right">
             <div>
               <dt className="text-[11px] font-medium text-zinc-500">Average / year</dt>
-              <dd className="text-sm font-semibold tabular-nums text-zinc-200">{f(grand / rows.length, true)}</dd>
+              <dd className="text-sm font-semibold tabular-nums text-zinc-200">{f(grand / used.length, true)}</dd>
             </div>
             <div>
               <dt className="text-[11px] font-medium text-zinc-500">Biggest year</dt>
@@ -193,6 +198,21 @@ function YearTotals({ favs, filter }: { favs: Fav[]; filter: Filter }) {
       <ul className="mt-4 grid grid-cols-1 gap-x-6 gap-y-1 lg:grid-cols-2">
         {rows.map((r) => {
           const share = grand > 0 ? Math.round((r.total / grand) * 100) : 0
+          if (!r.count)
+            return (
+              <li key={r.year} className="-mx-2 flex items-baseline justify-between gap-3 rounded-xl px-2 py-2 text-zinc-600">
+                <p className="flex min-w-0 items-baseline gap-2">
+                  <span className="text-sm font-semibold tabular-nums text-zinc-500">{r.year}</span>
+                  {r.year === now && (
+                    <span className="rounded-full bg-amber-300/10 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wider text-amber-200/70">
+                      This year
+                    </span>
+                  )}
+                  <span className="truncate text-xs">No favorites</span>
+                </p>
+                <span className="shrink-0 text-sm tabular-nums">{f(0)}</span>
+              </li>
+            )
           return (
             <li key={r.year}>
               <button
