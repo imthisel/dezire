@@ -10,6 +10,7 @@ import { ItemRow } from './ItemRow'
 import { drag } from '../dnd'
 import { toast } from '../toast'
 import { useIsPhone } from '../lib/useMedia'
+import { openOnZoom, zoomName } from '../zoom'
 
 const EMPTY: never[] = []
 
@@ -36,8 +37,9 @@ export function MonthCard({ index }: { index: number }) {
   // or every month does with "Open all months" on. Flipping that switch resets any month tapped open/closed.
   const phone = useIsPhone()
   const openAll = useStore((s) => s.openAllMonths)
-  const [expanded, setExpanded] = useState(openAll || isCurrent)
-  useEffect(() => setExpanded(openAll || isCurrent), [openAll, isCurrent])
+  // Also starts open when it was just zoomed into from its tile.
+  const [expanded, setExpanded] = useState(openAll || isCurrent || openOnZoom === c.key)
+  useEffect(() => setExpanded(openAll || isCurrent || openOnZoom === c.key), [openAll, isCurrent, c.key])
   const open = !phone || expanded
   const isPast = index < today
   const left = c.budget - c.spent
@@ -79,6 +81,7 @@ export function MonthCard({ index }: { index: number }) {
   return (
     <article
       id={`month-${c.key}`}
+      {...zoomName(`m-${c.key}`)}
       onDragOver={onDragOver}
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropMode(null)}
       onDrop={onDrop}

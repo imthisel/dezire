@@ -9,22 +9,34 @@ import { card } from './Dashboard'
 import { toast } from '../toast'
 import { BirthdayNote } from './Birthday'
 import { YearNote } from './YearNote'
+import { MonthTile } from './Tiles'
+import { ZoomControl } from './Zoom'
+import { PHONE_GRID, useCols } from '../zoom'
 
 export function YearSection() {
   const year = useStore((s) => s.year)
   const setYear = useStore((s) => s.setYear)
   const start = (year - START_YEAR) * 12
+  const cols = useCols()
 
   return (
     <section className="space-y-4">
       <YearTabs />
       <YearNote key={year} year={year} />
       <YearSummary />
-      <OpenAllToggle />
-      <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 12 }, (_, m) => (
-          <MonthCard key={start + m} index={start + m} />
-        ))}
+      <div className="sm:hidden">
+        <ZoomControl />
+        {/* "Open all months" only matters for full cards */}
+        <div className={`grid transition-all duration-300 ease-out ${cols === 1 ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`} inert={cols !== 1}>
+          <div className="min-h-0 overflow-hidden pt-2.5">
+            <OpenAllToggle />
+          </div>
+        </div>
+      </div>
+      <div data-zoom-grid className={`grid sm:gap-4 md:grid-cols-2 xl:grid-cols-3 ${PHONE_GRID[cols]}`}>
+        {Array.from({ length: 12 }, (_, m) =>
+          cols === 1 ? <MonthCard key={start + m} index={start + m} /> : <MonthTile key={start + m} index={start + m} cols={cols} />,
+        )}
       </div>
       <div className="flex justify-center gap-3 pt-2">
         <button

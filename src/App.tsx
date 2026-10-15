@@ -15,6 +15,8 @@ import { Toasts } from './components/Toasts'
 import { AuthGate } from './components/AuthGate'
 import { MobileNav } from './components/MobileNav'
 import { Sidebar } from './components/Sidebar'
+import { ZoomHud } from './components/Zoom'
+import { usePinchZoom } from './zoom'
 
 export default function App() {
   return (
@@ -28,6 +30,7 @@ function Planner() {
   const modal = useStore((s) => s.modal)
   const view = useStore((s) => s.view)
   const sidebar = useStore((s) => s.sidebar)
+  usePinchZoom()
 
   return (
     <div className="relative min-h-screen overflow-x-clip bg-[#07080c] text-zinc-100 antialiased">
@@ -62,6 +65,7 @@ function Planner() {
       <MobileNav />
       <ClipboardBar />
       <Toasts />
+      <ZoomHud />
       {modal?.type === 'item' && <ItemModal key={`${modal.key}-${modal.editId ?? 'new'}`} monthKey={modal.key} editId={modal.editId} />}
       {modal?.type === 'move' && <MoveDialog key={modal.id} monthKey={modal.key} id={modal.id} />}
       {modal?.type === 'kinds' && <KindsModal onClose={useStore.getState().closeModal} />}

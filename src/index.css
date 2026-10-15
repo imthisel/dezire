@@ -111,6 +111,32 @@ body {
   }
 }
 
+/*
+ * Phones: pinch to change how many columns the grids show (see zoom.ts).
+ * While switching, every card and tile gets its name so the browser can glide it to its new place.
+ */
+html.zooming [data-zoom-item] {
+  view-transition-name: var(--vt);
+}
+::view-transition-group(*) {
+  animation-duration: 0.45s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+::view-transition-old(*),
+::view-transition-new(*) {
+  /* A tile and its full card have different shapes: crop from the top instead of stretching. */
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.3s;
+}
+[data-zoom-grid] {
+  transform-origin: top center;
+}
+
 ::selection {
   background: rgb(129 140 248 / 0.35);
 }

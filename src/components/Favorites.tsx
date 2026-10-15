@@ -3,13 +3,16 @@ import { BarChart3, CalendarDays, Pencil, Star } from 'lucide-react'
 import { useFmt, useKindOf, useStore, useAlt } from '../store'
 import { TREND, kindIcon } from '../lib/meta'
 import { valueAfter } from '../lib/calc'
-import { END_YEAR, TOTAL_MONTHS, YEARS, currentYear, indexOfKey, labelOf } from '../lib/time'
+import { END_YEAR, MONTHS_SHORT, TOTAL_MONTHS, YEARS, currentYear, fromIndex, indexOfKey, labelOf } from '../lib/time'
 import type { Item, Trend } from '../lib/types'
 import { card } from './Dashboard'
 import { goTo, goToMonth } from '../nav'
 import { toast } from '../toast'
 import { Kept } from './Kept'
 import { YearNote } from './YearNote'
+import { ItemTile } from './Tiles'
+import { ZoomControl } from './Zoom'
+import { PHONE_GRID, useCols, zoomName } from '../zoom'
 
 type Fav = { item: Item; key: string; index: number; year: number }
 type Filter = 'all' | Trend
@@ -21,6 +24,7 @@ export function Favorites() {
   const months = useStore((s) => s.months)
   const f = useFmt()
   const u = useAlt()
+  const cols = useCols()
   const [picked, setFilter] = useState<Filter>('all')
 
   const favs = useMemo(() => {
@@ -106,6 +110,7 @@ export function Favorites() {
       ) : (
         <>
           <YearTotals favs={shown} filter={filter} />
+          <ZoomControl />
           {years.map((y) => {
             const inYear = shown.filter((x) => x.year === y)
             const sum = inYear.reduce((s, x) => s + x.item.price, 0)
@@ -121,10 +126,12 @@ export function Favorites() {
                   <p className="shrink-0 text-sm font-semibold tabular-nums text-zinc-300">{f(sum)}</p>
                 </div>
                 <YearNote year={y} compact />
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {inYear.map((x) => (
-                    <FavCard key={x.item.id} fav={x} />
-                  ))}
+                <div data-zoom-grid className={`grid md:grid-cols-2 xl:grid-cols-3 ${PHONE_GRID[cols]}`}>
+                  {inYear.map((x) => {
+                    if (cols === 1) return <FavCard key={x.item.id} fav={x} />
+                    const { month, year } = fromIndex(x.index)
+                    return <ItemTile key={x.item.id} item={x.item} domId={`fav-${x.item.id}`} when={`${MONTHS_SHORT[month]} ${year}`} cols={cols} />
+                  })}
                 </div>
               </section>
             )
@@ -302,6 +309,8 @@ function FavCard({ fav: { item, key, index } }: { fav: Fav }) {
 
   return (
     <article
+      id={`fav-${item.id}`}
+      {...zoomName(`i-${item.id}`)}
       className={`relative min-w-0 overflow-hidden rounded-2xl border bg-gradient-to-br from-amber-300/[0.12] via-transparent to-transparent p-4 ring-1 ring-amber-300/30 ${t.border} ${t.bg}`}
     >
       <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-200 to-amber-400" />

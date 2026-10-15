@@ -18,6 +18,7 @@ export type ModalState =
   /** `openId`: the area to show unfolded. `add`: start with the cursor in the new-area box. */
   | { type: 'goalAreas'; openId?: string; add?: boolean }
   | null
+export type PhoneCols = 1 | 2 | 3
 export type View = 'planner' | 'plan' | 'favorites' | 'assets'
 /** Assets page: which kind of item, and which years */
 export type AssetCat = 'all' | Category
@@ -242,6 +243,9 @@ interface State {
   /** Phones: show every month card unfolded instead of just the current one (remembered) */
   openAllMonths: boolean
   setOpenAllMonths: (on: boolean) => void
+  /** Phones: how many columns the month and item grids show (pinch to change; remembered) */
+  phoneCols: PhoneCols
+  setPhoneCols: (cols: PhoneCols) => void
   setView: (v: View) => void
   assetCat: AssetCat
   assetPeriod: AssetPeriod
@@ -325,6 +329,8 @@ export const useStore = create<State>()(
       drawer: false,
       openAllMonths: false,
       setOpenAllMonths: (openAllMonths) => set({ openAllMonths }),
+      phoneCols: 1,
+      setPhoneCols: (phoneCols) => set({ phoneCols }),
 
       setView: (view) => set({ view }),
       assetCat: 'all',
@@ -781,6 +787,7 @@ export const useStore = create<State>()(
         view: s.view,
         sidebar: s.sidebar,
         openAllMonths: s.openAllMonths,
+        phoneCols: s.phoneCols,
         assetCat: s.assetCat,
         assetPeriod: s.assetPeriod,
       }),

@@ -10,6 +10,9 @@ import { goTo, goToMonth } from '../nav'
 import { toast } from '../toast'
 import { Kept, dragVehicle } from './Kept'
 import { useVehicleDrag, vehicleDrag } from '../dnd'
+import { ItemTile } from './Tiles'
+import { ZoomControl } from './Zoom'
+import { PHONE_GRID, useCols, zoomName } from '../zoom'
 
 type Asset = { item: Item; key: string; index: number; year: number }
 type Sort = 'date' | 'price' | 'value' | 'name'
@@ -244,6 +247,8 @@ export function Assets() {
             </label>
           </div>
 
+          <ZoomControl />
+
           {byYear ? (
             years.map((y) => {
               const list = shown.filter((a) => a.year === y)
@@ -270,11 +275,14 @@ export function Assets() {
 }
 
 function Grid({ list, asOf, asOfLabel }: { list: Asset[]; asOf: number; asOfLabel: string }) {
+  const cols = useCols()
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">
-      {list.map((a) => (
-        <AssetCard key={a.item.id} asset={a} asOf={asOf} asOfLabel={asOfLabel} />
-      ))}
+    <div data-zoom-grid className={`grid md:grid-cols-2 2xl:grid-cols-3 ${PHONE_GRID[cols]}`}>
+      {list.map((a) => {
+        if (cols === 1) return <AssetCard key={a.item.id} asset={a} asOf={asOf} asOfLabel={asOfLabel} />
+        const { month, year } = fromIndex(a.index)
+        return <ItemTile key={a.item.id} item={a.item} domId={`asset-${a.item.id}`} when={`${MONTHS_SHORT[month]} ${year}`} cols={cols} />
+      })}
     </div>
   )
 }
@@ -381,6 +389,8 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel }: { asset: As
 
   return (
     <article
+      id={`asset-${item.id}`}
+      {...zoomName(`i-${item.id}`)}
       {...(isVehicle ? dragVehicle(item.id, item.name) : {})}
       onDragOver={
         target
