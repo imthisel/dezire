@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Check, ChevronDown, ListChecks, NotebookPen, Plus, Rocket, Target, Trash2, Wand2, X } from 'lucide-react'
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { ArrowDown, ArrowUp, Check, ChevronDown, GripVertical, ListChecks, NotebookPen, Plus, Rocket, Target, Trash2, Wand2, X } from 'lucide-react'
 import { useFmt, usePlan, useStore, useAlt } from '../store'
 import { SOURCE_KIND, SOURCE_KINDS, SOURCE_STAGE, SOURCE_STAGES } from '../lib/meta'
 import { currentIndex, labelOf } from '../lib/time'
@@ -14,6 +14,7 @@ const WEEKS_PER_MONTH = 52 / 12
 export function MoneyPlan() {
   const sources = useStore((s) => s.sources)
   const [fresh, setFresh] = useState<string | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
 
   function add(kind: SourceKind) {
     const id = useStore.getState().addSource(kind)
@@ -41,8 +42,8 @@ export function MoneyPlan() {
         {sources.length === 0 ? <HowItWorks /> : <Summary sources={sources} />}
       </section>
 
-      {sources.map((s) => (
-        <SourceCard key={s.id} source={s} autoFocus={s.id === fresh} />
+      {sources.map((s, i) => (
+        <SourceCard key={s.id} source={s} index={i} total={sources.length} autoFocus={s.id === fresh} dragId={dragId} setDragId={setDragId} />
       ))}
 
       <section id="plan-add" className={`${card} p-4 sm:p-6`}>
@@ -166,13 +167,88 @@ function Tile({ k, v, sub, cls = 'text-white', className = '' }: { k: string; v:
   )
 }
 
-function SourceCard({ source: s, autoFocus }: { source: IncomeSource; autoFocus: boolean }) {
+/**
+ * Drag-to-reorder for one entry of a list: shows where a drop would land and moves the dragged entry there.
+ * Spread `zone` on the entry, and `handle(...)` on its grip.
+ */
+function useSortable({ id, index, ids, dragId, setDragId, onMove }: {
+  id: string
+  index: number
+  /** The list's ids, in order */
+  ids: () => string[]
+  dragId: string | null
+  setDragId: (id: string | null) => void
+  onMove: (id: string, to: number) => void
+}) {
+  const [dropAt, setDropAt] = useState<null | 'above' | 'below'>(null)
+  useEffect(() => {
+    if (!dragId) setDropAt(null)
+  }, [dragId])
+  const half = (e: DragEvent<HTMLElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    return e.clientY < r.top + r.height / 2 ? 'above' : 'below'
+  }
+  const zone = {
+    onDragOver: (e: DragEvent<HTMLElement>) => {
+      if (!dragId) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      setDropAt(dragId === id ? null : half(e))
+    },
+    onDragLeave: (e: DragEvent<HTMLElement>) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropAt(null),
+    onDrop: (e: DragEvent<HTMLElement>) => {
+      if (!dragId) return
+      e.preventDefault()
+      setDropAt(null)
+      if (dragId === id) return
+      const from = ids().indexOf(dragId)
+      // Position in the list once the dragged entry has been taken out of it.
+      onMove(dragId, index + (half(e) === 'below' ? 1 : 0) - (from < index ? 1 : 0))
+      setDragId(null)
+    },
+  }
+  /** Props for the grip. `ghost` picks the element (closest to the grip) shown under the pointer while dragging. */
+  const handle = (ghost: string) => ({
+    draggable: true,
+    onDragStart: (e: DragEvent<HTMLElement>) => {
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('text/plain', id)
+      const el = e.currentTarget.closest(ghost)
+      if (el) {
+        const r = el.getBoundingClientRect()
+        e.dataTransfer.setDragImage(el, e.clientX - r.left, e.clientY - r.top)
+      }
+      setDragId(id)
+    },
+    onDragEnd: () => setDragId(null),
+  })
+  return { dropAt, zone, handle, dragging: dragId === id }
+}
+
+type CardProps = {
+  source: IncomeSource
+  index: number
+  total: number
+  autoFocus: boolean
+  dragId: string | null
+  setDragId: (id: string | null) => void
+}
+
+function SourceCard({ source: s, index, total, autoFocus, dragId, setDragId }: CardProps) {
   const f = useFmt()
   const u = useAlt()
   const [open, setOpen] = useState(true)
   const k = SOURCE_KIND[s.kind]
   const st = SOURCE_STAGE[s.stage]
-  const { updateSource, removeSource } = useStore.getState()
+  const { updateSource, removeSource, moveSource } = useStore.getState()
+  const sort = useSortable({
+    id: s.id,
+    index,
+    ids: () => useStore.getState().sources.map((x) => x.id),
+    dragId,
+    setDragId,
+    onMove: moveSource,
+  })
   const set = (patch: Parameters<typeof updateSource>[1]) => updateSource(s.id, patch)
   const name = s.name.trim() || k.label
   const done = s.steps.filter((x) => x.done).length
@@ -184,127 +260,175 @@ function SourceCard({ source: s, autoFocus }: { source: IncomeSource; autoFocus:
     toast.info(`Deleted “${name}”.`)
   }
 
+  function move(by: number) {
+    moveSource(s.id, index + by)
+    // Keep the card in view after it jumps.
+    requestAnimationFrame(() => document.getElementById(`source-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+  }
+
   return (
-    <article
-      id={`source-${s.id}`}
-      className={`${card} relative scroll-mt-4 overflow-hidden bg-gradient-to-b ${k.glow} to-transparent to-30% p-4 sm:p-6`}
-    >
-      {/* Header */}
-      <header className="flex items-start gap-3">
-        <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${k.iconBg} ${k.text}`}>
-          <k.icon className="h-5 w-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <input
-            value={s.name}
-            autoFocus={autoFocus}
-            onChange={(e) => set({ name: e.target.value })}
-            placeholder={`Name it (${k.placeholder})`}
-            aria-label="Name"
-            className="w-full min-w-0 rounded-lg bg-transparent py-0.5 text-lg font-semibold text-white outline-none placeholder:font-normal placeholder:text-zinc-600 focus:bg-white/[0.03] sm:text-xl"
-          />
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
-            <label className="relative inline-flex items-center">
-              <select
-                value={s.kind}
-                onChange={(e) => set({ kind: e.target.value as SourceKind })}
-                aria-label="Kind"
-                className={`cursor-pointer appearance-none rounded-md bg-transparent py-0.5 pr-4 font-medium outline-none hover:text-white ${k.text}`}
-              >
-                {SOURCE_KINDS.map((x) => (
-                  <option key={x} value={x} className="bg-[#0e1016] text-zinc-200">
-                    {SOURCE_KIND[x].label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className={`pointer-events-none absolute right-0 h-3 w-3 ${k.text}`} />
-            </label>
-            {!open && (
-              <>
-                <span>·</span>
-                <span>{st.label}</span>
-                {s.monthlyGoal > 0 && <span>· {f(s.monthlyGoal)}/mo</span>}
-                {s.steps.length > 0 && <span>· {done}/{s.steps.length} steps</span>}
-              </>
-            )}
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            onClick={remove}
-            title="Delete"
-            aria-label="Delete"
-            className="grid h-9 w-9 place-items-center rounded-lg text-zinc-500 transition hover:bg-white/5 hover:text-red-300"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setOpen((o) => !o)}
-            title={open ? 'Fold up' : 'Open'}
-            aria-label={open ? 'Fold up' : 'Open'}
-            aria-expanded={open}
-            className="grid h-9 w-9 place-items-center rounded-lg text-zinc-400 transition hover:bg-white/5 hover:text-white"
-          >
-            <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-          </button>
-        </div>
-      </header>
-
-      {open && (
-        <div className="animate-fade mt-5 space-y-5">
-          {/* Stage */}
-          <Part title="Where are you at?">
-            <div className="flex flex-wrap gap-2">
-              {SOURCE_STAGES.map((x) => {
-                const g = SOURCE_STAGE[x]
-                const on = s.stage === x
-                return (
-                  <button
-                    key={x}
-                    onClick={() => set({ stage: x })}
-                    aria-pressed={on}
-                    className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition ${
-                      on ? g.chip : 'border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-200'
-                    }`}
-                  >
-                    <g.icon className="h-3.5 w-3.5" /> {g.label}
-                  </button>
-                )
-              })}
-            </div>
-          </Part>
-
-          <div className="grid gap-5 lg:grid-cols-2">
-            {/* Goal */}
-            <Part title="Goal to make from this" hint="How much you want it to bring in each month.">
-              <div className="flex items-center gap-2">
-                <MoneyInput value={s.monthlyGoal} onChange={(v) => set({ monthlyGoal: v ?? 0 })} size="md" className="max-w-[14rem] flex-1" ariaLabel="Monthly goal" />
-                <span className="text-sm text-zinc-500">a month</span>
-              </div>
-              {s.monthlyGoal > 0 && (
-                <p className="mt-2 text-xs tabular-nums text-zinc-500">
-                  That's <span className="font-medium text-zinc-300">{f(s.monthlyGoal * 12)}</span> a year<span className="alt-i">&nbsp;· ≈ {u(s.monthlyGoal)} a month</span>
-                </p>
+    <div {...sort.zone} className="relative">
+      {sort.dropAt && (
+        <span
+          className={`pointer-events-none absolute inset-x-4 z-10 h-1 rounded-full bg-indigo-400 shadow-[0_0_12px] shadow-indigo-400/60 ${
+            sort.dropAt === 'above' ? '-top-2.5 sm:-top-3.5' : '-bottom-2.5 sm:-bottom-3.5'
+          }`}
+        />
+      )}
+      <article
+        id={`source-${s.id}`}
+        className={`${card} relative scroll-mt-4 overflow-hidden bg-gradient-to-b ${k.glow} to-transparent to-30% p-4 transition-[opacity,transform] duration-200 sm:p-6 ${
+          sort.dragging ? 'scale-[0.99] opacity-40' : ''
+        }`}
+      >
+        {/* Header */}
+        <header className="flex items-start gap-3">
+          {total > 1 && (
+            <span
+              {...sort.handle('header')}
+              title="Drag to reorder"
+              className="-mr-1.5 hidden h-11 w-6 shrink-0 cursor-grab place-items-center rounded-lg text-zinc-600 transition hover:bg-white/[0.04] hover:text-zinc-300 active:cursor-grabbing sm:-ml-3 sm:grid"
+            >
+              <GripVertical className="h-4 w-4" />
+            </span>
+          )}
+          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${k.iconBg} ${k.text}`}>
+            <k.icon className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <input
+              value={s.name}
+              autoFocus={autoFocus}
+              onChange={(e) => set({ name: e.target.value })}
+              placeholder={`Name it (${k.placeholder})`}
+              aria-label="Name"
+              className="w-full min-w-0 rounded-lg bg-transparent py-0.5 text-lg font-semibold text-white outline-none placeholder:font-normal placeholder:text-zinc-600 focus:bg-white/[0.03] sm:text-xl"
+            />
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+              <label className="relative inline-flex items-center">
+                <select
+                  value={s.kind}
+                  onChange={(e) => set({ kind: e.target.value as SourceKind })}
+                  aria-label="Kind"
+                  className={`cursor-pointer appearance-none rounded-md bg-transparent py-0.5 pr-4 font-medium outline-none hover:text-white ${k.text}`}
+                >
+                  {SOURCE_KINDS.map((x) => (
+                    <option key={x} value={x} className="bg-[#0e1016] text-zinc-200">
+                      {SOURCE_KIND[x].label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className={`pointer-events-none absolute right-0 h-3 w-3 ${k.text}`} />
+              </label>
+              {!open && (
+                <>
+                  <span>·</span>
+                  <span>{st.label}</span>
+                  {s.monthlyGoal > 0 && <span>· {f(s.monthlyGoal)}/mo</span>}
+                  {s.steps.length > 0 && <span>· {done}/{s.steps.length} steps</span>}
+                </>
               )}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {total > 1 && (
+              <span className="flex sm:hidden">
+                <button
+                  onClick={() => move(-1)}
+                  disabled={index === 0}
+                  title="Move up"
+                  aria-label="Move up"
+                  className="grid h-9 w-8 place-items-center rounded-lg text-zinc-500 transition hover:bg-white/5 hover:text-white disabled:pointer-events-none disabled:opacity-25"
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => move(1)}
+                  disabled={index === total - 1}
+                  title="Move down"
+                  aria-label="Move down"
+                  className="grid h-9 w-8 place-items-center rounded-lg text-zinc-500 transition hover:bg-white/5 hover:text-white disabled:pointer-events-none disabled:opacity-25"
+                >
+                  <ArrowDown className="h-4 w-4" />
+                </button>
+              </span>
+            )}
+            <button
+              onClick={remove}
+              title="Delete"
+              aria-label="Delete"
+              className="grid h-9 w-9 place-items-center rounded-lg text-zinc-500 transition hover:bg-white/5 hover:text-red-300"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setOpen((o) => !o)}
+              title={open ? 'Fold up' : 'Open'}
+              aria-label={open ? 'Fold up' : 'Open'}
+              aria-expanded={open}
+              className="grid h-9 w-9 place-items-center rounded-lg text-zinc-400 transition hover:bg-white/5 hover:text-white"
+            >
+              <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+        </header>
+
+        {open && (
+          <div className="animate-fade mt-5 space-y-5">
+            {/* Stage */}
+            <Part title="Where are you at?">
+              <div className="flex flex-wrap gap-2">
+                {SOURCE_STAGES.map((x) => {
+                  const g = SOURCE_STAGE[x]
+                  const on = s.stage === x
+                  return (
+                    <button
+                      key={x}
+                      onClick={() => set({ stage: x })}
+                      aria-pressed={on}
+                      className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition ${
+                        on ? g.chip : 'border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-200'
+                      }`}
+                    >
+                      <g.icon className="h-3.5 w-3.5" /> {g.label}
+                    </button>
+                  )
+                })}
+              </div>
             </Part>
 
-            {k.calc && <MoneyMath s={s} set={set} />}
+            <div className="grid gap-5 lg:grid-cols-2">
+              {/* Goal */}
+              <Part title="Goal to make from this" hint="How much you want it to bring in each month.">
+                <div className="flex items-center gap-2">
+                  <MoneyInput value={s.monthlyGoal} onChange={(v) => set({ monthlyGoal: v ?? 0 })} size="md" className="max-w-[14rem] flex-1" ariaLabel="Monthly goal" />
+                  <span className="text-sm text-zinc-500">a month</span>
+                </div>
+                {s.monthlyGoal > 0 && (
+                  <p className="mt-2 text-xs tabular-nums text-zinc-500">
+                    That's <span className="font-medium text-zinc-300">{f(s.monthlyGoal * 12)}</span> a year<span className="alt-i">&nbsp;· ≈ {u(s.monthlyGoal)} a month</span>
+                  </p>
+                )}
+              </Part>
+
+              {k.calc && <MoneyMath s={s} set={set} />}
+            </div>
+
+            <Steps s={s} />
+
+            <Part title="Notes" icon={NotebookPen}>
+              <textarea
+                value={s.notes}
+                onChange={(e) => set({ notes: e.target.value })}
+                rows={3}
+                placeholder="Anything else: who your customers are, ideas, what you need to buy, where to start…"
+                className="w-full resize-y rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20"
+              />
+            </Part>
           </div>
-
-          <Steps s={s} />
-
-          <Part title="Notes" icon={NotebookPen}>
-            <textarea
-              value={s.notes}
-              onChange={(e) => set({ notes: e.target.value })}
-              rows={3}
-              placeholder="Anything else: who your customers are, ideas, what you need to buy, where to start…"
-              className="w-full resize-y rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20"
-            />
-          </Part>
-        </div>
-      )}
-    </article>
+        )}
+      </article>
+    </div>
   )
 }
 
@@ -371,7 +495,8 @@ function MoneyMath({ s, set }: { s: IncomeSource; set: (p: Partial<IncomeSource>
 function Steps({ s }: { s: IncomeSource }) {
   const [text, setText] = useState('')
   const input = useRef<HTMLInputElement>(null)
-  const { addStep, updateStep, removeStep } = useStore.getState()
+  const [dragId, setDragId] = useState<string | null>(null)
+  const { addStep, updateStep, removeStep, moveStep } = useStore.getState()
   const done = s.steps.filter((x) => x.done).length
   const have = new Set(s.steps.map((x) => x.text.toLowerCase()))
   const ideas = SOURCE_KIND[s.kind].steps.filter((x) => !have.has(x.toLowerCase()))
@@ -396,9 +521,16 @@ function Steps({ s }: { s: IncomeSource }) {
             <div className="h-full rounded-full bg-emerald-400 transition-all duration-500" style={{ width: `${(done / s.steps.length) * 100}%` }} />
           </div>
           <ul className="mb-2 space-y-1">
-            {s.steps.map((x) => (
+            {s.steps.map((x, i) => (
               <StepRow
                 key={x.id}
+                id={x.id}
+                index={i}
+                sortable={s.steps.length > 1}
+                ids={() => useStore.getState().sources.find((y) => y.id === s.id)?.steps.map((y) => y.id) ?? []}
+                dragId={dragId}
+                setDragId={setDragId}
+                onMove={(id, to) => moveStep(s.id, id, to)}
                 text={x.text}
                 done={x.done}
                 onToggle={() => updateStep(s.id, x.id, { done: !x.done })}
@@ -450,12 +582,39 @@ function Steps({ s }: { s: IncomeSource }) {
   )
 }
 
-function StepRow({ text, done, onToggle, onEdit, onRemove }: { text: string; done: boolean; onToggle: () => void; onEdit: (t: string) => void; onRemove: () => void }) {
+type StepProps = Parameters<typeof useSortable>[0] & {
+  sortable: boolean
+  text: string
+  done: boolean
+  onToggle: () => void
+  onEdit: (t: string) => void
+  onRemove: () => void
+}
+
+function StepRow({ sortable, text, done, onToggle, onEdit, onRemove, ...sortProps }: StepProps) {
   const [draft, setDraft] = useState(text)
   useEffect(() => setDraft(text), [text])
+  const sort = useSortable(sortProps)
 
   return (
-    <li className="group flex items-center gap-2.5 rounded-xl px-1.5 py-1 transition hover:bg-white/[0.03]">
+    <li
+      {...sort.zone}
+      className={`group relative flex items-center gap-2.5 rounded-xl px-1.5 py-1 transition hover:bg-white/[0.03] ${sort.dragging ? 'opacity-40' : ''} ${
+        sortable ? 'sm:-ml-5' : ''
+      }`}
+    >
+      {sort.dropAt && (
+        <span className={`pointer-events-none absolute inset-x-2 h-0.5 rounded-full bg-indigo-400 ${sort.dropAt === 'above' ? '-top-[3px]' : '-bottom-[3px]'}`} />
+      )}
+      {sortable && (
+        <span
+          {...sort.handle('li')}
+          title="Drag to reorder"
+          className="-mr-1.5 hidden h-8 w-5 shrink-0 cursor-grab place-items-center text-zinc-600 opacity-0 transition hover:text-zinc-300 active:cursor-grabbing group-hover:opacity-100 sm:grid"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </span>
+      )}
       <button
         onClick={onToggle}
         role="checkbox"

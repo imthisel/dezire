@@ -31,6 +31,15 @@ export type AreaPatch = Partial<Omit<GoalAreaDef, 'id'>>
 export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string; propertyId?: string }
 
 const OK: Result = { ok: true }
+/** A copy of `list` with the entry `id` moved to position `to` (or `list` itself when nothing moves). */
+function moveTo<T extends { id: string }>(list: T[], id: string, to: number): T[] {
+  const from = list.findIndex((x) => x.id === id)
+  const at = Math.max(0, Math.min(list.length - 1, to))
+  if (from < 0 || from === at) return list
+  const next = [...list]
+  next.splice(at, 0, ...next.splice(from, 1))
+  return next
+}
 const fail = (error: string): Result => ({ ok: false, error })
 
 export const emptyMonth = (): MonthData => ({ goal: 0, budget: 0, netWorthGoal: null, earned: null, items: [] })
@@ -278,9 +287,13 @@ interface State {
   addSource: (kind: SourceKind) => string
   updateSource: (id: string, patch: SourcePatch) => void
   removeSource: (id: string) => void
+  /** Moves a plan to position `to` in the list. */
+  moveSource: (id: string, to: number) => void
   addStep: (sourceId: string, text: string) => void
   updateStep: (sourceId: string, stepId: string, patch: Partial<Omit<PlanStep, 'id'>>) => void
   removeStep: (sourceId: string, stepId: string) => void
+  /** Moves a step to position `to` in its plan's list. */
+  moveStep: (sourceId: string, stepId: string, to: number) => void
 
   importData: (data: unknown) => Result
   resetAll: () => void
@@ -651,6 +664,7 @@ export const useStore = create<State>()(
         set((s) => ({ sources: s.sources.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
 
       removeSource: (id) => set((s) => ({ sources: s.sources.filter((x) => x.id !== id) })),
+      moveSource: (id, to) => set((s) => ({ sources: moveTo(s.sources, id, to) })),
 
       addStep: (sourceId, text) => {
         const clean = text.trim()
@@ -669,6 +683,8 @@ export const useStore = create<State>()(
           ),
         })),
 
+      moveStep: (sourceId, stepId, to) =>
+        set((s) => ({ sources: s.sources.map((x) => (x.id === sourceId ? { ...x, steps: moveTo(x.steps, stepId, to) } : x)) })),
       removeStep: (sourceId, stepId) =>
         set((s) => ({
           sources: s.sources.map((x) => (x.id === sourceId ? { ...x, steps: x.steps.filter((st) => st.id !== stepId) } : x)),
