@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Check, ChevronDown, ListChecks, NotebookPen, Plus, Rocket, Target, Trash2, Wand2, X } from 'lucide-react'
-import { useFmt, usePlan, useStore, useUsd } from '../store'
+import { useFmt, usePlan, useStore, useAlt } from '../store'
 import { SOURCE_KIND, SOURCE_KINDS, SOURCE_STAGE, SOURCE_STAGES } from '../lib/meta'
 import { currentIndex, labelOf } from '../lib/time'
 import type { IncomeSource, SourceKind } from '../lib/types'
@@ -97,7 +97,7 @@ function HowItWorks() {
 /** How the plans add up against this month's "Goal to make" from the Planner. */
 function Summary({ sources }: { sources: IncomeSource[] }) {
   const f = useFmt()
-  const u = useUsd()
+  const u = useAlt()
   const plan = usePlan()
   const today = currentIndex()
   const month = plan[today]
@@ -111,8 +111,8 @@ function Summary({ sources }: { sources: IncomeSource[] }) {
   return (
     <div className="relative mt-4 space-y-3">
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-        <Tile k={`Goal for ${labelOf(today)}`} v={target > 0 ? f(target) : '—'} sub={target > 0 ? `≈ ${u(target)}` : 'Not set in the Planner'} />
-        <Tile k="Your plans aim for" v={f(total)} sub={`a month · ≈ ${u(total)}`} cls="text-emerald-300" />
+        <Tile k={`Goal for ${labelOf(today)}`} v={target > 0 ? f(target) : '—'} sub={target > 0 ? <span className="alt-i">≈ {u(target)}</span> : 'Not set in the Planner'} />
+        <Tile k="Your plans aim for" v={f(total)} sub={<>a month<span className="alt-i">&nbsp;· ≈ {u(total)}</span></>} cls="text-emerald-300" />
         <Tile k="Steps done" v={steps.length ? `${done} / ${steps.length}` : '—'} sub={steps.length ? `${Math.round((done / steps.length) * 100)}% of your to-dos` : 'Add steps below'} className="col-span-2 sm:col-span-1" />
       </div>
 
@@ -156,7 +156,7 @@ function Summary({ sources }: { sources: IncomeSource[] }) {
   )
 }
 
-function Tile({ k, v, sub, cls = 'text-white', className = '' }: { k: string; v: string; sub: string; cls?: string; className?: string }) {
+function Tile({ k, v, sub, cls = 'text-white', className = '' }: { k: string; v: string; sub: ReactNode; cls?: string; className?: string }) {
   return (
     <div className={`min-w-0 rounded-xl border border-white/[0.06] bg-black/20 p-3 ${className}`}>
       <p className="truncate text-[11px] font-medium text-zinc-500">{k}</p>
@@ -168,7 +168,7 @@ function Tile({ k, v, sub, cls = 'text-white', className = '' }: { k: string; v:
 
 function SourceCard({ source: s, autoFocus }: { source: IncomeSource; autoFocus: boolean }) {
   const f = useFmt()
-  const u = useUsd()
+  const u = useAlt()
   const [open, setOpen] = useState(true)
   const k = SOURCE_KIND[s.kind]
   const st = SOURCE_STAGE[s.stage]
@@ -283,7 +283,7 @@ function SourceCard({ source: s, autoFocus }: { source: IncomeSource; autoFocus:
               </div>
               {s.monthlyGoal > 0 && (
                 <p className="mt-2 text-xs tabular-nums text-zinc-500">
-                  That's <span className="font-medium text-zinc-300">{f(s.monthlyGoal * 12)}</span> a year · ≈ {u(s.monthlyGoal)} a month
+                  That's <span className="font-medium text-zinc-300">{f(s.monthlyGoal * 12)}</span> a year<span className="alt-i">&nbsp;· ≈ {u(s.monthlyGoal)} a month</span>
                 </p>
               )}
             </Part>

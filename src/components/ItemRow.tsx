@@ -2,7 +2,7 @@ import { useState, type DragEvent, type MouseEvent } from 'react'
 import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Car, Copy, CopyPlus, GripVertical, Home, Pencil, Plus, Scissors, Star, StickyNote, Trash2 } from 'lucide-react'
 import type { Item } from '../lib/types'
 import { TREND, kindIcon } from '../lib/meta'
-import { useFmt, useItemIndex, useKindOf, useStore, useUsd } from '../store'
+import { useFmt, useItemIndex, useKindOf, useStore, useAlt } from '../store'
 import { labelOfKey } from '../lib/time'
 import { goToMonth } from '../nav'
 import { drag } from '../dnd'
@@ -20,7 +20,7 @@ interface Props {
 
 export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props) {
   const f = useFmt()
-  const u = useUsd()
+  const u = useAlt()
   const [open, setOpen] = useState(false)
   /** Where a dragged item would land relative to this one */
   const [dropAt, setDropAt] = useState<null | 'above' | 'below'>(null)
@@ -182,7 +182,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
       </button>
       <div className={`shrink-0 text-right ${open ? 'max-sm:block sm:hidden' : 'sm:group-hover:hidden'}`}>
         <p className={`text-sm font-semibold tabular-nums ${over ? 'text-red-300' : 'text-zinc-100'}`}>{f(item.price)}</p>
-        <p className="text-[10px] tabular-nums text-zinc-500">≈ {u(item.price)}</p>
+        <p className="alt text-[10px] tabular-nums text-zinc-500">≈ {u(item.price)}</p>
       </div>
       <div
         className={`shrink-0 items-center gap-0.5 max-sm:order-last max-sm:w-full max-sm:justify-between max-sm:border-t max-sm:border-white/[0.06] max-sm:pt-1.5 ${

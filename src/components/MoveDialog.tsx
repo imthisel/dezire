@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Check } from 'lucide-react'
-import { fitCheck, useFmt, useStore, useUsd } from '../store'
+import { fitCheck, useFmt, useStore, useAlt } from '../store'
 import { MONTHS_SHORT, YEARS, indexOf, indexOfKey, fromIndex, keyOf, labelOfKey } from '../lib/time'
 import { TREND } from '../lib/meta'
 import { Modal } from './Modal'
@@ -8,7 +8,7 @@ import { toast } from '../toast'
 
 export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
   const f = useFmt()
-  const u = useUsd()
+  const u = useAlt()
   const months = useStore((s) => s.months)
   const close = useStore((s) => s.closeModal)
   const item = months[monthKey]?.items.find((i) => i.id === id)
@@ -52,7 +52,7 @@ export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
       subtitle={
         <span className="inline-flex items-center gap-1.5">
           <t.icon className={`h-3.5 w-3.5 ${t.text}`} />
-          {item.name} · {f(item.price)} (≈ {u(item.price)}) · from {labelOfKey(monthKey)}
+          {item.name} · {f(item.price)} <span className="alt-i">(≈ {u(item.price)})</span> · from {labelOfKey(monthKey)}
         </span>
       }
       onClose={close}

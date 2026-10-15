@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { PESO, fitText, parseMoney, plain } from '../lib/money'
+import { fitText, parseMoney, plain } from '../lib/money'
+import { useStore } from '../store'
 
 interface Props {
   value: number | null
@@ -17,7 +18,7 @@ const toText = (v: number | null, nullable?: boolean) => (v === null || (v === 0
 
 /** Money box that accepts "100k", "1.5m", "250,000" and updates totals as you type. */
 export function MoneyInput({ value, onChange, placeholder = '0', nullable, className = '', ariaLabel, autoFocus, size = 'sm' }: Props) {
-  const symbol = PESO
+  const symbol = useStore((s) => s.currency.main.symbol)
   const [text, setText] = useState(() => toText(value, nullable))
   const [focused, setFocused] = useState(false)
   const [bad, setBad] = useState(false)
@@ -41,6 +42,8 @@ export function MoneyInput({ value, onChange, placeholder = '0', nullable, class
 
   // (Phones always use 16px in inputs so iPhones don't zoom in; see index.css.)
   const pad = size === 'md' ? 'h-11 pl-8 text-base' : `h-9 pl-6 ${fitText(text)}`
+  // Longer signs (S$, د.إ) need more room than the single-character default.
+  const wide = symbol.length > 1 ? { paddingLeft: `calc(${size === 'md' ? '0.75rem' : '0.625rem'} + ${symbol.length * 0.62}em + 0.375rem)` } : undefined
 
   return (
     <div className={`relative min-w-0 ${className}`}>
@@ -67,6 +70,7 @@ export function MoneyInput({ value, onChange, placeholder = '0', nullable, class
         }}
         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         onChange={(e) => handle(e.target.value)}
+        style={wide}
         className={`w-full min-w-0 rounded-lg border bg-black/30 pr-2 font-medium tabular-nums text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:bg-black/50 ${pad} ${
           bad
             ? 'border-red-500/60 focus:ring-2 focus:ring-red-500/30'

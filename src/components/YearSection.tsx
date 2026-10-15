@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, ListCollapse, ListTree, Wand2 } from 'lucide-react'
-import { useFmt, usePlan, useStore, useUsd } from '../store'
+import { useFmt, usePlan, useStore, useAlt } from '../store'
 import { END_YEAR, START_YEAR, YEARS, currentYear } from '../lib/time'
 import { MonthCard } from './MonthCard'
 import { GoalsSection } from './GoalsSection'
@@ -157,7 +157,7 @@ function YearSummary() {
   const fillYear = useStore((s) => s.fillYear)
   const plan = usePlan()
   const f = useFmt()
-  const u = useUsd()
+  const u = useAlt()
   const [open, setOpen] = useState(false)
   const [goal, setGoal] = useState<number | null>(null)
   const [budget, setBudget] = useState<number | null>(null)
@@ -234,7 +234,7 @@ function Mini({ k, v, usd, cls = 'text-white' }: { k: string; v: string; usd: st
     <div className="min-w-0">
       <p className="truncate text-[11px] font-medium uppercase tracking-wider text-zinc-500">{k}</p>
       <p className={`truncate text-lg font-semibold tabular-nums ${cls}`}>{v}</p>
-      <p className="truncate text-xs tabular-nums text-zinc-500">≈ {usd}</p>
+      <p className="alt truncate text-xs tabular-nums text-zinc-500">≈ {usd}</p>
     </div>
   )
 }

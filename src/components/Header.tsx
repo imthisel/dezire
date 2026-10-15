@@ -1,24 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef } from 'react'
 import { Download, Menu, PanelLeftClose, PanelLeftOpen, RotateCcw, Target, Upload } from 'lucide-react'
 import { useStore } from '../store'
 import { toast } from '../toast'
 import { AccountMenu, SaveIndicator } from './AccountMenu'
+import { CurrencyMenu } from './CurrencyMenu'
 import { toggleSidebar, useDocked } from './Sidebar'
 
 export function Header() {
   const docked = useDocked()
   const sidebar = useStore((s) => s.sidebar)
-  const usdRate = useStore((s) => s.usdRate)
-  const setUsdRate = useStore((s) => s.setUsdRate)
-  const [rateText, setRateText] = useState(String(usdRate))
+  const symbol = useStore((s) => s.currency.main.symbol)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => setRateText(String(usdRate)), [usdRate])
-
   function exportData() {
-    const { months, kinds, usdRate, goals, goalAreas, sources, birthday, yearNotes } = useStore.getState()
+    const { months, kinds, currency, goals, goalAreas, sources, birthday, yearNotes } = useStore.getState()
     const blob = new Blob(
-      [JSON.stringify({ app: 'dezire', version: 3, exportedAt: new Date().toISOString(), currency: 'PHP', usdRate, months, kinds, goals, goalAreas, sources, birthday, yearNotes }, null, 2)],
+      [JSON.stringify({ app: 'dezire', version: 4, exportedAt: new Date().toISOString(), currency, months, kinds, goals, goalAreas, sources, birthday, yearNotes }, null, 2)],
       { type: 'application/json' },
     )
     const a = document.createElement('a')
@@ -50,27 +47,7 @@ export function Header() {
 
   const tools = (phone: boolean) => (
     <>
-      <label className={`${btn} pr-1 ${phone ? 'h-10 flex-1 justify-between' : ''}`} title="Exchange rate used to show US dollar amounts">
-        <span className="text-zinc-400">Rate</span>
-        <span className="flex items-center">
-          <span className="flex h-7 items-center rounded-lg bg-white/5 pl-2 text-white">
-            ₱
-            <input
-              inputMode="decimal"
-              value={rateText}
-              onChange={(e) => {
-                const t = e.target.value.replace(/[^\d.]/g, '')
-                setRateText(t)
-                if (parseFloat(t) > 0) setUsdRate(parseFloat(t))
-              }}
-              onBlur={() => setRateText(String(usdRate))}
-              className="w-14 bg-transparent px-1 tabular-nums outline-none"
-              aria-label="Pesos per US dollar"
-            />
-          </span>
-          <span className="px-1.5 text-zinc-400">= $1</span>
-        </span>
-      </label>
+      <CurrencyMenu phone={phone} />
       <button className={`${btn} ${phone ? 'h-10 w-10 px-0' : ''}`} onClick={exportData} title="Download a backup of all your data" aria-label="Export backup">
         <Download className="h-4 w-4" /> {!phone && 'Export'}
       </button>
@@ -106,8 +83,8 @@ export function Header() {
           <div className="min-w-0">
             <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">Dezire</h1>
             <p className="truncate text-xs text-zinc-400">
-              <span className="sm:hidden">₱ planner · 2026 – 2040</span>
-              <span className="hidden sm:inline">Goals, budgets &amp; net worth in ₱ · 2026 – 2040</span>
+              <span className="sm:hidden">{symbol} planner · 2026 – 2040</span>
+              <span className="hidden sm:inline">Goals, budgets &amp; net worth in {symbol} · 2026 – 2040</span>
             </p>
           </div>
         </div>

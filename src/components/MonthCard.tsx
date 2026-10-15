@@ -2,7 +2,7 @@ import { useEffect, useState, type DragEvent, type ReactNode } from 'react'
 import { AlertTriangle, Cake, ChevronDown, ClipboardPaste, Plus, StickyNote, Target, X } from 'lucide-react'
 import { fitText } from '../lib/money'
 import { ageIn, turnsLabel, useBirthday } from './Birthday'
-import { useFmt, usePlan, useStore, useUsd } from '../store'
+import { useFmt, usePlan, useStore, useAlt } from '../store'
 import { MONTHS, currentIndex } from '../lib/time'
 import { overLimitIds } from '../lib/calc'
 import { MoneyInput } from './MoneyInput'
@@ -16,7 +16,7 @@ const EMPTY: never[] = []
 export function MonthCard({ index }: { index: number }) {
   const c = usePlan()[index]
   const f = useFmt()
-  const u = useUsd()
+  const u = useAlt()
   const month = useStore((s) => s.months[c.key])
   const items = month?.items ?? EMPTY
   const over = overLimitIds(month, c.available)
@@ -161,7 +161,7 @@ export function MonthCard({ index }: { index: number }) {
           <div>
           <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Net worth</p>
           <p className={`text-sm font-semibold tabular-nums ${c.netWorth < 0 ? 'text-red-300' : 'text-indigo-200'}`}>{f(c.netWorth)}</p>
-          <p className="text-[11px] tabular-nums text-zinc-500">≈ {u(c.netWorth)}</p>
+          <p className="alt text-[11px] tabular-nums text-zinc-500">≈ {u(c.netWorth)}</p>
           </div>
           {phone && (
             <ChevronDown className={`mt-1 h-5 w-5 text-zinc-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
@@ -270,7 +270,7 @@ export function MonthCard({ index }: { index: number }) {
           {c.budget > 0 ? (
             <span className={`font-medium tabular-nums ${left < 0 ? 'text-red-300' : 'text-zinc-300'}`}>
               {left < 0 ? `${f(-left)} over` : `${f(left)} left`}
-              <span className="hidden font-normal text-zinc-500 sm:inline"> · {u(Math.abs(left), true)}</span>
+              <span className="alt-i hidden font-normal text-zinc-500 sm:inline-block">&nbsp;· {u(Math.abs(left), true)}</span>
             </span>
           ) : (
             <span className="text-zinc-500">No budget yet</span>
@@ -378,7 +378,7 @@ function Total({ k, v, usd, cls }: { k: string; v: string; usd: string; cls: str
     <div className="min-w-0 px-2.5 py-2">
       <p className="truncate text-[10px] font-medium uppercase tracking-wider text-zinc-500">{k}</p>
       <p className={`truncate text-sm font-semibold tabular-nums ${cls}`}>{v}</p>
-      <p className="truncate text-[10px] tabular-nums text-zinc-500">≈ {usd}</p>
+      <p className="alt truncate text-[10px] tabular-nums text-zinc-500">≈ {usd}</p>
     </div>
   )
 }

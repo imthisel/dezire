@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { BarChart3, CalendarDays, Pencil, Star } from 'lucide-react'
-import { useFmt, useKindOf, useStore, useUsd } from '../store'
+import { useFmt, useKindOf, useStore, useAlt } from '../store'
 import { TREND, kindIcon } from '../lib/meta'
 import { valueAfter } from '../lib/calc'
 import { END_YEAR, TOTAL_MONTHS, YEARS, currentYear, indexOfKey, labelOf } from '../lib/time'
@@ -20,7 +20,7 @@ const TRENDS = Object.keys(TREND) as Trend[]
 export function Favorites() {
   const months = useStore((s) => s.months)
   const f = useFmt()
-  const u = useUsd()
+  const u = useAlt()
   const [picked, setFilter] = useState<Filter>('all')
 
   const favs = useMemo(() => {
@@ -138,7 +138,7 @@ export function Favorites() {
 /** How much the shown favorites cost in each year: a bar per year split by trend, with the running total. */
 function YearTotals({ favs, filter }: { favs: Fav[]; filter: Filter }) {
   const f = useFmt()
-  const u = useUsd()
+  const u = useAlt()
   const now = currentYear()
 
   const rows = useMemo(() => {
@@ -234,7 +234,7 @@ function YearTotals({ favs, filter }: { favs: Fav[]; filter: Filter }) {
                   </p>
                   <p className="shrink-0 text-right">
                     <span className="text-base font-bold tabular-nums text-white">{f(r.total)}</span>
-                    <span className="ml-1.5 hidden text-[11px] tabular-nums text-zinc-500 sm:inline">≈ {u(r.total, true)}</span>
+                    <span className="alt-i ml-1.5 hidden text-[11px] tabular-nums text-zinc-500 sm:inline-block">≈ {u(r.total, true)}</span>
                   </p>
                 </div>
 
@@ -279,7 +279,7 @@ function YearTotals({ favs, filter }: { favs: Fav[]; filter: Filter }) {
         </div>
         <p className="text-sm text-zinc-400">
           All years <span className="ml-1 font-bold tabular-nums text-white">{f(grand)}</span>
-          <span className="ml-1.5 text-[11px] tabular-nums text-zinc-500">≈ {u(grand, true)}</span>
+          <span className="alt-i ml-1.5 text-[11px] tabular-nums text-zinc-500">≈ {u(grand, true)}</span>
         </p>
       </div>
     </section>
@@ -288,7 +288,7 @@ function YearTotals({ favs, filter }: { favs: Fav[]; filter: Filter }) {
 
 function FavCard({ fav: { item, key, index } }: { fav: Fav }) {
   const f = useFmt()
-  const u = useUsd()
+  const u = useAlt()
   const t = TREND[item.trend]
   const kind = useKindOf()(item.category)
   const KindIcon = kindIcon(kind)
@@ -328,7 +328,7 @@ function FavCard({ fav: { item, key, index } }: { fav: Fav }) {
       <div className="mt-4 flex items-end justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-xl font-bold tabular-nums text-white">{f(item.price)}</p>
-          <p className="truncate text-xs tabular-nums text-zinc-500">≈ {u(item.price)}</p>
+          <p className="alt truncate text-xs tabular-nums text-zinc-500">≈ {u(item.price)}</p>
         </div>
         <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${t.border} ${t.bg} ${t.text}`}>
           <t.icon className="h-3.5 w-3.5" /> {t.label}
@@ -379,7 +379,7 @@ function Tile({ k, v, sub, cls = 'text-white' }: { k: string; v: string; sub: st
     <div className="min-w-0 rounded-xl border border-white/[0.06] bg-black/20 p-3">
       <p className="truncate text-[11px] font-medium text-zinc-500">{k}</p>
       <p className={`mt-1 truncate text-lg font-bold tabular-nums ${cls}`}>{v}</p>
-      <p className="truncate text-[11px] tabular-nums text-zinc-500">{sub}</p>
+      <p className="alt truncate text-[11px] tabular-nums text-zinc-500">{sub}</p>
     </div>
   )
 }

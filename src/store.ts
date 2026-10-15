@@ -5,7 +5,7 @@ import {
   DEFAULT_GOAL_AREAS, DEFAULT_KINDS, GOAL_COLORS, GOAL_ICONS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_AREA, UNKNOWN_KIND,
   guessAreaIcon, guessIcon,
 } from './lib/meta'
-import { DEFAULT_USD_RATE, PESO, fmt, fmtUsd } from './lib/money'
+import { DEFAULT_CURRENCIES, fmt, fmtAlt, parseCurrencies, type AltCurrency, type Currencies, type Currency } from './lib/money'
 import { currentYear, labelOfKey, END_YEAR, START_YEAR, indexOf, indexOfKey, keyOf } from './lib/time'
 import { computeAll, spendLimit, type MonthCalc } from './lib/calc'
 
@@ -56,7 +56,7 @@ export function fitCheck(
   const available = planOf(months)[indexOfKey(key)].available
   const spent = m.items.filter((i) => i.id !== excludeId).reduce((s, i) => s + i.price, 0)
   const after = spent + price
-  const p = (n: number) => fmt(n, PESO)
+  const p = (n: number) => fmt(n, useStore.getState().currency.main.symbol)
   const why: string[] = []
   if (m.budget > 0 && after > m.budget + 1e-9) why.push(`this goes ${p(after - m.budget)} over the ${p(m.budget)} budget`)
   if (after > available + 1e-9) {
@@ -184,8 +184,8 @@ const warned = (key: string, price: number, months: Record<string, MonthData>, e
 
 interface State {
   months: Record<string, MonthData>
-  /** Pesos per 1 US dollar */
-  usdRate: number
+  /** Main currency (what amounts are in) and the alternative one they're also shown in */
+  currency: Currencies
   year: number
   /** Overview shows the whole plan, or only the selected year */
   dashMode: 'plan' | 'year'
@@ -242,7 +242,8 @@ interface State {
   setDrawer: (open: boolean) => void
 
   setYear: (y: number) => void
-  setUsdRate: (r: number) => void
+  setMainCurrency: (patch: Partial<Currency>) => void
+  setAltCurrency: (patch: Partial<AltCurrency>) => void
   setDashMode: (m: 'plan' | 'year') => void
   openModal: (m: ModalState) => void
   closeModal: () => void
@@ -289,7 +290,7 @@ export const useStore = create<State>()(
   persist(
     (set, get) => ({
       months: {},
-      usdRate: DEFAULT_USD_RATE,
+      currency: DEFAULT_CURRENCIES,
       year: currentYear(),
       dashMode: 'plan',
       clipboard: null,
@@ -328,7 +329,8 @@ export const useStore = create<State>()(
       setDrawer: (drawer) => set({ drawer }),
 
       setYear: (year) => set({ year: Math.min(END_YEAR, Math.max(START_YEAR, year)) }),
-      setUsdRate: (r) => set({ usdRate: r > 0 ? r : DEFAULT_USD_RATE }),
+      setMainCurrency: (patch) => set((s) => ({ currency: parseCurrencies({ ...s.currency, main: { ...s.currency.main, ...patch } }) })),
+      setAltCurrency: (patch) => set((s) => ({ currency: parseCurrencies({ ...s.currency, alt: { ...s.currency.alt, ...patch } }) })),
       setDashMode: (dashMode) => set({ dashMode }),
       openModal: (modal) => set({ modal }),
       closeModal: () => set({ modal: null }),
@@ -677,6 +679,7 @@ export const useStore = create<State>()(
           const d = data as {
             months?: Record<string, Partial<MonthData>>
             usdRate?: number
+            currency?: unknown
             goals?: Record<string, Partial<Goal>[]>
             goalAreas?: unknown
             areaLabels?: Record<string, unknown>
@@ -736,7 +739,7 @@ export const useStore = create<State>()(
               if (/^\d{4}$/.test(year) && typeof text === 'string' && text.trim()) yearNotes[year] = text
             }
           }
-          set({ months, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, yearNotes, usdRate: Number(d.usdRate) > 0 ? Number(d.usdRate) : get().usdRate, clipboard: null })
+          set({ months, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, yearNotes, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
           return OK
         } catch {
           return fail('Could not read that file.')
@@ -747,7 +750,7 @@ export const useStore = create<State>()(
     }),
     {
       name: 'dezire-goal-planner-v1',
-      version: 4,
+      version: 5,
       partialize: (s) => ({
         months: s.months,
         kinds: s.kinds,
@@ -756,7 +759,7 @@ export const useStore = create<State>()(
         sources: s.sources,
         birthday: s.birthday,
         yearNotes: s.yearNotes,
-        usdRate: s.usdRate,
+        currency: s.currency,
         year: s.year,
         dashMode: s.dashMode,
         view: s.view,
@@ -769,8 +772,9 @@ export const useStore = create<State>()(
       // v1 had an "Other" item kind; it's now part of "Status & Other".
       // v2 had a fixed list of item kinds; they're now the starter kinds, which can be changed.
       // v3 had four fixed goal areas with optional custom names; they're now the starter areas, which can be changed.
+      // v4 had a fixed peso → US dollar rate (`usdRate`); it's now the main + alternative currency settings.
       migrate: (persisted) => {
-        const { currency: _drop, areaLabels, ...rest } = (persisted ?? {}) as Record<string, unknown>
+        const { currency, usdRate, areaLabels, ...rest } = (persisted ?? {}) as Record<string, unknown>
         return {
           months: {},
           year: currentYear(),
@@ -780,8 +784,8 @@ export const useStore = create<State>()(
           goalAreas: parseGoalAreas(rest.goalAreas, areaLabels),
           ...(rest.months ? { months: migrateMonths(rest.months) } : {}),
           ...(rest.assetCat === 'other' ? { assetCat: 'status' } : {}),
-          usdRate: Number(rest.usdRate) > 0 ? Number(rest.usdRate) : DEFAULT_USD_RATE,
-        } as Pick<State, 'months' | 'kinds' | 'goalAreas' | 'usdRate' | 'year' | 'dashMode'>
+          currency: parseCurrencies(currency, usdRate),
+        } as Pick<State, 'months' | 'kinds' | 'goalAreas' | 'currency' | 'year' | 'dashMode'>
       },
     },
   ),
@@ -849,13 +853,27 @@ export function useAreaOf() {
   return (id: GoalArea) => areas.find((a) => a.id === id) ?? UNKNOWN_AREA
 }
 
-/** Formats pesos: ₱100,000 */
+/** The main and alternative currency settings. */
+export const useCurrency = () => useStore((s) => s.currency)
+
+/** Formats an amount in the main currency: ₱100,000 */
 export function useFmt() {
-  return (n: number, compact = false) => fmt(n, PESO, compact)
+  const symbol = useStore((s) => s.currency.main.symbol)
+  return (n: number, compact = false) => fmt(n, symbol, compact)
 }
 
-/** Converts pesos to US dollars: ₱100,000 → $1,595 */
-export function useUsd() {
-  const rate = useStore((s) => s.usdRate)
-  return (pesos: number, compact = false) => fmtUsd(pesos, rate, compact)
+/**
+ * Converts a main-currency amount to the alternative currency: ₱100,000 → $1,595.
+ * Put the result in an element with the `alt` (block) or `alt-i` (inline) class so it smoothly hides when the alternative currency is turned off.
+ */
+export function useAlt() {
+  const alt = useStore((s) => s.currency.alt)
+  return (n: number, compact = false) => fmtAlt(n, alt, compact)
+}
+
+// Lets CSS fade out every alternative-currency amount at once when it's turned off (see `.alt` in index.css).
+if (typeof document !== 'undefined') {
+  const sync = () => document.documentElement.toggleAttribute('data-alt-off', !useStore.getState().currency.alt.show)
+  sync()
+  useStore.subscribe(sync)
 }

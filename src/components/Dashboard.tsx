@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Landmark, PiggyBank, Wallet } from 'lucide-react'
-import { useFmt, useKinds, usePlan, useStore, useUsd } from '../store'
+import { useFmt, useKinds, usePlan, useStore, useAlt } from '../store'
 import { lastDataIndex, portfolioAt } from '../lib/calc'
 import { END_YEAR, START_YEAR, currentIndex, indexOf, labelOf } from '../lib/time'
 import { TREND, kindColor, kindIcon } from '../lib/meta'
@@ -19,7 +19,7 @@ export function Dashboard() {
   const year = useStore((s) => s.year)
   const setYear = useStore((s) => s.setYear)
   const f = useFmt()
-  const u = useUsd()
+  const u = useAlt()
   const phone = useIsPhone()
 
   // Whole plan: running totals up to the last month with anything in it.
@@ -164,7 +164,7 @@ export function Dashboard() {
         <div className={`${card} flex min-w-0 flex-col p-4 sm:p-5`}>
           <div className="mb-4 flex items-baseline justify-between gap-3">
             <h3 className="font-semibold text-white">{yearMode ? `Bought in ${year}` : 'Assets'}</h3>
-            <span className="truncate text-sm tabular-nums text-zinc-300">{f(port.value)} <span className="text-zinc-500">· {u(port.value)}</span></span>
+            <span className="truncate text-sm tabular-nums text-zinc-300">{f(port.value)} <span className="alt-i text-zinc-500">· {u(port.value)}</span></span>
           </div>
 
           {port.cost === 0 ? (
@@ -188,7 +188,7 @@ export function Dashboard() {
                           <Icon className={`h-4 w-4 shrink-0 ${kindColor(k).text}`} /> <span className="truncate">{k.label}</span>
                           <span className="text-xs text-zinc-500">×{v.count}</span>
                         </span>
-                        <span className="tabular-nums text-zinc-200">{f(v.value, true)} <span className="text-xs text-zinc-500">· {u(v.value, true)}</span></span>
+                        <span className="tabular-nums text-zinc-200">{f(v.value, true)} <span className="alt-i text-xs text-zinc-500">· {u(v.value, true)}</span></span>
                       </div>
                       <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
                         <div className={`h-full rounded-full ${kindColor(k).bar} opacity-80 transition-all`} style={{ width: `${share * 100}%` }} />
@@ -238,6 +238,7 @@ function Stat(props: {
 }) {
   const p = props.progress
   const barCls = props.warn && p !== undefined && p > 1 ? 'bg-red-400' : props.warn ? 'bg-amber-300/80' : 'bg-emerald-400/80'
+  const altCode = useStore((s) => s.currency.alt.code)
   return (
     <div
       className={`${card} relative overflow-hidden p-5 ${
@@ -254,7 +255,7 @@ function Stat(props: {
       >
         {props.value}
       </p>
-      <p className="mt-1.5 truncate text-sm font-medium tabular-nums text-zinc-400">≈ {props.usd} USD</p>
+      <p className="alt mt-1.5 truncate text-sm font-medium tabular-nums text-zinc-400">≈ {props.usd} {altCode}</p>
       <p className="mt-1.5 truncate text-xs text-zinc-500">{props.sub}</p>
       {p !== undefined && (
         <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/5">
@@ -277,7 +278,8 @@ function PhoneStats(p: {
   budgetPct?: number
 }) {
   const f = useFmt()
-  const u = useUsd()
+  const u = useAlt()
+  const altCode = useStore((s) => s.currency.alt.code)
   return (
     <div className="space-y-2.5">
       <div
@@ -295,7 +297,7 @@ function PhoneStats(p: {
         >
           {f(p.netWorth)}
         </p>
-        <p className="mt-1.5 truncate text-sm font-medium tabular-nums text-zinc-400">≈ {u(p.netWorth)} USD</p>
+        <p className="alt mt-1.5 truncate text-sm font-medium tabular-nums text-zinc-400">≈ {u(p.netWorth)} {altCode}</p>
         <div className="mt-3 flex gap-2 text-xs">
           <span className="truncate rounded-full bg-white/[0.06] px-2.5 py-1 tabular-nums text-zinc-300">
             <span className="text-zinc-500">Cash</span> {f(p.cash, true)}
@@ -326,7 +328,7 @@ function MiniStat(props: { icon: ReactNode; iconCls: string; label: string; valu
       <p key={props.value} className={`animate-tick mt-2 truncate text-lg font-bold leading-tight tabular-nums ${props.valueCls ?? 'text-white'}`}>
         {props.value}
       </p>
-      <p className="truncate text-[11px] tabular-nums text-zinc-500">≈ {props.usd}</p>
+      <p className="alt truncate text-[11px] tabular-nums text-zinc-500">≈ {props.usd}</p>
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/5">
         {p !== undefined && <div className={`h-full rounded-full transition-all duration-500 ${barCls}`} style={{ width: `${Math.min(100, p * 100)}%` }} />}
       </div>

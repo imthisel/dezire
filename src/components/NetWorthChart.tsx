@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { ChevronsLeftRight } from 'lucide-react'
-import { useFmt, usePlan, useStore, useUsd } from '../store'
+import { useFmt, usePlan, useStore, useAlt } from '../store'
 import { START_YEAR, TOTAL_MONTHS, YEARS, currentIndex, labelOf } from '../lib/time'
 
 const H = 260
@@ -23,7 +23,8 @@ function niceStep(raw: number) {
 export function NetWorthChart() {
   const plan = usePlan()
   const f = useFmt()
-  const u = useUsd()
+  const u = useAlt()
+  const alt = useStore((s) => s.currency.alt)
   const year = useStore((s) => s.year)
   const setYear = useStore((s) => s.setYear)
   const wrap = useRef<HTMLDivElement>(null)
@@ -169,7 +170,7 @@ export function NetWorthChart() {
               {!hp && ' · today'}
             </p>
             <p className="truncate text-base font-semibold tabular-nums text-white">
-              {f(shown.netWorth)} <span className="text-xs font-normal text-zinc-500">≈ {u(shown.netWorth, true)}</span>
+              {f(shown.netWorth)} <span className="alt-i text-xs font-normal text-zinc-500">≈ {u(shown.netWorth, true)}</span>
             </p>
           </div>
           <div className="shrink-0 text-right text-[11px] leading-4 tabular-nums">
@@ -225,7 +226,7 @@ export function NetWorthChart() {
         >
           <p className="mb-2 font-semibold text-white">{labelOf(hp.index)}</p>
           <Row k="Net worth" v={f(hp.netWorth)} strong />
-          <Row k="In US dollars" v={`≈ ${u(hp.netWorth)}`} />
+          {alt.show && <Row k={`In ${alt.code}`} v={`≈ ${u(hp.netWorth)}`} />}
           <Row k="Money left" v={f(hp.cash)} />
           <Row k="Assets value" v={f(hp.assets)} />
           <Row k="Total earned" v={f(hp.cumEarned)} />

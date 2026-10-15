@@ -1,6 +1,6 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import { AlertTriangle, Car, Check, ChevronDown, Home, Settings2, StickyNote } from 'lucide-react'
-import { fitCheck, useFmt, useItemIndex, useKindOf, useKinds, useStore, useUsd } from '../store'
+import { fitCheck, useFmt, useItemIndex, useKindOf, useKinds, useStore, useAlt } from '../store'
 import { TREND, kindColor, kindIcon } from '../lib/meta'
 import { labelOfKey } from '../lib/time'
 import { NotYet } from './Kept'
@@ -12,7 +12,8 @@ import { toast } from '../toast'
 
 export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: string }) {
   const f = useFmt()
-  const u = useUsd()
+  const u = useAlt()
+  const altCode = useStore((s) => s.currency.alt.code)
   const months = useStore((s) => s.months)
   const close = useStore((s) => s.closeModal)
   const editing = editId ? months[monthKey]?.items.find((i) => i.id === editId) : undefined
@@ -176,7 +177,7 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
               <label className="block">
                 <span className="mb-1 block text-xs text-zinc-400">Price</span>
                 <MoneyInput value={price} nullable onChange={setPrice} placeholder="e.g. 250k" size="md" />
-                <span className="mt-1 block text-xs tabular-nums text-zinc-400">{price ? `≈ ${u(price)} USD` : " "}</span>
+                <span className="alt mt-1 text-xs tabular-nums text-zinc-400">{price ? `≈ ${u(price)} ${altCode}` : " "}</span>
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs text-zinc-400">
@@ -415,7 +416,7 @@ function Info({ k, v, usd, cls = 'text-zinc-100' }: { k: string; v: string; usd:
     <div className="min-w-0">
       <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">{k}</p>
       <p className={`truncate text-sm font-semibold tabular-nums ${cls}`}>{v}</p>
-      {usd && <p className="truncate text-[11px] tabular-nums text-zinc-500">≈ {usd}</p>}
+      {usd && <p className="alt truncate text-[11px] tabular-nums text-zinc-500">≈ {usd}</p>}
     </div>
   )
 }
