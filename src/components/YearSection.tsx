@@ -7,6 +7,7 @@ import { GoalsSection } from './GoalsSection'
 import { MoneyInput } from './MoneyInput'
 import { card } from './Dashboard'
 import { toast } from '../toast'
+import { autoScrolling } from '../autoscroll'
 import { BirthdayNote } from './Birthday'
 import { YearNote } from './YearNote'
 import { MonthTile } from './Tiles'
@@ -103,6 +104,37 @@ function YearTabs() {
   const scroller = useRef<HTMLDivElement>(null)
   const thisYear = currentYear()
 
+  // Holding a dragged item over a year tab opens that year, but only after a moment (and not while the page is
+  // scrolling under the finger), so passing over the tabs doesn't jump to another year.
+  const [armed, setArmed] = useState<number | null>(null)
+  const dwell = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const disarm = () => {
+    clearTimeout(dwell.current)
+    setArmed(null)
+  }
+  function arm(y: number) {
+    if (y === year || armed === y) return
+    clearTimeout(dwell.current)
+    setArmed(y)
+    const fire = () => {
+      if (autoScrolling()) return void (dwell.current = setTimeout(fire, 200))
+      setArmed(null)
+      setYear(y)
+      navigator.vibrate?.(10)
+    }
+    dwell.current = setTimeout(fire, 800)
+  }
+  useEffect(() => {
+    const off = () => disarm()
+    document.addEventListener('dragend', off)
+    document.addEventListener('drop', off)
+    return () => {
+      document.removeEventListener('dragend', off)
+      document.removeEventListener('drop', off)
+      clearTimeout(dwell.current)
+    }
+  }, [])
+
   const first = useRef(true)
   useEffect(() => {
     const strip = scroller.current
@@ -114,7 +146,7 @@ function YearTabs() {
   }, [year])
 
   return (
-    <div id="years" className="sticky top-0 z-30 -mx-4 bg-[#07080c]/85 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+    <div id="years" data-sticky-edge className="sticky top-0 z-30 -mx-4 bg-[#07080c]/85 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
       <div className="flex items-center gap-2">
         <button
           onClick={() => setYear(year - 1)}
@@ -134,7 +166,8 @@ function YearTabs() {
                 key={y}
                 data-year={y}
                 onClick={() => setYear(y)}
-                onDragEnter={() => setYear(y)}
+                onDragEnter={() => arm(y)}
+                onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && armed === y && disarm()}
                 onDragOver={(e) => e.preventDefault()}
                 className={`relative flex min-w-[70px] shrink-0 flex-col items-center rounded-xl px-3 py-1.5 transition ${
                   active
@@ -147,6 +180,15 @@ function YearTabs() {
                   {has ? f(dec.netWorth, true) : '·'}
                 </span>
                 {y === thisYear && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400" title="This year" />}
+                {armed === y && (
+                  <>
+                    <span className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-indigo-400/60" />
+                    <span
+                      className="pointer-events-none absolute inset-x-2 bottom-0.5 h-0.5 origin-left rounded-full bg-indigo-300"
+                      style={{ animation: 'dwell 0.8s linear forwards' }}
+                    />
+                  </>
+                )}
               </button>
             )
           })}

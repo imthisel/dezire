@@ -62,6 +62,7 @@ body {
  */
 @media (pointer: coarse) {
   [draggable="true"] {
+    -webkit-user-drag: none; /* our own finger dragging takes over (touchdrag.ts) */
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
@@ -153,6 +154,12 @@ html.zooming [data-zoom-item] {
 }
 [data-zoom-grid] {
   transform-origin: top center;
+}
+
+/* Year tab filling up while something is held over it (see YearTabs) */
+@keyframes dwell {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 ::selection {

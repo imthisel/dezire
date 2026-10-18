@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore, type CSSProperties } from 'react'
 import { flushSync } from 'react-dom'
 import { useStore, type PhoneCols } from './store'
 import { useIsPhone } from './lib/useMedia'
+import { touchDragging } from './touchdrag'
 
 /*
  * Phones: pinch with two fingers to switch the month and item grids between 1, 2 and 3 columns.
@@ -110,7 +111,7 @@ export function usePinchZoom() {
     }
 
     function start(e: TouchEvent) {
-      if (e.touches.length !== 2 || g || !allowed()) return
+      if (e.touches.length !== 2 || g || !allowed() || touchDragging()) return
       // Only when a grid is on screen; elsewhere the browser's own zoom keeps working.
       const grids = [...document.querySelectorAll<HTMLElement>('[data-zoom-grid]')].filter(visible)
       if (!grids.length) return

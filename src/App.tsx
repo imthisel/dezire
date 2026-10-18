@@ -18,6 +18,7 @@ import { Sidebar } from './components/Sidebar'
 import { ZoomHud } from './components/Zoom'
 import { usePinchZoom } from './zoom'
 import { useDragAutoScroll } from './autoscroll'
+import { useTouchDrag } from './touchdrag'
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ function Planner() {
   const sidebar = useStore((s) => s.sidebar)
   usePinchZoom()
   useDragAutoScroll()
+  useTouchDrag()
 
   return (
     <div className="relative min-h-screen overflow-x-clip bg-[#07080c] text-zinc-100 antialiased">
