@@ -17,6 +17,7 @@ import { MobileNav } from './components/MobileNav'
 import { Sidebar } from './components/Sidebar'
 import { ZoomHud } from './components/Zoom'
 import { usePinchZoom } from './zoom'
+import { useDragAutoScroll } from './autoscroll'
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ function Planner() {
   const view = useStore((s) => s.view)
   const sidebar = useStore((s) => s.sidebar)
   usePinchZoom()
+  useDragAutoScroll()
 
   return (
     <div className="relative min-h-screen overflow-x-clip bg-[#07080c] text-zinc-100 antialiased">

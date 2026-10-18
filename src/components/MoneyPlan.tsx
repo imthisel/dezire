@@ -610,7 +610,7 @@ function StepRow({ sortable, text, done, onToggle, onEdit, onRemove, ...sortProp
         <span
           {...sort.handle('li')}
           title="Drag to reorder"
-          className="-mr-1.5 hidden h-8 w-5 shrink-0 cursor-grab place-items-center text-zinc-600 opacity-0 transition hover:text-zinc-300 active:cursor-grabbing group-hover:opacity-100 sm:grid"
+          className="-mr-1.5 grid h-8 w-5 shrink-0 cursor-grab touch-none place-items-center text-zinc-600 transition hover:text-zinc-300 active:cursor-grabbing sm:opacity-0 sm:group-hover:opacity-100"
         >
           <GripVertical className="h-3.5 w-3.5" />
         </span>

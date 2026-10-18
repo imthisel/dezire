@@ -15,7 +15,7 @@ export function MobileNav() {
   const active = useActiveSection()
 
   return (
-    <nav className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-[#0b0c11]/90 backdrop-blur-xl sm:hidden">
+    <nav data-tabbar className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-[#0b0c11]/90 backdrop-blur-xl sm:hidden">
       <div className="mx-auto flex max-w-md">
         {SECTIONS.map((s) => {
           const on = active === s.id

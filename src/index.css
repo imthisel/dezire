@@ -56,6 +56,24 @@ body {
   display: none;
 }
 
+/*
+ * Touch screens: holding a draggable row should start a drag, not select its text or open the
+ * copy / look-up menu. Typing boxes inside stay selectable.
+ */
+@media (pointer: coarse) {
+  [draggable="true"] {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  [draggable="true"] input,
+  [draggable="true"] textarea,
+  [draggable="true"] [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
 /* iPhones zoom the whole page when a box with text under 16px is focused. */
 @media (max-width: 639px) {
   input,
