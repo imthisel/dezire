@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
-import { ArrowDown, ArrowUp, Check, ChevronDown, GripVertical, ListChecks, NotebookPen, Plus, Rocket, Target, Trash2, Wand2, X } from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { Check, ChevronDown, GripVertical, ListChecks, NotebookPen, Plus, Rocket, Target, Trash2, Wand2, X } from 'lucide-react'
 import { useFmt, usePlan, useStore, useAlt } from '../store'
 import { SOURCE_KIND, SOURCE_KINDS, SOURCE_STAGE, SOURCE_STAGES } from '../lib/meta'
 import { currentIndex, labelOf } from '../lib/time'
@@ -15,6 +15,38 @@ export function MoneyPlan() {
   const sources = useStore((s) => s.sources)
   const [fresh, setFresh] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
+
+  // While a plan is being dragged, every card folds down to its header so they're quick to reorder.
+  // The card being moved stays put on screen when they fold and unfold.
+  const [folded, setFolded] = useState(false)
+  const foldedRef = useRef(false)
+  const lastDrag = useRef<string | null>(null)
+  const anchor = useRef<{ id: string; top: number } | null>(null)
+  const keep = (id: string) => {
+    const el = document.getElementById(`source-${id}`)
+    anchor.current = el ? { id, top: el.getBoundingClientRect().top } : null
+  }
+  useEffect(() => {
+    if (dragId) {
+      lastDrag.current = dragId
+      // Not during dragstart itself: changing the page then can cancel a mouse drag.
+      const t = setTimeout(() => {
+        keep(dragId)
+        foldedRef.current = true
+        setFolded(true)
+      })
+      return () => clearTimeout(t)
+    }
+    if (foldedRef.current && lastDrag.current) keep(lastDrag.current)
+    foldedRef.current = false
+    setFolded(false)
+  }, [dragId])
+  useLayoutEffect(() => {
+    const a = anchor.current
+    anchor.current = null
+    const el = a && document.getElementById(`source-${a.id}`)
+    if (a && el) window.scrollBy(0, el.getBoundingClientRect().top - a.top)
+  }, [folded])
 
   function add(kind: SourceKind) {
     const id = useStore.getState().addSource(kind)
@@ -43,7 +75,7 @@ export function MoneyPlan() {
       </section>
 
       {sources.map((s, i) => (
-        <SourceCard key={s.id} source={s} index={i} total={sources.length} autoFocus={s.id === fresh} dragId={dragId} setDragId={setDragId} />
+        <SourceCard key={s.id} source={s} index={i} total={sources.length} autoFocus={s.id === fresh} folded={folded} dragId={dragId} setDragId={setDragId} />
       ))}
 
       <section id="plan-add" className={`${card} p-4 sm:p-6`}>
@@ -230,14 +262,17 @@ type CardProps = {
   index: number
   total: number
   autoFocus: boolean
+  /** Shown as just its header (while plans are being reordered) */
+  folded: boolean
   dragId: string | null
   setDragId: (id: string | null) => void
 }
 
-function SourceCard({ source: s, index, total, autoFocus, dragId, setDragId }: CardProps) {
+function SourceCard({ source: s, index, total, autoFocus, folded, dragId, setDragId }: CardProps) {
   const f = useFmt()
   const u = useAlt()
   const [open, setOpen] = useState(true)
+  const shown = open && !folded
   const k = SOURCE_KIND[s.kind]
   const st = SOURCE_STAGE[s.stage]
   const { updateSource, removeSource, moveSource } = useStore.getState()
@@ -258,12 +293,6 @@ function SourceCard({ source: s, index, total, autoFocus, dragId, setDragId }: C
     if (hasContent && !confirm(`Delete “${name}” and everything written in it?`)) return
     removeSource(s.id)
     toast.info(`Deleted “${name}”.`)
-  }
-
-  function move(by: number) {
-    moveSource(s.id, index + by)
-    // Keep the card in view after it jumps.
-    requestAnimationFrame(() => document.getElementById(`source-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
   }
 
   return (
@@ -287,7 +316,7 @@ function SourceCard({ source: s, index, total, autoFocus, dragId, setDragId }: C
             <span
               {...sort.handle('header')}
               title="Drag to reorder"
-              className="-mr-1.5 hidden h-11 w-6 shrink-0 cursor-grab place-items-center rounded-lg text-zinc-600 transition hover:bg-white/[0.04] hover:text-zinc-300 active:cursor-grabbing sm:-ml-3 sm:grid"
+              className="-ml-1.5 -mr-1.5 grid h-11 w-6 shrink-0 cursor-grab touch-none place-items-center rounded-lg text-zinc-500 transition hover:bg-white/[0.04] hover:text-zinc-300 active:cursor-grabbing sm:-ml-3 sm:text-zinc-600"
             >
               <GripVertical className="h-4 w-4" />
             </span>
@@ -320,7 +349,7 @@ function SourceCard({ source: s, index, total, autoFocus, dragId, setDragId }: C
                 </select>
                 <ChevronDown className={`pointer-events-none absolute right-0 h-3 w-3 ${k.text}`} />
               </label>
-              {!open && (
+              {!shown && (
                 <>
                   <span>·</span>
                   <span>{st.label}</span>
@@ -331,28 +360,6 @@ function SourceCard({ source: s, index, total, autoFocus, dragId, setDragId }: C
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
-            {total > 1 && (
-              <span className="flex sm:hidden">
-                <button
-                  onClick={() => move(-1)}
-                  disabled={index === 0}
-                  title="Move up"
-                  aria-label="Move up"
-                  className="grid h-9 w-8 place-items-center rounded-lg text-zinc-500 transition hover:bg-white/5 hover:text-white disabled:pointer-events-none disabled:opacity-25"
-                >
-                  <ArrowUp className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => move(1)}
-                  disabled={index === total - 1}
-                  title="Move down"
-                  aria-label="Move down"
-                  className="grid h-9 w-8 place-items-center rounded-lg text-zinc-500 transition hover:bg-white/5 hover:text-white disabled:pointer-events-none disabled:opacity-25"
-                >
-                  <ArrowDown className="h-4 w-4" />
-                </button>
-              </span>
-            )}
             <button
               onClick={remove}
               title="Delete"
@@ -373,7 +380,7 @@ function SourceCard({ source: s, index, total, autoFocus, dragId, setDragId }: C
           </div>
         </header>
 
-        {open && (
+        {shown && (
           <div className="animate-fade mt-5 space-y-5">
             {/* Stage */}
             <Part title="Where are you at?">
