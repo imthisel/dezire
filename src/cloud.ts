@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut as fbSignOut, type User } from 'firebase/auth'
-import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
+import { doc, getDoc, getDocFromCache, onSnapshot, serverTimestamp, setDoc, waitForPendingWrites, type DocumentReference, type DocumentSnapshot } from 'firebase/firestore'
 import { auth, db, googleProvider } from './lib/firebase'
 import { useStore } from './store'
+import { toast } from './toast'
 
 export type SaveStatus = 'saved' | 'saving' | 'offline' | 'error'
 
@@ -41,6 +42,31 @@ export function startCloud() {
   })
 }
 
+/** How long to wait for the server at start-up before opening with the copy saved on this device. */
+const SERVER_WAIT = 4000
+
+/**
+ * The account's data: from the server when it answers quickly, otherwise the copy Firebase keeps on this device
+ * (which already includes edits made offline). Live updates from the server follow either way.
+ */
+async function load(ref: DocumentReference): Promise<DocumentSnapshot> {
+  const cached = () => getDocFromCache(ref)
+  if (!navigator.onLine) return cached().catch(() => getDoc(ref))
+  const server = getDoc(ref)
+  const slow = new Promise<null>((resolve) => setTimeout(() => resolve(null), SERVER_WAIT))
+  try {
+    const snap = await Promise.race([server, slow])
+    if (snap) return snap
+  } catch {
+    // Server unreachable: use this device's copy below.
+  }
+  try {
+    return await cached()
+  } catch {
+    return server // Nothing on this device yet: the server is the only place it can come from.
+  }
+}
+
 async function connect(user: User) {
   const ref = doc(db!, 'users', user.uid)
   let applyingRemote = false
@@ -55,14 +81,19 @@ async function connect(user: User) {
   }
 
   try {
-    const snap = await getDoc(ref)
+    const snap = await load(ref)
     if (useCloud.getState().user?.uid !== user.uid) return // signed out or switched while loading
     if (snap.exists()) apply(snap.data().data)
     // First sign-in: whatever was already in this browser becomes the account's starting data.
     else await setDoc(ref, { data: snapshot(), clientId, updatedAt: serverTimestamp() })
   } catch (e) {
     console.error(e)
-    useCloud.setState({ ready: true, loadError: 'Could not load your data. Check your internet connection and try again.' })
+    useCloud.setState({
+      ready: true,
+      loadError: navigator.onLine
+        ? 'Could not load your data. Check your internet connection and try again.'
+        : "You're offline, and your data isn't saved on this device yet. Connect to the internet once and Dezire will work offline after that.",
+    })
     return
   }
 
@@ -82,10 +113,13 @@ async function connect(user: User) {
       useCloud.setState({ status: 'error' })
     }
   }
+  // Edits made with no connection; once back online and uploaded, say so.
+  let offlineEdits = false
   const unsubStore = useStore.subscribe((s, prev) => {
     if (applyingRemote) return
     if (s.months === prev.months && s.kinds === prev.kinds && s.goals === prev.goals && s.goalAreas === prev.goalAreas && s.sources === prev.sources && s.birthday === prev.birthday && s.yearNotes === prev.yearNotes && s.currency === prev.currency) return
     pending = true
+    if (!navigator.onLine) offlineEdits = true
     useCloud.setState({ status: navigator.onLine ? 'saving' : 'offline' })
     clearTimeout(timer)
     timer = setTimeout(save, SAVE_DELAY)
@@ -100,7 +134,19 @@ async function connect(user: User) {
 
   // Don't lose the last edit when the tab is closed or hidden.
   const flush = () => document.visibilityState === 'hidden' && void save()
-  const onOnline = () => useCloud.setState((s) => (s.status === 'offline' ? { status: pending ? 'saving' : 'saved' } : {}))
+  const onOnline = () => {
+    useCloud.setState((s) => (s.status === 'offline' ? { status: 'saving' } : {}))
+    void save()
+    // Firebase uploads the edits it kept while offline by itself; wait for that to finish.
+    waitForPendingWrites(db!)
+      .then(() => {
+        if (useCloud.getState().user?.uid !== user.uid) return
+        if (!pending) useCloud.setState({ status: 'saved' })
+        if (offlineEdits) toast.success('Back online · your offline changes are saved.')
+        offlineEdits = false
+      })
+      .catch(() => {})
+  }
   const onOffline = () => useCloud.setState({ status: 'offline' })
   document.addEventListener('visibilitychange', flush)
   window.addEventListener('online', onOnline)

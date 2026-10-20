@@ -1,0 +1,11 @@
+{
+  "name": "Dezire · Goal Planner",
+  "short_name": "Dezire",
+  "description": "Goals, budgets and net worth, month by month.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#07080c",
+  "theme_color": "#07080c",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
