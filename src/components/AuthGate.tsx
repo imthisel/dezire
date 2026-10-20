@@ -70,7 +70,7 @@ function SignIn() {
     <Shell>
       <div className="animate-pop rounded-3xl border border-white/10 bg-[#0e1016]/80 p-7 shadow-2xl shadow-black/60 backdrop-blur-xl sm:p-9">
         <Logo />
-        <h1 className="mt-5 text-center text-3xl font-bold tracking-tight text-white">Obssezion</h1>
+        <h1 className="mt-5 text-center text-3xl font-bold tracking-tight text-white">Obseszion</h1>
         <p className="mt-2 text-center text-sm text-zinc-400">Plan your money, your things and who you want to become, 2026 to 2040.</p>
 
         <ul className="mt-7 space-y-3 text-sm">

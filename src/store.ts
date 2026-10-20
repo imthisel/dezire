@@ -341,17 +341,21 @@ interface State {
   removeExpenseCat: (id: string, moveTo?: string) => void
   addPlace: (name: string) => void
   removePlace: (name: string) => void
+  /** Renames a place, in your saved places and in every expense that used it. Returns how many expenses changed. */
+  renamePlace: (from: string, to: string) => number
 
   importData: (data: unknown) => Result
   resetAll: () => void
 }
 
-// The app used to be called Dezire: what a browser saved under the old name carries over once.
+// The app used to be called Dezire, then Obssezion: what a browser saved under an old name carries over once.
 try {
-  const OLD_KEY = 'dezire-goal-planner-v1'
-  const old = localStorage.getItem(OLD_KEY)
-  if (old && !localStorage.getItem('obssezion-goal-planner-v1')) localStorage.setItem('obssezion-goal-planner-v1', old)
-  if (old) localStorage.removeItem(OLD_KEY)
+  const KEY = 'obseszion-goal-planner-v1'
+  for (const oldKey of ['obssezion-goal-planner-v1', 'dezire-goal-planner-v1']) {
+    const old = localStorage.getItem(oldKey)
+    if (old && !localStorage.getItem(KEY)) localStorage.setItem(KEY, old)
+    if (old) localStorage.removeItem(oldKey)
+  }
 } catch {
   // Storage blocked: nothing to carry over.
 }
@@ -809,6 +813,19 @@ export const useStore = create<State>()(
           return p && !s.places.some((x) => x.toLowerCase() === p.toLowerCase()) ? { places: [...s.places, p] } : {}
         }),
       removePlace: (name) => set((s) => ({ places: s.places.filter((x) => x.toLowerCase() !== name.trim().toLowerCase()) })),
+      renamePlace: (from, to) => {
+        const name = to.trim().slice(0, MAX_PLACE_NAME)
+        const old = from.trim().toLowerCase()
+        if (!name || !old || name === from) return 0
+        const { places, expenses } = get()
+        const used = expenses.filter((e) => e.place.toLowerCase() === old).length
+        // Renamed to a place that's already saved: they become one (uniq keeps the first).
+        set({
+          places: uniq(places.map((p) => (p.toLowerCase() === old ? name : p))),
+          expenses: used ? expenses.map((e) => (e.place.toLowerCase() === old ? { ...e, place: name } : e)) : expenses,
+        })
+        return used
+      },
 
       importData: (data) => {
         try {
@@ -828,7 +845,7 @@ export const useStore = create<State>()(
             places?: unknown
           }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
-            return fail('That file is not a Obssezion backup.')
+            return fail('That file is not an Obseszion backup.')
           }
           const kinds = parseKinds(d.kinds) ?? DEFAULT_KINDS
           const months: Record<string, MonthData> = {}
@@ -895,7 +912,7 @@ export const useStore = create<State>()(
       resetAll: () => set({ expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
-      name: 'obssezion-goal-planner-v1',
+      name: 'obseszion-goal-planner-v1',
       version: 5,
       partialize: (s) => ({
         months: s.months,

@@ -15,12 +15,12 @@ export function Header() {
   function exportData() {
     const { months, kinds, currency, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places } = useStore.getState()
     const blob = new Blob(
-      [JSON.stringify({ app: 'obssezion', version: 4, exportedAt: new Date().toISOString(), currency, months, kinds, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places }, null, 2)],
+      [JSON.stringify({ app: 'obseszion', version: 4, exportedAt: new Date().toISOString(), currency, months, kinds, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places }, null, 2)],
       { type: 'application/json' },
     )
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `obssezion-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `obseszion-backup-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(a.href)
     toast.success('Backup downloaded.')
@@ -81,7 +81,7 @@ export function Header() {
             <Target className="h-5 w-5 text-white sm:h-6 sm:w-6" strokeWidth={2.5} />
           </div>
           <div className="min-w-0">
-            <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">Obssezion</h1>
+            <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">Obseszion</h1>
             <p className="truncate text-xs text-zinc-400">
               <span className="sm:hidden">{symbol} planner · 2026 – 2040</span>
               <span className="hidden sm:inline">Goals, budgets &amp; net worth in {symbol} · 2026 – 2040</span>

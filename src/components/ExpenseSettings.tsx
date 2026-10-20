@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { AlertTriangle, ArrowDown, ArrowUp, Check, ChevronDown, MapPin, Plus, RotateCcw, Star, Tags, Trash2, X } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, Check, ChevronDown, MapPin, Pencil, Plus, RotateCcw, Star, Tags, Trash2, X } from 'lucide-react'
 import { useStore } from '../store'
 import { useExpenseCats, useHistory } from '../expenseHooks'
 import { DEFAULT_EXPENSE_CATS, EXPENSE_ICONS, MAX_CAT_NAME, MAX_ITEM_NAME, MAX_PLACE_NAME, catColor, catIcon } from '../lib/expenses'
@@ -382,10 +382,12 @@ function SmallBtn({ onClick, disabled, danger, children }: { onClick: () => void
 function Places() {
   const saved = useStore((s) => s.places)
   const { places: past } = useHistory()
-  const { addPlace, removePlace } = useStore.getState()
+  const addPlace = useStore((s) => s.addPlace)
   const [draft, setDraft] = useState('')
+  const [showAll, setShowAll] = useState(false)
   const countOf = (p: string) => past.find((x) => x.name.toLowerCase() === p.toLowerCase())?.count ?? 0
-  const ideas = past.filter((p) => !saved.some((s) => s.toLowerCase() === p.name.toLowerCase())).slice(0, 10)
+  const others = past.filter((p) => !saved.some((s) => s.toLowerCase() === p.name.toLowerCase()))
+  const all = [...saved, ...others.map((p) => p.name)]
 
   return (
     <div className="space-y-5">
@@ -415,6 +417,7 @@ function Places() {
       <div>
         <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-zinc-400">
           <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300" /> Your places
+          <span className="font-normal text-zinc-600">· tap a name to rename it</span>
         </p>
         {saved.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-white/10 p-4 text-center text-sm text-zinc-500">
@@ -422,48 +425,133 @@ function Places() {
           </p>
         ) : (
           <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-2xl border border-white/[0.08]">
-            {saved.map((p) => {
-              const n = countOf(p)
-              return (
-                <li key={p} className="flex items-center gap-3 bg-white/[0.02] px-3 py-2.5">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-300/10 text-amber-200">
-                    <MapPin className="h-4 w-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-zinc-100">{p}</span>
-                    <span className="block text-[11px] text-zinc-500">{n ? `Used ${n} time${n > 1 ? 's' : ''}` : 'Not used yet'}</span>
-                  </span>
-                  <button
-                    onClick={() => removePlace(p)}
-                    aria-label={`Remove ${p}`}
-                    className="grid h-9 w-9 place-items-center rounded-lg text-zinc-500 transition hover:bg-white/5 hover:text-red-300"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </li>
-              )
-            })}
+            {saved.map((p) => (
+              <PlaceRow key={p} name={p} saved count={countOf(p)} all={all} />
+            ))}
           </ul>
         )}
       </div>
 
-      {ideas.length > 0 && (
+      {others.length > 0 && (
         <div>
-          <p className="mb-2 text-xs text-zinc-500">Places from your expenses, tap to save:</p>
-          <div className="flex flex-wrap gap-1.5">
-            {ideas.map((p) => (
-              <button
-                key={p.name}
-                onClick={() => addPlace(p.name)}
-                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-dashed border-white/15 px-3 text-xs font-medium text-zinc-400 transition hover:border-amber-300/40 hover:text-amber-50"
-              >
-                <Plus className="h-3 w-3" /> {p.name}
-                <span className="tabular-nums text-zinc-600">×{p.count}</span>
-              </button>
+          <p className="mb-2 text-xs font-medium text-zinc-400">
+            Used in your expenses <span className="font-normal text-zinc-600">· star one to save it, or fix its name</span>
+          </p>
+          <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-2xl border border-white/[0.08]">
+            {(showAll ? others : others.slice(0, 8)).map((p) => (
+              <PlaceRow key={p.name} name={p.name} saved={false} count={p.count} all={all} />
             ))}
-          </div>
+          </ul>
+          {others.length > 8 && (
+            <button onClick={() => setShowAll((v) => !v)} className="mt-2 w-full rounded-lg py-1.5 text-xs font-medium text-zinc-500 transition hover:text-zinc-200">
+              {showAll ? 'Show fewer' : `Show all ${others.length}`}
+            </button>
+          )}
         </div>
       )}
     </div>
+  )
+}
+
+/** One place: star to save / unsave, tap the name to rename it (also in the expenses that used it). */
+function PlaceRow({ name, saved, count, all }: { name: string; saved: boolean; count: number; all: string[] }) {
+  const { addPlace, removePlace, renamePlace } = useStore.getState()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(name)
+  const next = draft.trim()
+  // Renamed to another place already listed: they'll become one.
+  const mergeWith = next && next.toLowerCase() !== name.toLowerCase() ? all.find((p) => p.toLowerCase() === next.toLowerCase()) : undefined
+
+  function start() {
+    setDraft(name)
+    setEditing(true)
+  }
+  function commit() {
+    setEditing(false)
+    if (!next || next === name) return setDraft(name)
+    const changed = renamePlace(name, next)
+    toast.success(`${mergeWith ? `Merged into “${mergeWith}”` : `Renamed to “${next}”`}${changed ? ` · ${changed} expense${changed > 1 ? 's' : ''} updated` : ''}.`)
+  }
+  function cancel() {
+    setEditing(false)
+    setDraft(name)
+  }
+
+  return (
+    <li className={`flex items-center gap-2 px-2 py-2 transition ${editing ? 'bg-white/[0.05]' : 'bg-white/[0.02]'}`}>
+      <button
+        onClick={() => (saved ? removePlace(name) : addPlace(name))}
+        aria-pressed={saved}
+        aria-label={saved ? `Unsave ${name}` : `Save ${name} to your places`}
+        title={saved ? 'Saved · tap to unsave' : 'Save to your places'}
+        className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg transition active:scale-90 ${saved ? 'bg-amber-300/10 hover:bg-amber-300/20' : 'hover:bg-white/5'}`}
+      >
+        <Star className={`h-4 w-4 transition ${saved ? 'fill-amber-300 text-amber-300' : 'text-zinc-500'}`} />
+      </button>
+
+      {editing ? (
+        <div className="min-w-0 flex-1">
+          <input
+            value={draft}
+            maxLength={MAX_PLACE_NAME}
+            autoFocus
+            onFocus={(e) => e.currentTarget.select()}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+              if (e.key === 'Escape') {
+                // Only leave the box, not the whole settings window.
+                e.stopPropagation()
+                e.nativeEvent.stopImmediatePropagation()
+                cancel()
+              }
+            }}
+            aria-label={`Rename ${name}`}
+            className="h-9 w-full rounded-lg border border-indigo-400/60 bg-black/40 px-2.5 text-base text-zinc-100 outline-none ring-2 ring-indigo-500/20 sm:text-sm"
+          />
+          <p className={`mt-1 px-0.5 text-[11px] ${!next || mergeWith ? 'text-amber-200' : 'text-zinc-500'}`}>
+            {!next
+              ? 'A place needs a name'
+              : mergeWith
+                ? `Same as “${mergeWith}” · they'll become one`
+                : count
+                  ? `Also renames it in ${count} expense${count > 1 ? 's' : ''}`
+                  : 'Enter to save · Esc to cancel'}
+          </p>
+        </div>
+      ) : (
+        <button onClick={start} title="Tap to rename" className="group min-w-0 flex-1 rounded-lg px-1 py-0.5 text-left">
+          <span className="flex items-center gap-1.5">
+            <span className="truncate text-sm font-medium text-zinc-100">{name}</span>
+            <Pencil className="h-3 w-3 shrink-0 text-zinc-600 transition group-hover:text-zinc-300" />
+          </span>
+          <span className="block text-[11px] text-zinc-500">{count ? `Used ${count} time${count > 1 ? 's' : ''}` : 'Not used yet'}</span>
+        </button>
+      )}
+
+      {editing ? (
+        <button
+          // Keeps the box from saving on blur before Cancel runs.
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={cancel}
+          aria-label="Cancel rename"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-zinc-500 transition hover:bg-white/5 hover:text-white"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      ) : (
+        saved && (
+          <button
+            onClick={() => removePlace(name)}
+            aria-label={`Remove ${name} from your places`}
+            title="Remove from your places"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-zinc-500 transition hover:bg-white/5 hover:text-red-300"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )
+      )}
+    </li>
   )
 }
