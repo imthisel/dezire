@@ -1,9 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { ArrowUpDown, CalendarDays, CalendarRange, ChevronDown, Gem, Infinity as All, Pencil, Plus, Settings2, Star } from 'lucide-react'
-import { useFmt, useItemIndex, useKindOf, useKinds, useStore, useAlt, type AssetCat, type AssetPeriod } from '../store'
+import { ArrowUpDown, Cake, CalendarCheck, CalendarDays, CalendarRange, Car, ChevronDown, ChevronLeft, ChevronRight, Copy, Gem, Home, Infinity as All, Pencil, Plus, Settings2, Star, Trash2, X } from 'lucide-react'
+import { setupMonths, useFmt, useItemIndex, useKindOf, useKinds, useParking, useStore, useAlt, type AssetCat, type AssetPeriod, type Parking } from '../store'
+import { useBirthday } from './Birthday'
 import { TREND, kindColor, kindIcon } from '../lib/meta'
 import { valueAfter } from '../lib/calc'
-import { END_YEAR, MONTHS_SHORT, START_YEAR, TOTAL_MONTHS, YEARS, currentYear, fromIndex, indexOf, indexOfKey } from '../lib/time'
+import { END_YEAR, MONTHS, MONTHS_SHORT, START_YEAR, TOTAL_MONTHS, YEARS, currentIndex, currentYear, fromIndex, indexOf, indexOfKey, keyOf, labelOfKey } from '../lib/time'
 import type { Item, Trend } from '../lib/types'
 import { card } from './Dashboard'
 import { goTo, goToMonth } from '../nav'
@@ -29,12 +30,16 @@ const SORTS: { id: Sort; label: string }[] = [
 /** First and last month index covered by the period filter. */
 function periodRange(p: AssetPeriod): [number, number] {
   if (p.mode === 'all') return [0, TOTAL_MONTHS - 1]
+  // One month: everything owned by then.
+  if (p.mode === 'month') return [0, indexOf(p.from, p.month)]
   if (p.mode === 'year') return [indexOf(p.from, 0), indexOf(p.from, 11)]
   return [indexOf(p.from, 0), indexOf(p.to, 11)]
 }
 
 const periodLabel = (p: AssetPeriod) =>
-  p.mode === 'all' ? `${START_YEAR} – ${END_YEAR}` : p.mode === 'year' || p.from === p.to ? String(p.from) : `${p.from} – ${p.to}`
+  p.mode === 'month'
+    ? `${MONTHS[p.month]} ${p.from} setup`
+    : p.mode === 'all' ? `${START_YEAR} – ${END_YEAR}` : p.mode === 'year' || p.from === p.to ? String(p.from) : `${p.from} – ${p.to}`
 
 /** Everything you plan to own, by kind, for the years you pick. */
 export function Assets() {
@@ -43,7 +48,11 @@ export function Assets() {
   const kinds = useKinds()
   const kind = kinds.find((k) => k.id === picked)
   const cat: AssetCat = kind ? kind.id : 'all'
-  const period = useStore((s) => s.assetPeriod)
+  const savedPeriod = useStore((s) => s.assetPeriod)
+  const birthMonth = useBirthday()?.month ?? null
+  const setups = setupMonths(birthMonth)
+  const period: AssetPeriod =
+    savedPeriod.mode === 'month' && !setups.includes(savedPeriod.month) ? { ...savedPeriod, month: setups[0] } : savedPeriod
   const { setAssetCat } = useStore.getState()
   const f = useFmt()
   const u = useAlt()
@@ -51,20 +60,24 @@ export function Assets() {
   const [sort, setSort] = useState<Sort>('date')
 
   const [first, last] = periodRange(period)
-  // Values are shown as of the end of the period (December of its last year).
+  // Values are shown as of the end of the period (December of its last year, or the picked month).
   const asOf = last
-  const asOfLabel = `Dec ${fromIndex(asOf).year}`
+  const asOfLabel = `${period.mode === 'month' ? MONTHS_SHORT[period.month] : 'Dec'} ${fromIndex(asOf).year}`
+  // Setups: vehicles are arranged across properties, a separate version for each setup.
+  const parking = useParking(period.mode === 'month' ? keyOf(asOf) : null, setups)
 
   /** Every item in the chosen years, any kind. */
+  // Setups: vehicles sold in an earlier setup are listed on their own, not as cards.
+  const soldIds = useMemo(() => (parking ? new Set(parking.sold.map((x) => x.placed.item.id)) : null), [parking])
   const inPeriod = useMemo(() => {
     const out: Asset[] = []
     for (const key of Object.keys(months).sort()) {
       const index = indexOfKey(key)
       if (!(index >= first && index <= last)) continue
-      for (const item of months[key].items) out.push({ item, key, index, year: Number(key.slice(0, 4)) })
+      for (const item of months[key].items) if (!soldIds?.has(item.id)) out.push({ item, key, index, year: Number(key.slice(0, 4)) })
     }
     return out
-  }, [months, first, last])
+  }, [months, first, last, soldIds])
 
   const ofKind = cat === 'all' ? inPeriod : inPeriod.filter((a) => a.item.category === cat)
   const trendOn = trend !== 'all' && ofKind.some((a) => a.item.trend === trend) ? trend : 'all'
@@ -87,8 +100,6 @@ export function Assets() {
   const title = kind ? kind.label : 'All assets'
   const HeadIcon = kind ? kindIcon(kind) : Gem
   const headGrad = kind ? kindColor(kind).grad : 'from-indigo-400 via-violet-400 to-emerald-400'
-  const byYear = sort === 'date'
-  const years = byYear ? [...new Set(shown.map((a) => a.year))] : []
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -140,7 +151,8 @@ export function Assets() {
           </button>
         </div>
 
-        <PeriodPicker period={period} />
+        <PeriodPicker period={period} setups={setups} birthSet={birthMonth !== null} />
+        {parking && (cat === 'all' || cat === 'property' || cat === 'vehicle') && <LayoutBar parking={parking} setups={setups} birthMonth={birthMonth} />}
 
         {/* Totals */}
         <div className="relative mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
@@ -186,12 +198,14 @@ export function Assets() {
               <HeadIcon className="h-6 w-6" />
             </span>
             <h3 className="text-base font-semibold text-white">
-              No {kind ? `“${kind.label}” items` : 'assets'} {period.mode === 'all' ? 'yet' : `in ${periodLabel(period)}`}
+              No {kind ? `“${kind.label}” items` : 'assets'} {period.mode === 'all' ? 'yet' : period.mode === 'month' ? periodLabel(period) : `in ${periodLabel(period)}`}
             </h3>
             <p className="mt-1 text-sm text-zinc-400">
               {period.mode === 'all'
                 ? 'Add items to any month in the Planner and pick this kind. They show up here.'
-                : 'Try a different year, or show all years.'}
+                : period.mode === 'month'
+                  ? 'Try a later month, or show all years.'
+                  : 'Try a different year, or show all years.'}
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               {period.mode !== 'all' && (
@@ -247,10 +261,19 @@ export function Assets() {
             </label>
           </div>
 
+          {parking && (cat === 'all' || cat === 'property' || cat === 'vehicle') && <SetupVehicles parking={parking} />}
+
           <ZoomControl />
 
-          {byYear ? (
-            years.map((y) => {
+          {parking ? (
+            // Setups (birthday month / December): all side by side, what each year adds up to at the bottom.
+            <>
+              <Grid list={shown} asOf={asOf} asOfLabel={asOfLabel} parking={parking} />
+              <YearTotals list={shown} asOf={asOf} asOfLabel={asOfLabel} />
+            </>
+          ) : sort === 'date' ? (
+            // Everywhere else, sorted by date: a section per year.
+            [...new Set(shown.map((a) => a.year))].map((y) => {
               const list = shown.filter((a) => a.year === y)
               const sum = list.reduce((s, a) => s + a.item.price, 0)
               return (
@@ -261,12 +284,12 @@ export function Assets() {
                       {list.length} · {f(sum)}
                     </span>
                   </div>
-                  <Grid list={list} asOf={asOf} asOfLabel={asOfLabel} />
+                  <Grid list={list} asOf={asOf} asOfLabel={asOfLabel} parking={null} />
                 </section>
               )
             })
           ) : (
-            <Grid list={shown} asOf={asOf} asOfLabel={asOfLabel} />
+            <Grid list={shown} asOf={asOf} asOfLabel={asOfLabel} parking={null} />
           )}
         </>
       )}
@@ -274,12 +297,67 @@ export function Assets() {
   )
 }
 
-function Grid({ list, asOf, asOfLabel }: { list: Asset[]; asOf: number; asOfLabel: string }) {
+/** What the items shown add up to, year by year (the year each was bought), with the total underneath. */
+function YearTotals({ list, asOf, asOfLabel }: { list: Asset[]; asOf: number; asOfLabel: string }) {
+  const f = useFmt()
+  const years = [...new Set(list.map((a) => a.year))].sort((a, b) => a - b)
+  if (!years.length) return null
+  const rows = years.map((y) => {
+    const inYear = list.filter((a) => a.year === y)
+    return {
+      y,
+      count: inYear.length,
+      paid: inYear.reduce((s, a) => s + a.item.price, 0),
+      worth: inYear.reduce((s, a) => s + valueAfter(a.item, asOf - a.index), 0),
+    }
+  })
+  const total = { count: list.length, paid: rows.reduce((s, r) => s + r.paid, 0), worth: rows.reduce((s, r) => s + r.worth, 0) }
+  const max = Math.max(...rows.map((r) => r.paid), 1)
+  const cols = 'grid grid-cols-[3.5rem_minmax(0,1fr)_auto_auto] items-center gap-x-3 sm:grid-cols-[4rem_minmax(0,1fr)_7rem_7rem]'
+
+  return (
+    <section className={`${card} p-4 sm:p-5`}>
+      <h3 className="mb-3 font-semibold text-white">By year</h3>
+      <div className={`${cols} px-1 pb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500`}>
+        <span>Year</span>
+        <span>Items</span>
+        <span className="text-right">Paid</span>
+        <span className="text-right">Worth by {asOfLabel}</span>
+      </div>
+      <ul className="divide-y divide-white/[0.05]">
+        {rows.map((r) => {
+          const change = r.worth - r.paid
+          return (
+            <li key={r.y} className={`${cols} px-1 py-2 text-sm`}>
+              <span className="font-semibold tabular-nums text-zinc-200">{r.y}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="w-6 shrink-0 tabular-nums text-zinc-400">{r.count}</span>
+                <span className="hidden h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.05] sm:block">
+                  <span className="block h-full rounded-full bg-indigo-400/70" style={{ width: `${(r.paid / max) * 100}%` }} />
+                </span>
+              </span>
+              <span className="text-right font-medium tabular-nums text-zinc-100">{f(r.paid, true)}</span>
+              <span className={`text-right tabular-nums ${change > 0.005 ? 'text-emerald-300' : change < -0.005 ? 'text-red-300' : 'text-zinc-300'}`}>{f(r.worth, true)}</span>
+            </li>
+          )
+        })}
+      </ul>
+      <div className={`${cols} mt-1 rounded-xl bg-white/[0.04] px-1 py-2.5 text-sm`}>
+        <span className="font-semibold text-white">Total</span>
+        <span className="tabular-nums text-zinc-300">{total.count}</span>
+        <span className="text-right font-semibold tabular-nums text-white">{f(total.paid, true)}</span>
+        <span className="text-right font-semibold tabular-nums text-indigo-200">{f(total.worth, true)}</span>
+      </div>
+    </section>
+  )
+}
+
+function Grid({ list, asOf, asOfLabel, parking }: { list: Asset[]; asOf: number; asOfLabel: string; parking: Parking | null }) {
   const cols = useCols()
   return (
     <div data-zoom-grid className={`grid md:grid-cols-2 2xl:grid-cols-3 ${PHONE_GRID[cols]}`}>
       {list.map((a) => {
-        if (cols === 1) return <AssetCard key={a.item.id} asset={a} asOf={asOf} asOfLabel={asOfLabel} />
+        if (cols === 1) return <AssetCard key={a.item.id} asset={a} asOf={asOf} asOfLabel={asOfLabel} parking={parking} />
         const { month, year } = fromIndex(a.index)
         return <ItemTile key={a.item.id} item={a.item} domId={`asset-${a.item.id}`} when={`${MONTHS_SHORT[month]} ${year}`} cols={cols} />
       })}
@@ -288,24 +366,36 @@ function Grid({ list, asOf, asOfLabel }: { list: Asset[]; asOf: number; asOfLabe
 }
 
 /** All years / one year / a range of years. */
-function PeriodPicker({ period }: { period: AssetPeriod }) {
+function PeriodPicker({ period, setups, birthSet }: { period: AssetPeriod; setups: number[]; birthSet: boolean }) {
   const set = useStore.getState().setAssetPeriod
   const modes: { id: AssetPeriod['mode']; label: string; icon: typeof All }[] = [
     { id: 'all', label: 'All years', icon: All },
     { id: 'year', label: 'One year', icon: CalendarDays },
     { id: 'range', label: 'From – to', icon: CalendarRange },
+    { id: 'month', label: 'Setups', icon: CalendarCheck },
   ]
   const thisYear = currentYear()
+  // Every setup from 2026 to 2040, in order; the arrows step through them.
+  const all = YEARS.flatMap((y) => setups.map((m) => indexOf(y, m)))
+  const at = indexOf(period.from, period.month)
+  const pos = all.indexOf(at)
+  const goSetup = (i: number) => {
+    const { year, month } = fromIndex(i)
+    set({ from: year, to: year, month })
+  }
+  // Opening Setups starts on the next one coming up (or the last one).
+  const upcoming = all.find((i) => i >= currentIndex()) ?? all[all.length - 1]
 
   return (
     <div className="relative mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-      <div className="grid grid-cols-3 rounded-xl border border-white/10 bg-white/[0.03] p-1 text-sm sm:inline-grid">
+      <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-white/[0.03] p-1 text-sm sm:inline-grid sm:grid-cols-4">
         {modes.map((m) => {
           const on = period.mode === m.id
           return (
             <button
               key={m.id}
-              onClick={() => set({ mode: m.id })}
+              // Opening "One month" starts on this month, the one you most likely want to arrange.
+              onClick={() => (m.id === 'month' && period.mode !== 'month' ? (set({ mode: 'month' }), goSetup(upcoming)) : set({ mode: m.id }))}
               aria-pressed={on}
               className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 font-medium transition sm:px-3 ${
                 on ? 'bg-white/10 text-white shadow' : 'text-zinc-400 hover:text-zinc-200'
@@ -327,6 +417,46 @@ function PeriodPicker({ period }: { period: AssetPeriod }) {
           )}
         </div>
       )}
+      {period.mode === 'month' && (
+        <div className="animate-fade flex flex-wrap items-center gap-1.5">
+          <button
+            onClick={() => goSetup(all[pos - 1])}
+            disabled={pos <= 0}
+            aria-label="Previous setup"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 text-zinc-300 transition hover:bg-white/5 disabled:opacity-30"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <YearSelect value={period.from} onChange={(y) => set({ from: y, to: y })} label="Year" />
+          <div className="flex rounded-xl border border-white/10 bg-black/30 p-0.5">
+            {setups.map((m) => {
+              const on = period.month === m
+              const bday = m !== 11 || setups.length === 1
+              return (
+                <button
+                  key={m}
+                  onClick={() => set({ month: m })}
+                  aria-pressed={on}
+                  title={bday ? (birthSet ? 'Your birthday month' : 'June until you set your birthday (account menu)') : 'End of the year'}
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium transition ${on ? 'bg-teal-500/20 text-white ring-1 ring-teal-400/40' : 'text-zinc-400 hover:text-zinc-200'}`}
+                >
+                  {bday && <Cake className={`h-3.5 w-3.5 ${on ? 'text-pink-300' : ''}`} />}
+                  {MONTHS[m]}
+                </button>
+              )
+            })}
+          </div>
+          <button
+            onClick={() => goSetup(all[pos + 1])}
+            disabled={pos < 0 || pos >= all.length - 1}
+            aria-label="Next setup"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 text-zinc-300 transition hover:bg-white/5 disabled:opacity-30"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          {!birthSet && <span className="w-full text-[11px] text-zinc-500 sm:w-auto">Using June · set your birthday in the account menu to use your birth month</span>}
+        </div>
+      )}
       {period.mode === 'range' && (
         <div className="animate-fade flex items-center gap-2">
           <YearSelect value={period.from} onChange={(y) => set({ from: y })} label="From" />
@@ -335,6 +465,234 @@ function PeriodPicker({ period }: { period: AssetPeriod }) {
         </div>
       )}
     </div>
+  )
+}
+
+/** A setup's summary, with ways to fill it: copy the setup before, or start from where vehicles are usually kept. */
+function LayoutBar({ parking, setups, birthMonth }: { parking: Parking; setups: number[]; birthMonth: number | null }) {
+  const layouts = useStore((s) => s.layouts)
+  const label = labelOfKey(parking.monthKey)
+  const { vehicles, properties, at } = parking
+  if (!vehicles.length && !properties.length) return null
+  const month = Number(parking.monthKey.slice(5)) - 1
+  const isBday = month !== 11 || setups.length === 1
+
+  // The closest earlier setup that has anything in it.
+  const earlier = Object.keys(layouts)
+    .filter((k) => k < parking.monthKey && setups.includes(Number(k.slice(5)) - 1) && Object.keys(layouts[k]).length)
+    .sort()
+    .pop()
+  // Where vehicles are usually kept (chosen when adding them), for the ones owned by now.
+  const usual: Record<string, string> = {}
+  for (const v of vehicles) if (v.item.propertyId && properties.some((p) => p.item.id === v.item.propertyId)) usual[v.item.id] = v.item.propertyId
+  const { fillLayout, resetLayout } = useStore.getState()
+
+  function fill(from: Record<string, string>, what: string) {
+    if (at.size && !confirm(`Replace the ${label} setup with ${what}?`)) return
+    fillLayout(parking.monthKey, from)
+    toast.success(`${label} setup now matches ${what}.`)
+  }
+
+  return (
+    <div className="animate-fade relative mt-3 rounded-xl border border-teal-300/15 bg-teal-400/[0.04] px-3 py-2.5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg max-sm:hidden ${isBday ? 'bg-pink-400/15 text-pink-200' : 'bg-teal-400/15 text-teal-200'}`}>
+          {isBday ? <Cake className="h-4 w-4" /> : <Car className="h-4 w-4" />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-zinc-100">
+            {label} setup{isBday && <span className="font-normal text-zinc-500"> · {birthMonth === null ? 'June (birthday not set)' : 'your birthday month'}</span>}
+          </p>
+          <p className="text-xs text-zinc-500">
+            {at.size} at a property · {parking.unplaced.length} not (counts as sold) · {parking.sold.length} sold before · {properties.length} propert{properties.length === 1 ? 'y' : 'ies'}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {earlier && (
+            <button
+              onClick={() => fill(layouts[earlier], `the ${labelOfKey(earlier)} setup`)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 px-2.5 text-xs font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
+            >
+              <Copy className="h-3.5 w-3.5" /> Copy {labelOfKey(earlier)}
+            </button>
+          )}
+          {Object.keys(usual).length > 0 && (
+            <button
+              onClick={() => fill(usual, 'where vehicles are usually kept')}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 px-2.5 text-xs font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
+            >
+              <Home className="h-3.5 w-3.5" /> Usual spots
+            </button>
+          )}
+          {at.size > 0 && (
+            <button
+              onClick={() => {
+                if (!confirm(`Clear the ${label} setup? Its vehicles will show as not at a property.`)) return
+                resetLayout(parking.monthKey)
+                toast.info(`Cleared the ${label} setup.`)
+              }}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-zinc-500 transition hover:bg-red-500/10 hover:text-red-300"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Clear
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Every vehicle in a setup as small boxes, in three groups: at a property, not at one (counts as sold from this setup on),
+ * and sold in an earlier setup (kept visible so nothing quietly disappears; put one at a property to bring it back).
+ */
+function SetupVehicles({ parking }: { parking: Parking }) {
+  const { at, unplaced, sold, properties, vehicles, monthKey } = parking
+  const index = useItemIndex()
+  const [showSold, setShowSold] = useState(true)
+  if (!vehicles.length) return null
+  const label = labelOfKey(monthKey)
+  const placed = vehicles.filter((v) => at.has(v.item.id))
+
+  function put(v: Item, pid: string) {
+    const home = properties.find((p) => p.item.id === pid)
+    if (!home) return
+    useStore.getState().setKeptAt(monthKey, v.id, pid)
+    toast.info(`“${v.name}” is at ${home.item.name} in the ${label} setup.`)
+  }
+  function takeOff(v: Item) {
+    useStore.getState().setKeptAt(monthKey, v.id, null)
+    toast.info(`“${v.name}” isn't at a property in the ${label} setup · counts as sold from then.`)
+  }
+
+  return (
+    <section className={`${card} animate-fade p-3 sm:p-4`}>
+      <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-0.5">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
+          <Car className="h-4 w-4 text-teal-200" /> Vehicles · {label} setup
+        </h3>
+        <p className="text-[11px] text-zinc-500">Not at a property = sold by then</p>
+      </div>
+
+      <div className="grid gap-2.5 lg:grid-cols-2">
+        <Group tone="teal" title="At a property" count={placed.length} empty="None yet · drag one onto a property, or tap its house button">
+          {placed.map((v) => (
+            <Box key={v.item.id} v={v} sub={`at ${index.byId.get(at.get(v.item.id)!)?.item.name ?? ''}`} subCls="text-teal-200/80">
+              <IconBtn label={`Take ${v.item.name} off its property (sold)`} onClick={() => takeOff(v.item)}>
+                <X className="h-3.5 w-3.5" />
+              </IconBtn>
+            </Box>
+          ))}
+        </Group>
+
+        <Group tone="rose" title="Not at a property" note="sold" count={unplaced.length} empty="Everything you still have is at a property">
+          {unplaced.map((v) => (
+            <Box key={v.item.id} v={v} sub={`Bought ${shortLabel(v.key)}`} tone="rose">
+              <PutAt v={v.item} properties={properties} onPut={put} />
+            </Box>
+          ))}
+        </Group>
+      </div>
+
+      {sold.length > 0 && (
+        <div className="mt-2.5">
+          <button
+            onClick={() => setShowSold((x) => !x)}
+            aria-expanded={showSold}
+            className="flex w-full items-center gap-1.5 rounded-lg px-0.5 py-1 text-left text-xs text-zinc-400 transition hover:text-zinc-200"
+          >
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showSold ? '' : '-rotate-90'}`} />
+            <span className="font-semibold uppercase tracking-wider">Sold before</span>
+            <span className="rounded-full bg-white/[0.06] px-1.5 py-px text-[11px] tabular-nums">{sold.length}</span>
+            <span className="truncate text-zinc-600">· left off an earlier setup</span>
+          </button>
+          {showSold && (
+            <ul className="animate-fade mt-1 grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-1.5">
+              {sold.map(({ placed: v, since }) => (
+                <Box key={v.item.id} v={v} sub={`Sold by ${shortLabel(since)}`} dim>
+                  <PutAt v={v.item} properties={properties} onPut={put} back />
+                </Box>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** "Jun 2027" */
+const shortLabel = (key: string) => `${MONTHS_SHORT[Number(key.slice(5)) - 1]} ${key.slice(0, 4)}`
+
+function Group({ tone, title, note, count, empty, children }: { tone: 'teal' | 'rose'; title: string; note?: string; count: number; empty: string; children: ReactNode }) {
+  return (
+    <div className={`min-w-0 rounded-xl border p-2 ${tone === 'teal' ? 'border-teal-300/15 bg-teal-400/[0.03]' : 'border-rose-300/15 bg-rose-400/[0.03]'}`}>
+      <p className="mb-1.5 flex items-center gap-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-300">
+        <span className={`h-1.5 w-1.5 rounded-full ${tone === 'teal' ? 'bg-teal-300' : 'bg-rose-300'}`} />
+        {title}
+        {note && <span className="font-normal normal-case tracking-normal text-zinc-500">({note})</span>}
+        <span className={`ml-auto rounded-full px-1.5 py-px text-[11px] tabular-nums ${tone === 'teal' ? 'bg-teal-400/15 text-teal-100' : 'bg-rose-400/15 text-rose-100'}`}>{count}</span>
+      </p>
+      {count === 0 ? (
+        <p className="px-0.5 pb-0.5 text-[11px] text-zinc-500">{empty}</p>
+      ) : (
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-1.5">{children}</ul>
+      )}
+    </div>
+  )
+}
+
+/** One vehicle as a small box: icon, name, one short line, and one action. Drag it onto a property card. */
+function Box({ v, sub, subCls = 'text-zinc-500', tone, dim, children }: { v: { item: Item; key: string }; sub: string; subCls?: string; tone?: 'rose'; dim?: boolean; children?: ReactNode }) {
+  const f = useFmt()
+  const t = TREND[v.item.trend]
+  return (
+    <li
+      {...dragVehicle(v.item.id, v.item.name)}
+      title={`${v.item.name} · bought ${labelOfKey(v.key)} · ${f(v.item.price)}`}
+      className={`flex min-w-0 cursor-grab items-center gap-1.5 rounded-lg border bg-black/25 py-1 pl-1 pr-1 active:cursor-grabbing ${
+        tone === 'rose' ? 'border-rose-300/15' : 'border-white/[0.07]'
+      } ${dim ? 'opacity-60 hover:opacity-100' : ''}`}
+    >
+      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md ${dim ? 'bg-white/5 text-zinc-500' : `${t.iconBg} ${t.text}`}`}>
+        <Car className="h-3.5 w-3.5" />
+      </span>
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className={`block truncate text-[13px] font-medium ${dim ? 'text-zinc-400 line-through decoration-zinc-600' : 'text-zinc-100'}`}>{v.item.name}</span>
+        <span className={`block truncate text-[10px] ${subCls}`}>{sub}</span>
+      </span>
+      {children}
+    </li>
+  )
+}
+
+function IconBtn({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <button onClick={onClick} title={label} aria-label={label} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-white">
+      {children}
+    </button>
+  )
+}
+
+/** A small house button that opens the list of properties (a real menu underneath, so it works well on phones). */
+function PutAt({ v, properties, onPut, back }: { v: Item; properties: Parking['properties']; onPut: (v: Item, pid: string) => void; back?: boolean }) {
+  if (!properties.length) return null
+  const label = back ? `Bring ${v.name} back: put it at…` : `Put ${v.name} at…`
+  return (
+    <label title={label} className="relative grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-md border border-teal-300/25 bg-teal-400/10 text-teal-100 transition hover:bg-teal-400/20">
+      <Home className="h-3.5 w-3.5" />
+      <span className="sr-only">{label}</span>
+      <select value="" onChange={(e) => onPut(v, e.target.value)} className="absolute inset-0 cursor-pointer opacity-0">
+        <option value="" disabled>
+          {back ? 'Bring back to…' : 'Put at…'}
+        </option>
+        {properties.map((p) => (
+          <option key={p.item.id} value={p.item.id}>
+            {p.item.name}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
 
@@ -354,7 +712,7 @@ function YearSelect({ value, onChange, label }: { value: number; onChange: (y: n
   )
 }
 
-function AssetCard({ asset: { item, key, index }, asOf, asOfLabel }: { asset: Asset; asOf: number; asOfLabel: string }) {
+function AssetCard({ asset: { item, key, index }, asOf, asOfLabel, parking }: { asset: Asset; asOf: number; asOfLabel: string; parking: Parking | null }) {
   const f = useFmt()
   const u = useAlt()
   const t = TREND[item.trend]
@@ -369,7 +727,9 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel }: { asset: As
   // Property cards take a dragged vehicle (unless it's already kept here).
   const dragging = useVehicleDrag()
   const dragged = dragging ? items.byId.get(dragging) : undefined
-  const target = item.category === 'property' && !!dragged && dragged.item.propertyId !== item.id
+  // Where a vehicle is now: in the picked month's setup, or where it's normally kept.
+  const keptAt = (id: string) => (parking ? parking.at.get(id) : items.byId.get(id)?.item.propertyId)
+  const target = item.category === 'property' && !!dragged && keptAt(dragged.item.id) !== item.id
   const [over, setOver] = useState(false)
 
   function drop() {
@@ -377,9 +737,14 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel }: { asset: As
     setOver(false)
     vehicleDrag.set(null)
     const placed = v ? items.byId.get(v) : undefined
-    if (!placed || placed.item.category !== 'vehicle' || placed.item.propertyId === item.id) return
-    useStore.getState().keepVehicleAt(placed.item.id, item.id)
-    toast.info(`Keeping “${placed.item.name}” at ${item.name}.`)
+    if (!placed || placed.item.category !== 'vehicle' || keptAt(placed.item.id) === item.id) return
+    if (parking) {
+      useStore.getState().setKeptAt(parking.monthKey, placed.item.id, item.id)
+      toast.info(`“${placed.item.name}” is at ${item.name} in the ${labelOfKey(parking.monthKey)} setup.`)
+    } else {
+      useStore.getState().keepVehicleAt(placed.item.id, item.id)
+      toast.info(`Keeping “${placed.item.name}” at ${item.name}.`)
+    }
   }
 
   function star() {
@@ -436,6 +801,7 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel }: { asset: As
           <h4 className="truncate font-semibold text-white">{item.name}</h4>
           <p className="truncate text-xs text-zinc-400">
             {kind.label} · {MONTHS_SHORT[month]} {year}
+            {parking && key === parking.monthKey && <span className="ml-1.5 rounded-full bg-emerald-400/15 px-1.5 py-px text-[10px] font-semibold text-emerald-200">New</span>}
           </p>
         </div>
         <button
@@ -462,7 +828,7 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel }: { asset: As
         </span>
       </div>
 
-      <Kept item={item} drag />
+      <Kept item={item} drag parking={parking} />
 
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
         <p className="min-w-0 truncate text-xs text-zinc-400">

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, SourceKind, SourceStage, Trend } from './lib/types'
@@ -28,7 +29,10 @@ export type PhoneCols = 1 | 2 | 3
 export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses'
 /** Assets page: which kind of item, and which years */
 export type AssetCat = 'all' | Category
-export type AssetPeriod = { mode: 'all' | 'year' | 'range'; from: number; to: number }
+/** `month` (0–11) is used by the 'month' mode: one of the year's setups (see `setupMonths`). */
+export type AssetPeriod = { mode: 'all' | 'year' | 'range' | 'month'; from: number; to: number; month: number }
+/** Setups, by month ("2027-06"): vehicle id → the property it's kept at in that setup. Each setup stands on its own. */
+export type Layouts = Record<string, Record<string, string>>
 export type SourcePatch = Partial<Omit<IncomeSource, 'id' | 'createdAt' | 'steps'>>
 export type MonthField = 'goal' | 'budget' | 'earned' | 'netWorthGoal'
 /** Where to drop an item in a month's list: next to item `id`. Missing = at the end. */
@@ -292,6 +296,14 @@ interface State {
   setVehiclesAt: (propertyId: string, vehicleIds: string[]) => void
   /** Keeps one vehicle at property `propertyId` (null = not kept anywhere). */
   keepVehicleAt: (vehicleId: string, propertyId: string | null) => void
+  /** Vehicle setups: where each vehicle is kept, one separate version per setup month (see `setupMonths`) */
+  layouts: Layouts
+  /** Puts a vehicle at a property in one setup (null = take it off / not placed). */
+  setKeptAt: (monthKey: string, vehicleId: string, propertyId: string | null) => void
+  /** Empties a setup. */
+  resetLayout: (monthKey: string) => void
+  /** Makes setup `to` a copy of `placements` (vehicle id → property id). */
+  fillLayout: (monthKey: string, placements: Record<string, string>) => void
   /** Stars / unstars an item. Returns whether it is now a favorite. */
   toggleFavorite: (key: string, id: string) => boolean
   transferItem: (fromKey: string, id: string, toKey: string, mode: 'copy' | 'move', at?: DropAt) => Result
@@ -394,7 +406,7 @@ export const useStore = create<State>()(
 
       setView: (view) => set({ view }),
       assetCat: 'all',
-      assetPeriod: { mode: 'all', from: currentYear(), to: Math.min(END_YEAR, currentYear() + 4) },
+      assetPeriod: { mode: 'all', from: currentYear(), to: Math.min(END_YEAR, currentYear() + 4), month: new Date().getMonth() },
       setAssetCat: (assetCat) => set({ assetCat }),
       setAssetPeriod: (p) =>
         set((s) => {
@@ -402,7 +414,8 @@ export const useStore = create<State>()(
           const next = { ...s.assetPeriod, ...p }
           const from = clamp(Math.min(next.from, next.to))
           const to = clamp(Math.max(next.from, next.to))
-          return { assetPeriod: { mode: next.mode, from, to } }
+          const month = Math.min(11, Math.max(0, Math.round(Number(next.month ?? new Date().getMonth()) || 0)))
+          return { assetPeriod: { mode: next.mode, from, to, month } }
         }),
       setSidebar: (sidebar) => set({ sidebar }),
       setDrawer: (drawer) => set({ drawer }),
@@ -521,6 +534,20 @@ export const useStore = create<State>()(
             if (changed) months[k] = { ...m, items }
           }
           return { months }
+        }),
+
+      layouts: {},
+      setKeptAt: (monthKey, vehicleId, propertyId) =>
+        set((s) => {
+          const { [vehicleId]: _old, ...rest } = s.layouts[monthKey] ?? {}
+          return { layouts: { ...s.layouts, [monthKey]: propertyId ? { ...rest, [vehicleId]: propertyId } : rest } }
+        }),
+      fillLayout: (monthKey, placements) => set((s) => ({ layouts: { ...s.layouts, [monthKey]: { ...placements } } })),
+      resetLayout: (monthKey) =>
+        set((s) => {
+          if (!s.layouts[monthKey]) return {}
+          const { [monthKey]: _gone, ...rest } = s.layouts
+          return { layouts: rest }
         }),
 
       keepVehicleAt: (vehicleId, propertyId) =>
@@ -843,6 +870,7 @@ export const useStore = create<State>()(
             expenses?: unknown
             expenseCats?: unknown
             places?: unknown
+            layouts?: unknown
           }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
             return fail('That file is not an Obseszion backup.')
@@ -901,6 +929,7 @@ export const useStore = create<State>()(
             expenses: d.expenses === undefined ? cur.expenses : parseExpenses(d.expenses),
             expenseCats: d.expenseCats === undefined ? cur.expenseCats : (parseExpenseCats(d.expenseCats) ?? DEFAULT_EXPENSE_CATS),
             places: d.places === undefined ? cur.places : parsePlaces(d.places),
+            layouts: d.layouts === undefined ? cur.layouts : parseLayouts(d.layouts),
           }
           set({ ...spending, months, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, yearNotes, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
           return OK
@@ -909,7 +938,7 @@ export const useStore = create<State>()(
         }
       },
 
-      resetAll: () => set({ expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
+      resetAll: () => set({ layouts: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
       name: 'obseszion-goal-planner-v1',
@@ -926,6 +955,7 @@ export const useStore = create<State>()(
         expenses: s.expenses,
         expenseCats: s.expenseCats,
         places: s.places,
+        layouts: s.layouts,
         year: s.year,
         dashMode: s.dashMode,
         view: s.view,
@@ -957,6 +987,94 @@ export const useStore = create<State>()(
     },
   ),
 )
+
+/** Cleans up month-by-month vehicle arrangements from a backup file or the cloud. */
+function parseLayouts(raw: unknown): Layouts {
+  const out: Layouts = {}
+  if (!raw || typeof raw !== 'object') return out
+  for (const [k, m] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^\d{4}-\d{2}$/.test(k) || !m || typeof m !== 'object') continue
+    const one: Record<string, string> = {}
+    for (const [v, pid] of Object.entries(m as Record<string, unknown>)) if (typeof pid === 'string') one[v] = pid
+    if (Object.keys(one).length) out[k] = one
+  }
+  return out
+}
+
+/** Setups happen in the birthday month (June when it isn't set) and in December, every year. */
+export const DEFAULT_SETUP_MONTH = 5
+export const setupMonths = (birthMonth: number | null) => [...new Set([birthMonth ?? DEFAULT_SETUP_MONTH, 11])].sort((a, b) => a - b)
+
+/** One setup: where each vehicle owned by then is kept, which vehicles each property holds, and which aren't placed. */
+export type Parking = {
+  /** "2027-06" */
+  monthKey: string
+  /** vehicle id → property id (only placed vehicles) */
+  at: Map<string, string>
+  vehiclesAt: Map<string, Placed[]>
+  /** Vehicles still yours that this setup doesn't place: they count as sold from this setup on */
+  unplaced: Placed[]
+  /** Vehicles left off an earlier setup (sold then), with that setup's month; not offered again unless put back */
+  sold: { placed: Placed; since: string }[]
+  /** Every vehicle / property owned by then (sold ones included) */
+  vehicles: Placed[]
+  properties: Placed[]
+}
+
+/** True when `pid` is a property already bought by `monthKey`. */
+const ownedProperty = (index: ItemIndex, pid: string | undefined, monthKey: string) => {
+  const home = pid ? index.byId.get(pid) : undefined
+  return !!home && home.item.category === 'property' && home.key <= monthKey
+}
+
+/**
+ * Reads one setup. Its placements are its own; nothing carries over. What does carry over is selling:
+ * a vehicle left off a setup that was arranged (anything placed in it) counts as sold from then on,
+ * until a later setup (or this one) puts it at a property again.
+ * `setups`: the setup months (0–11); only those count.
+ */
+export function placementAt(index: ItemIndex, layouts: Layouts, monthKey: string, setups: number[]): Parking {
+  const byMonth = (a: Placed, b: Placed) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
+  const vehicles = [...index.byId.values()].filter((p) => p.item.category === 'vehicle' && p.key <= monthKey).sort(byMonth)
+
+  // Selling, setup by setup, up to (not including) this one.
+  const soldSince = new Map<string, string>()
+  const earlier = Object.keys(layouts)
+    .filter((k) => k < monthKey && setups.includes(Number(k.slice(5)) - 1) && Object.keys(layouts[k]).length > 0)
+    .sort()
+  for (const k of earlier) {
+    for (const p of vehicles) {
+      if (p.key > k) continue
+      if (ownedProperty(index, layouts[k][p.item.id], k)) soldSince.delete(p.item.id)
+      else if (!soldSince.has(p.item.id)) soldSince.set(p.item.id, k)
+    }
+  }
+
+  const own = layouts[monthKey] ?? {}
+  const at = new Map<string, string>()
+  const vehiclesAt = new Map<string, Placed[]>()
+  const unplaced: Placed[] = []
+  const sold: Parking['sold'] = []
+  for (const p of vehicles) {
+    const pid = own[p.item.id]
+    if (ownedProperty(index, pid, monthKey)) {
+      at.set(p.item.id, pid)
+      vehiclesAt.set(pid, [...(vehiclesAt.get(pid) ?? []), p])
+    } else if (soldSince.has(p.item.id)) sold.push({ placed: p, since: soldSince.get(p.item.id)! })
+    else unplaced.push(p)
+  }
+  return { monthKey, at, vehiclesAt, unplaced, sold, vehicles, properties: index.properties.filter((p) => p.key <= monthKey) }
+}
+
+export function useParking(monthKey: string | null, setups: number[]): Parking | null {
+  const index = useItemIndex()
+  const layouts = useStore((s) => s.layouts)
+  const months = setups.join()
+  return useMemo(
+    () => (monthKey ? placementAt(index, layouts, monthKey, months.split(',').map(Number)) : null),
+    [index, layouts, monthKey, months],
+  )
+}
 
 /** Running totals for every month 2026–2040, recomputed only when data changes. */
 let planCacheKey: unknown = null

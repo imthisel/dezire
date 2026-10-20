@@ -13,9 +13,9 @@ export function Header() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   function exportData() {
-    const { months, kinds, currency, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places } = useStore.getState()
+    const { months, kinds, currency, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places, layouts } = useStore.getState()
     const blob = new Blob(
-      [JSON.stringify({ app: 'obseszion', version: 4, exportedAt: new Date().toISOString(), currency, months, kinds, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places }, null, 2)],
+      [JSON.stringify({ app: 'obseszion', version: 4, exportedAt: new Date().toISOString(), currency, months, kinds, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places, layouts }, null, 2)],
       { type: 'application/json' },
     )
     const a = document.createElement('a')
