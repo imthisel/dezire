@@ -346,6 +346,16 @@ interface State {
   resetAll: () => void
 }
 
+// The app used to be called Dezire: what a browser saved under the old name carries over once.
+try {
+  const OLD_KEY = 'dezire-goal-planner-v1'
+  const old = localStorage.getItem(OLD_KEY)
+  if (old && !localStorage.getItem('obssezion-goal-planner-v1')) localStorage.setItem('obssezion-goal-planner-v1', old)
+  if (old) localStorage.removeItem(OLD_KEY)
+} catch {
+  // Storage blocked: nothing to carry over.
+}
+
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
@@ -818,7 +828,7 @@ export const useStore = create<State>()(
             places?: unknown
           }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
-            return fail('That file is not a Dezire backup.')
+            return fail('That file is not a Obssezion backup.')
           }
           const kinds = parseKinds(d.kinds) ?? DEFAULT_KINDS
           const months: Record<string, MonthData> = {}
@@ -885,7 +895,7 @@ export const useStore = create<State>()(
       resetAll: () => set({ expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
-      name: 'dezire-goal-planner-v1',
+      name: 'obssezion-goal-planner-v1',
       version: 5,
       partialize: (s) => ({
         months: s.months,

@@ -21,7 +21,7 @@ const KINDS: { id: PeriodKind; label: string }[] = [
   { id: 'year', label: 'Year' },
 ]
 const NAMES: Record<PeriodKind, string> = { week: 'week', month: 'month', year: 'year' }
-const PERIOD_KEY = 'dezire-expense-period'
+const PERIOD_KEY = 'obssezion-expense-period'
 
 const readKind = (): PeriodKind => {
   try {
@@ -207,7 +207,7 @@ function Empty() {
         <Receipt className="h-7 w-7 text-rose-200" />
       </div>
       <h3 className="mt-4 text-lg font-semibold text-white">No expenses yet</h3>
-      <p className="mx-auto mt-1 max-w-sm text-sm text-zinc-400">Log what you spend and Dezire shows you where your money goes, week by week and month by month.</p>
+      <p className="mx-auto mt-1 max-w-sm text-sm text-zinc-400">Log what you spend and Obssezion shows you where your money goes, week by week and month by month.</p>
       <button
         onClick={() => openAddExpense()}
         className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-400 px-5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:brightness-110"
@@ -597,7 +597,7 @@ function List({ period, list, filters, setFilters, f }: { period: Period; list: 
     const blob = new Blob(['﻿' + rows.map((r) => r.map(esc).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `dezire-expenses-${period.start}-to-${period.end}.csv`
+    a.download = `obssezion-expenses-${period.start}-to-${period.end}.csv`
     a.click()
     URL.revokeObjectURL(a.href)
     toast.success(`Downloaded ${shown.length} expense${shown.length === 1 ? '' : 's'}.`)

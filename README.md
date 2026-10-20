@@ -1,4 +1,4 @@
-# Dezire: Goal & Net Worth Planner (2026–2040)
+# Obssezion: Goal & Net Worth Planner (2026–2040)
 
 Plan how much you want to make and spend every month from 2026 to 2040. Add property, vehicles, investments and status items, and watch your total earned, total spent, money left and net worth update in real time.
 
@@ -29,7 +29,7 @@ Production build: `npm run build`, then `npm run preview`.
 2. **Build → Authentication → Get started → Sign-in method → Google → Enable.** Pick a support email, then **Save**.
 3. **Build → Firestore Database → Create database.** Choose a location near your users (e.g. `asia-southeast1`) and start in **production mode**.
 4. In Firestore, open the **Rules** tab, paste the contents of [`firestore.rules`](firestore.rules), and click **Publish**. These rules let each user read and write only their own data.
-5. **Project settings (gear icon) → General → Your apps → Web (`</>`).** Register an app called "Dezire" (no Hosting needed). Copy `apiKey`, `authDomain`, `projectId` and `appId` into `.env.local`:
+5. **Project settings (gear icon) → General → Your apps → Web (`</>`).** Register an app called "Obssezion" (no Hosting needed). Copy `apiKey`, `authDomain`, `projectId` and `appId` into `.env.local`:
    ```
    VITE_FIREBASE_API_KEY=...
    VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
@@ -44,6 +44,6 @@ Production build: `npm run build`, then `npm run preview`.
 2. Go to https://vercel.com, sign in with GitHub, click **Add New → Project**, and import the repo. Vercel detects Vite automatically (build `npm run build`, output `dist`).
 3. Before clicking **Deploy**, open **Environment Variables** and add the same four `VITE_FIREBASE_*` values.
 4. Click **Deploy**. Every later `git push` to `main` redeploys automatically.
-5. Back in Firebase: **Authentication → Settings → Authorized domains → Add domain**, and add your Vercel domain (e.g. `dezire.vercel.app`) plus any custom domain. Google sign-in is blocked on domains that aren't listed.
+5. Back in Firebase: **Authentication → Settings → Authorized domains → Add domain**, and add your Vercel domain (e.g. `obssezion.vercel.app`) plus any custom domain. Google sign-in is blocked on domains that aren't listed.
 
 Built with Vite, React, TypeScript, Tailwind CSS v4, Zustand and Firebase (Auth + Firestore).

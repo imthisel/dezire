@@ -70,7 +70,7 @@ export function Sidebar() {
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-indigo-400 to-emerald-400">
               <Target className="h-4 w-4 text-white" strokeWidth={2.5} />
             </span>
-            <span className="font-bold tracking-tight text-white">Dezire</span>
+            <span className="font-bold tracking-tight text-white">Obssezion</span>
           </div>
           <button
             onClick={() => toggleSidebar(docked)}

@@ -103,7 +103,7 @@ async function connect(user: User) {
       ready: true,
       loadError: navigator.onLine
         ? 'Could not load your data. Check your internet connection and try again.'
-        : "You're offline, and your data isn't saved on this device yet. Connect to the internet once and Dezire will work offline after that.",
+        : "You're offline, and your data isn't saved on this device yet. Connect to the internet once and Obssezion will work offline after that.",
     })
     return
   }
