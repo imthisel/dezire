@@ -100,3 +100,31 @@ export interface IncomeSource {
   notes: string
   createdAt: number
 }
+
+/** A kind of spending (Food, Bills…), made and named by the user. Expenses point to it by `id`. */
+export interface ExpenseCategory {
+  id: string
+  label: string
+  /** Key into EXPENSE_ICONS */
+  icon: string
+  /** Key into KIND_COLORS */
+  color: string
+  /** Things usually bought in it ("Lunch", "Coffee"), offered as one-tap names when adding */
+  items: string[]
+}
+
+/** Money spent. Only `date` and `amount` are needed; the rest is optional. */
+export interface Expense {
+  id: string
+  /** "YYYY-MM-DD" (the user's own calendar day) */
+  date: string
+  amount: number
+  /** What it was ('' = not said) */
+  name: string
+  /** ExpenseCategory id ('' = none) */
+  category: string
+  /** Where ('' = not said) */
+  place: string
+  notes: string
+  createdAt: number
+}

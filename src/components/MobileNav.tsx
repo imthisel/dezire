@@ -1,9 +1,10 @@
-import { CalendarDays, Flag, Gem, LayoutDashboard, Rocket, Star } from 'lucide-react'
+import { CalendarDays, Flag, Gem, LayoutDashboard, Receipt, Rocket, Star } from 'lucide-react'
 import { goTo, useActiveSection, type Section } from '../nav'
 
 const SECTIONS: { id: Section; label: string; icon: typeof Flag }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'years', label: 'Months', icon: CalendarDays },
+  { id: 'expenses', label: 'Expenses', icon: Receipt },
   { id: 'goals', label: 'Goals', icon: Flag },
   { id: 'assets', label: 'Assets', icon: Gem },
   { id: 'favorites', label: 'Favorites', icon: Star },
@@ -30,7 +31,7 @@ export function MobileNav() {
             >
               <span className={`absolute top-0 h-0.5 w-8 rounded-full bg-indigo-400 transition-opacity ${on ? 'opacity-100' : 'opacity-0'}`} />
               <s.icon className={`h-5 w-5 ${on ? 'text-indigo-300' : ''}`} strokeWidth={on ? 2.4 : 2} />
-              <span className="max-w-full truncate px-0.5">{s.label}</span>
+              <span className="max-w-full truncate px-px text-[10.5px]">{s.label}</span>
             </button>
           )
         })}

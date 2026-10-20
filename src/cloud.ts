@@ -3,6 +3,7 @@ import { onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut as fbS
 import { doc, getDoc, getDocFromCache, onSnapshot, serverTimestamp, setDoc, waitForPendingWrites, type DocumentReference, type DocumentSnapshot } from 'firebase/firestore'
 import { auth, db, googleProvider } from './lib/firebase'
 import { useStore } from './store'
+import type { Expense } from './lib/types'
 import { toast } from './toast'
 
 export type SaveStatus = 'saved' | 'saving' | 'offline' | 'error'
@@ -23,8 +24,18 @@ const SAVE_DELAY = 800
 
 /** The part of the app's state that belongs to the account. */
 const snapshot = () => {
-  const { months, kinds, goals, goalAreas, sources, birthday, yearNotes, currency } = useStore.getState()
-  return { months, kinds, goals, goalAreas, sources, birthday, yearNotes, currency }
+  const { months, kinds, goals, goalAreas, sources, birthday, yearNotes, currency, expenses, expenseCats, places } = useStore.getState()
+  return { months, kinds, goals, goalAreas, sources, birthday, yearNotes, currency, expenses: expenses.map(compact), expenseCats, places }
+}
+
+/** An expense without its empty fields, to keep the saved document small (they come back as '' when loaded). */
+const compact = (e: Expense) => {
+  const out: Partial<Expense> = { id: e.id, date: e.date, amount: e.amount, createdAt: e.createdAt }
+  if (e.name) out.name = e.name
+  if (e.category) out.category = e.category
+  if (e.place) out.place = e.place
+  if (e.notes) out.notes = e.notes
+  return out
 }
 
 let stopSync: (() => Promise<void>) | null = null
@@ -117,7 +128,7 @@ async function connect(user: User) {
   let offlineEdits = false
   const unsubStore = useStore.subscribe((s, prev) => {
     if (applyingRemote) return
-    if (s.months === prev.months && s.kinds === prev.kinds && s.goals === prev.goals && s.goalAreas === prev.goalAreas && s.sources === prev.sources && s.birthday === prev.birthday && s.yearNotes === prev.yearNotes && s.currency === prev.currency) return
+    if (s.months === prev.months && s.kinds === prev.kinds && s.goals === prev.goals && s.goalAreas === prev.goalAreas && s.sources === prev.sources && s.birthday === prev.birthday && s.yearNotes === prev.yearNotes && s.currency === prev.currency && s.expenses === prev.expenses && s.expenseCats === prev.expenseCats && s.places === prev.places) return
     pending = true
     if (!navigator.onLine) offlineEdits = true
     useCloud.setState({ status: navigator.onLine ? 'saving' : 'offline' })

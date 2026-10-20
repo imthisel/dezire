@@ -22,6 +22,17 @@ export function Toasts() {
           >
             <s.icon className={`mt-0.5 h-5 w-5 shrink-0 ${s.iconCls}`} />
             <p className="flex-1 leading-snug">{t.message}</p>
+            {t.action && (
+              <button
+                onClick={() => {
+                  t.action!.run()
+                  dismiss(t.id)
+                }}
+                className="-my-1 shrink-0 rounded-lg bg-white/10 px-2.5 py-1 text-xs font-semibold transition hover:bg-white/20"
+              >
+                {t.action.label}
+              </button>
+            )}
             <button onClick={() => dismiss(t.id)} className="opacity-60 transition hover:opacity-100" aria-label="Dismiss">
               <X className="h-4 w-4" />
             </button>

@@ -1,9 +1,10 @@
 import { useEffect, type ReactNode } from 'react'
-import { CalendarDays, Flag, Gem, LayoutDashboard, PanelLeftClose, Plus, Rocket, Settings2, Star, Target, X } from 'lucide-react'
+import { CalendarDays, Flag, Gem, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings2, Star, Target, X } from 'lucide-react'
 import { useFmt, useKinds, useStore } from '../store'
 import { SOURCE_KIND, kindColor, kindIcon } from '../lib/meta'
 import { useMedia } from '../lib/useMedia'
 import { goTo, useActiveSection } from '../nav'
+import { todayKey } from '../lib/expenses'
 
 /** Wide screens keep the sidebar docked on the left; smaller ones slide it over the page. */
 export const useDocked = () => useMedia('(min-width: 1024px)')
@@ -33,6 +34,9 @@ export function Sidebar() {
     .map(Number)
   const active = useActiveSection()
   const f = useFmt()
+  // This month's spending, shown next to Expenses.
+  const month = todayKey().slice(0, 7)
+  const spentThisMonth = useStore((s) => s.expenses.reduce((n, e) => (e.date.startsWith(month) ? n + e.amount : n), 0))
   const shown = docked ? sidebar : drawer
 
   // Esc closes the slide-over; growing the window to docked size drops it.
@@ -91,6 +95,27 @@ export function Sidebar() {
               badge={favorites || undefined}
               iconCls="text-amber-300"
             />
+          </Group>
+
+          <Group label="Spending">
+            <Link
+              icon={Receipt}
+              label="Expenses"
+              on={active === 'expenses'}
+              onClick={() => goTo('expenses')}
+              iconCls="text-rose-300"
+              note={spentThisMonth > 0 ? f(spentThisMonth, true) : undefined}
+              noteTitle="Spent this month"
+            />
+            <button
+              onClick={() => {
+                useStore.getState().setDrawer(false)
+                useStore.getState().openModal({ type: 'expense' })
+              }}
+              className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
+            >
+              <Plus className="h-4 w-4" /> Add an expense
+            </button>
           </Group>
 
           <Group label="What you own">
@@ -185,7 +210,7 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function Link({ icon: Icon, label, on, onClick, badge, iconCls }: { icon: typeof Flag; label: string; on: boolean; onClick: () => void; badge?: number; iconCls?: string }) {
+function Link({ icon: Icon, label, on, onClick, badge, iconCls, note, noteTitle }: { icon: typeof Flag; label: string; on: boolean; onClick: () => void; badge?: number; iconCls?: string; note?: string; noteTitle?: string }) {
   return (
     <button
       onClick={onClick}
@@ -194,9 +219,14 @@ function Link({ icon: Icon, label, on, onClick, badge, iconCls }: { icon: typeof
         on ? 'bg-white/[0.07] text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-200'
       }`}
     >
-      <Icon className={`h-4 w-4 ${on ? (iconCls ?? 'text-indigo-300') : ''} ${on && iconCls ? 'fill-current' : ''}`} />
+      <Icon className={`h-4 w-4 ${on ? (iconCls ?? 'text-indigo-300') : ''} ${on && iconCls && !note ? 'fill-current' : ''}`} />
       <span className="flex-1 text-left">{label}</span>
       {badge !== undefined && <span className="rounded-full bg-white/[0.08] px-1.5 text-[11px] tabular-nums text-zinc-400">{badge}</span>}
+      {note && (
+        <span title={noteTitle} className="text-[11px] tabular-nums text-zinc-500">
+          {note}
+        </span>
+      )}
     </button>
   )
 }

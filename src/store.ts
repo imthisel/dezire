@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Category, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, SourceKind, SourceStage, Trend } from './lib/types'
+import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, SourceKind, SourceStage, Trend } from './lib/types'
 import {
   DEFAULT_GOAL_AREAS, DEFAULT_KINDS, GOAL_COLORS, GOAL_ICONS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_AREA, UNKNOWN_KIND,
   guessAreaIcon, guessIcon,
@@ -8,6 +8,10 @@ import {
 import { DEFAULT_CURRENCIES, fmt, fmtAlt, parseCurrencies, type AltCurrency, type Currencies, type Currency } from './lib/money'
 import { currentYear, labelOfKey, END_YEAR, START_YEAR, indexOf, indexOfKey, keyOf } from './lib/time'
 import { computeAll, spendLimit, type MonthCalc } from './lib/calc'
+import {
+  DEFAULT_EXPENSE_CATS, MAX_CAT_NAME, MAX_ITEM_NAME, MAX_PLACE_NAME, clampDate, guessExpenseIcon, isDate, parseExpenseCats, parseExpenses, parsePlaces,
+  todayKey, uniq,
+} from './lib/expenses'
 
 export type Clip = { mode: 'copy' | 'cut'; fromKey: string; item: Item }
 export type ModalState =
@@ -17,9 +21,11 @@ export type ModalState =
   | { type: 'kinds' }
   /** `openId`: the area to show unfolded. `add`: start with the cursor in the new-area box. */
   | { type: 'goalAreas'; openId?: string; add?: boolean }
+  /** Add (no `editId`) or edit an expense. `date`: the day a new one starts on. */
+  | { type: 'expense'; editId?: string; date?: string }
   | null
 export type PhoneCols = 1 | 2 | 3
-export type View = 'planner' | 'plan' | 'favorites' | 'assets'
+export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses'
 /** Assets page: which kind of item, and which years */
 export type AssetCat = 'all' | Category
 export type AssetPeriod = { mode: 'all' | 'year' | 'range'; from: number; to: number }
@@ -29,9 +35,23 @@ export type MonthField = 'goal' | 'budget' | 'earned' | 'netWorthGoal'
 export type DropAt = { id: string; after: boolean }
 export type KindPatch = Partial<Omit<ItemKind, 'id'>>
 export type AreaPatch = Partial<Omit<GoalAreaDef, 'id'>>
+/** What's typed when adding / editing an expense: only the date and amount are needed. */
+export type ExpenseInput = { date: string; amount: number; name?: string; category?: string; place?: string; notes?: string }
+export type ExpenseCatPatch = Partial<Omit<ExpenseCategory, 'id'>>
 export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string; propertyId?: string }
 
 const OK: Result = { ok: true }
+/** Tidies what was typed for an expense. */
+function cleanExpense(d: ExpenseInput) {
+  return {
+    date: isDate(d.date) ? clampDate(d.date) : todayKey(),
+    amount: Math.max(0, Math.round((Number(d.amount) || 0) * 100) / 100),
+    name: (d.name ?? '').trim().slice(0, MAX_ITEM_NAME),
+    category: d.category ?? '',
+    place: (d.place ?? '').trim().slice(0, MAX_PLACE_NAME),
+    notes: (d.notes ?? '').slice(0, 2000),
+  }
+}
 /** A copy of `list` with the entry `id` moved to position `to` (or `list` itself when nothing moves). */
 function moveTo<T extends { id: string }>(list: T[], id: string, to: number): T[] {
   const from = list.findIndex((x) => x.id === id)
@@ -299,6 +319,29 @@ interface State {
   /** Moves a step to position `to` in its plan's list. */
   moveStep: (sourceId: string, stepId: string, to: number) => void
 
+  /** Expenses: money spent, day by day */
+  expenses: Expense[]
+  /** Spending categories (Food, Bills…), in the order they're shown */
+  expenseCats: ExpenseCategory[]
+  /** Places the user saved as ones they go to often, in order */
+  places: string[]
+  addExpense: (data: ExpenseInput) => string
+  updateExpense: (id: string, data: ExpenseInput) => void
+  /** Deletes an expense and returns it (so it can be put back). */
+  removeExpense: (id: string) => Expense | undefined
+  /** Puts back a deleted expense. */
+  restoreExpense: (e: Expense) => void
+  /** Adds a category with a fitting icon and an unused colour. Returns its id. */
+  addExpenseCat: (label: string) => string
+  /** Adds back one of the starter categories that was deleted. */
+  restoreExpenseCat: (id: string) => void
+  updateExpenseCat: (id: string, patch: ExpenseCatPatch) => void
+  moveExpenseCat: (id: string, to: number) => void
+  /** Deletes a category. Its expenses move to `moveTo`, or to no category. */
+  removeExpenseCat: (id: string, moveTo?: string) => void
+  addPlace: (name: string) => void
+  removePlace: (name: string) => void
+
   importData: (data: unknown) => Result
   resetAll: () => void
 }
@@ -308,6 +351,9 @@ export const useStore = create<State>()(
     (set, get) => ({
       months: {},
       currency: DEFAULT_CURRENCIES,
+      expenses: [],
+      expenseCats: DEFAULT_EXPENSE_CATS,
+      places: [],
       year: currentYear(),
       dashMode: 'plan',
       clipboard: null,
@@ -696,6 +742,64 @@ export const useStore = create<State>()(
           sources: s.sources.map((x) => (x.id === sourceId ? { ...x, steps: x.steps.filter((st) => st.id !== stepId) } : x)),
         })),
 
+      addExpense: (data) => {
+        // Short ids: there can be thousands of expenses, and they all live in one saved document.
+        const e: Expense = { id: Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4), ...cleanExpense(data), createdAt: Date.now() }
+        set((s) => ({ expenses: [...s.expenses, e] }))
+        return e.id
+      },
+      updateExpense: (id, data) => set((s) => ({ expenses: s.expenses.map((e) => (e.id === id ? { ...e, ...cleanExpense(data) } : e)) })),
+      removeExpense: (id) => {
+        const e = get().expenses.find((x) => x.id === id)
+        if (e) set((s) => ({ expenses: s.expenses.filter((x) => x.id !== id) }))
+        return e
+      },
+      restoreExpense: (e) => set((s) => (s.expenses.some((x) => x.id === e.id) ? {} : { expenses: [...s.expenses, e] })),
+
+      addExpenseCat: (label) => {
+        const cats = get().expenseCats
+        const name = label.trim().slice(0, MAX_CAT_NAME) || 'New category'
+        const used = new Set(cats.map((c) => c.color))
+        const colors = Object.keys(KIND_COLORS)
+        const color = colors.find((c) => !used.has(c)) ?? colors[cats.length % colors.length]
+        const cat: ExpenseCategory = { id: uid(), label: name, icon: guessExpenseIcon(name), color, items: [] }
+        set({ expenseCats: [...cats, cat] })
+        return cat.id
+      },
+      restoreExpenseCat: (id) =>
+        set((s) => {
+          const cat = DEFAULT_EXPENSE_CATS.find((c) => c.id === id)
+          return cat && !s.expenseCats.some((c) => c.id === id) ? { expenseCats: [...s.expenseCats, cat] } : {}
+        }),
+      updateExpenseCat: (id, patch) =>
+        set((s) => ({
+          expenseCats: s.expenseCats.map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  ...patch,
+                  label: patch.label === undefined ? c.label : patch.label.slice(0, MAX_CAT_NAME) || c.label,
+                  items: patch.items === undefined ? c.items : uniq(patch.items.map((i) => i.trim().slice(0, MAX_ITEM_NAME))),
+                }
+              : c,
+          ),
+        })),
+      moveExpenseCat: (id, to) => set((s) => ({ expenseCats: moveTo(s.expenseCats, id, to) })),
+      removeExpenseCat: (id, to) =>
+        set((s) => {
+          const target = to && to !== id && s.expenseCats.some((c) => c.id === to) ? to : ''
+          return {
+            expenseCats: s.expenseCats.filter((c) => c.id !== id),
+            expenses: s.expenses.some((e) => e.category === id) ? s.expenses.map((e) => (e.category === id ? { ...e, category: target } : e)) : s.expenses,
+          }
+        }),
+      addPlace: (name) =>
+        set((s) => {
+          const p = name.trim().slice(0, MAX_PLACE_NAME)
+          return p && !s.places.some((x) => x.toLowerCase() === p.toLowerCase()) ? { places: [...s.places, p] } : {}
+        }),
+      removePlace: (name) => set((s) => ({ places: s.places.filter((x) => x.toLowerCase() !== name.trim().toLowerCase()) })),
+
       importData: (data) => {
         try {
           const d = data as {
@@ -709,6 +813,9 @@ export const useStore = create<State>()(
             birthday?: unknown
             yearNotes?: unknown
             kinds?: unknown
+            expenses?: unknown
+            expenseCats?: unknown
+            places?: unknown
           }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
             return fail('That file is not a Dezire backup.')
@@ -761,14 +868,21 @@ export const useStore = create<State>()(
               if (/^\d{4}$/.test(year) && typeof text === 'string' && text.trim()) yearNotes[year] = text
             }
           }
-          set({ months, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, yearNotes, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
+          // Saves from before Expenses existed don't have them: keep what's here instead of wiping it.
+          const cur = get()
+          const spending = {
+            expenses: d.expenses === undefined ? cur.expenses : parseExpenses(d.expenses),
+            expenseCats: d.expenseCats === undefined ? cur.expenseCats : (parseExpenseCats(d.expenseCats) ?? DEFAULT_EXPENSE_CATS),
+            places: d.places === undefined ? cur.places : parsePlaces(d.places),
+          }
+          set({ ...spending, months, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, yearNotes, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
           return OK
         } catch {
           return fail('Could not read that file.')
         }
       },
 
-      resetAll: () => set({ months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
+      resetAll: () => set({ expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
       name: 'dezire-goal-planner-v1',
@@ -782,6 +896,9 @@ export const useStore = create<State>()(
         birthday: s.birthday,
         yearNotes: s.yearNotes,
         currency: s.currency,
+        expenses: s.expenses,
+        expenseCats: s.expenseCats,
+        places: s.places,
         year: s.year,
         dashMode: s.dashMode,
         view: s.view,

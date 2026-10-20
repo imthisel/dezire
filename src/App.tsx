@@ -4,6 +4,8 @@ import { Dashboard } from './components/Dashboard'
 import { YearSection } from './components/YearSection'
 import { MoneyPlan } from './components/MoneyPlan'
 import { Favorites } from './components/Favorites'
+import { Expenses } from './components/Expenses'
+import { ExpenseModal } from './components/ExpenseModal'
 import { Assets } from './components/Assets'
 import { ItemModal } from './components/ItemModal'
 import { MoveDialog } from './components/MoveDialog'
@@ -50,6 +52,8 @@ function Planner() {
         <main className="mx-auto max-w-[1440px] space-y-6 px-4 pb-16 sm:space-y-8 sm:px-6 sm:pb-32 lg:px-8">
           {view === 'plan' ? (
             <MoneyPlan />
+          ) : view === 'expenses' ? (
+            <Expenses />
           ) : view === 'favorites' ? (
             <Favorites />
           ) : view === 'assets' ? (
@@ -72,6 +76,7 @@ function Planner() {
       <ZoomHud />
       {modal?.type === 'item' && <ItemModal key={`${modal.key}-${modal.editId ?? 'new'}`} monthKey={modal.key} editId={modal.editId} />}
       {modal?.type === 'move' && <MoveDialog key={modal.id} monthKey={modal.key} id={modal.id} />}
+      {modal?.type === 'expense' && <ExpenseModal key={modal.editId ?? `new-${modal.date ?? ''}`} editId={modal.editId} date={modal.date} />}
       {modal?.type === 'kinds' && <KindsModal onClose={useStore.getState().closeModal} />}
       {modal?.type === 'goalAreas' && <GoalAreasModal onClose={useStore.getState().closeModal} openId={modal.openId} add={modal.add} />}
       {modal?.type === 'goal' && (
