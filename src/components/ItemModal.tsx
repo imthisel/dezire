@@ -47,6 +47,9 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
   const [propertyId, setPropertyId] = useState<string | null>(
     editing?.propertyId && index.byId.get(editing.propertyId)?.item.category === 'property' ? editing.propertyId : null,
   )
+  // Properties already bought by this month (same month counts) come first, the ones still to buy after.
+  const owned = index.properties.filter((p) => p.key <= monthKey)
+  const later = index.properties.filter((p) => p.key > monthKey)
 
   const m = months[monthKey]
   const budget = m?.budget ?? 0
@@ -219,24 +222,42 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
                 )}
               </p>
             ) : (
-              <div className="scrollbar-none -mx-1 max-h-56 space-y-1.5 overflow-y-auto px-1 py-0.5" role="radiogroup" aria-label="Where is it kept?">
-                <PlaceOption on={!propertyId} onClick={() => setPropertyId(null)} title="Not at a property" sub="Leave it unassigned" />
-                {index.properties.map((p) => {
-                  const here = (index.vehiclesAt.get(p.item.id) ?? []).filter((v) => v.item.id !== editId).length
-                  return (
-                    <PlaceOption
-                      key={p.item.id}
-                      on={propertyId === p.item.id}
-                      onClick={() => setPropertyId(p.item.id)}
-                      title={p.item.name}
-                      sub={`${labelOfKey(p.key)} · ${f(p.item.price, true)}`}
-                      count={here}
-                      home
-                      tag={<NotYet vehicleKey={monthKey} propertyKey={p.key} />}
-                    />
-                  )
-                })}
-              </div>
+              <>
+                {/* Which properties are already yours by this vehicle's month */}
+                <p className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" /> {owned.length} yours by {labelOfKey(monthKey)}
+                  </span>
+                  {later.length > 0 && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-rose-300/70" /> {later.length} not bought yet
+                    </span>
+                  )}
+                </p>
+                <div className="scrollbar-none -mx-1 max-h-64 space-y-1.5 overflow-y-auto px-1 py-0.5" role="radiogroup" aria-label="Where is it kept?">
+                  <PlaceOption on={!propertyId} onClick={() => setPropertyId(null)} title="Not at a property" sub="Leave it unassigned" />
+                  {[...owned, ...later].map((p) => {
+                    const here = (index.vehiclesAt.get(p.item.id) ?? []).filter((v) => v.item.id !== editId).length
+                    const isOwned = p.key <= monthKey
+                    return (
+                      <PlaceOption
+                        key={p.item.id}
+                        on={propertyId === p.item.id}
+                        onClick={() => setPropertyId(p.item.id)}
+                        title={p.item.name}
+                        sub={
+                          isOwned
+                            ? `${p.key === monthKey ? 'Bought this month' : `Yours since ${labelOfKey(p.key)}`} · ${f(p.item.price, true)}`
+                            : `Not bought yet · planned for ${labelOfKey(p.key)} · ${f(p.item.price, true)}`
+                        }
+                        count={here}
+                        home
+                        status={isOwned ? 'owned' : 'later'}
+                      />
+                    )
+                  })}
+                </div>
+              </>
             )}
           </section>
         )}
@@ -363,26 +384,32 @@ function Step({ n, title, done, aside, children }: { n: number; title: string; d
   )
 }
 
-function PlaceOption({ on, onClick, title, sub, count = 0, home, tag }: { on: boolean; onClick: () => void; title: string; sub: string; count?: number; home?: boolean; tag?: ReactNode }) {
+/** `status`: a property already bought by the vehicle's month ('owned', green) or not yet ('later', light red). */
+function PlaceOption({ on, onClick, title, sub, count = 0, home, status }: { on: boolean; onClick: () => void; title: string; sub: string; count?: number; home?: boolean; status?: 'owned' | 'later' }) {
+  const box = on
+    ? 'border-teal-400/60 bg-teal-500/10 ring-2 ring-teal-400/40'
+    : status === 'owned'
+      ? 'border-emerald-400/30 bg-emerald-500/[0.07] hover:border-emerald-400/50 hover:bg-emerald-500/[0.11]'
+      : status === 'later'
+        ? 'border-rose-400/20 bg-rose-500/[0.05] hover:border-rose-400/35 hover:bg-rose-500/[0.08]'
+        : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]'
+  const icon = !home
+    ? 'bg-white/5 text-zinc-500'
+    : status === 'owned'
+      ? 'bg-emerald-400/15 text-emerald-300'
+      : status === 'later'
+        ? 'bg-rose-400/10 text-rose-300/70'
+        : on
+          ? 'bg-teal-400/20 text-teal-200'
+          : 'bg-white/5 text-zinc-400'
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={on}
-      onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
-        on ? 'border-teal-400/60 bg-teal-500/10 ring-2 ring-teal-400/40' : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]'
-      }`}
-    >
-      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${home ? (on ? 'bg-teal-400/20 text-teal-200' : 'bg-white/5 text-zinc-400') : 'bg-white/5 text-zinc-500'}`}>
+    <button type="button" role="radio" aria-checked={on} onClick={onClick} className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${box}`}>
+      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${icon}`}>
         {home ? <Home className="h-4 w-4" /> : <span className="text-base leading-none">—</span>}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="flex items-baseline gap-2">
-          <span className={`truncate text-sm font-medium ${on ? 'text-white' : 'text-zinc-200'}`}>{title}</span>
-          {tag}
-        </span>
-        <span className="block truncate text-[11px] text-zinc-500">{sub}</span>
+        <span className={`block truncate text-sm font-medium ${on ? 'text-white' : status === 'later' ? 'text-zinc-300' : 'text-zinc-100'}`}>{title}</span>
+        <span className={`block truncate text-[11px] ${status === 'owned' ? 'text-emerald-300/80' : status === 'later' ? 'text-rose-200/70' : 'text-zinc-500'}`}>{sub}</span>
       </span>
       {count > 0 && (
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] tabular-nums text-zinc-400" title={`${count} other vehicle${count > 1 ? 's' : ''} kept here`}>
