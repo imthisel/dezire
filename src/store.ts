@@ -1014,7 +1014,7 @@ export type Parking = {
   vehiclesAt: Map<string, Placed[]>
   /** Vehicles still yours that this setup doesn't place: they count as sold from this setup on */
   unplaced: Placed[]
-  /** Vehicles left off an earlier setup (sold then), with that setup's month; not offered again unless put back */
+  /** Vehicles left off an earlier setup (sold then), with that setup's month. Sold stays sold, even where a later setup placed it. */
   sold: { placed: Placed; since: string }[]
   /** Every vehicle / property owned by then (sold ones included) */
   vehicles: Placed[]
@@ -1029,9 +1029,9 @@ const ownedProperty = (index: ItemIndex, pid: string | undefined, monthKey: stri
 
 /**
  * Reads one setup. Its placements are its own; nothing carries over. What does carry over is selling:
- * a vehicle left off a setup that was arranged (anything placed in it) counts as sold from then on,
- * until a later setup (or this one) puts it at a property again.
- * `setups`: the setup months (0–11); only those count.
+ * a vehicle left off a setup that was arranged (anything placed in it) counts as sold from then on, in every later setup,
+ * even ones that had placed it (so selling it at an earlier date overrides later plans). Placing it in the setup it was
+ * left off undoes the sale. `setups`: the setup months (0–11); only those count.
  */
 export function placementAt(index: ItemIndex, layouts: Layouts, monthKey: string, setups: number[]): Parking {
   const byMonth = (a: Placed, b: Placed) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
@@ -1045,8 +1045,7 @@ export function placementAt(index: ItemIndex, layouts: Layouts, monthKey: string
   for (const k of earlier) {
     for (const p of vehicles) {
       if (p.key > k) continue
-      if (ownedProperty(index, layouts[k][p.item.id], k)) soldSince.delete(p.item.id)
-      else if (!soldSince.has(p.item.id)) soldSince.set(p.item.id, k)
+      if (!soldSince.has(p.item.id) && !ownedProperty(index, layouts[k][p.item.id], k)) soldSince.set(p.item.id, k)
     }
   }
 
@@ -1057,11 +1056,12 @@ export function placementAt(index: ItemIndex, layouts: Layouts, monthKey: string
   const sold: Parking['sold'] = []
   for (const p of vehicles) {
     const pid = own[p.item.id]
-    if (ownedProperty(index, pid, monthKey)) {
+    // Sold earlier wins over a spot this setup gave it.
+    if (soldSince.has(p.item.id)) sold.push({ placed: p, since: soldSince.get(p.item.id)! })
+    else if (ownedProperty(index, pid, monthKey)) {
       at.set(p.item.id, pid)
       vehiclesAt.set(pid, [...(vehiclesAt.get(pid) ?? []), p])
-    } else if (soldSince.has(p.item.id)) sold.push({ placed: p, since: soldSince.get(p.item.id)! })
-    else unplaced.push(p)
+    } else unplaced.push(p)
   }
   return { monthKey, at, vehiclesAt, unplaced, sold, vehicles, properties: index.properties.filter((p) => p.key <= monthKey) }
 }

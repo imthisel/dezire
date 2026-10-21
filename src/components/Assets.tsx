@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { ArrowUpDown, Cake, CalendarCheck, CalendarDays, CalendarRange, Car, ChevronDown, ChevronLeft, ChevronRight, Copy, Gem, Home, Infinity as All, Pencil, Plus, Settings2, Star, Trash2, X } from 'lucide-react'
+import { ArrowUpDown, Cake, CalendarCheck, CalendarDays, CalendarRange, Car, ChevronDown, ChevronLeft, ChevronRight, Copy, Gem, Home, Infinity as All, Pencil, Plus, RotateCcw, Settings2, Star, Trash2, X } from 'lucide-react'
 import { setupMonths, useFmt, useItemIndex, useKindOf, useKinds, useParking, useStore, useAlt, type AssetCat, type AssetPeriod, type Parking } from '../store'
 import { useBirthday } from './Birthday'
 import { TREND, kindColor, kindIcon } from '../lib/meta'
@@ -549,6 +549,7 @@ function LayoutBar({ parking, setups, birthMonth }: { parking: Parking; setups: 
 function SetupVehicles({ parking }: { parking: Parking }) {
   const { at, unplaced, sold, properties, vehicles, monthKey } = parking
   const index = useItemIndex()
+  const layouts = useStore((s) => s.layouts)
   const [showSold, setShowSold] = useState(true)
   if (!vehicles.length) return null
   const label = labelOfKey(monthKey)
@@ -604,15 +605,30 @@ function SetupVehicles({ parking }: { parking: Parking }) {
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showSold ? '' : '-rotate-90'}`} />
             <span className="font-semibold uppercase tracking-wider">Sold before</span>
             <span className="rounded-full bg-white/[0.06] px-1.5 py-px text-[11px] tabular-nums">{sold.length}</span>
-            <span className="truncate text-zinc-600">· left off an earlier setup</span>
+            <span className="truncate text-zinc-600">· left off an earlier setup · sold there means sold in every setup after</span>
           </button>
           {showSold && (
             <ul className="animate-fade mt-1 grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-1.5">
-              {sold.map(({ placed: v, since }) => (
-                <Box key={v.item.id} v={v} sub={`Sold by ${shortLabel(since)}`} dim>
-                  <PutAt v={v.item} properties={properties} onPut={put} back />
-                </Box>
-              ))}
+              {sold.map(({ placed: v, since }) => {
+                // This setup had it at a property, but the earlier sale wins (kept, in case the sale is undone).
+                const planned = layouts[monthKey]?.[v.item.id]
+                const plannedAt = planned ? index.byId.get(planned)?.item.name : undefined
+                return (
+                  <Box key={v.item.id} v={v} sub={`Sold by ${shortLabel(since)}${plannedAt ? ` · was at ${plannedAt}` : ''}`} dim>
+                    <button
+                      onClick={() => {
+                        const y = Number(since.slice(0, 4))
+                        useStore.getState().setAssetPeriod({ mode: 'month', from: y, to: y, month: Number(since.slice(5)) - 1 })
+                        toast.info(`This is the ${labelOfKey(since)} setup · put “${v.item.name}” at a property here to undo the sale.`)
+                      }}
+                      title={`Undo the sale: open the ${labelOfKey(since)} setup and put it at a property there`}
+                      className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-white/10 px-1.5 text-[11px] font-medium text-zinc-300 transition hover:bg-white/10 hover:text-white"
+                    >
+                      <RotateCcw className="h-3 w-3" /> Undo
+                    </button>
+                  </Box>
+                )
+              })}
             </ul>
           )}
         </div>
