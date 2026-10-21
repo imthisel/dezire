@@ -128,3 +128,41 @@ export interface Expense {
   notes: string
   createdAt: number
 }
+
+/** A kind of task (School, Work…), made and named by the user. Tasks point to it by `id` and are coloured by it. */
+export interface TaskKind {
+  id: string
+  label: string
+  /** Key into TASK_ICONS */
+  icon: string
+  /** Key into TASK_COLORS */
+  color: string
+}
+
+/** Which weekdays a task comes back on (0 = Sunday … 6 = Saturday), and the last day it does ('' = forever). */
+export interface Repeat {
+  days: number[]
+  until: string
+}
+
+/** Something to do. With a `date` it shows on the calendar; without one it's just on the to-do list. */
+export interface Task {
+  id: string
+  title: string
+  /** TaskKind id */
+  kind: string
+  notes: string
+  /** "YYYY-MM-DD": the day it's due, or (repeating) the first day it can happen. '' = no deadline. */
+  date: string
+  /** Minutes after midnight it starts. null = all day. */
+  start: number | null
+  /** How long it takes, in minutes (timed tasks only) */
+  duration: number
+  /** null = happens once */
+  repeat: Repeat | null
+  /** Ticked off (tasks that happen once) */
+  done: boolean
+  /** Repeating tasks: the days ("YYYY-MM-DD") that were ticked off */
+  doneOn: string[]
+  createdAt: number
+}

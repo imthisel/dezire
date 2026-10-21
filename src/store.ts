@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, SourceKind, SourceStage, Trend } from './lib/types'
+import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, SourceKind, SourceStage, Task, TaskKind, Trend } from './lib/types'
 import {
   DEFAULT_GOAL_AREAS, DEFAULT_KINDS, GOAL_COLORS, GOAL_ICONS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_AREA, UNKNOWN_KIND,
   guessAreaIcon, guessIcon,
@@ -13,6 +13,7 @@ import {
   DEFAULT_EXPENSE_CATS, MAX_CAT_NAME, MAX_ITEM_NAME, MAX_PLACE_NAME, clampDate, guessExpenseIcon, isDate, parseExpenseCats, parseExpenses, parsePlaces,
   todayKey, uniq,
 } from './lib/expenses'
+import { DEFAULT_TASK_KINDS, MAX_TASK_KIND_NAME, TASK_COLORS, UNKNOWN_TASK_KIND, cleanTask, guessTaskIcon, parseTaskKinds, parseTasks, type TaskInput } from './lib/tasks'
 
 export type Clip = { mode: 'copy' | 'cut'; fromKey: string; item: Item }
 export type ModalState =
@@ -24,9 +25,11 @@ export type ModalState =
   | { type: 'goalAreas'; openId?: string; add?: boolean }
   /** Add (no `editId`) or edit an expense. `date`: the day a new one starts on. */
   | { type: 'expense'; editId?: string; date?: string }
+  /** Add (no `editId`) or edit a task. The rest is what a new one starts with (e.g. the time dragged out on the calendar). */
+  | { type: 'task'; editId?: string; date?: string; start?: number | null; duration?: number; kind?: string; title?: string }
   | null
 export type PhoneCols = 1 | 2 | 3
-export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses'
+export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses' | 'calendar'
 /** Assets page: which kind of item, and which years */
 export type AssetCat = 'all' | Category
 /** `month` (0–11) is used by the 'month' mode: one of the year's setups (see `setupMonths`). */
@@ -42,6 +45,7 @@ export type AreaPatch = Partial<Omit<GoalAreaDef, 'id'>>
 /** What's typed when adding / editing an expense: only the date and amount are needed. */
 export type ExpenseInput = { date: string; amount: number; name?: string; category?: string; place?: string; notes?: string }
 export type ExpenseCatPatch = Partial<Omit<ExpenseCategory, 'id'>>
+export type TaskKindPatch = Partial<Omit<TaskKind, 'id'>>
 export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string; propertyId?: string }
 
 const OK: Result = { ok: true }
@@ -355,6 +359,27 @@ interface State {
   removePlace: (name: string) => void
   /** Renames a place, in your saved places and in every expense that used it. Returns how many expenses changed. */
   renamePlace: (from: string, to: string) => number
+
+  /** Calendar & to-dos */
+  tasks: Task[]
+  /** Kinds of tasks (School, Work…), each with its own colour, in the order they're shown (always at least one) */
+  taskKinds: TaskKind[]
+  addTask: (data: TaskInput) => string
+  /** Changes some of a task's fields (e.g. its time, when dragged on the calendar). */
+  updateTask: (id: string, patch: Partial<TaskInput>) => void
+  /** Deletes a task and returns it (so it can be put back). */
+  removeTask: (id: string) => Task | undefined
+  restoreTask: (t: Task) => void
+  /** Ticks a task off or back on. Repeating tasks are ticked one day (`day`) at a time. Returns whether it is now done. */
+  toggleTask: (id: string, day?: string) => boolean
+  /** Adds a kind of task with a fitting icon and an unused colour. Returns its id. */
+  addTaskKind: (label: string) => string
+  /** Adds back one of the starter kinds that was deleted. */
+  restoreTaskKind: (id: string) => void
+  updateTaskKind: (id: string, patch: TaskKindPatch) => void
+  moveTaskKind: (id: string, to: number) => void
+  /** Deletes a kind. Its tasks move to `moveTo` (or the first kind left). The last kind can't be deleted. */
+  removeTaskKind: (id: string, moveTo?: string) => Result
 
   importData: (data: unknown) => Result
   resetAll: () => void
@@ -854,6 +879,70 @@ export const useStore = create<State>()(
         return used
       },
 
+      tasks: [],
+      taskKinds: DEFAULT_TASK_KINDS,
+      addTask: (data) => {
+        const t: Task = { id: uid(), ...cleanTask(data), done: false, doneOn: [], createdAt: Date.now() }
+        set((s) => ({ tasks: [...s.tasks, t] }))
+        return t.id
+      },
+      updateTask: (id, patch) =>
+        set((s) => ({
+          tasks: s.tasks.map((t) => {
+            if (t.id !== id) return t
+            const next = { ...t, ...cleanTask({ ...t, ...patch }) }
+            // A task that stops repeating forgets the days it was ticked off.
+            return next.repeat ? next : { ...next, doneOn: [] }
+          }),
+        })),
+      removeTask: (id) => {
+        const t = get().tasks.find((x) => x.id === id)
+        if (t) set((s) => ({ tasks: s.tasks.filter((x) => x.id !== id) }))
+        return t
+      },
+      restoreTask: (t) => set((s) => (s.tasks.some((x) => x.id === t.id) ? {} : { tasks: [...s.tasks, t] })),
+      toggleTask: (id, day) => {
+        const t = get().tasks.find((x) => x.id === id)
+        if (!t) return false
+        const next: Task =
+          t.repeat && day ? { ...t, doneOn: t.doneOn.includes(day) ? t.doneOn.filter((k) => k !== day) : [...t.doneOn, day].sort() } : { ...t, done: !t.done }
+        set((s) => ({ tasks: s.tasks.map((x) => (x.id === id ? next : x)) }))
+        return next.repeat && day ? next.doneOn.includes(day) : next.done
+      },
+      addTaskKind: (label) => {
+        const kinds = get().taskKinds
+        const name = label.trim().slice(0, MAX_TASK_KIND_NAME) || 'New kind'
+        const used = new Set(kinds.map((k) => k.color))
+        const colors = Object.keys(TASK_COLORS)
+        const color = colors.find((c) => !used.has(c)) ?? colors[kinds.length % colors.length]
+        const kind: TaskKind = { id: uid(), label: name, icon: guessTaskIcon(name), color }
+        set({ taskKinds: [...kinds, kind] })
+        return kind.id
+      },
+      restoreTaskKind: (id) =>
+        set((s) => {
+          const kind = DEFAULT_TASK_KINDS.find((k) => k.id === id)
+          return kind && !s.taskKinds.some((k) => k.id === id) ? { taskKinds: [...s.taskKinds, kind] } : {}
+        }),
+      updateTaskKind: (id, patch) =>
+        set((s) => ({
+          taskKinds: s.taskKinds.map((k) =>
+            k.id === id ? { ...k, ...patch, label: patch.label === undefined ? k.label : patch.label.trim().slice(0, MAX_TASK_KIND_NAME) || k.label } : k,
+          ),
+        })),
+      moveTaskKind: (id, to) => set((s) => ({ taskKinds: moveTo(s.taskKinds, id, to) })),
+      removeTaskKind: (id, to) => {
+        const { taskKinds, tasks } = get()
+        if (taskKinds.length <= 1) return fail('You need at least one kind of task.')
+        const left = taskKinds.filter((k) => k.id !== id)
+        const target = to && left.some((k) => k.id === to) ? to : left[0].id
+        set({
+          taskKinds: left,
+          tasks: tasks.some((t) => t.kind === id) ? tasks.map((t) => (t.kind === id ? { ...t, kind: target } : t)) : tasks,
+        })
+        return OK
+      },
+
       importData: (data) => {
         try {
           const d = data as {
@@ -871,6 +960,8 @@ export const useStore = create<State>()(
             expenseCats?: unknown
             places?: unknown
             layouts?: unknown
+            tasks?: unknown
+            taskKinds?: unknown
           }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
             return fail('That file is not an Obseszion backup.')
@@ -930,6 +1021,8 @@ export const useStore = create<State>()(
             expenseCats: d.expenseCats === undefined ? cur.expenseCats : (parseExpenseCats(d.expenseCats) ?? DEFAULT_EXPENSE_CATS),
             places: d.places === undefined ? cur.places : parsePlaces(d.places),
             layouts: d.layouts === undefined ? cur.layouts : parseLayouts(d.layouts),
+            tasks: d.tasks === undefined ? cur.tasks : parseTasks(d.tasks),
+            taskKinds: d.taskKinds === undefined ? cur.taskKinds : (parseTaskKinds(d.taskKinds) ?? DEFAULT_TASK_KINDS),
           }
           set({ ...spending, months, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, yearNotes, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
           return OK
@@ -938,7 +1031,7 @@ export const useStore = create<State>()(
         }
       },
 
-      resetAll: () => set({ layouts: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
+      resetAll: () => set({ tasks: [], taskKinds: DEFAULT_TASK_KINDS, layouts: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
       name: 'obseszion-goal-planner-v1',
@@ -956,6 +1049,8 @@ export const useStore = create<State>()(
         expenseCats: s.expenseCats,
         places: s.places,
         layouts: s.layouts,
+        tasks: s.tasks,
+        taskKinds: s.taskKinds,
         year: s.year,
         dashMode: s.dashMode,
         view: s.view,
@@ -1122,6 +1217,15 @@ export function useItemIndex(): ItemIndex {
 
 /** The user's item kinds, in order. */
 export const useKinds = () => useStore((s) => s.kinds)
+
+/** Looks up a kind of task by id (a placeholder if it no longer exists). */
+export function useTaskKindOf() {
+  const kinds = useStore((s) => s.taskKinds)
+  return useMemo(() => {
+    const byId = new Map(kinds.map((k) => [k.id, k]))
+    return (id: string) => byId.get(id) ?? UNKNOWN_TASK_KIND
+  }, [kinds])
+}
 
 /** Looks up a kind by id (a placeholder if it no longer exists). */
 export function useKindOf() {

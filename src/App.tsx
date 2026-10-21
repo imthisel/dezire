@@ -7,6 +7,8 @@ import { Favorites } from './components/Favorites'
 import { Expenses } from './components/Expenses'
 import { ExpenseModal } from './components/ExpenseModal'
 import { Assets } from './components/Assets'
+import { Schedule } from './components/Schedule'
+import { TaskModal } from './components/TaskModal'
 import { ItemModal } from './components/ItemModal'
 import { MoveDialog } from './components/MoveDialog'
 import { GoalModal } from './components/GoalModal'
@@ -58,6 +60,8 @@ function Planner() {
             <Favorites />
           ) : view === 'assets' ? (
             <Assets />
+          ) : view === 'calendar' ? (
+            <Schedule />
           ) : (
             <>
               <Dashboard />
@@ -77,6 +81,7 @@ function Planner() {
       {modal?.type === 'item' && <ItemModal key={`${modal.key}-${modal.editId ?? 'new'}`} monthKey={modal.key} editId={modal.editId} />}
       {modal?.type === 'move' && <MoveDialog key={modal.id} monthKey={modal.key} id={modal.id} />}
       {modal?.type === 'expense' && <ExpenseModal key={modal.editId ?? `new-${modal.date ?? ''}`} editId={modal.editId} date={modal.date} />}
+      {modal?.type === 'task' && <TaskModal key={modal.editId ?? `new-${modal.date ?? ''}-${modal.start ?? ''}`} {...modal} />}
       {modal?.type === 'kinds' && <KindsModal onClose={useStore.getState().closeModal} />}
       {modal?.type === 'goalAreas' && <GoalAreasModal onClose={useStore.getState().closeModal} openId={modal.openId} add={modal.add} />}
       {modal?.type === 'goal' && (

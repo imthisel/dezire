@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useStore, type AssetCat, type View } from './store'
 
 /** Places the sidebar and the phone tab bar can jump to. Also `month-<key>`, `assets-<category>`, and on the Money plan page `plan-add` and `source-<id>`. */
-export type Section = 'overview' | 'years' | 'goals' | 'favorites' | 'assets' | 'plan' | 'expenses'
+export type Section = 'overview' | 'years' | 'goals' | 'favorites' | 'assets' | 'plan' | 'expenses' | 'calendar'
 
 export const PLANNER_SECTIONS = ['overview', 'years', 'goals'] as const
 
@@ -12,6 +12,8 @@ const OFFSET = 72
 const viewOf = (id: string): View =>
   id === 'expenses'
     ? 'expenses'
+    : id === 'calendar'
+    ? 'calendar'
     : id === 'favorites'
     ? 'favorites'
     : id.startsWith('assets')
@@ -22,7 +24,7 @@ const viewOf = (id: string): View =>
 
 function scrollTo(id: string, instant: boolean) {
   const behavior = instant ? 'instant' : 'smooth'
-  if (id === 'overview' || id === 'plan' || id === 'favorites' || id === 'expenses' || id.startsWith('assets')) return window.scrollTo({ top: 0, behavior })
+  if (id === 'overview' || id === 'plan' || id === 'favorites' || id === 'expenses' || id === 'calendar' || id.startsWith('assets')) return window.scrollTo({ top: 0, behavior })
   const el = document.getElementById(id)
   if (!el) return
   const offset = id === 'years' ? 0 : viewOf(id) === 'plan' ? 16 : OFFSET

@@ -1,10 +1,11 @@
 import { useEffect, type ReactNode } from 'react'
-import { CalendarDays, Flag, Gem, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings2, Star, Target, X } from 'lucide-react'
+import { CalendarCheck, CalendarDays, Flag, Gem, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings2, Star, Target, X } from 'lucide-react'
 import { useFmt, useKinds, useStore } from '../store'
 import { SOURCE_KIND, kindColor, kindIcon } from '../lib/meta'
 import { useMedia } from '../lib/useMedia'
 import { goTo, useActiveSection } from '../nav'
 import { todayKey } from '../lib/expenses'
+import { happensOn, isDoneOn } from '../lib/tasks'
 
 /** Wide screens keep the sidebar docked on the left; smaller ones slide it over the page. */
 export const useDocked = () => useMedia('(min-width: 1024px)')
@@ -37,6 +38,9 @@ export function Sidebar() {
   // This month's spending, shown next to Expenses.
   const month = todayKey().slice(0, 7)
   const spentThisMonth = useStore((s) => s.expenses.reduce((n, e) => (e.date.startsWith(month) ? n + e.amount : n), 0))
+  // Tasks still to do today, shown next to Calendar.
+  const today = todayKey()
+  const dueToday = useStore((s) => s.tasks.filter((t) => happensOn(t, today) && !isDoneOn(t, today)).length)
   const shown = docked ? sidebar : drawer
 
   // Esc closes the slide-over; growing the window to docked size drops it.
@@ -95,6 +99,26 @@ export function Sidebar() {
               badge={favorites || undefined}
               iconCls="text-amber-300"
             />
+          </Group>
+
+          <Group label="Time">
+            <Link
+              icon={CalendarCheck}
+              label="Calendar"
+              on={active === 'calendar'}
+              onClick={() => goTo('calendar')}
+              note={dueToday > 0 ? `${dueToday} today` : undefined}
+              noteTitle="Tasks left to do today"
+            />
+            <button
+              onClick={() => {
+                useStore.getState().setDrawer(false)
+                useStore.getState().openModal({ type: 'task' })
+              }}
+              className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
+            >
+              <Plus className="h-4 w-4" /> Add a task
+            </button>
           </Group>
 
           <Group label="Spending">
