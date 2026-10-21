@@ -2,8 +2,8 @@ import {
   BookOpen, Briefcase, Code, Dumbbell, GraduationCap, HeartPulse, Home, Music, Package, Plane, ShoppingBag, Sparkles, User, Users, Wallet,
   type LucideIcon,
 } from 'lucide-react'
-import type { Repeat, Task, TaskKind } from './types'
-import { WEEKDAYS, addDays, fromKey, isDate } from './expenses'
+import type { Repeat, Task, TaskKind, TaskType } from './types'
+import { WEEKDAYS, addDays, fromKey, isDate, todayKey } from './expenses'
 
 // ---- Kinds ----
 
@@ -84,6 +84,8 @@ export const guessTaskIcon = (name: string) => ICON_WORDS.find(([re]) => re.test
 // ---- Time ----
 
 export const DAY_MINUTES = 24 * 60
+/** The longest a task can run: a week (it carries on past midnight into the next days). */
+export const MAX_DURATION = 7 * DAY_MINUTES
 /** Times snap to quarter hours when dragged. */
 export const SNAP = 15
 export const snap = (m: number) => Math.round(m / SNAP) * SNAP
@@ -99,13 +101,16 @@ export function fmtTime(m: number, short = false) {
   return short && mm === 0 ? `${h12} ${ap}` : `${h12}:${pad(mm)} ${ap}`
 }
 
-/** "9:30 – 11 AM" (the AM/PM is said once when both are the same). */
+/** "9:30 – 11 AM" (the AM/PM is said once when both are the same); "11 PM – 2 AM (next day)" when it runs past midnight. */
 export function fmtRange(start: number, duration: number) {
   const end = start + duration
   const a = fmtTime(start, true)
   const b = fmtTime(end % DAY_MINUTES, true)
   const same = start < 720 === end % DAY_MINUTES < 720 && end < DAY_MINUTES
-  return same ? `${a.replace(/ [AP]M$/, '')} – ${b}` : `${a} – ${b}`
+  // Ending exactly at midnight is still the same day.
+  const later = Math.floor((end - 1) / DAY_MINUTES)
+  const after = later === 0 ? '' : later === 1 ? ' (next day)' : ` (+${later} days)`
+  return (same ? `${a.replace(/ [AP]M$/, '')} – ${b}` : `${a} – ${b}`) + after
 }
 
 /** "1h 30m", "45m", "2h" */
@@ -188,18 +193,46 @@ export function nextOpenDay(t: Task, from: string): string | null {
   return null
 }
 
+/** The part of a task shown on one day of the grid: one that runs past midnight carries on into the next day. */
+export type Segment = {
+  occ: Occurrence
+  day: string
+  /** Minutes after that day's midnight */
+  start: number
+  end: number
+  /** Where the task starts (false: it carried on from the day before) */
+  first: boolean
+  /** Where the task ends */
+  last: boolean
+}
+
+/** Splits a timed task into one piece per day it covers. `start` / `duration` / `day` can be overridden (e.g. while it's dragged). */
+export function segmentsOf(occ: Occurrence, start = occ.task.start ?? 0, duration = occ.task.duration, day = occ.day): Segment[] {
+  const end = start + duration
+  const out: Segment[] = []
+  for (let i = 0; i * DAY_MINUTES < end; i++) {
+    const s = Math.max(0, start - i * DAY_MINUTES)
+    const e = Math.min(DAY_MINUTES, end - i * DAY_MINUTES)
+    if (e > s) out.push({ occ, day: addDays(day, i), start: s, end: e, first: i === 0, last: end - i * DAY_MINUTES <= DAY_MINUTES })
+  }
+  return out
+}
+
+/** Whole days from `a` to `b` ("2026-10-21" → "2026-10-23" = 2). */
+export const daysBetween = (a: string, b: string) => Math.round((fromKey(b).getTime() - fromKey(a).getTime()) / 86400000)
+
 /** Sorts by start time (all-day first), then longest first, then by name. */
 export const byTime = (a: Occurrence, b: Occurrence) =>
   (a.task.start ?? -1) - (b.task.start ?? -1) || b.task.duration - a.task.duration || a.task.title.localeCompare(b.task.title)
 
 /**
  * Side-by-side columns for timed tasks that overlap on one day, like Google Calendar.
- * Returns, for each occurrence, its column and how many columns its group of overlapping tasks uses.
+ * Returns, for each piece, its column and how many columns its group of overlapping tasks uses.
  */
-export function layoutDay(list: Occurrence[]): Map<Occurrence, { col: number; cols: number }> {
-  const out = new Map<Occurrence, { col: number; cols: number }>()
-  const sorted = [...list].sort(byTime)
-  let group: Occurrence[] = []
+export function layoutDay(list: Segment[]): Map<Segment, { col: number; cols: number }> {
+  const out = new Map<Segment, { col: number; cols: number }>()
+  const sorted = [...list].sort((a, b) => a.start - b.start || b.end - a.end || a.occ.task.title.localeCompare(b.occ.task.title))
+  let group: Segment[] = []
   let ends: number[] = []
   let groupEnd = -1
   const close = () => {
@@ -208,8 +241,8 @@ export function layoutDay(list: Occurrence[]): Map<Occurrence, { col: number; co
     ends = []
   }
   for (const o of sorted) {
-    const s = o.task.start!
-    const e = s + Math.max(o.task.duration, 20)
+    const s = o.start
+    const e = s + Math.max(o.end - o.start, 20)
     if (s >= groupEnd) close()
     let col = ends.findIndex((end) => end <= s)
     if (col < 0) col = ends.push(e) - 1
@@ -224,16 +257,31 @@ export function layoutDay(list: Occurrence[]): Map<Occurrence, { col: number; co
 
 // ---- Cleaning up what's typed or loaded ----
 
-export type TaskInput = { title: string; kind: string; notes?: string; date: string; start: number | null; duration: number; repeat: Repeat | null }
+export type TaskInput = {
+  type: TaskType
+  title: string
+  kind: string
+  notes?: string
+  date: string
+  start: number | null
+  duration: number
+  repeat: Repeat | null
+}
 
-/** Tidies what was typed for a task. */
+export const isEvent = (t: Pick<Task, 'type'>) => t.type === 'event'
+/** How tall a to-do's due-time marker is on the calendar, in minutes of the grid (it has no length of its own). */
+export const DUE_SPAN = 30
+
+/** Tidies what was typed for a task. An event always has a day (today when none was given). */
 export function cleanTask(d: TaskInput) {
-  const date = isDate(d.date) ? d.date : ''
+  const type: TaskType = d.type === 'event' ? 'event' : 'todo'
+  const date = isDate(d.date) ? d.date : type === 'event' ? todayKey() : ''
   const start = date && d.start != null && Number.isFinite(d.start) ? clamp(Math.round(d.start), 0, DAY_MINUTES - SNAP) : null
-  const duration = start == null ? 60 : clamp(Math.round(Number(d.duration) || 60), SNAP, DAY_MINUTES - start)
+  const duration = start == null ? 60 : clamp(Math.round(Number(d.duration) || 60), SNAP, MAX_DURATION)
   const days = d.repeat ? [...new Set(d.repeat.days.filter((x) => Number.isInteger(x) && x >= 0 && x <= 6))].sort() : []
   const repeat = date && d.repeat && days.length ? { days, until: isDate(d.repeat.until) && d.repeat.until >= date ? d.repeat.until : '' } : null
   return {
+    type,
     title: d.title.trim().slice(0, MAX_TASK_TITLE) || 'Untitled',
     kind: d.kind,
     notes: (d.notes ?? '').slice(0, 2000),
@@ -269,11 +317,14 @@ export function parseTasks(list: unknown): Task[] {
   for (const x of list as Record<string, unknown>[]) {
     if (!x || typeof x !== 'object' || typeof x.title !== 'string') continue
     const r = x.repeat as Partial<Repeat> | null | undefined
+    const date = typeof x.date === 'string' ? x.date : ''
     const clean = cleanTask({
+      // Saved before events and to-dos were told apart: anything with a time was time set aside.
+      type: x.type === 'event' || x.type === 'todo' ? x.type : date && x.start != null ? 'event' : 'todo',
       title: x.title,
       kind: typeof x.kind === 'string' ? x.kind : '',
       notes: typeof x.notes === 'string' ? x.notes : '',
-      date: typeof x.date === 'string' ? x.date : '',
+      date,
       start: x.start == null ? null : Number(x.start),
       duration: Number(x.duration) || 60,
       repeat: r && typeof r === 'object' && Array.isArray(r.days) ? { days: r.days.map(Number), until: typeof r.until === 'string' ? r.until : '' } : null,

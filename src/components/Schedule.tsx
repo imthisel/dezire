@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { AlertCircle, CalendarCheck, Check, ChevronDown, ChevronLeft, ChevronRight, Eye, EyeOff, Inbox, Plus, Repeat, Settings2 } from 'lucide-react'
+import {
+  AlertCircle, CalendarCheck, CalendarRange, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleCheck, Eye, EyeOff, Inbox, Plus, Repeat, Settings2,
+} from 'lucide-react'
 import { useStore, useTaskKindOf } from '../store'
 import { MAX_DATE, MIN_DATE, WEEKDAYS, addDays, dayLabel, fromKey, longDate, periodLabel, todayKey } from '../lib/expenses'
-import { byTime, fmtTime, happensOn, nextOpenDay, occurrencesIn, repeatLabel, taskColor, taskIcon, type Occurrence } from '../lib/tasks'
+import {
+  DAY_MINUTES, byTime, fmtRange, fmtTime, happensOn, isEvent, nextOpenDay, nowMinutes, occurrencesIn, repeatLabel, taskColor, taskIcon, type Occurrence,
+} from '../lib/tasks'
 import { MONTHS } from '../lib/time'
 import type { Task } from '../lib/types'
 import { useMedia } from '../lib/useMedia'
@@ -10,6 +14,7 @@ import { card } from './Dashboard'
 import { Calendar } from './Calendar'
 import { TimeGrid } from './TimeGrid'
 import { TaskKinds } from './TaskKinds'
+import { TaskMenu, openTaskMenu } from './TaskMenu'
 import { toast } from '../toast'
 
 type CalView = 'day' | '3day' | 'week' | 'month'
@@ -19,8 +24,8 @@ const VIEWS: { id: CalView; label: string; short: string; key: string }[] = [
   { id: 'week', label: 'Week', short: 'Week', key: 'W' },
   { id: 'month', label: 'Month', short: 'Month', key: 'M' },
 ]
-const VIEW_KEY = 'obseszion-calendar-view'
-const HIDDEN_KEY = 'obseszion-hidden-task-kinds'
+const VIEW_KEY = 'viszionary-calendar-view'
+const HIDDEN_KEY = 'viszionary-hidden-task-kinds'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const clampDay = (k: string) => (k < MIN_DATE ? MIN_DATE : k > MAX_DATE ? MAX_DATE : k)
@@ -99,10 +104,14 @@ export function Schedule() {
 
   const days = useMemo(() => daysOf(view, anchor), [view, anchor])
   const shown = useMemo(() => (hidden.length ? tasks.filter((t) => !hidden.includes(t.kind)) : tasks), [tasks, hidden])
-  const occurrences = useMemo(() => occurrencesIn(shown, days[0], days[days.length - 1]), [shown, days])
+  // The hours grid also needs the week before: a task that runs past midnight shows on the days after it starts.
+  const occurrences = useMemo(
+    () => occurrencesIn(shown, view === 'month' ? days[0] : addDays(days[0], -7), days[days.length - 1]),
+    [shown, days, view],
+  )
   const isNow = days.includes(today) && (view !== 'month' || anchor.slice(0, 7) === today.slice(0, 7))
 
-  // Keyboard: T today, D / 3 / W / M views, N new task, ← → move.
+  // Keyboard: T today, D / 3 / W / M views, E new event, N new task, ← → move.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (modalOpen || e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return
@@ -110,7 +119,8 @@ export function Schedule() {
       const v = VIEWS.find((x) => x.key.toLowerCase() === k)
       if (v) setView(v.id)
       else if (k === 't') setAnchor(today)
-      else if (k === 'n' || k === 'c') useStore.getState().openModal({ type: 'task', date: view === 'month' ? today : anchor })
+      else if (k === 'e' || k === 'c') newEntry('event')
+      else if (k === 'n') newEntry('todo')
       else if (e.key === 'ArrowLeft' || k === 'j') setAnchor((a) => shift(view, a, -1))
       else if (e.key === 'ArrowRight' || k === 'k') setAnchor((a) => shift(view, a, 1))
       else return
@@ -125,10 +135,14 @@ export function Schedule() {
     const n = new Map<string, number>()
     const from = addDays(today, -120)
     for (const o of occurrencesIn(shown, from, addDays(today, 365))) if (!o.done) n.set(o.day, (n.get(o.day) ?? 0) + 1)
-    return new Map([...n].map(([k, v]) => [k, `${v} task${v === 1 ? '' : 's'}`]))
+    return new Map([...n].map(([k, v]) => [k, `${v} planned`]))
   }, [shown, today])
 
-  const newTask = () => useStore.getState().openModal({ type: 'task', ...(view !== 'month' && anchor !== today ? { date: anchor } : {}) })
+  /** A new event (on the day being looked at) or a new task (asks about a deadline). */
+  function newEntry(entry: 'event' | 'todo') {
+    const day = view !== 'month' && anchor !== today ? anchor : undefined
+    useStore.getState().openModal({ type: 'task', entry, ...(entry === 'event' || day ? { date: day ?? today } : {}) })
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -141,7 +155,7 @@ export function Schedule() {
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Calendar</h2>
-            <p className="truncate text-sm text-zinc-400">Tasks, deadlines and routines, all in one place.</p>
+            <p className="truncate text-sm text-zinc-400">Plan your time, and keep track of what's due.</p>
           </div>
           <button
             onClick={() => setEditKinds(true)}
@@ -152,11 +166,20 @@ export function Schedule() {
             <Settings2 className="h-4 w-4" />
           </button>
           <button
-            onClick={newTask}
-            title="New task (N)"
+            onClick={() => newEntry('todo')}
+            title="New task: something to get done (N)"
+            aria-label="New task"
+            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-white/10 px-3 text-sm font-medium text-zinc-200 transition hover:bg-white/5 hover:text-white sm:px-4"
+          >
+            <CircleCheck className="h-4 w-4" /> <span className="hidden sm:inline">Task</span>
+          </button>
+          <button
+            onClick={() => newEntry('event')}
+            title="New event: time on your calendar (E)"
+            aria-label="New event"
             className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-400 px-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:brightness-110 sm:px-4"
           >
-            <Plus className="h-4 w-4" strokeWidth={2.5} /> <span className="hidden sm:inline">New task</span>
+            <Plus className="h-4 w-4" strokeWidth={2.5} /> <span className="hidden sm:inline">Event</span>
           </button>
         </div>
       </section>
@@ -209,7 +232,7 @@ export function Schedule() {
           {view === 'month' ? (
             <MonthGrid days={days} month={anchor.slice(0, 7)} occurrences={occurrences} onPickDay={pickDay} />
           ) : (
-            <TimeGrid days={days} occurrences={occurrences} onPickDay={pickDay} />
+            <TimeGrid days={days} occurrences={occurrences} onPickDay={pickDay} onShowDay={setAnchor} />
           )}
         </section>
 
@@ -218,12 +241,14 @@ export function Schedule() {
           <div className="hidden xl:block">
             <Calendar value={anchor} onChange={setAnchor} marks={marks} />
           </div>
-          <KindFilter hidden={hidden} setHidden={setHidden} onEdit={() => setEditKinds(true)} />
+          <TodayPlan tasks={shown} />
           <TodoList tasks={shown} />
+          <KindFilter hidden={hidden} setHidden={setHidden} onEdit={() => setEditKinds(true)} />
         </aside>
       </div>
 
       {editKinds && <TaskKinds onClose={() => setEditKinds(false)} />}
+      <TaskMenu />
     </div>
   )
 }
@@ -280,7 +305,7 @@ function MonthGrid({ days, month, occurrences, onPickDay }: { days: string[]; mo
           return (
             <div
               key={d}
-              onClick={(e) => e.target === e.currentTarget && useStore.getState().openModal({ type: 'task', date: d })}
+              onClick={(e) => e.target === e.currentTarget && useStore.getState().openModal({ type: 'task', entry: 'event', date: d })}
               onDragOver={(e) => {
                 if (!e.dataTransfer.types.includes('text/task')) return
                 e.preventDefault()
@@ -308,6 +333,7 @@ function MonthGrid({ days, month, occurrences, onPickDay }: { days: string[]; mo
               <div className="pointer-events-none space-y-0.5">
                 {list.slice(0, LIMIT).map((o) => {
                   const c = taskColor(kindOf(o.task.kind))
+                  const event = isEvent(o.task)
                   const timed = o.task.start != null
                   return (
                     <button
@@ -318,14 +344,20 @@ function MonthGrid({ days, month, occurrences, onPickDay }: { days: string[]; mo
                         e.dataTransfer.effectAllowed = 'move'
                       }}
                       onClick={() => useStore.getState().openModal({ type: 'task', editId: o.task.id })}
-                      title={`${o.task.title}${timed ? ` · ${fmtTime(o.task.start!)}` : ''}`}
+                      onContextMenu={(e) => openTaskMenu(e, o.task.id, o.day)}
+                      title={`${event ? '' : 'Task: '}${o.task.title}${timed ? ` · ${event ? '' : 'due '}${fmtTime(o.task.start!)}` : ''}`}
                       className={`pointer-events-auto flex w-full min-w-0 items-center gap-1 rounded px-1 py-px text-left text-[10.5px] leading-tight transition sm:text-[11.5px] ${
-                        timed ? 'hover:bg-white/[0.06]' : `${c.block} ${c.title} font-semibold`
+                        event && !timed ? `${c.block} ${c.title} font-semibold` : 'hover:bg-white/[0.06]'
                       } ${o.done ? 'line-through opacity-50' : ''}`}
                     >
-                      {timed && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${c.dot}`} />}
+                      {/* Events: a dot. Tasks: an empty circle (ticked when done). */}
+                      {!event ? (
+                        o.done ? <CircleCheck className={`h-3 w-3 shrink-0 ${c.text}`} /> : <Circle className={`h-3 w-3 shrink-0 ${c.text}`} strokeWidth={2.5} />
+                      ) : (
+                        timed && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${c.dot}`} />
+                      )}
                       {timed && <span className="hidden shrink-0 tabular-nums text-zinc-500 sm:inline">{fmtTime(o.task.start!, true).replace(' ', '').toLowerCase()}</span>}
-                      <span className={`truncate ${timed ? 'text-zinc-200' : ''}`}>{o.task.title}</span>
+                      <span className={`truncate ${event && !timed ? '' : 'text-zinc-200'}`}>{o.task.title}</span>
                     </button>
                   )
                 })}
@@ -351,7 +383,10 @@ function KindFilter({ hidden, setHidden, onEdit }: { hidden: string[]; setHidden
   const today = todayKey()
   const open = useMemo(() => {
     const n = new Map<string, number>()
-    for (const t of tasks) if (t.repeat ? happensOn(t, today) && !t.doneOn.includes(today) : !t.done) n.set(t.kind, (n.get(t.kind) ?? 0) + 1)
+    for (const t of tasks) {
+      if (isEvent(t)) continue
+      if (t.repeat ? happensOn(t, today) && !t.doneOn.includes(today) : !t.done) n.set(t.kind, (n.get(t.kind) ?? 0) + 1)
+    }
     return n
   }, [tasks, today])
 
@@ -392,6 +427,80 @@ function KindFilter({ hidden, setHidden, onEdit }: { hidden: string[]; setHidden
   )
 }
 
+// ---- Today's plan ----
+
+/** Today's events in order, with the one happening now picked out. */
+function TodayPlan({ tasks }: { tasks: Task[] }) {
+  const kindOf = useTaskKindOf()
+  const today = todayKey()
+  const [now, setNow] = useState(nowMinutes)
+  useEffect(() => {
+    const t = setInterval(() => setNow(nowMinutes()), 30_000)
+    return () => clearInterval(t)
+  }, [])
+  // Also what started yesterday and runs past midnight into today.
+  const list = useMemo(() => {
+    const out: { o: Occurrence; from: number; to: number }[] = []
+    for (const o of occurrencesIn(tasks.filter(isEvent), addDays(today, -7), today)) {
+      if (o.task.start == null) {
+        if (o.day === today) out.push({ o, from: -1, to: DAY_MINUTES })
+        continue
+      }
+      const offset = Math.round((fromKey(today).getTime() - fromKey(o.day).getTime()) / 86400000) * DAY_MINUTES
+      const from = o.task.start - offset
+      const to = from + o.task.duration
+      if (to > 0 && from < DAY_MINUTES) out.push({ o, from, to })
+    }
+    return out.sort((a, b) => a.from - b.from || a.to - b.to)
+  }, [tasks, today])
+  const next = list.find((x) => x.from > now)
+
+  return (
+    <div className={`${card} p-3`}>
+      <div className="mb-2 flex items-baseline justify-between px-1">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Today's plan</span>
+        {next && <span className="text-xs tabular-nums text-zinc-500">Next at {fmtTime(next.from, true)}</span>}
+      </div>
+      {list.length === 0 ? (
+        <button
+          onClick={() => useStore.getState().openModal({ type: 'task', entry: 'event', date: today })}
+          className="flex w-full items-center gap-2 rounded-xl border border-dashed border-white/10 px-3 py-3 text-left text-xs text-zinc-500 transition hover:border-white/20 hover:text-zinc-300"
+        >
+          <CalendarRange className="h-4 w-4 shrink-0" />
+          Nothing planned today. Drag on the calendar, or tap here, to set time aside.
+        </button>
+      ) : (
+        <ul className="space-y-0.5">
+          {list.map(({ o, from, to }) => {
+            const c = taskColor(kindOf(o.task.kind))
+            const allDay = from < 0
+            const live = !allDay && from <= now && now < to
+            const past = !allDay && to <= now
+            return (
+              <li key={`${o.task.id}-${o.day}`}>
+                <button
+                  onClick={() => useStore.getState().openModal({ type: 'task', editId: o.task.id })}
+                  onContextMenu={(e) => openTaskMenu(e, o.task.id, o.day)}
+                  className={`flex w-full min-w-0 items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-left transition hover:bg-white/[0.04] ${live ? 'bg-white/[0.04]' : ''} ${past ? 'opacity-45' : ''}`}
+                >
+                  <span className={`h-8 w-1 shrink-0 rounded-full ${c.dot}`} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm leading-snug text-zinc-100">{o.task.title}</span>
+                    <span className="block truncate text-[11.5px] tabular-nums text-zinc-500">
+                      {allDay ? 'All day' : o.day !== today ? `until ${fmtTime(to % DAY_MINUTES, true)}` : fmtRange(from, o.task.duration)}
+                    </span>
+                  </span>
+                  {live && <span className="shrink-0 rounded-full bg-rose-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-200">Now</span>}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 // ---- To-do list ----
 
 type Row = { task: Task; day: string | null; done: boolean }
@@ -411,13 +520,17 @@ function TodoList({ tasks }: { tasks: Task[] }) {
     const routines: Row[] = []
     const done: Row[] = []
     const weekEnd = addDays(today, 7)
+    // Events are time on the calendar, not things to tick off.
     for (const t of tasks) {
+      if (isEvent(t)) continue
       if (t.repeat) {
         routines.push({ task: t, day: nextOpenDay(t, today), done: false })
         if (happensOn(t, today)) todayRows.push({ task: t, day: today, done: t.doneOn.includes(today) })
         continue
       }
-      if (t.done) done.push({ task: t, day: t.date || null, done: true })
+      // Ticked off today: stays under Today (crossed out) so the day's progress shows.
+      if (t.done && t.date === today) todayRows.push({ task: t, day: t.date, done: true })
+      else if (t.done) done.push({ task: t, day: t.date || null, done: true })
       else if (!t.date) someday.push({ task: t, day: null, done: false })
       else if (t.date < today) overdue.push({ task: t, day: t.date, done: false })
       else if (t.date === today) todayRows.push({ task: t, day: t.date, done: false })
@@ -439,11 +552,11 @@ function TodoList({ tasks }: { tasks: Task[] }) {
     if (!title) return
     setQuick('')
     // The dialog asks what it's for and whether there's a deadline.
-    useStore.getState().openModal({ type: 'task', title })
+    useStore.getState().openModal({ type: 'task', entry: 'todo', title })
   }
 
   const left = groups.today.filter((r) => !r.done).length
-  const nothing = !tasks.length
+  const nothing = !tasks.some((t) => !isEvent(t))
 
   return (
     <div className={`${card} p-3`}>
@@ -475,8 +588,8 @@ function TodoList({ tasks }: { tasks: Task[] }) {
       {nothing ? (
         <div className="px-2 py-6 text-center">
           <Inbox className="mx-auto h-7 w-7 text-zinc-600" />
-          <p className="mt-2 text-sm font-medium text-zinc-300">Nothing planned yet</p>
-          <p className="mt-1 text-xs text-zinc-500">Add a task above, or drag on the calendar to block out time.</p>
+          <p className="mt-2 text-sm font-medium text-zinc-300">Nothing to do yet</p>
+          <p className="mt-1 text-xs text-zinc-500">Add something you need to get done above. To plan your time instead, drag on the calendar.</p>
         </div>
       ) : (
         <div className="space-y-3">

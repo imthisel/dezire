@@ -1,5 +1,5 @@
 /*
- * Makes Obseszion open with no internet. Caches the app itself (page, scripts, styles, fonts).
+ * Makes Viszionary open with no internet. Caches the app itself (page, scripts, styles, fonts).
  * Your data is handled separately by Firebase, which keeps it on the device and uploads offline edits
  * as soon as you're back online.
  *
@@ -10,8 +10,8 @@
  * Firebase (sign-in, data) is never touched here.
  */
 
-const SHELL = 'obseszion-shell-v1'
-const RUNTIME = 'obseszion-runtime-v1'
+const SHELL = 'viszionary-shell-v1'
+const RUNTIME = 'viszionary-runtime-v1'
 const PAGE = '/'
 const NETWORK_WAIT = 3500
 

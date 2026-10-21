@@ -145,18 +145,26 @@ export interface Repeat {
   until: string
 }
 
-/** Something to do. With a `date` it shows on the calendar; without one it's just on the to-do list. */
+/**
+ * Something on the calendar or the to-do list.
+ * - 'event': time set aside to do something ("Study 2–4 PM"). A block on the calendar; nothing to tick off.
+ * - 'todo': something to get done, ticked off when it is. Its date / time (if any) is when it's due.
+ */
+export type TaskType = 'event' | 'todo'
+
+/** An event or a to-do (see `TaskType`). With a `date` it shows on the calendar; a to-do without one is just on the list. */
 export interface Task {
   id: string
+  type: TaskType
   title: string
   /** TaskKind id */
   kind: string
   notes: string
-  /** "YYYY-MM-DD": the day it's due, or (repeating) the first day it can happen. '' = no deadline. */
+  /** "YYYY-MM-DD": the day it happens / is due, or (repeating) the first day it can. '' = no deadline (to-dos only). */
   date: string
-  /** Minutes after midnight it starts. null = all day. */
+  /** Minutes after midnight it starts (events) or is due (to-dos). null = all day / any time that day. */
   start: number | null
-  /** How long it takes, in minutes (timed tasks only) */
+  /** How long it takes, in minutes (timed events only) */
   duration: number
   /** null = happens once */
   repeat: Repeat | null

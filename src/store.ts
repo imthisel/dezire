@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, SourceKind, SourceStage, Task, TaskKind, Trend } from './lib/types'
+import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
 import {
   DEFAULT_GOAL_AREAS, DEFAULT_KINDS, GOAL_COLORS, GOAL_ICONS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_AREA, UNKNOWN_KIND,
   guessAreaIcon, guessIcon,
@@ -26,7 +26,7 @@ export type ModalState =
   /** Add (no `editId`) or edit an expense. `date`: the day a new one starts on. */
   | { type: 'expense'; editId?: string; date?: string }
   /** Add (no `editId`) or edit a task. The rest is what a new one starts with (e.g. the time dragged out on the calendar). */
-  | { type: 'task'; editId?: string; date?: string; start?: number | null; duration?: number; kind?: string; title?: string }
+  | { type: 'task'; editId?: string; entry?: TaskType; date?: string; start?: number | null; duration?: number; kind?: string; title?: string }
   | null
 export type PhoneCols = 1 | 2 | 3
 export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses' | 'calendar'
@@ -385,13 +385,19 @@ interface State {
   resetAll: () => void
 }
 
-// The app used to be called Dezire, then Obssezion: what a browser saved under an old name carries over once.
+// The app used to be called Dezire, then Obssezion, then Obseszion: what a browser saved under an old name carries over once.
 try {
-  const KEY = 'obseszion-goal-planner-v1'
-  for (const oldKey of ['obssezion-goal-planner-v1', 'dezire-goal-planner-v1']) {
+  const KEY = 'viszionary-goal-planner-v1'
+  for (const oldKey of ['obseszion-goal-planner-v1', 'obssezion-goal-planner-v1', 'dezire-goal-planner-v1']) {
     const old = localStorage.getItem(oldKey)
     if (old && !localStorage.getItem(KEY)) localStorage.setItem(KEY, old)
     if (old) localStorage.removeItem(oldKey)
+  }
+  // Remembered choices (calendar view, expense period…) too.
+  for (const oldKey of Object.keys(localStorage).filter((k) => k.startsWith('obseszion-'))) {
+    const key = 'viszionary-' + oldKey.slice('obseszion-'.length)
+    if (localStorage.getItem(key) === null) localStorage.setItem(key, localStorage.getItem(oldKey)!)
+    localStorage.removeItem(oldKey)
   }
 } catch {
   // Storage blocked: nothing to carry over.
@@ -964,7 +970,7 @@ export const useStore = create<State>()(
             taskKinds?: unknown
           }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
-            return fail('That file is not an Obseszion backup.')
+            return fail('That file is not an Viszionary backup.')
           }
           const kinds = parseKinds(d.kinds) ?? DEFAULT_KINDS
           const months: Record<string, MonthData> = {}
@@ -1034,8 +1040,8 @@ export const useStore = create<State>()(
       resetAll: () => set({ tasks: [], taskKinds: DEFAULT_TASK_KINDS, layouts: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
-      name: 'obseszion-goal-planner-v1',
-      version: 5,
+      name: 'viszionary-goal-planner-v1',
+      version: 6,
       partialize: (s) => ({
         months: s.months,
         kinds: s.kinds,
@@ -1065,6 +1071,7 @@ export const useStore = create<State>()(
       // v2 had a fixed list of item kinds; they're now the starter kinds, which can be changed.
       // v3 had four fixed goal areas with optional custom names; they're now the starter areas, which can be changed.
       // v4 had a fixed peso → US dollar rate (`usdRate`); it's now the main + alternative currency settings.
+      // v5 didn't tell events and to-dos apart (`type`).
       migrate: (persisted) => {
         const { currency, usdRate, areaLabels, ...rest } = (persisted ?? {}) as Record<string, unknown>
         return {
@@ -1075,6 +1082,7 @@ export const useStore = create<State>()(
           kinds: parseKinds(rest.kinds) ?? DEFAULT_KINDS,
           goalAreas: parseGoalAreas(rest.goalAreas, areaLabels),
           ...(rest.months ? { months: migrateMonths(rest.months) } : {}),
+          ...(rest.tasks ? { tasks: parseTasks(rest.tasks) } : {}),
           ...(rest.assetCat === 'other' ? { assetCat: 'status' } : {}),
           currency: parseCurrencies(currency, usdRate),
         } as Pick<State, 'months' | 'kinds' | 'goalAreas' | 'currency' | 'year' | 'dashMode'>

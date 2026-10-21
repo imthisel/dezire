@@ -5,7 +5,7 @@ import { SOURCE_KIND, kindColor, kindIcon } from '../lib/meta'
 import { useMedia } from '../lib/useMedia'
 import { goTo, useActiveSection } from '../nav'
 import { todayKey } from '../lib/expenses'
-import { happensOn, isDoneOn } from '../lib/tasks'
+import { happensOn, isDoneOn, isEvent } from '../lib/tasks'
 
 /** Wide screens keep the sidebar docked on the left; smaller ones slide it over the page. */
 export const useDocked = () => useMedia('(min-width: 1024px)')
@@ -40,7 +40,7 @@ export function Sidebar() {
   const spentThisMonth = useStore((s) => s.expenses.reduce((n, e) => (e.date.startsWith(month) ? n + e.amount : n), 0))
   // Tasks still to do today, shown next to Calendar.
   const today = todayKey()
-  const dueToday = useStore((s) => s.tasks.filter((t) => happensOn(t, today) && !isDoneOn(t, today)).length)
+  const dueToday = useStore((s) => s.tasks.filter((t) => !isEvent(t) && happensOn(t, today) && !isDoneOn(t, today)).length)
   const shown = docked ? sidebar : drawer
 
   // Esc closes the slide-over; growing the window to docked size drops it.
@@ -74,7 +74,7 @@ export function Sidebar() {
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-indigo-400 to-emerald-400">
               <Target className="h-4 w-4 text-white" strokeWidth={2.5} />
             </span>
-            <span className="font-bold tracking-tight text-white">Obseszion</span>
+            <span className="font-bold tracking-tight text-white">Viszionary</span>
           </div>
           <button
             onClick={() => toggleSidebar(docked)}
@@ -113,9 +113,18 @@ export function Sidebar() {
             <button
               onClick={() => {
                 useStore.getState().setDrawer(false)
-                useStore.getState().openModal({ type: 'task' })
+                useStore.getState().openModal({ type: 'task', entry: 'event', date: todayKey() })
               }}
               className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
+            >
+              <Plus className="h-4 w-4" /> Plan an event
+            </button>
+            <button
+              onClick={() => {
+                useStore.getState().setDrawer(false)
+                useStore.getState().openModal({ type: 'task', entry: 'todo' })
+              }}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
             >
               <Plus className="h-4 w-4" /> Add a task
             </button>
