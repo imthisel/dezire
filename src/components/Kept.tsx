@@ -3,7 +3,7 @@ import { Car, Home, Pencil, X } from 'lucide-react'
 import { useFmt, useItemIndex, useStore, type Parking } from '../store'
 import { toast } from '../toast'
 import { TREND } from '../lib/meta'
-import { MONTHS_SHORT, labelOfKey } from '../lib/time'
+import { labelOfKey } from '../lib/time'
 import type { Item } from '../lib/types'
 import { goToMonth } from '../nav'
 import { vehicleDrag } from '../dnd'
@@ -76,16 +76,13 @@ export function Kept({ item, drag = false, parking }: { item: Item; drag?: boole
                   <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md ${t.iconBg} ${t.text}`}>
                     <Car className="h-3.5 w-3.5" />
                   </span>
-                  {/* Name, when it was bought and its price, all on one line. Click to edit it right here. */}
+                  {/* Name and price on one line (no date bought, so the full name fits). Click to edit it right here. */}
                   <button
                     onClick={() => editItem(v)}
-                    title={`Edit ${v.item.name}`}
+                    title={`Edit ${v.item.name} · bought ${labelOfKey(v.key)}`}
                     className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-0.5 py-0.5 text-left transition hover:bg-white/[0.05]"
                   >
                     <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white">{v.item.name}</span>
-                    <span className="shrink-0 text-[11px] text-zinc-500" title={`Bought ${labelOfKey(v.key)}`}>
-                      {MONTHS_SHORT[Number(v.key.slice(5)) - 1]} {v.key.slice(0, 4)}
-                    </span>
                     <span className="shrink-0 text-xs font-semibold tabular-nums text-zinc-200">{f(v.item.price, true)}</span>
                   </button>
                   <button
