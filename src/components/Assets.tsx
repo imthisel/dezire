@@ -15,7 +15,7 @@ import type { Item, Trend } from '../lib/types'
 import { card } from './Dashboard'
 import { goTo, goToMonth } from '../nav'
 import { toast } from '../toast'
-import { Kept, dragVehicle } from './Kept'
+import { Kept, dragVehicle, editItem } from './Kept'
 import { useVehicleDrag, vehicleDrag } from '../dnd'
 import { ItemTile } from './Tiles'
 import { ZoomControl } from './Zoom'
@@ -622,7 +622,7 @@ function SetupVehicles({ parking, setups }: { parking: Parking; setups: number[]
             <span className="truncate text-zinc-600">· left off an earlier setup · sold there means sold in every setup after</span>
           </button>
           {showSold && (
-            <ul className="animate-fade mt-1 grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-1.5">
+            <ul className="animate-fade mt-1 grid grid-cols-[repeat(auto-fill,minmax(11.5rem,1fr))] gap-1.5">
               {sold.map(({ placed: v, since }) => {
                 // This setup had it at a property, but the earlier sale wins (kept, in case the sale is undone).
                 const planned = layouts[monthKey]?.[v.item.id]
@@ -878,7 +878,7 @@ function Group({ tone, title, note, count, empty, children }: { tone: 'teal' | '
       {count === 0 ? (
         <p className="px-0.5 pb-0.5 text-[11px] text-zinc-500">{empty}</p>
       ) : (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-1.5">{children}</ul>
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(11.5rem,1fr))] gap-1.5">{children}</ul>
       )}
     </div>
   )
@@ -899,10 +899,14 @@ function Box({ v, sub, subCls = 'text-zinc-500', tone, dim, children }: { v: { i
       <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md ${dim ? 'bg-white/5 text-zinc-500' : `${t.iconBg} ${t.text}`}`}>
         <Car className="h-3.5 w-3.5" />
       </span>
-      <span className="min-w-0 flex-1 leading-tight">
+      {/* Click to edit it right here */}
+      <button onClick={() => editItem(v)} title={`Edit ${v.item.name}`} className="min-w-0 flex-1 rounded-md text-left leading-tight transition hover:opacity-80">
         <span className={`block truncate text-[13px] font-medium ${dim ? 'text-zinc-400 line-through decoration-zinc-600' : 'text-zinc-100'}`}>{v.item.name}</span>
         <span className={`block truncate text-[10px] ${subCls}`}>{sub}</span>
-      </span>
+      </button>
+      <IconBtn label={`Edit ${v.item.name}`} onClick={() => editItem(v)}>
+        <Pencil className="h-3.5 w-3.5" />
+      </IconBtn>
       {children}
     </li>
   )
