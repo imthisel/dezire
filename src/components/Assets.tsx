@@ -3,7 +3,10 @@ import {
   ArrowUpDown, BadgeDollarSign, Cake, CalendarCheck, CalendarDays, CalendarRange, Car, ChevronDown, ChevronLeft, ChevronRight, Copy, Gem, Home, Infinity as All, Pencil,
   Plus, RotateCcw, Settings2, Star, Trash2, TrendingDown, TrendingUp, X,
 } from 'lucide-react'
-import { setupMonths, useFmt, useItemIndex, useKindOf, useKinds, useParking, useStore, useAlt, type AssetCat, type AssetPeriod, type Parking } from '../store'
+import {
+  placementAt, setupMonths, useFmt, useItemIndex, useKindOf, useKinds, useParking, useStore, useAlt, type AssetCat, type AssetPeriod, type Parking,
+} from '../store'
+import { SetupNote } from './YearNote'
 import { useBirthday } from './Birthday'
 import { TREND, kindColor, kindIcon } from '../lib/meta'
 import { valueAfter } from '../lib/calc'
@@ -156,6 +159,12 @@ export function Assets() {
 
         <PeriodPicker period={period} setups={setups} birthSet={birthMonth !== null} />
         {parking && (cat === 'all' || cat === 'property' || cat === 'vehicle') && <LayoutBar parking={parking} setups={setups} birthMonth={birthMonth} />}
+        {/* Each setup has its own note */}
+        {parking && (
+          <div className="relative mt-3">
+            <SetupNote monthKey={parking.monthKey} birthday={period.month !== 11 || setups.length === 1} />
+          </div>
+        )}
 
         {/* Totals */}
         <div className="relative mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
@@ -264,7 +273,7 @@ export function Assets() {
             </label>
           </div>
 
-          {parking && (cat === 'all' || cat === 'property' || cat === 'vehicle') && <SetupVehicles parking={parking} />}
+          {parking && (cat === 'all' || cat === 'property' || cat === 'vehicle') && <SetupVehicles parking={parking} setups={setups} />}
 
           <ZoomControl />
 
@@ -549,7 +558,7 @@ function LayoutBar({ parking, setups, birthMonth }: { parking: Parking; setups: 
  * Every vehicle in a setup as small boxes, in three groups: at a property, not at one (counts as sold from this setup on),
  * and sold in an earlier setup (kept visible so nothing quietly disappears; put one at a property to bring it back).
  */
-function SetupVehicles({ parking }: { parking: Parking }) {
+function SetupVehicles({ parking, setups }: { parking: Parking; setups: number[] }) {
   const { at, unplaced, sold, properties, vehicles, monthKey } = parking
   const index = useItemIndex()
   const layouts = useStore((s) => s.layouts)
@@ -578,7 +587,7 @@ function SetupVehicles({ parking }: { parking: Parking }) {
         <p className="text-[11px] text-zinc-500">Not at a property = sold by then</p>
       </div>
 
-      <SetupTotals parking={parking} />
+      <SetupTotals parking={parking} setups={setups} />
 
       <div className="grid gap-2.5 lg:grid-cols-2">
         <Group tone="teal" title="At a property" count={placed.length} empty="None yet · drag one onto a property, or tap its house button">
@@ -646,36 +655,63 @@ function SetupVehicles({ parking }: { parking: Parking }) {
  * What a setup's vehicles add up to: the ones still yours (at a property), and the ones sold —
  * left off this setup or an earlier one. A sold vehicle's "sold for" is an estimate: what it was worth at the setup it left.
  */
-function SetupTotals({ parking }: { parking: Parking }) {
+/** What one setup's vehicles add up to (see `SetupTotals`). */
+function totalsOf(p: Parking) {
+  const now = indexOfKey(p.monthKey)
+  const worthAt = (v: { item: Item; key: string }, when: number) => valueAfter(v.item, when - indexOfKey(v.key))
+  const kept = p.vehicles.filter((v) => p.at.has(v.item.id))
+  const soldNow = p.unplaced.map((v) => ({ v, value: worthAt(v, now) }))
+  // Sold in an earlier setup: worth what it was then.
+  const soldBefore = p.sold.map(({ placed: v, since }) => ({ v, value: worthAt(v, indexOfKey(since)) }))
+  const allSold = [...soldNow, ...soldBefore]
+  return {
+    kept: kept.length,
+    keptPaid: kept.reduce((n, v) => n + v.item.price, 0),
+    keptWorth: kept.reduce((n, v) => n + worthAt(v, now), 0),
+    soldNow: soldNow.length,
+    soldBefore: soldBefore.length,
+    sold: allSold.length,
+    soldPaid: allSold.reduce((n, x) => n + x.v.item.price, 0),
+    soldFor: allSold.reduce((n, x) => n + x.value, 0),
+  }
+}
+
+/** The setup before `monthKey` (the other setup month, going back), or null before the first one. */
+function previousSetup(monthKey: string, setups: number[]) {
+  for (let i = indexOfKey(monthKey) - 1; i >= 0; i--) if (setups.includes(i % 12)) return keyOf(i)
+  return null
+}
+
+function SetupTotals({ parking, setups }: { parking: Parking; setups: number[] }) {
   const f = useFmt()
   const u = useAlt()
-  const { at, unplaced, sold, vehicles, monthKey } = parking
-  const now = indexOfKey(monthKey)
-  const worthAt = (v: { item: Item; key: string }, when: number) => valueAfter(v.item, when - indexOfKey(v.key))
-
-  const kept = vehicles.filter((v) => at.has(v.item.id))
-  const keptPaid = kept.reduce((n, v) => n + v.item.price, 0)
-  const keptWorth = kept.reduce((n, v) => n + worthAt(v, now), 0)
-
-  const soldNow = unplaced.map((v) => ({ v, value: worthAt(v, now) }))
-  const soldBefore = sold.map(({ placed: v, since }) => ({ v, value: worthAt(v, indexOfKey(since)) }))
-  const allSold = [...soldNow, ...soldBefore]
-  const soldPaid = allSold.reduce((n, x) => n + x.v.item.price, 0)
-  const soldFor = allSold.reduce((n, x) => n + x.value, 0)
+  const index = useItemIndex()
+  const layouts = useStore((s) => s.layouts)
+  const { vehicles, monthKey } = parking
+  const { kept, keptPaid, keptWorth, soldNow, soldBefore, sold: soldCount, soldPaid, soldFor } = totalsOf(parking)
+  // The same totals for the setup before, to see what changed.
+  const prevKey = previousSetup(monthKey, setups)
+  const prev = useMemo(() => (prevKey ? totalsOf(placementAt(index, layouts, prevKey, setups)) : null), [prevKey, index, layouts, setups.join()])
 
   const totalPaid = keptPaid + soldPaid
   const keptShare = totalPaid > 0 ? (keptPaid / totalPaid) * 100 : 0
   const label = labelOfKey(monthKey)
+  const isBday = Number(monthKey.slice(5)) - 1 !== 11 || setups.length === 1
 
   return (
     <div className="mb-3 space-y-2.5">
+      <p className="flex items-center gap-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+        <span className={`h-1.5 w-1.5 rounded-full ${isBday ? 'bg-pink-300' : 'bg-teal-300'}`} />
+        Totals for the {label} setup
+        <span className="font-normal normal-case tracking-normal text-zinc-600">· {isBday ? 'birthday month' : 'December'}</span>
+      </p>
       <div className="grid gap-2.5 sm:grid-cols-2">
         <TotalCard
           tone="teal"
           icon={<Car className="h-4 w-4" />}
           title="Still yours"
           note="at a property"
-          count={kept.length}
+          count={kept}
           big={f(keptWorth)}
           bigLabel={`worth by ${shortLabel(monthKey)}`}
           alt={u(keptWorth)}
@@ -688,8 +724,8 @@ function SetupTotals({ parking }: { parking: Parking }) {
           tone="rose"
           icon={<BadgeDollarSign className="h-4 w-4" />}
           title="Sold"
-          note={allSold.length ? `${soldNow.length} this setup · ${soldBefore.length} before` : undefined}
-          count={allSold.length}
+          note={soldCount ? `${soldNow} this setup · ${soldBefore} before` : undefined}
+          count={soldCount}
           big={f(soldFor)}
           bigLabel="sold for (est.)"
           alt={u(soldFor)}
@@ -720,9 +756,39 @@ function SetupTotals({ parking }: { parking: Parking }) {
             <span className="text-teal-200/80">{Math.round(keptShare)}% still yours</span>
             <span className="text-rose-200/80">{100 - Math.round(keptShare)}% sold</span>
           </div>
+
+          {/* What changed since the setup before */}
+          {prev && prevKey && (prev.kept + prev.sold > 0 || vehicles.length > 0) && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-white/[0.06] pt-2.5 text-[11px]">
+              <span className="mr-0.5 text-zinc-500">Since the {labelOfKey(prevKey)} setup</span>
+              <Delta label="Still yours" from={String(prev.kept)} to={String(kept)} diff={kept - prev.kept} />
+              <Delta label="Worth" from={f(prev.keptWorth, true)} to={f(keptWorth, true)} diff={keptWorth - prev.keptWorth} money />
+              <Delta label="Sold" from={String(prev.sold)} to={String(soldCount)} diff={soldCount - prev.sold} neutral />
+            </div>
+          )}
         </div>
       )}
     </div>
+  )
+}
+
+/** "Worth ₱4.2M → ₱4.6M (+₱400K)" */
+function Delta({ label, from, to, diff, money, neutral }: { label: string; from: string; to: string; diff: number; money?: boolean; neutral?: boolean }) {
+  const f = useFmt()
+  const same = Math.abs(diff) < 0.005
+  const tone = same || neutral ? 'bg-white/[0.05] text-zinc-300' : diff > 0 ? 'bg-emerald-400/10 text-emerald-200' : 'bg-red-400/10 text-red-200'
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 tabular-nums ${tone}`}>
+      <span className="text-zinc-500">{label}</span>
+      {same ? (
+        <span className="font-medium">{to} · no change</span>
+      ) : (
+        <>
+          <span className="opacity-60">{from}</span>→<span className="font-semibold">{to}</span>
+          <span className="opacity-75">({diff > 0 ? '+' : ''}{money ? f(diff, true) : diff})</span>
+        </>
+      )}
+    </span>
   )
 }
 

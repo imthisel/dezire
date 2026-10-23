@@ -302,6 +302,9 @@ interface State {
   keepVehicleAt: (vehicleId: string, propertyId: string | null) => void
   /** Vehicle setups: where each vehicle is kept, one separate version per setup month (see `setupMonths`) */
   layouts: Layouts
+  /** Free text for each setup, keyed by its month ("2027-06"), shown with that setup only */
+  setupNotes: Record<string, string>
+  setSetupNote: (monthKey: string, text: string) => void
   /** Puts a vehicle at a property in one setup (null = take it off / not placed). */
   setKeptAt: (monthKey: string, vehicleId: string, propertyId: string | null) => void
   /** Empties a setup. */
@@ -568,6 +571,12 @@ export const useStore = create<State>()(
         }),
 
       layouts: {},
+      setupNotes: {},
+      setSetupNote: (monthKey, text) =>
+        set((s) => {
+          const { [monthKey]: _old, ...rest } = s.setupNotes
+          return { setupNotes: text ? { ...rest, [monthKey]: text } : rest }
+        }),
       setKeptAt: (monthKey, vehicleId, propertyId) =>
         set((s) => {
           const { [vehicleId]: _old, ...rest } = s.layouts[monthKey] ?? {}
@@ -966,6 +975,7 @@ export const useStore = create<State>()(
             expenseCats?: unknown
             places?: unknown
             layouts?: unknown
+            setupNotes?: unknown
             tasks?: unknown
             taskKinds?: unknown
           }
@@ -1027,6 +1037,7 @@ export const useStore = create<State>()(
             expenseCats: d.expenseCats === undefined ? cur.expenseCats : (parseExpenseCats(d.expenseCats) ?? DEFAULT_EXPENSE_CATS),
             places: d.places === undefined ? cur.places : parsePlaces(d.places),
             layouts: d.layouts === undefined ? cur.layouts : parseLayouts(d.layouts),
+            setupNotes: d.setupNotes === undefined ? cur.setupNotes : parseSetupNotes(d.setupNotes),
             tasks: d.tasks === undefined ? cur.tasks : parseTasks(d.tasks),
             taskKinds: d.taskKinds === undefined ? cur.taskKinds : (parseTaskKinds(d.taskKinds) ?? DEFAULT_TASK_KINDS),
           }
@@ -1037,7 +1048,7 @@ export const useStore = create<State>()(
         }
       },
 
-      resetAll: () => set({ tasks: [], taskKinds: DEFAULT_TASK_KINDS, layouts: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
+      resetAll: () => set({ tasks: [], taskKinds: DEFAULT_TASK_KINDS, layouts: {}, setupNotes: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
       name: 'viszionary-goal-planner-v1',
@@ -1055,6 +1066,7 @@ export const useStore = create<State>()(
         expenseCats: s.expenseCats,
         places: s.places,
         layouts: s.layouts,
+        setupNotes: s.setupNotes,
         tasks: s.tasks,
         taskKinds: s.taskKinds,
         year: s.year,
@@ -1100,6 +1112,16 @@ function parseLayouts(raw: unknown): Layouts {
     const one: Record<string, string> = {}
     for (const [v, pid] of Object.entries(m as Record<string, unknown>)) if (typeof pid === 'string') one[v] = pid
     if (Object.keys(one).length) out[k] = one
+  }
+  return out
+}
+
+/** Cleans up setup notes from a backup file or the cloud. */
+function parseSetupNotes(raw: unknown): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (!raw || typeof raw !== 'object') return out
+  for (const [k, text] of Object.entries(raw as Record<string, unknown>)) {
+    if (/^\d{4}-\d{2}$/.test(k) && typeof text === 'string' && text.trim()) out[k] = text.slice(0, 4000)
   }
   return out
 }

@@ -24,8 +24,8 @@ const SAVE_DELAY = 800
 
 /** The part of the app's state that belongs to the account. */
 const snapshot = () => {
-  const { months, kinds, goals, goalAreas, sources, birthday, yearNotes, currency, expenses, expenseCats, places, layouts, tasks, taskKinds } = useStore.getState()
-  return { months, kinds, goals, goalAreas, sources, birthday, yearNotes, currency, expenses: expenses.map(compact), expenseCats, places, layouts, tasks, taskKinds }
+  const { months, kinds, goals, goalAreas, sources, birthday, yearNotes, currency, expenses, expenseCats, places, layouts, setupNotes, tasks, taskKinds } = useStore.getState()
+  return { months, kinds, goals, goalAreas, sources, birthday, yearNotes, currency, expenses: expenses.map(compact), expenseCats, places, layouts, setupNotes, tasks, taskKinds }
 }
 
 /** An expense without its empty fields, to keep the saved document small (they come back as '' when loaded). */
@@ -128,7 +128,7 @@ async function connect(user: User) {
   let offlineEdits = false
   const unsubStore = useStore.subscribe((s, prev) => {
     if (applyingRemote) return
-    if (s.months === prev.months && s.kinds === prev.kinds && s.goals === prev.goals && s.goalAreas === prev.goalAreas && s.sources === prev.sources && s.birthday === prev.birthday && s.yearNotes === prev.yearNotes && s.currency === prev.currency && s.expenses === prev.expenses && s.expenseCats === prev.expenseCats && s.places === prev.places && s.layouts === prev.layouts && s.tasks === prev.tasks && s.taskKinds === prev.taskKinds) return
+    if (s.months === prev.months && s.kinds === prev.kinds && s.goals === prev.goals && s.goalAreas === prev.goalAreas && s.sources === prev.sources && s.birthday === prev.birthday && s.yearNotes === prev.yearNotes && s.currency === prev.currency && s.expenses === prev.expenses && s.expenseCats === prev.expenseCats && s.places === prev.places && s.layouts === prev.layouts && s.setupNotes === prev.setupNotes && s.tasks === prev.tasks && s.taskKinds === prev.taskKinds) return
     pending = true
     if (!navigator.onLine) offlineEdits = true
     useCloud.setState({ status: navigator.onLine ? 'saving' : 'offline' })

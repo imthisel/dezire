@@ -13,9 +13,9 @@ export function Header() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   function exportData() {
-    const { months, kinds, currency, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places, layouts, tasks, taskKinds } = useStore.getState()
+    const { months, kinds, currency, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places, layouts, setupNotes, tasks, taskKinds } = useStore.getState()
     const blob = new Blob(
-      [JSON.stringify({ app: 'viszionary', version: 4, exportedAt: new Date().toISOString(), currency, months, kinds, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places, layouts, tasks, taskKinds }, null, 2)],
+      [JSON.stringify({ app: 'viszionary', version: 4, exportedAt: new Date().toISOString(), currency, months, kinds, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places, layouts, setupNotes, tasks, taskKinds }, null, 2)],
       { type: 'application/json' },
     )
     const a = document.createElement('a')
@@ -36,7 +36,7 @@ export function Header() {
   }
 
   function reset() {
-    if (confirm('Delete ALL money goals, budgets, items, expenses, yearly goals, money plans, tasks, year notes and your birthday from 2026–2040? This cannot be undone.')) {
+    if (confirm('Delete ALL money goals, budgets, items, expenses, yearly goals, money plans, tasks, year and setup notes and your birthday from 2026–2040? This cannot be undone.')) {
       useStore.getState().resetAll()
       toast.info('Everything was cleared.')
     }
