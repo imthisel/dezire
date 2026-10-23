@@ -1,5 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { ArrowUpDown, Cake, CalendarCheck, CalendarDays, CalendarRange, Car, ChevronDown, ChevronLeft, ChevronRight, Copy, Gem, Home, Infinity as All, Pencil, Plus, RotateCcw, Settings2, Star, Trash2, X } from 'lucide-react'
+import {
+  ArrowUpDown, BadgeDollarSign, Cake, CalendarCheck, CalendarDays, CalendarRange, Car, ChevronDown, ChevronLeft, ChevronRight, Copy, Gem, Home, Infinity as All, Pencil,
+  Plus, RotateCcw, Settings2, Star, Trash2, TrendingDown, TrendingUp, X,
+} from 'lucide-react'
 import { setupMonths, useFmt, useItemIndex, useKindOf, useKinds, useParking, useStore, useAlt, type AssetCat, type AssetPeriod, type Parking } from '../store'
 import { useBirthday } from './Birthday'
 import { TREND, kindColor, kindIcon } from '../lib/meta'
@@ -575,6 +578,8 @@ function SetupVehicles({ parking }: { parking: Parking }) {
         <p className="text-[11px] text-zinc-500">Not at a property = sold by then</p>
       </div>
 
+      <SetupTotals parking={parking} />
+
       <div className="grid gap-2.5 lg:grid-cols-2">
         <Group tone="teal" title="At a property" count={placed.length} empty="None yet · drag one onto a property, or tap its house button">
           {placed.map((v) => (
@@ -634,6 +639,161 @@ function SetupVehicles({ parking }: { parking: Parking }) {
         </div>
       )}
     </section>
+  )
+}
+
+/**
+ * What a setup's vehicles add up to: the ones still yours (at a property), and the ones sold —
+ * left off this setup or an earlier one. A sold vehicle's "sold for" is an estimate: what it was worth at the setup it left.
+ */
+function SetupTotals({ parking }: { parking: Parking }) {
+  const f = useFmt()
+  const u = useAlt()
+  const { at, unplaced, sold, vehicles, monthKey } = parking
+  const now = indexOfKey(monthKey)
+  const worthAt = (v: { item: Item; key: string }, when: number) => valueAfter(v.item, when - indexOfKey(v.key))
+
+  const kept = vehicles.filter((v) => at.has(v.item.id))
+  const keptPaid = kept.reduce((n, v) => n + v.item.price, 0)
+  const keptWorth = kept.reduce((n, v) => n + worthAt(v, now), 0)
+
+  const soldNow = unplaced.map((v) => ({ v, value: worthAt(v, now) }))
+  const soldBefore = sold.map(({ placed: v, since }) => ({ v, value: worthAt(v, indexOfKey(since)) }))
+  const allSold = [...soldNow, ...soldBefore]
+  const soldPaid = allSold.reduce((n, x) => n + x.v.item.price, 0)
+  const soldFor = allSold.reduce((n, x) => n + x.value, 0)
+
+  const totalPaid = keptPaid + soldPaid
+  const keptShare = totalPaid > 0 ? (keptPaid / totalPaid) * 100 : 0
+  const label = labelOfKey(monthKey)
+
+  return (
+    <div className="mb-3 space-y-2.5">
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        <TotalCard
+          tone="teal"
+          icon={<Car className="h-4 w-4" />}
+          title="Still yours"
+          note="at a property"
+          count={kept.length}
+          big={f(keptWorth)}
+          bigLabel={`worth by ${shortLabel(monthKey)}`}
+          alt={u(keptWorth)}
+          paid={keptPaid}
+          change={keptWorth - keptPaid}
+          changeLabel="since bought"
+          empty="No vehicles at a property in this setup"
+        />
+        <TotalCard
+          tone="rose"
+          icon={<BadgeDollarSign className="h-4 w-4" />}
+          title="Sold"
+          note={allSold.length ? `${soldNow.length} this setup · ${soldBefore.length} before` : undefined}
+          count={allSold.length}
+          big={f(soldFor)}
+          bigLabel="sold for (est.)"
+          alt={u(soldFor)}
+          paid={soldPaid}
+          change={soldFor - soldPaid}
+          changeLabel="vs. what you paid"
+          empty="Nothing sold by this setup"
+        />
+      </div>
+
+      {/* Of everything bought by this setup: how much (by price) is still yours */}
+      {totalPaid > 0 && (
+        <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
+          <div className="flex items-baseline justify-between gap-3 text-[11px]">
+            <span className="font-medium text-zinc-400">
+              All vehicles by the {label} setup · <span className="tabular-nums text-zinc-500">{vehicles.length}</span>
+            </span>
+            <span className="tabular-nums text-zinc-300">
+              <span className="text-zinc-500">paid </span>
+              <span className="font-semibold text-white">{f(totalPaid)}</span>
+            </span>
+          </div>
+          <div className="mt-2 flex h-2 gap-0.5 overflow-hidden rounded-full bg-white/5" role="img" aria-label={`${Math.round(keptShare)}% still yours, ${100 - Math.round(keptShare)}% sold`}>
+            {keptPaid > 0 && <div className="h-full rounded-l-full bg-gradient-to-r from-teal-400 to-emerald-300 transition-[width] duration-500" style={{ width: `${keptShare}%` }} />}
+            {soldPaid > 0 && <div className="h-full flex-1 rounded-r-full bg-gradient-to-r from-rose-400/80 to-rose-300/70" />}
+          </div>
+          <div className="mt-1.5 flex justify-between text-[10.5px] tabular-nums">
+            <span className="text-teal-200/80">{Math.round(keptShare)}% still yours</span>
+            <span className="text-rose-200/80">{100 - Math.round(keptShare)}% sold</span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TotalCard({
+  tone, icon, title, note, count, big, bigLabel, alt, paid, change, changeLabel, empty,
+}: {
+  tone: 'teal' | 'rose'
+  icon: ReactNode
+  title: string
+  note?: string
+  count: number
+  big: string
+  bigLabel: string
+  alt: string
+  paid: number
+  change: number
+  changeLabel: string
+  empty: string
+}) {
+  const f = useFmt()
+  const teal = tone === 'teal'
+  const pct = paid > 0 ? (change / paid) * 100 : 0
+  const up = change > 0.005
+  const down = change < -0.005
+  const Trend = down ? TrendingDown : TrendingUp
+  return (
+    <div
+      className={`relative min-w-0 overflow-hidden rounded-xl border p-3 sm:p-3.5 ${
+        teal ? 'border-teal-300/20 bg-gradient-to-br from-teal-400/[0.09] to-transparent' : 'border-rose-300/20 bg-gradient-to-br from-rose-400/[0.09] to-transparent'
+      }`}
+    >
+      <div aria-hidden className={`pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full blur-2xl ${teal ? 'bg-teal-400/10' : 'bg-rose-400/10'}`} />
+      <div className="relative flex items-center gap-2">
+        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${teal ? 'bg-teal-400/15 text-teal-200' : 'bg-rose-400/15 text-rose-200'}`}>{icon}</span>
+        <p className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wider text-zinc-200">
+          {title}
+          {note && <span className="ml-1.5 font-normal normal-case tracking-normal text-zinc-500">{note}</span>}
+        </p>
+        <span className={`shrink-0 rounded-full px-2 py-px text-[11px] font-semibold tabular-nums ${teal ? 'bg-teal-400/15 text-teal-100' : 'bg-rose-400/15 text-rose-100'}`}>
+          {count} {count === 1 ? 'vehicle' : 'vehicles'}
+        </span>
+      </div>
+
+      {count === 0 ? (
+        <p className="relative mt-3 text-sm text-zinc-500">{empty}</p>
+      ) : (
+        <>
+          <div className="relative mt-2.5 flex flex-wrap items-baseline gap-x-2">
+            <p key={big} className="animate-tick text-2xl font-bold tabular-nums tracking-tight text-white">{big}</p>
+            <p className="text-xs text-zinc-400">{bigLabel}</p>
+          </div>
+          <p className="alt relative text-[11px] tabular-nums text-zinc-500">≈ {alt}</p>
+          <div className="relative mt-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-white/[0.06] pt-2.5 text-xs tabular-nums">
+            <span className="text-zinc-400">
+              Paid <span className="font-semibold text-zinc-100">{f(paid)}</span>
+            </span>
+            <span
+              title={changeLabel}
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${
+                up ? 'bg-emerald-400/10 text-emerald-300' : down ? 'bg-red-400/10 text-red-300' : 'bg-white/5 text-zinc-300'
+              }`}
+            >
+              {(up || down) && <Trend className="h-3 w-3" />}
+              {up ? '+' : ''}
+              {f(change)}
+              {paid > 0 && <span className="font-normal opacity-75">({up ? '+' : ''}{pct.toFixed(1)}%)</span>}
+            </span>
+          </div>
+        </>
+      )}
+    </div>
   )
 }
 
