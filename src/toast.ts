@@ -1,14 +1,17 @@
 import { create } from 'zustand'
 import type { Result } from './lib/types'
 
-/** `action`: a button on the toast, e.g. Undo. */
-export type Toast = { id: number; kind: 'error' | 'success' | 'info' | 'warning'; message: string; action?: { label: string; run: () => void } }
+/** `action`: a button on the toast, e.g. Undo. `leaving`: on its way out (sliding away for a moment before it's gone). */
+export type Toast = { id: number; kind: 'error' | 'success' | 'info' | 'warning'; message: string; action?: { label: string; run: () => void }; leaving?: boolean }
 
 let nextId = 1
 
 export const useToasts = create<{ toasts: Toast[]; dismiss: (id: number) => void }>((set) => ({
   toasts: [],
-  dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  dismiss: (id) => {
+    set((s) => ({ toasts: s.toasts.map((t) => (t.id === id ? { ...t, leaving: true } : t)) }))
+    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), 200)
+  },
 }))
 
 function push(kind: Toast['kind'], message: string, ms = kind === 'error' || kind === 'warning' ? 6000 : 2800, action?: Toast['action']) {

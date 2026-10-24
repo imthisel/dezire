@@ -24,7 +24,7 @@ const viewOf = (id: string): View =>
 
 function scrollTo(id: string, instant: boolean) {
   const behavior = instant ? 'instant' : 'smooth'
-  if (id === 'overview' || id === 'plan' || id === 'favorites' || id === 'expenses' || id === 'calendar' || id.startsWith('assets')) return window.scrollTo({ top: 0, behavior })
+  if (atTop(id)) return window.scrollTo({ top: 0, behavior })
   const el = document.getElementById(id)
   if (!el) return
   const offset = id === 'years' ? 0 : viewOf(id) === 'plan' ? 16 : OFFSET
@@ -39,8 +39,23 @@ export function goTo(id: string) {
   if (switched) s.setView(view)
   if (id.startsWith('assets')) s.setAssetCat((id.slice('assets-'.length) || 'all') as AssetCat)
   s.setDrawer(false)
-  // Let the other page render before measuring where the section is.
-  requestAnimationFrame(() => requestAnimationFrame(() => scrollTo(id, switched)))
+  whenShown(view, id, () => scrollTo(id, switched))
+}
+
+const atTop = (id: string) => id === 'overview' || id === 'plan' || id === 'favorites' || id === 'expenses' || id === 'calendar' || id.startsWith('assets')
+
+/**
+ * Runs `then` once page `view` is on screen (pages are built in the background, see `Pages` in App) and the section
+ * `id` exists, so it's measured where it really is. Gives up waiting after about two seconds.
+ */
+function whenShown(view: View, id: string, then: () => void) {
+  let frames = 0
+  const check = () => {
+    const ready = document.querySelector(`main[data-view="${view}"][aria-busy="false"]`) && (atTop(id) || document.getElementById(id))
+    if (ready || ++frames > 120) then()
+    else requestAnimationFrame(check)
+  }
+  requestAnimationFrame(check)
 }
 
 /** Opens the Planner on the month `key` ("2027-03"). */

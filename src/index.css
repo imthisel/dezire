@@ -9,6 +9,13 @@
   --animate-rise: rise 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
   --animate-tick: tick 0.35s ease-out;
   --animate-menu: menu 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+  /* A new page coming in (opacity only: a moving page would shift the floating buttons inside it) */
+  --animate-page: page 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+  /* Leaving: dialogs (a sheet sliding down on phones, shrinking away on bigger screens), toasts */
+  --animate-fade-out: fade-out 0.2s ease-in forwards;
+  --animate-pop-out: pop-out 0.18s cubic-bezier(0.4, 0, 1, 1) forwards;
+  --animate-sheet-out: sheet-out 0.22s cubic-bezier(0.4, 0, 1, 1) forwards;
+  --animate-toast-out: toast-out 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
 
   @keyframes pop {
     from { opacity: 0; transform: translateY(12px) scale(0.97); }
@@ -30,6 +37,26 @@
     from { opacity: 0; transform: translateY(-6px) scale(0.98); }
     to { opacity: 1; transform: none; }
   }
+  @keyframes page {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  @keyframes pop-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(8px) scale(0.97); }
+  }
+  @keyframes sheet-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0.6; transform: translateY(100%); }
+  }
+  @keyframes toast-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateX(24px) scale(0.98); }
+  }
   @keyframes tick {
     from { opacity: 0.4; transform: translateY(3px); }
     to { opacity: 1; transform: none; }
@@ -39,6 +66,8 @@
 html {
   color-scheme: dark;
   background: #07080c;
+  /* Room for the scrollbar is always kept, so locking the page behind a dialog doesn't shift (and re-lay out) everything */
+  scrollbar-gutter: stable;
 }
 
 body {

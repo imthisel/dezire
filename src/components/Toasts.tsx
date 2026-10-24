@@ -18,7 +18,7 @@ export function Toasts() {
           <div
             key={t.id}
             role={t.kind === 'error' ? 'alert' : 'status'}
-            className={`animate-slide pointer-events-auto flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-sm shadow-xl shadow-black/40 backdrop-blur ${s.cls}`}
+            className={`${t.leaving ? 'animate-toast-out pointer-events-none' : 'animate-slide pointer-events-auto'} flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-sm shadow-xl shadow-black/40 backdrop-blur ${s.cls}`}
           >
             <s.icon className={`mt-0.5 h-5 w-5 shrink-0 ${s.iconCls}`} />
             <p className="flex-1 leading-snug">{t.message}</p>

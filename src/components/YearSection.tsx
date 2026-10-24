@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, ListCollapse, ListTree, Wand2 } from 'lucide-react'
 import { useFmt, usePlan, useStore, useAlt } from '../store'
 import { END_YEAR, START_YEAR, YEARS, currentYear } from '../lib/time'
@@ -17,8 +17,19 @@ import { PHONE_GRID, useCols } from '../zoom'
 export function YearSection() {
   const year = useStore((s) => s.year)
   const setYear = useStore((s) => s.setYear)
-  const start = (year - START_YEAR) * 12
   const cols = useCols()
+  // Another year's months are built in the background (the year tabs answer right away), then fade in.
+  const shownYear = useDeferredValue(year)
+  const grid = useMemo(() => {
+    const start = (shownYear - START_YEAR) * 12
+    return (
+      <div key={shownYear} data-zoom-grid className={`animate-page grid sm:gap-4 md:grid-cols-2 xl:grid-cols-3 ${PHONE_GRID[cols]}`}>
+        {Array.from({ length: 12 }, (_, m) =>
+          cols === 1 ? <MonthCard key={start + m} index={start + m} /> : <MonthTile key={start + m} index={start + m} cols={cols} />,
+        )}
+      </div>
+    )
+  }, [shownYear, cols])
 
   return (
     <section className="space-y-4">
@@ -34,11 +45,7 @@ export function YearSection() {
           </div>
         </div>
       </div>
-      <div data-zoom-grid className={`grid sm:gap-4 md:grid-cols-2 xl:grid-cols-3 ${PHONE_GRID[cols]}`}>
-        {Array.from({ length: 12 }, (_, m) =>
-          cols === 1 ? <MonthCard key={start + m} index={start + m} /> : <MonthTile key={start + m} index={start + m} cols={cols} />,
-        )}
-      </div>
+      <div className={`transition-opacity duration-150 ${year !== shownYear ? 'opacity-50' : ''}`}>{grid}</div>
       <div className="flex justify-center gap-3 pt-2">
         <button
           disabled={year <= START_YEAR}

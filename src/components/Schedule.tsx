@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   AlertCircle, CalendarCheck, CalendarRange, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleCheck, Eye, EyeOff, Inbox, Plus, Repeat, Settings2,
 } from 'lucide-react'
@@ -110,6 +110,22 @@ export function Schedule() {
     [shown, days, view],
   )
   const isNow = days.includes(today) && (view !== 'month' || anchor.slice(0, 7) === today.slice(0, 7))
+
+  // Moving to other days glides in from the side it came from; another view fades in.
+  const body = useRef<HTMLDivElement>(null)
+  const before = useRef({ view, start: days[0] })
+  useLayoutEffect(() => {
+    const prev = before.current
+    before.current = { view, start: days[0] }
+    if (prev.view === view && prev.start === days[0]) return
+    // Not while a task is being stretched into the next day (the grid shouldn't move under the pointer), nor for reduced motion.
+    if (document.documentElement.hasAttribute('data-touch-drag') || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const dx = prev.view !== view ? 0 : days[0] > prev.start ? 18 : -18
+    body.current?.animate([{ opacity: 0.25, transform: `translateX(${dx}px)` }, { opacity: 1, transform: 'none' }], {
+      duration: 260,
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+    })
+  }, [view, days[0]])
 
   // Keyboard: T today, D / 3 / W / M views, E new event, N new task, ← → move.
   useEffect(() => {
@@ -229,11 +245,13 @@ export function Schedule() {
             </div>
           </div>
 
-          {view === 'month' ? (
-            <MonthGrid days={days} month={anchor.slice(0, 7)} occurrences={occurrences} onPickDay={pickDay} />
-          ) : (
-            <TimeGrid days={days} occurrences={occurrences} onPickDay={pickDay} onShowDay={setAnchor} />
-          )}
+          <div ref={body}>
+            {view === 'month' ? (
+              <MonthGrid days={days} month={anchor.slice(0, 7)} occurrences={occurrences} onPickDay={pickDay} />
+            ) : (
+              <TimeGrid days={days} occurrences={occurrences} onPickDay={pickDay} onShowDay={setAnchor} />
+            )}
+          </div>
         </section>
 
         {/* Side: jump to a day, kinds, to-do list */}

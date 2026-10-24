@@ -563,7 +563,7 @@ function Block({
       onPointerUp={onPointerUp}
       onKeyDown={(e) => e.key === 'Enter' && useStore.getState().openModal({ type: 'task', editId: t.id })}
       onContextMenu={onContextMenu ?? ((e) => e.preventDefault())}
-      className={`group/b absolute overflow-hidden border-l-[3px] ${c.edge} ${c.block} ${seg.first ? 'rounded-t-lg' : ''} ${seg.last ? 'rounded-b-lg' : ''} px-1.5 text-left outline-none backdrop-blur-sm transition-[background-color,opacity,box-shadow] focus-visible:ring-2 focus-visible:ring-white/60 ${
+      className={`group/b absolute overflow-hidden border-l-[3px] ${c.edge} ${c.block} ${seg.first ? 'rounded-t-lg' : ''} ${seg.last ? 'rounded-b-lg' : ''} px-1.5 text-left outline-none transition-[background-color,opacity,box-shadow] focus-visible:ring-2 focus-visible:ring-white/60 ${
         preview ? 'pointer-events-none z-30 shadow-2xl shadow-black/60 ring-1 ring-white/25' : 'z-10 cursor-pointer'
       } ${lifted ? 'z-30 shadow-xl shadow-black/50 ring-1 ring-white/25' : ''} ${faded ? 'opacity-35' : ''} ${occ.done && !preview ? 'opacity-55' : ''}`}
       style={{

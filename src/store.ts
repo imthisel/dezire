@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware'
 import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
 import {
   DEFAULT_GOAL_AREAS, DEFAULT_KINDS, GOAL_COLORS, GOAL_ICONS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_AREA, UNKNOWN_KIND,
@@ -406,6 +406,57 @@ try {
   }
 } catch {
   // Storage blocked: nothing to carry over.
+}
+
+/**
+ * Saves to this browser a moment after the last change instead of on every one. The whole state is written each time,
+ * and with years of items, expenses and tasks that's slow enough to make clicks and typing stutter.
+ * Anything not yet written is saved right away when the tab is hidden or closed.
+ */
+function lazyStorage<S>(delay = 500): PersistStorage<S> {
+  let pending: { name: string; value: StorageValue<S> } | null = null
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const flush = () => {
+    clearTimeout(timer)
+    if (!pending) return
+    const { name, value } = pending
+    pending = null
+    try {
+      localStorage.setItem(name, JSON.stringify(value))
+    } catch {
+      // Storage full or blocked: the cloud copy still has everything.
+    }
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flush())
+  }
+  // When the browser is idle, so the write never lands in the middle of an animation.
+  const idle = (fn: () => void) => ('requestIdleCallback' in window ? window.requestIdleCallback(fn, { timeout: 1000 }) : setTimeout(fn, 0))
+  return {
+    getItem: (name) => {
+      try {
+        const raw = localStorage.getItem(name)
+        return raw ? (JSON.parse(raw) as StorageValue<S>) : null
+      } catch {
+        return null
+      }
+    },
+    setItem: (name, value) => {
+      pending = { name, value }
+      clearTimeout(timer)
+      timer = setTimeout(() => idle(flush), delay)
+    },
+    removeItem: (name) => {
+      pending = null
+      clearTimeout(timer)
+      try {
+        localStorage.removeItem(name)
+      } catch {
+        // Nothing to remove.
+      }
+    },
+  }
 }
 
 export const useStore = create<State>()(
@@ -1055,6 +1106,7 @@ export const useStore = create<State>()(
     {
       name: 'dezayr-goal-planner-v1',
       version: 6,
+      storage: lazyStorage(),
       partialize: (s) => ({
         months: s.months,
         kinds: s.kinds,
@@ -1280,7 +1332,8 @@ export const useCurrency = () => useStore((s) => s.currency)
 /** Formats an amount in the main currency: ₱100,000 */
 export function useFmt() {
   const symbol = useStore((s) => s.currency.main.symbol)
-  return (n: number, compact = false) => fmt(n, symbol, compact)
+  // The same function until the symbol changes, so lists that depend on it aren't redone on every render.
+  return useCallback((n: number, compact = false) => fmt(n, symbol, compact), [symbol])
 }
 
 /**
@@ -1289,7 +1342,7 @@ export function useFmt() {
  */
 export function useAlt() {
   const alt = useStore((s) => s.currency.alt)
-  return (n: number, compact = false) => fmtAlt(n, alt, compact)
+  return useCallback((n: number, compact = false) => fmtAlt(n, alt, compact), [alt])
 }
 
 // Lets CSS fade out every alternative-currency amount at once when it's turned off (see `.alt` in index.css).
