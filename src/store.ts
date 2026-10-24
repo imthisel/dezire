@@ -388,18 +388,18 @@ interface State {
   resetAll: () => void
 }
 
-// The app used to be called Dezire, then Obssezion, Obseszion and Viszionary: what a browser saved under an old name carries over once.
+// The app used to be called Dezire, then Obssezion, Obseszion, Viszionary and Dezayr: what a browser saved under an old name carries over once.
 try {
-  const KEY = 'dezayr-goal-planner-v1'
-  for (const oldKey of ['viszionary-goal-planner-v1', 'obseszion-goal-planner-v1', 'obssezion-goal-planner-v1', 'dezire-goal-planner-v1']) {
+  const KEY = 'dizayr-goal-planner-v1'
+  for (const oldKey of ['dezayr-goal-planner-v1', 'viszionary-goal-planner-v1', 'obseszion-goal-planner-v1', 'obssezion-goal-planner-v1', 'dezire-goal-planner-v1']) {
     const old = localStorage.getItem(oldKey)
     if (old && !localStorage.getItem(KEY)) localStorage.setItem(KEY, old)
     if (old) localStorage.removeItem(oldKey)
   }
   // Remembered choices (calendar view, expense period…) too.
-  for (const prefix of ['viszionary-', 'obseszion-']) {
+  for (const prefix of ['dezayr-', 'viszionary-', 'obseszion-']) {
     for (const oldKey of Object.keys(localStorage).filter((k) => k.startsWith(prefix))) {
-      const key = 'dezayr-' + oldKey.slice(prefix.length)
+      const key = 'dizayr-' + oldKey.slice(prefix.length)
       if (localStorage.getItem(key) === null) localStorage.setItem(key, localStorage.getItem(oldKey)!)
       localStorage.removeItem(oldKey)
     }
@@ -1033,7 +1033,7 @@ export const useStore = create<State>()(
             taskKinds?: unknown
           }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
-            return fail('That file is not a Dezayr backup.')
+            return fail('That file is not a Dizayr backup.')
           }
           const kinds = parseKinds(d.kinds) ?? DEFAULT_KINDS
           const months: Record<string, MonthData> = {}
@@ -1104,7 +1104,7 @@ export const useStore = create<State>()(
       resetAll: () => set({ tasks: [], taskKinds: DEFAULT_TASK_KINDS, layouts: {}, setupNotes: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
-      name: 'dezayr-goal-planner-v1',
+      name: 'dizayr-goal-planner-v1',
       version: 6,
       storage: lazyStorage(),
       partialize: (s) => ({

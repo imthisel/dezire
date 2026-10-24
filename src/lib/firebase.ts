@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'
+import { browserLocalPersistence, browserPopupRedirectResolver, GoogleAuthProvider, indexedDBLocalPersistence, initializeAuth } from 'firebase/auth'
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore'
 
 const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname)
@@ -19,7 +19,13 @@ export const firebaseConfigured = Object.values(config).every(Boolean)
 
 const app = firebaseConfigured ? initializeApp(config) : null
 
-export const auth = app ? getAuth(app) : null
+/**
+ * Stays signed in on this device until you sign out: the sign-in is kept in the browser's lasting storage
+ * (IndexedDB, or localStorage where that isn't available), never only for the open tab.
+ */
+export const auth = app
+  ? initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence], popupRedirectResolver: browserPopupRedirectResolver })
+  : null
 export const googleProvider = new GoogleAuthProvider()
 googleProvider.setCustomParameters({ prompt: 'select_account' })
 

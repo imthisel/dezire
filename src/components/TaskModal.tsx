@@ -17,7 +17,7 @@ type When = 'none' | 'date' | 'repeat'
 
 const field =
   'h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm'
-const LAST_KIND = 'dezayr-last-task-kind'
+const LAST_KIND = 'dizayr-last-task-kind'
 const DURATIONS = [15, 30, 60, 90, 120, 180]
 
 const readLastKind = () => {

@@ -48,9 +48,19 @@ export function startCloud() {
     void stopSync?.()
     stopSync = null
     if (!user) return useCloud.setState({ user: null, ready: true, loadError: null })
+    keepStorage()
     useCloud.setState({ user, ready: false, loadError: null })
     void connect(user)
   })
+}
+
+/**
+ * Asks the browser to keep this site's storage (the sign-in and the offline copy) instead of clearing it when it
+ * tidies up, so you stay signed in. Chrome, Edge and Safari decide quietly; Firefox would show a question, so it's skipped there.
+ */
+function keepStorage() {
+  if (/firefox/i.test(navigator.userAgent)) return
+  void navigator.storage?.persisted?.().then((kept) => kept || navigator.storage.persist?.()).catch(() => {})
 }
 
 /** How long to wait for the server at start-up before opening with the copy saved on this device. */
@@ -103,7 +113,7 @@ async function connect(user: User) {
       ready: true,
       loadError: navigator.onLine
         ? 'Could not load your data. Check your internet connection and try again.'
-        : "You're offline, and your data isn't saved on this device yet. Connect to the internet once and Dezayr will work offline after that.",
+        : "You're offline, and your data isn't saved on this device yet. Connect to the internet once and Dizayr will work offline after that.",
     })
     return
   }
