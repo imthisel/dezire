@@ -24,8 +24,8 @@ const VIEWS: { id: CalView; label: string; short: string; key: string }[] = [
   { id: 'week', label: 'Week', short: 'Week', key: 'W' },
   { id: 'month', label: 'Month', short: 'Month', key: 'M' },
 ]
-const VIEW_KEY = 'viszionary-calendar-view'
-const HIDDEN_KEY = 'viszionary-hidden-task-kinds'
+const VIEW_KEY = 'dezayr-calendar-view'
+const HIDDEN_KEY = 'dezayr-hidden-task-kinds'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const clampDay = (k: string) => (k < MIN_DATE ? MIN_DATE : k > MAX_DATE ? MAX_DATE : k)
