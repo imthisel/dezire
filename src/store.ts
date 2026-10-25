@@ -278,6 +278,9 @@ interface State {
   assetCat: AssetCat
   assetPeriod: AssetPeriod
   setAssetCat: (c: AssetCat) => void
+  /** The kind Assets opens on (only one; null = All). Remembered. */
+  assetFavorite: Category | null
+  setAssetFavorite: (c: Category | null) => void
   setAssetPeriod: (p: Partial<AssetPeriod>) => void
   setSidebar: (open: boolean) => void
   setDrawer: (open: boolean) => void
@@ -495,6 +498,8 @@ export const useStore = create<State>()(
       assetCat: 'all',
       assetPeriod: { mode: 'all', from: currentYear(), to: Math.min(END_YEAR, currentYear() + 4), month: new Date().getMonth() },
       setAssetCat: (assetCat) => set({ assetCat }),
+      assetFavorite: null,
+      setAssetFavorite: (assetFavorite) => set({ assetFavorite }),
       setAssetPeriod: (p) =>
         set((s) => {
           const clamp = (y: number) => Math.min(END_YEAR, Math.max(START_YEAR, y))
@@ -593,7 +598,12 @@ export const useStore = create<State>()(
           }
           next = cleanLinks(next)
         }
-        set({ kinds: kinds.filter((k) => k.id !== id), months: next, ...(assetCat === id ? { assetCat: 'all' as const } : {}) })
+        set({
+          kinds: kinds.filter((k) => k.id !== id),
+          months: next,
+          ...(assetCat === id ? { assetCat: 'all' as const } : {}),
+          ...(get().assetFavorite === id ? { assetFavorite: null } : {}),
+        })
         return OK
       },
 
@@ -1131,6 +1141,7 @@ export const useStore = create<State>()(
         phoneCols: s.phoneCols,
         assetCat: s.assetCat,
         assetPeriod: s.assetPeriod,
+        assetFavorite: s.assetFavorite,
       }),
       // v0 had a selectable currency; amounts are now always pesos.
       // v1 had an "Other" item kind; it's now part of "Status & Other".

@@ -31,13 +31,19 @@ function scrollTo(id: string, instant: boolean) {
   window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior })
 }
 
+/** Where plain "Assets" opens: the kind marked as favorite (if it still exists), otherwise All. */
+function favoriteAssets(): AssetCat {
+  const { assetFavorite, kinds } = useStore.getState()
+  return assetFavorite && kinds.some((k) => k.id === assetFavorite) ? assetFavorite : 'all'
+}
+
 /** Switches page if needed, then scrolls to the section. */
 export function goTo(id: string) {
   const s = useStore.getState()
   const view = viewOf(id)
   const switched = s.view !== view
   if (switched) s.setView(view)
-  if (id.startsWith('assets')) s.setAssetCat((id.slice('assets-'.length) || 'all') as AssetCat)
+  if (id.startsWith('assets')) s.setAssetCat((id.slice('assets-'.length) || favoriteAssets()) as AssetCat)
   s.setDrawer(false)
   whenShown(view, id, () => scrollTo(id, switched))
 }

@@ -24,6 +24,7 @@ export function Sidebar() {
   const sources = useStore((s) => s.sources)
   const favorites = useStore((s) => Object.values(s.months).reduce((n, m) => n + m.items.filter((i) => i.favorite).length, 0))
   const assetCat = useStore((s) => s.assetCat)
+  const assetFavorite = useStore((s) => s.assetFavorite)
   const kinds = useKinds()
   // "3,1,…" (one count per kind) keeps the selector's result a plain string, so it only re-renders on real changes.
   const assetCounts = useStore((s) => {
@@ -174,6 +175,7 @@ export function Sidebar() {
                     >
                       <Icon className={`h-3.5 w-3.5 shrink-0 ${on ? kindColor(k).text : ''}`} />
                       <span className="min-w-0 flex-1 truncate">{k.label}</span>
+                      {k.id === assetFavorite && <Star className="h-3 w-3 shrink-0 fill-amber-300 text-amber-300" aria-label="Assets opens here" />}
                       {assetCounts[i] > 0 && <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">{assetCounts[i]}</span>}
                     </button>
                   </li>

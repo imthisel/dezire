@@ -60,6 +60,8 @@ export function Assets() {
   const period: AssetPeriod =
     savedPeriod.mode === 'month' && !setups.includes(savedPeriod.month) ? { ...savedPeriod, month: setups[0] } : savedPeriod
   const { setAssetCat } = useStore.getState()
+  const favorite = useStore((s) => s.assetFavorite)
+  const favKind = kinds.find((k) => k.id === favorite)
   const f = useFmt()
   const u = useAlt()
   const [trend, setTrend] = useState<'all' | Trend>('all')
@@ -117,12 +119,26 @@ export function Assets() {
           <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br shadow-lg shadow-black/30 ${headGrad}`}>
             <HeadIcon className="h-5 w-5 text-white" strokeWidth={2.5} />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="truncate text-xl font-bold tracking-tight text-white sm:text-2xl">{title}</h2>
             <p className="truncate text-sm text-zinc-400">
               {ofKind.length} item{ofKind.length === 1 ? '' : 's'} · {periodLabel(period)}
             </p>
           </div>
+          {kind ? (
+            <FavoriteKindButton kindId={kind.id} label={kind.label} on={favorite === kind.id} />
+          ) : (
+            favKind && (
+              <button
+                onClick={() => setAssetCat(favKind.id)}
+                title={`Assets opens on ${favKind.label} · tap to go there`}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-2.5 text-xs font-medium text-amber-100/90 transition hover:bg-amber-300/10"
+              >
+                <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300" />
+                <span className="hidden sm:inline">Opens on</span> {favKind.label}
+              </button>
+            )
+          )}
         </div>
 
         {/* Kind tabs (same as the sidebar's sub-tabs; handy on phones) */}
@@ -144,6 +160,7 @@ export function Assets() {
               >
                 <Icon className={`h-4 w-4 ${on ? (kd ? kindColor(kd).text : 'text-indigo-300') : ''}`} />
                 {kd ? kd.label : 'All'}
+                {kd && kd.id === favorite && <Star className="h-3 w-3 fill-amber-300 text-amber-300" aria-label="Opens first" />}
                 <span className={`tabular-nums ${on ? 'text-indigo-200/70' : 'text-zinc-600'}`}>{n}</span>
               </button>
             )
@@ -306,6 +323,29 @@ export function Assets() {
         </>
       )}
     </div>
+  )
+}
+
+/** Marks a kind as the one Assets opens on (only one at a time); pressing it again goes back to opening on All. */
+function FavoriteKindButton({ kindId, label, on }: { kindId: string; label: string; on: boolean }) {
+  const set = useStore.getState().setAssetFavorite
+  return (
+    <button
+      onClick={() => {
+        set(on ? null : kindId)
+        toast.success(on ? 'Assets will open on All again.' : `Assets will open on ${label} from now on.`)
+      }}
+      aria-pressed={on}
+      title={on ? `Assets opens on ${label} · tap to open on All instead` : `Open Assets on ${label} every time`}
+      className={`group inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold transition active:scale-95 ${
+        on
+          ? 'border-amber-300/40 bg-amber-300/10 text-amber-100 hover:bg-amber-300/15'
+          : 'border-white/10 text-zinc-400 hover:border-amber-300/30 hover:text-amber-100'
+      }`}
+    >
+      <Star className={`h-4 w-4 transition ${on ? 'scale-110 fill-amber-300 text-amber-300' : 'group-hover:text-amber-300'}`} />
+      <span className="hidden sm:inline">{on ? 'Opens first' : 'Open here first'}</span>
+    </button>
   )
 }
 
