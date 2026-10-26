@@ -1,9 +1,31 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Each signed-in user can read and write only their own document: users/{their uid}.
+
+    // Who may use the app (see src/billing.ts): free trial, a paid plan, or lifetime access.
+    function hasAccess(uid) {
+      let path = /databases/$(database)/documents/subscriptions/$(uid);
+      let s = get(path).data;
+      return exists(path) && (
+        s.get('lifetime', false) == true
+        || (s.get('accessUntil', null) != null && s.accessUntil > request.time)
+        || (s.get('trialStartedAt', null) != null && s.trialStartedAt + duration.value(7, 'd') > request.time)
+      );
+    }
+
+    // Each signed-in user can read and write only their own document, users/{their uid}, while they have access.
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if request.auth != null && request.auth.uid == uid && hasAccess(uid);
+    }
+
+    // Access record for each account. Users can read their own, and create it once to start the free trial,
+    // with the start time set to "now" and nothing else. Only the payment webhook (server) changes it after that,
+    // so a trial can't be restarted or extended from the browser.
+    match /subscriptions/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['trialStartedAt'])
+        && request.resource.data.trialStartedAt == request.time;
     }
   }
 }

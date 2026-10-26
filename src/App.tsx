@@ -21,6 +21,7 @@ import { AuthGate } from './components/AuthGate'
 import { MobileNav } from './components/MobileNav'
 import { Sidebar } from './components/Sidebar'
 import { ZoomHud } from './components/Zoom'
+import { PlansModal, TrialBanner } from './components/Plans'
 import { usePinchZoom } from './zoom'
 import { useDragAutoScroll } from './autoscroll'
 import { useTouchDrag } from './touchdrag'
@@ -49,6 +50,7 @@ function Planner() {
       <SidebarM />
 
       <div className={`relative transition-[padding] duration-200 ease-out ${sidebar ? 'lg:pl-64' : ''}`}>
+        <TrialBanner />
         <HeaderM />
         <Pages />
         <footer className="px-4 pb-28 text-center text-xs text-zinc-600 sm:pb-10">
@@ -61,6 +63,7 @@ function Planner() {
       <Toasts />
       <ZoomHud />
       <Modals />
+      <PlansModal />
     </div>
   )
 }

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, Cake, Check, CloudOff, Loader2, LogOut } from 'lucide-react'
+import { AlertCircle, Cake, Check, CloudOff, CreditCard, Loader2, LogOut } from 'lucide-react'
 import { signOut, useCloud, type SaveStatus } from '../cloud'
 import { toast } from '../toast'
 import { BirthdayInput } from './Birthday'
+import { openPlans, useAccess } from '../billing'
+import { PLANS } from '../lib/plans'
 
 const STATUS: Record<SaveStatus, { label: string; cls: string; icon: typeof Check; spin?: boolean }> = {
   saved: { label: 'Saved', cls: 'text-emerald-300', icon: Check },
@@ -24,6 +26,7 @@ export function SaveIndicator() {
 
 export function AccountMenu() {
   const user = useCloud((s) => s.user)
+  const access = useAccess()
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
 
@@ -72,6 +75,25 @@ export function AccountMenu() {
             </p>
             <BirthdayInput />
           </div>
+          <button
+            onClick={() => {
+              setOpen(false)
+              openPlans()
+            }}
+            className="flex w-full items-center gap-2.5 border-b border-white/[0.06] px-4 py-3 text-left text-sm text-zinc-300 transition hover:bg-white/5 hover:text-white"
+          >
+            <CreditCard className="h-4 w-4" />
+            <span className="flex-1">Plan & billing</span>
+            <span className="text-xs text-zinc-500">
+              {access.state === 'lifetime'
+                ? 'Lifetime'
+                : access.state === 'paid'
+                  ? (access.plan ? PLANS[access.plan].name : 'Active')
+                  : access.state === 'trial' && access.trialEndsAt
+                    ? `Trial · ${Math.max(0, Math.ceil((access.trialEndsAt - Date.now()) / 86_400_000))}d left`
+                    : ''}
+            </span>
+          </button>
           <button
             onClick={async () => {
               setOpen(false)

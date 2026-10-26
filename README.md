@@ -46,4 +46,16 @@ Production build: `npm run build`, then `npm run preview`.
 4. Click **Deploy**. Every later `git push` to `main` redeploys automatically.
 5. Back in Firebase: **Authentication → Settings → Authorized domains → Add domain**, and add your Vercel domain (e.g. `dizayr.vercel.app`) plus any custom domain. Google sign-in is blocked on domains that aren't listed.
 
+## Payments: 7-day free trial and plans (Lemon Squeezy)
+
+How it works: anyone who signs in with Google gets **7 days free** (no card). The trial start is saved once in Firestore (`subscriptions/{uid}`) and can't be restarted. After that, they pick **Yearly ($20)** or **6 months ($15)** in a Lemon Squeezy checkout. Lemon Squeezy tells the site about every subscription change through a webhook (`api/lemonsqueezy.ts`), which unlocks or locks the account. The Firestore rules enforce the same thing, so nobody can use the app past their trial without paying, even by editing the page.
+
+**Full step-by-step setup (Lemon Squeezy, Firebase rules and keys, Vercel settings, testing, going live): see [SETUP-PAYMENTS.md](SETUP-PAYMENTS.md).**
+
+**Reviews** on the About page: add them in [`src/content/reviews.ts`](src/content/reviews.ts). The section only shows on the live site once there's at least one.
+
+**Prices** shown on the page are in [`src/lib/plans.ts`](src/lib/plans.ts). Keep them the same as in Lemon Squeezy. The crossed-out "$40" next to the yearly price should be a real regular price; change or remove `compareAt` if it isn't.
+
+The About page is what signed-out visitors see, and it's always at `/about`.
+
 Built with Vite, React, TypeScript, Tailwind CSS v4, Zustand and Firebase (Auth + Firestore).

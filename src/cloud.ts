@@ -5,6 +5,7 @@ import { auth, db, googleProvider } from './lib/firebase'
 import { useStore } from './store'
 import type { Expense } from './lib/types'
 import { toast } from './toast'
+import { stopAccess, watchAccess } from './billing'
 
 export type SaveStatus = 'saved' | 'saving' | 'offline' | 'error'
 
@@ -47,10 +48,19 @@ export function startCloud() {
   onAuthStateChanged(auth, (user) => {
     void stopSync?.()
     stopSync = null
+    stopAccess()
     if (!user) return useCloud.setState({ user: null, ready: true, loadError: null })
     keepStorage()
     useCloud.setState({ user, ready: false, loadError: null })
-    void connect(user)
+    // The account's data is only loaded and saved while it may be used: during the free trial, or on a plan.
+    watchAccess(user, (allowed) => {
+      if (useCloud.getState().user?.uid !== user.uid) return
+      if (allowed) void connect(user)
+      else {
+        void stopSync?.()
+        stopSync = null
+      }
+    })
   })
 }
 

@@ -4,6 +4,7 @@
     { "source": "/manifest.webmanifest", "headers": [{ "key": "Content-Type", "value": "application/manifest+json" }] }
   ],
   "rewrites": [
+    { "source": "/about", "destination": "/index.html" },
     { "source": "/__/auth/:path*", "destination": "https://dezire-ce767.firebaseapp.com/__/auth/:path*" },
     { "source": "/__/firebase/:path*", "destination": "https://dezire-ce767.firebaseapp.com/__/firebase/:path*" }
   ]

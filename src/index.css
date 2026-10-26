@@ -201,6 +201,59 @@ html.zooming [data-zoom-item] {
   to { transform: scaleX(1); }
 }
 
+/* About page: sections fade up as they scroll into view (see useReveal) */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal[data-shown] {
+  opacity: 1;
+  transform: none;
+}
+
+/* About page: reviews sliding sideways forever (the row holds two identical halves, so moving by half loops seamlessly) */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(-50% - 0.625rem)); }
+}
+.marquee-track {
+  animation: marquee linear infinite;
+}
+.marquee-reverse {
+  animation-direction: reverse;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+.marquee-mask {
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+/* About page: the app preview's floating cards and the net worth line drawing itself */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.float-slow { animation: float 6s ease-in-out infinite; }
+.float-slower { animation: float 8s ease-in-out infinite 1s; }
+@keyframes draw {
+  from { stroke-dashoffset: 1200; }
+  to { stroke-dashoffset: 0; }
+}
+.draw-line {
+  stroke-dasharray: 1200;
+  animation: draw 2.4s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; }
+  /* Reviews stay still and can be scrolled instead; nothing floats or loops */
+  .marquee { overflow-x: auto; }
+  .marquee-track, .float-slow, .float-slower { animation: none !important; }
+  .draw-line { animation: none !important; stroke-dasharray: none; }
+}
+
 ::selection {
   background: rgb(129 140 248 / 0.35);
 }
