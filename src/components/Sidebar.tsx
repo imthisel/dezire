@@ -1,11 +1,13 @@
-import { useEffect, type ReactNode } from 'react'
-import { CalendarCheck, CalendarDays, Flag, Gem, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings2, Star, Target, X } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { CalendarCheck, CalendarDays, Flag, Gem, GripVertical, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings2, Star, Target, X } from 'lucide-react'
 import { useFmt, useKinds, useStore } from '../store'
 import { SOURCE_KIND, kindColor, kindIcon } from '../lib/meta'
 import { useMedia } from '../lib/useMedia'
 import { goTo, useActiveSection } from '../nav'
 import { todayKey } from '../lib/expenses'
 import { happensOn, isDoneOn, isEvent } from '../lib/tasks'
+import { useSortable } from '../sortable'
+import type { IncomeSource } from '../lib/types'
 
 /** Wide screens keep the sidebar docked on the left; smaller ones slide it over the page. */
 export const useDocked = () => useMedia('(min-width: 1024px)')
@@ -43,6 +45,8 @@ export function Sidebar() {
   const today = todayKey()
   const dueToday = useStore((s) => s.tasks.filter((t) => !isEvent(t) && happensOn(t, today) && !isDoneOn(t, today)).length)
   const shown = docked ? sidebar : drawer
+  // Money plans can be put in order by dragging them in the list below.
+  const [dragSource, setDragSource] = useState<string | null>(null)
 
   // Esc closes the slide-over; growing the window to docked size drops it.
   useEffect(() => {
@@ -200,21 +204,9 @@ export function Sidebar() {
             <Link icon={Rocket} label="Money plan" on={active === 'plan'} onClick={() => goTo('plan')} badge={sources.length || undefined} />
             {sources.length > 0 && (
               <ul className="ml-[1.4rem] mt-1 space-y-0.5 border-l border-white/[0.07] pl-2">
-                {sources.map((s) => {
-                  const k = SOURCE_KIND[s.kind]
-                  return (
-                    <li key={s.id}>
-                      <button
-                        onClick={() => goTo(`source-${s.id}`)}
-                        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-zinc-400 transition hover:bg-white/5 hover:text-white"
-                      >
-                        <k.icon className={`h-3.5 w-3.5 shrink-0 ${k.text}`} />
-                        <span className="min-w-0 flex-1 truncate">{s.name.trim() || k.label}</span>
-                        {s.monthlyGoal > 0 && <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">{f(s.monthlyGoal, true)}</span>}
-                      </button>
-                    </li>
-                  )
-                })}
+                {sources.map((s, i) => (
+                  <SourceLink key={s.id} source={s} index={i} dragId={dragSource} setDragId={setDragSource} />
+                ))}
               </ul>
             )}
             <button
@@ -233,6 +225,44 @@ export function Sidebar() {
         )}
       </aside>
     </>
+  )
+}
+
+/** One money plan in the sidebar: click to jump to it; hold and drag up or down to put the plans in order. */
+function SourceLink({ source: s, index, dragId, setDragId }: { source: IncomeSource; index: number; dragId: string | null; setDragId: (id: string | null) => void }) {
+  const f = useFmt()
+  const k = SOURCE_KIND[s.kind]
+  const sort = useSortable({
+    id: s.id,
+    index,
+    ids: () => useStore.getState().sources.map((x) => x.id),
+    dragId,
+    setDragId,
+    onMove: useStore.getState().moveSource,
+  })
+  return (
+    <li {...sort.zone} className="relative">
+      {/* Where it lands */}
+      {sort.dropAt && (
+        <span
+          aria-hidden
+          className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)] ${sort.dropAt === 'above' ? '-top-px' : '-bottom-px'}`}
+        />
+      )}
+      <button
+        {...sort.handle('li')}
+        onClick={() => goTo(`source-${s.id}`)}
+        title="Click to open · hold and drag to reorder"
+        className={`group flex w-full cursor-grab items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-zinc-400 transition hover:bg-white/5 hover:text-white active:cursor-grabbing ${
+          sort.dragging ? 'opacity-40' : ''
+        }`}
+      >
+        <k.icon className={`h-3.5 w-3.5 shrink-0 ${k.text}`} />
+        <span className="min-w-0 flex-1 truncate">{s.name.trim() || k.label}</span>
+        {s.monthlyGoal > 0 && <span className="shrink-0 text-[11px] tabular-nums text-zinc-500 group-hover:hidden">{f(s.monthlyGoal, true)}</span>}
+        <GripVertical className="hidden h-3.5 w-3.5 shrink-0 text-zinc-500 group-hover:block" />
+      </button>
+    </li>
   )
 }
 
