@@ -167,6 +167,14 @@ export function rememberIntent(plan: PlanId) {
     // Not remembered: they can pick it again after signing in.
   }
 }
+/** Forgets a plan picked before signing in (e.g. the Google window was closed), so checkout doesn't pop up later. */
+export function forgetIntent() {
+  try {
+    sessionStorage.removeItem(INTENT)
+  } catch {
+    // Nothing remembered.
+  }
+}
 function takeIntent(): PlanId | null {
   try {
     const p = sessionStorage.getItem(INTENT)

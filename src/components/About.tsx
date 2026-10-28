@@ -4,7 +4,8 @@ import {
   LogOut, Plane, Quote, Receipt, Rocket, ShieldCheck, Smartphone, Sparkles, Star, Target, TrendingDown, TrendingUp, X,
 } from 'lucide-react'
 import { signIn, signOut, useCloud } from '../cloud'
-import { openCheckout, rememberIntent, useAccess } from '../billing'
+import { forgetIntent, openCheckout, rememberIntent, useAccess } from '../billing'
+import { auth } from '../lib/firebase'
 import { PLANS, TRIAL_DAYS, billingUrl, perMonth, type Plan, type PlanId } from '../lib/plans'
 import { EXAMPLE_REVIEWS, REVIEWS, type Review } from '../content/reviews'
 
@@ -29,12 +30,20 @@ function useSignIn() {
   return { busy, error, go }
 }
 
-/** Choosing a plan: pay right away when signed in; otherwise sign in first and the checkout opens straight after. */
+/**
+ * Buying a plan right away, with or without trying it first: when signed in, checkout opens now; otherwise they sign in
+ * with Google and checkout opens straight after (see `watchAccess`). The plan starts the day they pay.
+ */
 async function choose(plan: PlanId) {
   const user = useCloud.getState().user
   if (user) return openCheckout(plan, user)
   rememberIntent(plan)
-  await signIn()
+  try {
+    await signIn()
+  } finally {
+    // Closed the Google window without signing in: don't open checkout the next time they do.
+    if (!auth?.currentUser) forgetIntent()
+  }
 }
 
 /** Elements marked `data-reveal` fade up as they scroll into view. */
@@ -205,6 +214,14 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
             See how it works <ChevronDown className="h-4 w-4" />
           </a>
         </div>
+        {!signedIn && (
+          <a
+            href="#pricing"
+            className="animate-rise mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-200 underline-offset-4 transition hover:text-white hover:underline"
+          >
+            Know you want it? Skip the trial: plans from {perMonth(PLANS.annual)}/month <ArrowRight className="h-3.5 w-3.5" />
+          </a>
+        )}
         <ul className="animate-rise mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-zinc-500 lg:justify-start">
           {[`${TRIAL_DAYS} days free`, 'No card needed', 'One tap with Google'].map((t) => (
             <li key={t} className="flex items-center gap-1.5">
@@ -527,7 +544,7 @@ export function Pricing({ signin, compact = false }: { signin?: SignIn; compact?
         <>
           {!user && signin && (
             <div data-reveal className="reveal mt-10 flex flex-col items-center gap-3 text-center">
-              <p className="text-zinc-400">Not sure yet? Use everything free for {TRIAL_DAYS} days first.</p>
+              <p className="text-zinc-400">Rather try it first? Use everything free for {TRIAL_DAYS} days. No card, no commitment.</p>
               <GoogleButton signin={signin} label={`Try it free for ${TRIAL_DAYS} days`} />
             </div>
           )}
@@ -551,6 +568,7 @@ export function Pricing({ signin, compact = false }: { signin?: SignIn; compact?
 
 function PlanCard({ plan, featured, current, disabled }: { plan: Plan; featured: boolean; current: boolean; disabled: boolean }) {
   const [busy, setBusy] = useState(false)
+  const signedIn = useCloud((s) => !!s.user)
   const included = ['Every feature, nothing locked', 'Plans from 2026 to 2040', 'All your devices, synced', 'Works offline', 'New features as they come']
   return (
     <div
@@ -601,8 +619,13 @@ function PlanCard({ plan, featured, current, disabled }: { plan: Plan; featured:
         }`}
       >
         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-        {current ? 'Your plan' : `Get ${plan.name}`}
+        {current ? 'Your plan' : `Buy ${plan.name} now`}
       </button>
+      {!disabled && (
+        <p className="mt-2.5 text-center text-xs text-zinc-500">
+          {signedIn ? 'Starts today · secure checkout' : 'Skip the trial · sign in, then straight to checkout'}
+        </p>
+      )}
     </div>
   )
 }
@@ -612,6 +635,7 @@ function PlanCard({ plan, featured, current, disabled }: { plan: Plan; featured:
 function Faq() {
   const qs: [string, string][] = [
     ['How does the free trial work?', `Sign in with Google and everything is unlocked for ${TRIAL_DAYS} days. No card, nothing to cancel. When the trial ends, pick a plan to keep going.`],
+    ['Can I pay right away, without the free trial?', 'Yes. Pick a plan under Pricing, sign in with Google, and you go straight to the secure checkout. Your plan starts the day you pay. Already on the trial? You can buy whenever you like; the plan starts that day.'],
     ['What happens to my plan if I don’t subscribe?', 'Nothing is deleted. Everything you planned stays saved in your account, and it’s all there the moment you choose a plan.'],
     ['Can I cancel anytime?', 'Yes. Cancel from your billing page in a couple of clicks, and you keep access until the end of the time you paid for.'],
     ['Is my data private?', 'Yes. Your plan is tied to your Google account and only you can open it. We never sell or share it.'],
@@ -669,7 +693,17 @@ function FinalCta({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
             <GoogleButton signin={signin} big />
           )}
         </div>
-        <p className="mt-4 text-sm text-zinc-500">{TRIAL_DAYS} days free · no card needed · cancel anytime</p>
+        <p className="mt-4 text-sm text-zinc-500">
+          {TRIAL_DAYS} days free · no card needed · cancel anytime
+          {!signedIn && (
+            <>
+              {' · '}
+              <a href="#pricing" className="text-indigo-200 underline-offset-4 hover:text-white hover:underline">
+                or buy a plan now
+              </a>
+            </>
+          )}
+        </p>
       </div>
     </section>
   )
