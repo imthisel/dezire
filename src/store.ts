@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { create } from 'zustand'
 import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware'
-import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
+import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, RunningCosts, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
 import {
   DEFAULT_GOAL_AREAS, DEFAULT_KINDS, GOAL_COLORS, GOAL_ICONS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_AREA, UNKNOWN_KIND,
   guessAreaIcon, guessIcon,
@@ -9,6 +9,7 @@ import {
 import { DEFAULT_CURRENCIES, fmt, fmtAlt, parseCurrencies, type AltCurrency, type Currencies, type Currency } from './lib/money'
 import { currentYear, labelOfKey, END_YEAR, START_YEAR, indexOf, indexOfKey, keyOf } from './lib/time'
 import { computeAll, spendLimit, type MonthCalc } from './lib/calc'
+import { cleanRunning } from './lib/running'
 import {
   DEFAULT_EXPENSE_CATS, MAX_CAT_NAME, MAX_ITEM_NAME, MAX_PLACE_NAME, clampDate, guessExpenseIcon, isDate, parseExpenseCats, parseExpenses, parsePlaces,
   todayKey, uniq,
@@ -46,7 +47,7 @@ export type AreaPatch = Partial<Omit<GoalAreaDef, 'id'>>
 export type ExpenseInput = { date: string; amount: number; name?: string; category?: string; place?: string; notes?: string }
 export type ExpenseCatPatch = Partial<Omit<ExpenseCategory, 'id'>>
 export type TaskKindPatch = Partial<Omit<TaskKind, 'id'>>
-export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string; propertyId?: string }
+export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string; propertyId?: string; running?: RunningCosts }
 
 const OK: Result = { ok: true }
 /** Tidies what was typed for an expense. */
@@ -1066,6 +1067,7 @@ export const useStore = create<State>()(
                     ...(i.favorite ? { favorite: true } : {}),
                     ...(typeof i.notes === 'string' && i.notes.trim() ? { notes: i.notes } : {}),
                     ...(typeof i.propertyId === 'string' && i.propertyId ? { propertyId: i.propertyId } : {}),
+                    ...(cleanRunning(i.running) ? { running: cleanRunning(i.running)! } : {}),
                   }))
                 : [],
               ...(typeof raw.notes === 'string' && raw.notes.trim() ? { notes: raw.notes } : {}),

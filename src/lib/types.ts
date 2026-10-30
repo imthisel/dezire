@@ -29,6 +29,20 @@ export interface Item {
   notes?: string
   /** Vehicles only: id of the Land / Property item it's kept at (any month) */
   propertyId?: string
+  /** Vehicles only, optional: what it costs to run each year (an estimate) */
+  running?: RunningCosts
+}
+
+/** A vehicle's yearly running costs, as estimated by the user. Amounts are in the main currency. */
+export interface RunningCosts {
+  /** Maintenance a year: servicing, tyres, insurance, registration… */
+  maintenance: number
+  /** Kilometres planned a year */
+  kmPerYear: number
+  /** Fuel economy, km per litre */
+  kmPerLiter: number
+  /** Price of a litre of fuel */
+  fuelPrice: number
 }
 
 export interface MonthData {

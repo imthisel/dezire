@@ -7,6 +7,7 @@ import { labelOfKey } from '../lib/time'
 import { goToMonth } from '../nav'
 import { drag } from '../dnd'
 import { NotYet } from './Kept'
+import { RunningCostsSummary } from './RunningCosts'
 import { toast } from '../toast'
 
 interface Props {
@@ -237,6 +238,11 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
               })}
             </ul>
           )}
+        </div>
+      )}
+      {open && isVehicle && item.running && (
+        <div className="animate-fade basis-full" onClick={(e) => e.stopPropagation()}>
+          <RunningCostsSummary running={item.running} compact />
         </div>
       )}
       {open && isVehicle && (

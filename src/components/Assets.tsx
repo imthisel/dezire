@@ -1,12 +1,14 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import {
-  ArrowUpDown, BadgeDollarSign, Cake, CalendarCheck, CalendarDays, CalendarRange, Car, ChevronDown, ChevronLeft, ChevronRight, Copy, Gem, Home, Infinity as All, Pencil,
+  ArrowUpDown, BadgeDollarSign, Cake, Fuel, CalendarCheck, CalendarDays, CalendarRange, Car, ChevronDown, ChevronLeft, ChevronRight, Copy, Gem, Home, Infinity as All, Pencil,
   Plus, RotateCcw, Settings2, Star, Trash2, TrendingDown, TrendingUp, X,
 } from 'lucide-react'
 import {
   placementAt, setupMonths, useFmt, useItemIndex, useKindOf, useKinds, useParking, useStore, useAlt, type AssetCat, type AssetPeriod, type Parking,
 } from '../store'
 import { SetupNote } from './YearNote'
+import { RunningCostsSummary } from './RunningCosts'
+import { itemRunning } from '../lib/running'
 import { useBirthday } from './Birthday'
 import { TREND, kindColor, kindIcon } from '../lib/meta'
 import { valueAfter } from '../lib/calc'
@@ -706,6 +708,7 @@ function totalsOf(p: Parking) {
   const allSold = [...soldNow, ...soldBefore]
   return {
     kept: kept.length,
+    keptRunning: kept.reduce((n, v) => n + itemRunning(v.item), 0),
     keptPaid: kept.reduce((n, v) => n + v.item.price, 0),
     keptWorth: kept.reduce((n, v) => n + worthAt(v, now), 0),
     soldNow: soldNow.length,
@@ -728,7 +731,7 @@ function SetupTotals({ parking, setups }: { parking: Parking; setups: number[] }
   const index = useItemIndex()
   const layouts = useStore((s) => s.layouts)
   const { vehicles, monthKey } = parking
-  const { kept, keptPaid, keptWorth, soldNow, soldBefore, sold: soldCount, soldPaid, soldFor } = totalsOf(parking)
+  const { kept, keptRunning, keptPaid, keptWorth, soldNow, soldBefore, sold: soldCount, soldPaid, soldFor } = totalsOf(parking)
   // The same totals for the setup before, to see what changed.
   const prevKey = previousSetup(monthKey, setups)
   const prev = useMemo(() => (prevKey ? totalsOf(placementAt(index, layouts, prevKey, setups)) : null), [prevKey, index, layouts, setups.join()])
@@ -759,6 +762,7 @@ function SetupTotals({ parking, setups }: { parking: Parking; setups: number[] }
           change={keptWorth - keptPaid}
           changeLabel="since bought"
           empty="No vehicles at a property in this setup"
+          extra={keptRunning > 0 ? `Runs ≈ ${f(keptRunning, true)} a year · ${f(keptRunning / 12, true)}/mo` : undefined}
         />
         <TotalCard
           tone="rose"
@@ -833,7 +837,7 @@ function Delta({ label, from, to, diff, money, neutral }: { label: string; from:
 }
 
 function TotalCard({
-  tone, icon, title, note, count, big, bigLabel, alt, paid, change, changeLabel, empty,
+  tone, icon, title, note, count, big, bigLabel, alt, paid, change, changeLabel, empty, extra,
 }: {
   tone: 'teal' | 'rose'
   icon: ReactNode
@@ -847,6 +851,8 @@ function TotalCard({
   change: number
   changeLabel: string
   empty: string
+  /** One more line under the totals, e.g. what the cars cost to run */
+  extra?: string
 }) {
   const f = useFmt()
   const teal = tone === 'teal'
@@ -897,6 +903,11 @@ function TotalCard({
               {paid > 0 && <span className="font-normal opacity-75">({up ? '+' : ''}{pct.toFixed(1)}%)</span>}
             </span>
           </div>
+          {extra && (
+            <p className="relative mt-2 flex items-center gap-1.5 text-xs tabular-nums text-orange-200/80">
+              <Fuel className="h-3.5 w-3.5 shrink-0" /> {extra}
+            </p>
+          )}
         </>
       )}
     </div>
@@ -1115,6 +1126,7 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel, parking }: { 
       </div>
 
       <Kept item={item} drag parking={parking} />
+      {isVehicle && <RunningCostsSummary running={item.running} />}
 
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
         <p className="min-w-0 truncate text-xs text-zinc-400">

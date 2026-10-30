@@ -9,6 +9,8 @@ import { Modal } from './Modal'
 import { KindsModal } from './KindsModal'
 import { MoneyInput } from './MoneyInput'
 import { toast } from '../toast'
+import { RunningCostsField, draftOf, runningOf, type RunningDraft } from './RunningCosts'
+import { cleanRunning, lastFuelPrice, rememberFuelPrice } from '../lib/running'
 
 export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: string }) {
   const f = useFmt()
@@ -32,6 +34,8 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
   const [rateTouched, setRateTouched] = useState(!!editing)
   const [notes, setNotes] = useState(editing?.notes ?? '')
   const [notesOpen, setNotesOpen] = useState(!!editing?.notes)
+  // Vehicles: what it costs to run each year (optional)
+  const [running, setRunning] = useState<RunningDraft>(() => draftOf(editing?.running, lastFuelPrice()))
   const index = useItemIndex()
   // Only keep a link to a property that still exists.
   // Property: which vehicles are kept here (ticked in this window, saved with it).
@@ -66,7 +70,18 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
 
   function save() {
     if (!ready) return
-    const data = { name: name.trim(), category: category!, trend: trend!, price: price!, rate: rateNum, notes: notes.trim(), propertyId: category === 'vehicle' && propertyId ? propertyId : undefined }
+    const runningCosts = category === 'vehicle' ? cleanRunning(runningOf(running)) : null
+    if (runningCosts) rememberFuelPrice(runningCosts.fuelPrice)
+    const data = {
+      name: name.trim(),
+      category: category!,
+      trend: trend!,
+      price: price!,
+      rate: rateNum,
+      notes: notes.trim(),
+      propertyId: category === 'vehicle' && propertyId ? propertyId : undefined,
+      running: runningCosts ?? undefined,
+    }
     const s = useStore.getState()
     const r = editId ? s.updateItem(monthKey, editId, data) : s.addItem(monthKey, data)
     // A property keeps the vehicles ticked below; anything that's no longer a property keeps none.
@@ -261,6 +276,9 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
             )}
           </section>
         )}
+
+        {/* Vehicles: yearly running costs (advanced, optional) */}
+        {category === 'vehicle' && <RunningCostsField value={running} onChange={setRunning} startOpen={!!editing?.running} />}
 
         {/* Properties: tick the vehicles kept here (optional) */}
         {category === 'property' && (
