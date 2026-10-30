@@ -43,3 +43,29 @@ export function rememberFuelPrice(p: number) {
     // Not remembered; fine.
   }
 }
+
+/** A car with running costs and the months it's yours: from the month bought, up to (not including) `until` (month indexes). */
+export type OwnedCar = { item: Item; from: number; until: number }
+
+export type CarInYear = { item: Item; months: number; firstMonth: number; lastMonth: number; perYear: number; cost: number }
+export type RunningYear = { year: number; total: number; cars: CarInYear[] }
+
+/**
+ * What the cars cost to run in each year, counting each car only for the months it's yours that year
+ * (a car bought in May runs May–December; one sold at the June setup runs until May). `startYear`: the first year (index 0).
+ */
+export function runningByYear(cars: OwnedCar[], startYear: number, years: number): RunningYear[] {
+  return Array.from({ length: years }, (_, y) => {
+    const start = y * 12
+    const list: CarInYear[] = []
+    for (const c of cars) {
+      const a = Math.max(start, c.from)
+      const b = Math.min(start + 12, c.until)
+      if (b <= a) continue
+      const perYear = itemRunning(c.item)
+      list.push({ item: c.item, months: b - a, firstMonth: a - start, lastMonth: b - 1 - start, perYear, cost: (perYear / 12) * (b - a) })
+    }
+    list.sort((p, q) => q.cost - p.cost)
+    return { year: startYear + y, total: list.reduce((n, c) => n + c.cost, 0), cars: list }
+  })
+}

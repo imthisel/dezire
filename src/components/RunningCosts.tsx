@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { ChevronDown, Fuel, Gauge, Route, Wrench } from 'lucide-react'
+import { Car, ChevronDown, Fuel, Gauge, Route, Wrench } from 'lucide-react'
 import { useAlt, useFmt, useStore } from '../store'
-import { fuelPerYear, litersPerYear, runningPerYear } from '../lib/running'
+import { fuelPerYear, itemRunning, litersPerYear, runningPerYear, type CarInYear, type RunningYear } from '../lib/running'
+import { MONTHS_SHORT } from '../lib/time'
 import { plain } from '../lib/money'
-import type { RunningCosts } from '../lib/types'
+import type { Item, RunningCosts } from '../lib/types'
 import { MoneyInput } from './MoneyInput'
 
 const KM_PRESETS = [5000, 10000, 15000, 20000]
@@ -162,5 +163,117 @@ export function RunningCostsSummary({ running, compact = false }: { running?: Ru
         {running.maintenance > 0 && `upkeep ${f(running.maintenance, true)}`}
       </span>
     </div>
+  )
+}
+
+/**
+ * Assets → Setups: what your cars cost to run, year by year (only cars with running costs, only the months they're yours).
+ * The setup's year is picked at first; pick another year to see its cars.
+ */
+export function RunningByYear({ years, focusYear }: { years: RunningYear[]; focusYear: number }) {
+  const f = useFmt()
+  const u = useAlt()
+  const shown = years.filter((y) => y.total > 0)
+  const [picked, setPicked] = useState(focusYear)
+  if (!shown.length) return null
+  const sel = years.find((y) => y.year === picked) ?? years.find((y) => y.year === focusYear)!
+  const max = Math.max(...shown.map((y) => y.total))
+  const all = shown.reduce((n, y) => n + y.total, 0)
+  const span = shown.length > 1 ? `${shown[0].year} – ${shown[shown.length - 1].year}` : String(shown[0].year)
+  const range = (c: CarInYear) => (c.months === 12 ? 'All year' : `${MONTHS_SHORT[c.firstMonth]} – ${MONTHS_SHORT[c.lastMonth]} · ${c.months} mo`)
+
+  return (
+    <section className="animate-fade rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:p-4">
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 px-0.5">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-300 to-orange-500 shadow-lg shadow-orange-500/20">
+          <Fuel className="h-4 w-4 text-white" strokeWidth={2.5} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-semibold text-white">Car running costs</h3>
+          <p className="truncate text-[11px] text-zinc-500">Fuel and upkeep, counted only for the months each car is yours</p>
+        </div>
+        <p className="text-right text-xs text-zinc-400">
+          <span className="font-semibold tabular-nums text-white">{f(all, true)}</span> in all · {span}
+        </p>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+        {/* Year by year */}
+        <ul className="scrollbar-none max-h-[22rem] space-y-0.5 overflow-y-auto rounded-xl border border-white/[0.06] bg-black/20 p-1.5">
+          {shown.map((y) => {
+            const on = y.year === sel.year
+            return (
+              <li key={y.year}>
+                <button
+                  onClick={() => setPicked(y.year)}
+                  aria-pressed={on}
+                  className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition ${on ? 'bg-orange-400/[0.12] ring-1 ring-orange-300/30' : 'hover:bg-white/[0.04]'}`}
+                >
+                  <span className={`w-10 shrink-0 text-sm font-semibold tabular-nums ${on ? 'text-orange-100' : 'text-zinc-300'}`}>{y.year}</span>
+                  <span className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+                    <span
+                      className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ${on ? 'bg-gradient-to-r from-amber-300 to-orange-400' : 'bg-orange-300/50'}`}
+                      style={{ width: `${(y.total / max) * 100}%` }}
+                    />
+                  </span>
+                  <span className="hidden w-14 shrink-0 text-right text-[11px] text-zinc-500 sm:block">
+                    {y.cars.length} car{y.cars.length === 1 ? '' : 's'}
+                  </span>
+                  <span className={`w-16 shrink-0 text-right text-sm tabular-nums ${on ? 'font-semibold text-white' : 'text-zinc-300'}`}>{f(y.total, true)}</span>
+                  {y.year === focusYear && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-orange-300" title="This setup's year" />}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+
+        {/* The picked year, car by car */}
+        <div key={sel.year} className="animate-fade rounded-xl border border-orange-300/15 bg-gradient-to-br from-orange-400/[0.08] to-transparent p-3.5">
+          <p className="text-xs text-zinc-400">To run your cars in {sel.year}</p>
+          <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-white">{f(sel.total)}</p>
+          <p className="text-[11px] tabular-nums text-zinc-500">
+            ≈ {f(sel.total / 12)} a month<span className="alt-i">&nbsp;· ≈ {u(sel.total)}</span>
+          </p>
+          {sel.cars.length === 0 ? (
+            <p className="mt-4 text-sm text-zinc-500">No cars with running costs this year.</p>
+          ) : (
+            <ul className="mt-3 space-y-1.5">
+              {sel.cars.map((c) => (
+                <li key={c.item.id} className="flex items-center gap-2.5 rounded-lg border border-white/[0.06] bg-black/25 px-2.5 py-2">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-orange-400/15 text-orange-200">
+                    <Car className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <span className="block truncate text-[13px] font-medium text-zinc-100">{c.item.name}</span>
+                    <span className="block truncate text-[11px] text-zinc-500">
+                      {range(c)} · {f(c.perYear, true)}/yr
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-zinc-100">{f(c.cost, true)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/** Under a property's vehicles: what the ones kept there cost to run a year (nothing when none have running costs). */
+export function RunningAtProperty({ items }: { items: Item[] }) {
+  const f = useFmt()
+  const total = items.reduce((n, i) => n + itemRunning(i), 0)
+  if (total <= 0) return null
+  const counted = items.filter((i) => itemRunning(i) > 0).length
+  return (
+    <p className="mt-1.5 flex items-center gap-1.5 border-t border-white/[0.06] px-0.5 pt-1.5 text-[11px] text-zinc-400">
+      <Fuel className="h-3.5 w-3.5 shrink-0 text-orange-200/80" />
+      <span className="min-w-0 flex-1 truncate">
+        Runs <span className="font-semibold tabular-nums text-orange-100">{f(total, true)}</span> a year
+        <span className="text-zinc-500"> · {f(total / 12, true)}/mo</span>
+      </span>
+      {counted < items.length && <span className="shrink-0 text-zinc-600">{counted} of {items.length} cars</span>}
+    </p>
   )
 }

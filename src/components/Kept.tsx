@@ -7,6 +7,7 @@ import { labelOfKey } from '../lib/time'
 import type { Item } from '../lib/types'
 import { goToMonth } from '../nav'
 import { vehicleDrag } from '../dnd'
+import { RunningAtProperty } from './RunningCosts'
 
 /** A quiet tag for a vehicle bought after the property it's kept at (keys are `YYYY-MM`, so they compare as text). */
 export function NotYet({ vehicleKey, propertyKey }: { vehicleKey: string; propertyKey: string }) {
@@ -105,6 +106,7 @@ export function Kept({ item, drag = false, parking }: { item: Item; drag?: boole
               )
             })}
           </ul>
+          <RunningAtProperty items={vehicles.map((v) => v.item)} />
         </div>
       )
     return (
@@ -135,6 +137,7 @@ export function Kept({ item, drag = false, parking }: { item: Item; drag?: boole
             )
           })}
         </ul>
+        <RunningAtProperty items={vehicles.map((v) => v.item)} />
       </div>
     )
   }

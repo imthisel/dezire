@@ -7,8 +7,8 @@ import {
   placementAt, setupMonths, useFmt, useItemIndex, useKindOf, useKinds, useParking, useStore, useAlt, type AssetCat, type AssetPeriod, type Parking,
 } from '../store'
 import { SetupNote } from './YearNote'
-import { RunningCostsSummary } from './RunningCosts'
-import { itemRunning } from '../lib/running'
+import { RunningByYear, RunningCostsSummary } from './RunningCosts'
+import { itemRunning, runningByYear, type OwnedCar } from '../lib/running'
 import { useBirthday } from './Birthday'
 import { TREND, kindColor, kindIcon } from '../lib/meta'
 import { valueAfter } from '../lib/calc'
@@ -293,6 +293,7 @@ export function Assets() {
           </div>
 
           {parking && (cat === 'all' || cat === 'property' || cat === 'vehicle') && <SetupVehicles parking={parking} setups={setups} />}
+          {parking && (cat === 'all' || cat === 'property' || cat === 'vehicle') && <SetupRunning monthKey={parking.monthKey} setups={setups} />}
 
           <ZoomControl />
 
@@ -912,6 +913,29 @@ function TotalCard({
       )}
     </div>
   )
+}
+
+/**
+ * Setups: what the cars cost to run, year by year. A car counts from the month it's bought until the setup it's
+ * left off (sold), so each year only includes the months it's really yours. Only cars with running costs count.
+ */
+function SetupRunning({ monthKey, setups }: { monthKey: string; setups: number[] }) {
+  const index = useItemIndex()
+  const layouts = useStore((s) => s.layouts)
+  const months = setups.join()
+  const years = useMemo(() => {
+    const last = keyOf(TOTAL_MONTHS - 1)
+    const p = placementAt(index, layouts, last, months.split(',').map(Number))
+    const soldAt = new Map(p.sold.map((x) => [x.placed.item.id, indexOfKey(x.since)]))
+    // The very last setup, if arranged: what it leaves off counts as sold there too.
+    if (setups.includes(11) && Object.keys(layouts[last] ?? {}).length) for (const v of p.unplaced) soldAt.set(v.item.id, TOTAL_MONTHS - 1)
+    const cars: OwnedCar[] = p.vehicles
+      .filter((v) => itemRunning(v.item) > 0)
+      .map((v) => ({ item: v.item, from: indexOfKey(v.key), until: soldAt.get(v.item.id) ?? TOTAL_MONTHS }))
+    return runningByYear(cars, START_YEAR, YEARS.length)
+  }, [index, layouts, months])
+  const year = Number(monthKey.slice(0, 4))
+  return <RunningByYear key={year} years={years} focusYear={year} />
 }
 
 /** "Jun 2027" */
