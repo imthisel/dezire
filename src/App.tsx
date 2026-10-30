@@ -23,6 +23,7 @@ import { Sidebar } from './components/Sidebar'
 import { ZoomHud } from './components/Zoom'
 import { PlansModal, TrialBanner } from './components/Plans'
 import { InstallGuide, UpdateBanner } from './components/AppInstall'
+import { useModeGuard } from './components/Modes'
 import { usePinchZoom } from './zoom'
 import { useDragAutoScroll } from './autoscroll'
 import { useTouchDrag } from './touchdrag'
@@ -43,6 +44,7 @@ export default function App() {
 
 function Planner() {
   const sidebar = useStore((s) => s.sidebar)
+  useModeGuard()
   usePinchZoom()
   useDragAutoScroll()
   useTouchDrag()

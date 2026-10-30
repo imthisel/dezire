@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { create } from 'zustand'
 import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware'
-import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, Result, RunningCosts, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
+import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, ModeData, ModeInfo, Result, RunningCosts, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
 import {
   DEFAULT_GOAL_AREAS, DEFAULT_KINDS, GOAL_COLORS, GOAL_ICONS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_AREA, UNKNOWN_KIND,
   guessAreaIcon, guessIcon,
@@ -308,6 +308,23 @@ interface State {
   layouts: Layouts
   /** Free text for each setup, keyed by its month ("2027-06"), shown with that setup only */
   setupNotes: Record<string, string>
+
+  /**
+   * Modes: separate versions of the plan, each with its own months (goals, budgets, items, so its own net worth and
+   * assets) and its own setups. Everything else (calendar, expenses, goals, money plan…) is shared.
+   * The first is always the main plan (id 'main'). `months`, `layouts` and `setupNotes` above hold the mode in use;
+   * `modeData` holds the others.
+   */
+  modes: ModeInfo[]
+  modeId: string
+  modeData: Record<string, ModeData>
+  /** Opens another mode. */
+  switchMode: (id: string) => void
+  /** Adds a mode, empty or as a copy of the one in use, and opens it. Returns its id. */
+  addMode: (name: string, copy: boolean) => string
+  renameMode: (id: string, name: string) => void
+  /** Deletes a mode and everything in it (not the main one). */
+  removeMode: (id: string) => void
   setSetupNote: (monthKey: string, text: string) => void
   /** Puts a vehicle at a property in one setup (null = take it off / not placed). */
   setKeptAt: (monthKey: string, vehicleId: string, propertyId: string | null) => void
@@ -411,6 +428,12 @@ try {
 } catch {
   // Storage blocked: nothing to carry over.
 }
+
+// Modes (see `modes` in State): the main plan's id, and the starting values. Defined before the store, which uses them.
+export const MAIN_MODE = 'main'
+export const MAX_MODE_NAME = 32
+const mainMode = (): ModeInfo => ({ id: MAIN_MODE, name: 'Main', createdAt: 0 })
+const emptyMode = (): ModeData => ({ months: {}, layouts: {}, setupNotes: {} })
 
 /**
  * Saves to this browser a moment after the last change instead of on every one. The whole state is written each time,
@@ -636,6 +659,44 @@ export const useStore = create<State>()(
 
       layouts: {},
       setupNotes: {},
+      modes: [mainMode()],
+      modeId: MAIN_MODE,
+      modeData: {},
+      switchMode: (id) =>
+        set((s) => {
+          if (id === s.modeId || !s.modes.some((m) => m.id === id)) return {}
+          const next = s.modeData[id] ?? emptyMode()
+          const { [id]: _opened, ...rest } = s.modeData
+          return {
+            modeId: id,
+            months: next.months,
+            layouts: next.layouts,
+            setupNotes: next.setupNotes,
+            modeData: { ...rest, [s.modeId]: { months: s.months, layouts: s.layouts, setupNotes: s.setupNotes } },
+            // Something cut in the other mode can't be moved from here; a copy still pastes.
+            clipboard: s.clipboard?.mode === 'cut' ? null : s.clipboard,
+          }
+        }),
+      addMode: (name, copy) => {
+        const s = get()
+        const mode: ModeInfo = { id: uid(), name: name.trim().slice(0, MAX_MODE_NAME) || `Mode ${s.modes.length + 1}`, createdAt: Date.now() }
+        const data: ModeData = copy
+          ? { months: structuredClone(s.months), layouts: structuredClone(s.layouts), setupNotes: { ...s.setupNotes } }
+          : emptyMode()
+        set({ modes: [...s.modes, mode], modeData: { ...s.modeData, [mode.id]: data } })
+        get().switchMode(mode.id)
+        return mode.id
+      },
+      renameMode: (id, name) =>
+        set((s) => ({ modes: s.modes.map((m) => (m.id === id ? { ...m, name: name.trim().slice(0, MAX_MODE_NAME) || m.name } : m)) })),
+      removeMode: (id) => {
+        if (id === MAIN_MODE) return
+        if (get().modeId === id) get().switchMode(MAIN_MODE)
+        set((s) => {
+          const { [id]: _gone, ...rest } = s.modeData
+          return { modes: s.modes.filter((m) => m.id !== id), modeData: rest }
+        })
+      },
       setSetupNote: (monthKey, text) =>
         set((s) => {
           const { [monthKey]: _old, ...rest } = s.setupNotes
@@ -1042,37 +1103,13 @@ export const useStore = create<State>()(
             setupNotes?: unknown
             tasks?: unknown
             taskKinds?: unknown
+            modes?: unknown
           }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
             return fail('That file is not a Dizayr backup.')
           }
           const kinds = parseKinds(d.kinds) ?? DEFAULT_KINDS
-          const months: Record<string, MonthData> = {}
-          for (const [key, raw] of Object.entries(d.months)) {
-            if (!/^\d{4}-\d{2}$/.test(key) || !raw) continue
-            months[key] = {
-              goal: Number(raw.goal) || 0,
-              budget: Number(raw.budget) || 0,
-              netWorthGoal: raw.netWorthGoal == null || !Number.isFinite(Number(raw.netWorthGoal)) ? null : Number(raw.netWorthGoal),
-              earned: raw.earned == null ? null : Number(raw.earned) || 0,
-              items: Array.isArray(raw.items)
-                ? raw.items.map((i) => ({
-                    id: i.id || uid(),
-                    name: String(i.name ?? 'Item'),
-                    category: toCategory(i.category, kinds),
-                    trend: (['appreciating', 'depreciating', 'stable'].includes(i.trend) ? i.trend : 'stable') as Trend,
-                    price: Number(i.price) || 0,
-                    rate: Number(i.rate) || 0,
-                    createdAt: Number(i.createdAt) || Date.now(),
-                    ...(i.favorite ? { favorite: true } : {}),
-                    ...(typeof i.notes === 'string' && i.notes.trim() ? { notes: i.notes } : {}),
-                    ...(typeof i.propertyId === 'string' && i.propertyId ? { propertyId: i.propertyId } : {}),
-                    ...(cleanRunning(i.running) ? { running: cleanRunning(i.running)! } : {}),
-                  }))
-                : [],
-              ...(typeof raw.notes === 'string' && raw.notes.trim() ? { notes: raw.notes } : {}),
-            }
-          }
+          const months = parseMonths(d.months, kinds)
           const goalAreas = parseGoalAreas(d.goalAreas, d.areaLabels)
           const isArea = (a: unknown): a is GoalArea => goalAreas.some((x) => x.id === a)
           const goals: Record<string, Goal[]> = {}
@@ -1101,19 +1138,31 @@ export const useStore = create<State>()(
             expenses: d.expenses === undefined ? cur.expenses : parseExpenses(d.expenses),
             expenseCats: d.expenseCats === undefined ? cur.expenseCats : (parseExpenseCats(d.expenseCats) ?? DEFAULT_EXPENSE_CATS),
             places: d.places === undefined ? cur.places : parsePlaces(d.places),
-            layouts: d.layouts === undefined ? cur.layouts : parseLayouts(d.layouts),
-            setupNotes: d.setupNotes === undefined ? cur.setupNotes : parseSetupNotes(d.setupNotes),
             tasks: d.tasks === undefined ? cur.tasks : parseTasks(d.tasks),
             taskKinds: d.taskKinds === undefined ? cur.taskKinds : (parseTaskKinds(d.taskKinds) ?? DEFAULT_TASK_KINDS),
           }
-          set({ ...spending, months, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, yearNotes, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
+          // Modes: the main plan is saved at the top (as before modes existed), the others in `modes`.
+          const curAll = allModes(cur)
+          const main: ModeData = {
+            months,
+            layouts: d.layouts === undefined ? curAll.data[MAIN_MODE].layouts : parseLayouts(d.layouts),
+            setupNotes: d.setupNotes === undefined ? curAll.data[MAIN_MODE].setupNotes : parseSetupNotes(d.setupNotes),
+          }
+          // Saved by a version without modes: keep the other modes here instead of dropping them.
+          const parsed = d.modes === undefined ? null : parseModes(d.modes, kinds)
+          const list = parsed ? parsed.list : cur.modes
+          const byMode: Record<string, ModeData> = parsed ? { ...parsed.data, [MAIN_MODE]: main } : { ...curAll.data, [MAIN_MODE]: main }
+          const active = list.some((m) => m.id === cur.modeId) ? cur.modeId : MAIN_MODE
+          const { [active]: inUse, ...others } = byMode
+          const modeState = { modes: list, modeId: active, modeData: others, months: inUse.months, layouts: inUse.layouts, setupNotes: inUse.setupNotes }
+          set({ ...spending, ...modeState, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, yearNotes, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
           return OK
         } catch {
           return fail('Could not read that file.')
         }
       },
 
-      resetAll: () => set({ tasks: [], taskKinds: DEFAULT_TASK_KINDS, layouts: {}, setupNotes: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
+      resetAll: () => set({ modes: [mainMode()], modeId: MAIN_MODE, modeData: {}, tasks: [], taskKinds: DEFAULT_TASK_KINDS, layouts: {}, setupNotes: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
       name: 'dizayr-goal-planner-v1',
@@ -1133,6 +1182,9 @@ export const useStore = create<State>()(
         places: s.places,
         layouts: s.layouts,
         setupNotes: s.setupNotes,
+        modes: s.modes,
+        modeId: s.modeId,
+        modeData: s.modeData,
         tasks: s.tasks,
         taskKinds: s.taskKinds,
         year: s.year,
@@ -1181,6 +1233,88 @@ function parseLayouts(raw: unknown): Layouts {
     if (Object.keys(one).length) out[k] = one
   }
   return out
+}
+
+// ---- Modes ----
+
+
+/** Every mode with its data, the one in use included. */
+function allModes(s: Pick<State, 'modes' | 'modeId' | 'modeData' | 'months' | 'layouts' | 'setupNotes'>) {
+  const data: Record<string, ModeData> = { ...s.modeData, [s.modeId]: { months: s.months, layouts: s.layouts, setupNotes: s.setupNotes } }
+  for (const m of s.modes) data[m.id] ??= emptyMode()
+  return { list: s.modes, data }
+}
+
+/**
+ * The plan as it's saved (cloud and backup files): the main mode at the top, exactly where it was before modes
+ * existed (so older copies of the app still read it), and every other mode with its own data in `modes`.
+ */
+export function savedModes(s: State) {
+  const { list, data } = allModes(s)
+  const main = data[MAIN_MODE]
+  return {
+    months: main.months,
+    layouts: main.layouts,
+    setupNotes: main.setupNotes,
+    modes: list.map((m) => (m.id === MAIN_MODE ? { ...m } : { ...m, ...data[m.id] })),
+  }
+}
+
+/** Cleans up the modes list from a backup file or the cloud. The main mode always comes first. */
+function parseModes(raw: unknown, kinds: ItemKind[]): { list: ModeInfo[]; data: Record<string, ModeData> } {
+  const list: ModeInfo[] = []
+  const data: Record<string, ModeData> = {}
+  let main = mainMode()
+  if (Array.isArray(raw)) {
+    for (const x of raw as Record<string, unknown>[]) {
+      if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !x.id) continue
+      const name = typeof x.name === 'string' && x.name.trim() ? x.name.trim().slice(0, MAX_MODE_NAME) : ''
+      if (x.id === MAIN_MODE) {
+        main = { ...main, name: name || 'Main' }
+        continue
+      }
+      if (list.some((m) => m.id === x.id)) continue
+      list.push({ id: x.id, name: name || `Mode ${list.length + 2}`, createdAt: Number(x.createdAt) || Date.now() })
+      data[x.id] = {
+        months: parseMonths(x.months, kinds),
+        layouts: parseLayouts(x.layouts),
+        setupNotes: parseSetupNotes(x.setupNotes),
+      }
+    }
+  }
+  return { list: [main, ...list], data }
+}
+
+/** Cleans up months (goals, budgets and items) from a backup file or the cloud. */
+function parseMonths(raw: unknown, kinds: ItemKind[]): Record<string, MonthData> {
+  const months: Record<string, MonthData> = {}
+  if (!raw || typeof raw !== 'object') return months
+  for (const [key, m] of Object.entries(raw as Record<string, Partial<MonthData> & { items?: Partial<Item>[] & Record<string, any>[] }>)) {
+    if (!/^\d{4}-\d{2}$/.test(key) || !m) continue
+    months[key] = {
+      goal: Number(m.goal) || 0,
+      budget: Number(m.budget) || 0,
+      netWorthGoal: m.netWorthGoal == null || !Number.isFinite(Number(m.netWorthGoal)) ? null : Number(m.netWorthGoal),
+      earned: m.earned == null ? null : Number(m.earned) || 0,
+      items: Array.isArray(m.items)
+        ? m.items.map((i: Record<string, any>) => ({
+            id: i.id || uid(),
+            name: String(i.name ?? 'Item'),
+            category: toCategory(i.category, kinds),
+            trend: (['appreciating', 'depreciating', 'stable'].includes(i.trend) ? i.trend : 'stable') as Trend,
+            price: Number(i.price) || 0,
+            rate: Number(i.rate) || 0,
+            createdAt: Number(i.createdAt) || Date.now(),
+            ...(i.favorite ? { favorite: true } : {}),
+            ...(typeof i.notes === 'string' && i.notes.trim() ? { notes: i.notes } : {}),
+            ...(typeof i.propertyId === 'string' && i.propertyId ? { propertyId: i.propertyId } : {}),
+            ...(cleanRunning(i.running) ? { running: cleanRunning(i.running)! } : {}),
+          }))
+        : [],
+      ...(typeof m.notes === 'string' && m.notes.trim() ? { notes: m.notes } : {}),
+    }
+  }
+  return months
 }
 
 /** Cleans up setup notes from a backup file or the cloud. */

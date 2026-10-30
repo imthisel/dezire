@@ -1,9 +1,10 @@
 import { useRef } from 'react'
 import { Download, Menu, PanelLeftClose, PanelLeftOpen, RotateCcw, Target, Upload } from 'lucide-react'
-import { useStore } from '../store'
+import { savedModes, useStore } from '../store'
 import { toast } from '../toast'
 import { AccountMenu, SaveIndicator } from './AccountMenu'
 import { CurrencyMenu } from './CurrencyMenu'
+import { ModeSwitcher } from './Modes'
 import { toggleSidebar, useDocked } from './Sidebar'
 
 export function Header() {
@@ -13,9 +14,10 @@ export function Header() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   function exportData() {
-    const { months, kinds, currency, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places, layouts, setupNotes, tasks, taskKinds } = useStore.getState()
+    const s = useStore.getState()
+    const { kinds, currency, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places, tasks, taskKinds } = s
     const blob = new Blob(
-      [JSON.stringify({ app: 'dizayr', version: 4, exportedAt: new Date().toISOString(), currency, months, kinds, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places, layouts, setupNotes, tasks, taskKinds }, null, 2)],
+      [JSON.stringify({ app: 'dizayr', version: 4, exportedAt: new Date().toISOString(), currency, kinds, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places, tasks, taskKinds, ...savedModes(s) }, null, 2)],
       { type: 'application/json' },
     )
     const a = document.createElement('a')
@@ -47,6 +49,7 @@ export function Header() {
 
   const tools = (phone: boolean) => (
     <>
+      {!phone && <ModeSwitcher phone={false} />}
       <CurrencyMenu phone={phone} />
       <button className={`${btn} ${phone ? 'h-10 w-10 px-0' : ''}`} onClick={exportData} title="Download a backup of all your data" aria-label="Export backup">
         <Download className="h-4 w-4" /> {!phone && 'Export'}
@@ -97,6 +100,10 @@ export function Header() {
       </div>
 
       <div className="mt-4 flex items-center gap-2 sm:hidden">{tools(true)}</div>
+      {/* Phones: the mode in use, on its own row so the name has room */}
+      <div className="mt-2 flex sm:hidden">
+        <ModeSwitcher phone />
+      </div>
 
       <input
         ref={fileRef}

@@ -59,6 +59,21 @@ export interface MonthData {
   notes?: string
 }
 
+/** One mode: a separate version of the plan. The one with id 'main' is the main plan. */
+export interface ModeInfo {
+  id: string
+  name: string
+  createdAt: number
+}
+
+/** What each mode keeps for itself: its months (goals, budgets, items) and its setups. */
+export interface ModeData {
+  months: Record<string, MonthData>
+  /** Setups: vehicle id → property id, by setup month */
+  layouts: Record<string, Record<string, string>>
+  setupNotes: Record<string, string>
+}
+
 /** `warning` is set when the change went through but put a month over its limit. */
 export type Result = { ok: true; warning?: string; /** id of a newly added item */ id?: string } | { ok: false; error: string }
 

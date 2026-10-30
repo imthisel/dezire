@@ -7,6 +7,7 @@ import {
   placementAt, setupMonths, useFmt, useItemIndex, useKindOf, useKinds, useParking, useStore, useAlt, type AssetCat, type AssetPeriod, type Parking,
 } from '../store'
 import { SetupNote } from './YearNote'
+import { ModeStrip } from './Modes'
 import { RunningByYear, RunningCostsSummary } from './RunningCosts'
 import { itemRunning, runningByYear, type OwnedCar } from '../lib/running'
 import { useBirthday } from './Birthday'
@@ -113,6 +114,7 @@ export function Assets() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      <ModeStrip />
       <section className={`${card} relative overflow-hidden p-4 sm:p-6`}>
         <div aria-hidden className="pointer-events-none absolute -top-24 left-1/3 h-48 w-[60%] rounded-full bg-violet-500/10 blur-3xl" />
 

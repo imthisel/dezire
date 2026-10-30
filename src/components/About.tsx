@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
-  ArrowRight, BadgeCheck, CalendarCheck, Car, Check, ChevronDown, CircleDollarSign, Cloud, Crown, Flag, Gem, Home, LineChart, Loader2, Lock,
+  ArrowRight, BadgeCheck, CalendarCheck, Car, Check, ChevronDown, CircleDollarSign, Crown, Flag, Gem, Home, Layers, LineChart, Loader2, Lock,
   LogOut, Plane, Quote, Receipt, Rocket, ShieldCheck, Smartphone, Sparkles, Star, Target, TrendingDown, TrendingUp, X,
 } from 'lucide-react'
 import { signIn, signOut, useCloud } from '../cloud'
@@ -427,7 +427,7 @@ function Features() {
     { icon: Receipt, title: 'Know where your money goes', text: 'Log spending in seconds. Categories, places and charts show your week, month and year at a glance.', cls: 'text-rose-300 bg-rose-400/10' },
     { icon: Rocket, title: 'A plan to make the money', text: 'Business, job, freelance or online: set the goal, do the math per sale, and follow your own step-by-step plan.', cls: 'text-amber-300 bg-amber-400/10' },
     { icon: CalendarCheck, title: 'Your days, organized', text: 'A full calendar for time you set aside, plus tasks with deadlines and routines. Color-coded, drag to plan.', cls: 'text-sky-300 bg-sky-400/10' },
-    { icon: Cloud, title: 'With you everywhere', text: 'Phone, tablet, computer. Saved to your account automatically, and it keeps working without internet.', cls: 'text-teal-300 bg-teal-400/10' },
+    { icon: Layers, title: 'Modes: more than one future', text: 'Plan a dream life and a safe one side by side. Each mode has its own items, net worth and setups.', cls: 'text-teal-300 bg-teal-400/10' },
   ]
   return (
     <section id="features" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28">
@@ -572,7 +572,7 @@ export function Pricing({ signin, compact = false }: { signin?: SignIn; compact?
 function PlanCard({ plan, featured, current, disabled }: { plan: Plan; featured: boolean; current: boolean; disabled: boolean }) {
   const [busy, setBusy] = useState(false)
   const signedIn = useCloud((s) => !!s.user)
-  const included = ['Every feature, nothing locked', 'Plans from 2026 to 2040', 'All your devices, synced', 'Works offline', 'New features as they come']
+  const included = [...plan.perks, 'Every other feature included', 'Plans from 2026 to 2040', 'All your devices, synced', 'Works offline']
   return (
     <div
       data-reveal
@@ -600,7 +600,7 @@ function PlanCard({ plan, featured, current, disabled }: { plan: Plan; featured:
       </p>
       <ul className="mt-6 flex-1 space-y-2.5 text-sm">
         {included.map((t) => (
-          <li key={t} className="flex items-center gap-2.5 text-zinc-300">
+          <li key={t} className={`flex items-center gap-2.5 ${plan.perks.includes(t) ? 'font-semibold text-white' : 'text-zinc-300'}`}>
             <Check className={`h-4 w-4 shrink-0 ${featured ? 'text-indigo-300' : 'text-zinc-500'}`} strokeWidth={3} /> {t}
           </li>
         ))}
@@ -643,6 +643,7 @@ function Faq() {
     ['Can I cancel anytime?', 'Yes. Cancel from your billing page in a couple of clicks, and you keep access until the end of the time you paid for.'],
     ['Is my data private?', 'Yes. Your plan is tied to your Google account and only you can open it. We never sell or share it.'],
     ['Does it work on my phone?', 'Yes. Dizayr works in any browser on your phone, tablet or computer, and stays in sync. Add it to your home screen and it opens like an app, even offline.'],
+    ['What are modes?', 'Separate versions of your plan. Mode 1 is your main plan; add others to try a different future, each with its own items, net worth and setups, while your calendar, expenses and goals stay shared. The 6-month plan includes 2 modes; the yearly plan has unlimited modes.'],
     ['Which currency does it use?', 'Plan in your own currency, and see a second one next to every amount if you like (for example pesos and US dollars).'],
     ['How do I pay?', 'By card or PayPal, through Lemon Squeezy’s secure checkout. Prices are in US dollars; your bank converts them if needed.'],
   ]

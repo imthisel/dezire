@@ -7,6 +7,7 @@ import { TREND, kindColor, kindIcon } from '../lib/meta'
 import type { Trend } from '../lib/types'
 import { NetWorthChart } from './NetWorthChart'
 import { useIsPhone } from '../lib/useMedia'
+import { ModeStrip } from './Modes'
 
 export const card =
   'rounded-2xl border border-white/[0.07] bg-white/[0.025] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]'
@@ -44,6 +45,7 @@ export function Dashboard() {
 
   return (
     <section id="overview" className="space-y-4">
+      <ModeStrip />
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-400">Overview</h2>

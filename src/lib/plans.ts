@@ -16,6 +16,8 @@ export type Plan = {
   /** Months each payment covers (for the per-month price) */
   months: number
   badge?: string
+  /** What's included on this plan beyond the basics, e.g. how many modes */
+  perks: string[]
   /** Lemon Squeezy checkout link for this plan */
   checkoutUrl: string
 }
@@ -31,6 +33,7 @@ export const PLANS: Record<PlanId, Plan> = {
     every: 'per year',
     months: 12,
     badge: '50% off',
+    perks: ['Unlimited modes'],
     checkoutUrl: import.meta.env.VITE_LS_CHECKOUT_ANNUAL ?? '',
   },
   semiannual: {
@@ -39,6 +42,7 @@ export const PLANS: Record<PlanId, Plan> = {
     price: 15,
     every: 'every 6 months',
     months: 6,
+    perks: ['2 modes (your main plan + 1 more)'],
     checkoutUrl: import.meta.env.VITE_LS_CHECKOUT_SEMIANNUAL ?? '',
   },
 }

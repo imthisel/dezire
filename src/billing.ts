@@ -240,3 +240,14 @@ export async function openCheckout(plan: PlanId, user: User) {
   if (ls) ls.Url.Open(url.toString())
   else window.location.href = url.toString()
 }
+
+/**
+ * How many modes the account can use: 2 on the 6-month plan and during the free trial, unlimited on the yearly plan
+ * (and with lifetime access). While access is still being checked, nothing is limited.
+ */
+export function modeLimit(s: Pick<AccessStore, 'state' | 'plan'> = useAccess.getState()) {
+  if (s.state === 'checking' || s.state === 'lifetime') return Infinity
+  if (s.state === 'paid') return s.plan === 'semiannual' ? 2 : Infinity
+  return 2
+}
+export const useModeLimit = () => useAccess((s) => modeLimit(s))
