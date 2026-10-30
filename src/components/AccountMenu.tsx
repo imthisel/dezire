@@ -4,6 +4,7 @@ import { signOut, useCloud, type SaveStatus } from '../cloud'
 import { toast } from '../toast'
 import { BirthdayInput } from './Birthday'
 import { openPlans, useAccess } from '../billing'
+import { AppSettings } from './AppInstall'
 import { PLANS } from '../lib/plans'
 
 const STATUS: Record<SaveStatus, { label: string; cls: string; icon: typeof Check; spin?: boolean }> = {
@@ -75,6 +76,7 @@ export function AccountMenu() {
             </p>
             <BirthdayInput />
           </div>
+          <AppSettings onAction={() => setOpen(false)} />
           <button
             onClick={() => {
               setOpen(false)

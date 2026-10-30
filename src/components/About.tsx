@@ -8,6 +8,7 @@ import { forgetIntent, openCheckout, rememberIntent, useAccess } from '../billin
 import { auth } from '../lib/firebase'
 import { PLANS, TRIAL_DAYS, billingUrl, perMonth, type Plan, type PlanId } from '../lib/plans'
 import { EXAMPLE_REVIEWS, REVIEWS, type Review } from '../content/reviews'
+import { DownloadSection } from './AppInstall'
 
 // ---- Actions ----
 
@@ -85,6 +86,7 @@ export function About() {
         <BeforeAfter />
         <HowItWorks />
         <Features />
+        <DownloadSection />
         <Reviews />
         <Pricing signin={signin} />
         <Faq />
@@ -160,6 +162,7 @@ function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           <a href="#features" className="transition hover:text-white">Features</a>
           {reviewsToShow().length > 0 && <a href="#reviews" className="transition hover:text-white">Reviews</a>}
           <a href="#pricing" className="transition hover:text-white">Pricing</a>
+          <a href="#download" className="transition hover:text-white">Download</a>
           <a href="#faq" className="transition hover:text-white">FAQ</a>
         </nav>
         {signedIn ? (

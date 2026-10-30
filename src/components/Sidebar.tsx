@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { CalendarCheck, CalendarDays, Flag, Gem, GripVertical, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings2, Star, Target, X } from 'lucide-react'
+import { CalendarCheck, CalendarDays, Download, Flag, Gem, GripVertical, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings2, Star, Target, X } from 'lucide-react'
 import { useFmt, useKinds, useStore } from '../store'
 import { SOURCE_KIND, kindColor, kindIcon } from '../lib/meta'
 import { useMedia } from '../lib/useMedia'
@@ -7,6 +7,7 @@ import { goTo, useActiveSection } from '../nav'
 import { todayKey } from '../lib/expenses'
 import { happensOn, isDoneOn, isEvent } from '../lib/tasks'
 import { useSortable } from '../sortable'
+import { installApp, useApp } from '../appUpdate'
 import type { IncomeSource } from '../lib/types'
 
 /** Wide screens keep the sidebar docked on the left; smaller ones slide it over the page. */
@@ -45,6 +46,7 @@ export function Sidebar() {
   const today = todayKey()
   const dueToday = useStore((s) => s.tasks.filter((t) => !isEvent(t) && happensOn(t, today) && !isDoneOn(t, today)).length)
   const shown = docked ? sidebar : drawer
+  const appInstalled = useApp((s) => s.installed)
   // Money plans can be put in order by dragging them in the list below.
   const [dragSource, setDragSource] = useState<string | null>(null)
 
@@ -218,6 +220,21 @@ export function Sidebar() {
           </Group>
         </nav>
 
+        {!appInstalled && (
+          <button
+            onClick={() => {
+              useStore.getState().setDrawer(false)
+              void installApp()
+            }}
+            className="mx-3 mb-2 flex items-center gap-3 rounded-xl border border-indigo-400/20 bg-indigo-500/[0.07] px-3 py-2.5 text-left text-sm text-indigo-100 transition hover:bg-indigo-500/15"
+          >
+            <Download className="h-4 w-4 shrink-0 text-indigo-300" />
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium">Download the app</span>
+              <span className="block truncate text-[11px] text-indigo-200/60">Works offline · stays in sync</span>
+            </span>
+          </button>
+        )}
         {docked && (
           <p className="border-t border-white/[0.06] px-4 py-3 text-[11px] text-zinc-600">
             Hide this anytime with <PanelLeftClose className="inline h-3 w-3" /> · bring it back from the top left

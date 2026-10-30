@@ -2,6 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
+import { startApp } from './appUpdate'
+
+// Installing as an app, and offering updates whenever a new version is pushed.
+startApp()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

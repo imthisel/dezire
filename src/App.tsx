@@ -22,15 +22,22 @@ import { MobileNav } from './components/MobileNav'
 import { Sidebar } from './components/Sidebar'
 import { ZoomHud } from './components/Zoom'
 import { PlansModal, TrialBanner } from './components/Plans'
+import { InstallGuide, UpdateBanner } from './components/AppInstall'
 import { usePinchZoom } from './zoom'
 import { useDragAutoScroll } from './autoscroll'
 import { useTouchDrag } from './touchdrag'
 
 export default function App() {
   return (
-    <AuthGate>
-      <Planner />
-    </AuthGate>
+    <>
+      <AuthGate>
+        <Planner />
+      </AuthGate>
+      {/* Everywhere, signed in or not (the About page too) */}
+      <Toasts />
+      <UpdateBanner />
+      <InstallGuide />
+    </>
   )
 }
 
@@ -60,7 +67,6 @@ function Planner() {
 
       <MobileNavM />
       <ClipboardBar />
-      <Toasts />
       <ZoomHud />
       <Modals />
       <PlansModal />

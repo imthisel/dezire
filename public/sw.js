@@ -29,6 +29,16 @@ self.addEventListener('activate', (event) => {
   )
 })
 
+// "Update now" in the app: save the newest version first, so the reload opens it even on a slow connection.
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'update') return
+  event.waitUntil(
+    saveShell()
+      .catch(() => {})
+      .then(() => event.ports[0]?.postMessage('done')),
+  )
+})
+
 /** Files the page needs, read from its HTML. */
 const assetsIn = (html) =>
   [...html.matchAll(/(?:src|href)="(\/[^"]+)"/g)].map((m) => m[1]).filter((u) => !u.startsWith('/__/') && !u.startsWith('//'))
@@ -56,6 +66,7 @@ self.addEventListener('fetch', (event) => {
 
   if (url.origin === self.location.origin) {
     if (url.pathname.startsWith('/__/')) return // Firebase sign-in
+    if (url.pathname === '/version.json' || url.pathname.startsWith('/api/')) return // always fresh
     if (req.mode === 'navigate') return event.respondWith(page(req))
     if (url.pathname.startsWith('/assets/')) return event.respondWith(cacheFirst(req, SHELL))
     return event.respondWith(staleWhileRevalidate(req, RUNTIME, event))

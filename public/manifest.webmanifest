@@ -1,11 +1,20 @@
 {
-  "name": "Dizayr · Goal Planner",
+  "id": "/",
+  "name": "Dizayr · Plan the life you really want",
   "short_name": "Dizayr",
-  "description": "Goals, budgets and net worth, month by month.",
+  "description": "Goals, budgets, net worth, assets and your calendar, month by month, from today to 2040.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
   "background_color": "#07080c",
   "theme_color": "#07080c",
-  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+  "categories": ["finance", "productivity", "lifestyle"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
 }

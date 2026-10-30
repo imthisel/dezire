@@ -46,6 +46,12 @@ Production build: `npm run build`, then `npm run preview`.
 4. Click **Deploy**. Every later `git push` to `main` redeploys automatically.
 5. Back in Firebase: **Authentication → Settings → Authorized domains → Add domain**, and add your Vercel domain (e.g. `dizayr.vercel.app`) plus any custom domain. Google sign-in is blocked on domains that aren't listed.
 
+## The app (install, offline, updates)
+
+Dizayr installs as an app straight from the website (it's a Progressive Web App): **Download the app** on the About page, in the side menu, or in the account menu. Chrome, Edge and Android install in one tap; on iPhone/iPad it shows the two taps (Share → Add to Home Screen). The installed app is the same site, so it uses the same account and data, works offline (edits sync when back online), and needs nothing from an app store.
+
+**Updating the app = pushing to GitHub.** Every deploy gets a version (the commit), written to `/version.json`. The app checks it when it opens, when it comes back to the screen, and every 15 minutes; if there's a newer one it shows **"A new version of Dizayr is ready · Update now"**, and after updating says **"Dizayr was updated"**. Users can also press **Check for updates** in the account menu. Nothing else to do.
+
 ## Payments: 7-day free trial and plans (Lemon Squeezy)
 
 How it works: anyone who signs in with Google gets **7 days free** (no card). The trial start is saved once in Firestore (`subscriptions/{uid}`) and can't be restarted. After that, they pick **Yearly ($20)** or **6 months ($15)** in a Lemon Squeezy checkout. Lemon Squeezy tells the site about every subscription change through a webhook (`api/lemonsqueezy.ts`), which unlocks or locks the account. The Firestore rules enforce the same thing, so nobody can use the app past their trial without paying, even by editing the page.
