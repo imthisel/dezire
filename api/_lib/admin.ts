@@ -12,7 +12,19 @@ import { getFirestore } from 'firebase-admin/firestore'
 
 type ServiceAccount = { project_id?: string; client_email?: string; private_key?: string }
 let account: ServiceAccount | null = null
-const serviceAccount = (): ServiceAccount => (account ??= JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT ?? '{}') as ServiceAccount)
+/** The key file pasted into FIREBASE_SERVICE_ACCOUNT. A broken paste reads as "no key" (and is reported), never a crash. */
+function serviceAccount(): ServiceAccount {
+  if (account) return account
+  try {
+    const parsed = JSON.parse((process.env.FIREBASE_SERVICE_ACCOUNT ?? '').trim() || '{}') as ServiceAccount
+    // Some copies turn the key's line breaks into the two characters "\n"; the key needs real ones.
+    if (parsed.private_key) parsed.private_key = parsed.private_key.replace(/\\n/g, '\n')
+    account = parsed
+  } catch {
+    account = {}
+  }
+  return account
+}
 
 export function firebase() {
   if (!getApps().length) initializeApp({ credential: cert(serviceAccount() as Record<string, string>) })
@@ -21,7 +33,20 @@ export function firebase() {
 
 const password = () => process.env.ADMIN_PASSWORD ?? ''
 /** Off unless a real password and the server key are both set: never open by default. */
-export const adminConfigured = () => password().length >= 8 && !!serviceAccount().private_key
+export const adminConfigured = () => setupProblems().length === 0
+
+/** What's missing, in words, so the admin page can say exactly which setting to fix. */
+export function setupProblems() {
+  const out: string[] = []
+  const raw = (process.env.FIREBASE_SERVICE_ACCOUNT ?? '').trim()
+  const sa = serviceAccount()
+  if (!raw) out.push('FIREBASE_SERVICE_ACCOUNT is missing.')
+  else if (!sa.private_key || !sa.client_email)
+    out.push('FIREBASE_SERVICE_ACCOUNT isn’t the whole key file. Paste everything from the first { to the last }.')
+  if (!password()) out.push('ADMIN_PASSWORD is missing.')
+  else if (password().length < 8) out.push('ADMIN_PASSWORD must be at least 8 characters.')
+  return out
+}
 
 export const COOKIE = 'dz_admin'
 export const SESSION_MS = 8 * 3_600_000

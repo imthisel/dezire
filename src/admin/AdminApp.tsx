@@ -106,6 +106,7 @@ function Splash() {
 
 function Login() {
   const state = useSession((s) => s.state)
+  const problems = useSession((s) => s.problems)
   const [pw, setPw] = useState('')
   const [show, setShow] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -172,8 +173,14 @@ function Login() {
                 </>
               ) : (
                 <>
-                  Add <code className="text-zinc-200">ADMIN_PASSWORD</code> (8+ characters) and <code className="text-zinc-200">FIREBASE_SERVICE_ACCOUNT</code> in Vercel →
-                  Settings → Environment Variables, then redeploy.
+                  Fix this in Vercel → Settings → Environment Variables, then redeploy:
+                  {problems.length > 0 && (
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-zinc-300">
+                      {problems.map((p) => (
+                        <li key={p}>{p}</li>
+                      ))}
+                    </ul>
+                  )}
                 </>
               )}
             </p>

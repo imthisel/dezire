@@ -13,7 +13,7 @@
 import { FieldValue, Timestamp, type DocumentSnapshot } from 'firebase-admin/firestore'
 import type { UserRecord } from 'firebase-admin/auth'
 import {
-  COOKIE, SESSION_MS, adminConfigured, checkSession, clientIp, cookieOf, firebase, ipKey, newSession, passwordMatches, sessionCookie,
+  COOKIE, SESSION_MS, adminConfigured, checkSession, clientIp, cookieOf, firebase, ipKey, newSession, passwordMatches, sessionCookie, setupProblems,
 } from './_lib/admin.js'
 
 const MAX_TRIES = 5
@@ -26,6 +26,20 @@ const json = (data: unknown, status = 200, headers: Record<string, string> = {})
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', ...headers },
   })
 const fail = (status: number, error: string, extra: Record<string, unknown> = {}) => json({ error, ...extra }, status)
+/** Says which Vercel setting is missing or broken (names only, never values). */
+const notConfigured = () => fail(503, 'not_configured', { problems: setupProblems() })
+
+/** Anything unexpected becomes a JSON error the page can show, instead of Vercel's bare "server error". */
+const safe =
+  (handler: (request: Request) => Promise<Response>) =>
+  async (request: Request) => {
+    try {
+      return await handler(request)
+    } catch (e) {
+      console.error('admin', e)
+      return fail(500, 'server_error', { message: e instanceof Error ? e.message.slice(0, 300) : String(e) })
+    }
+  }
 
 const ms = (v: unknown) => (v instanceof Timestamp ? v.toMillis() : null)
 const validUid = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(v)
@@ -141,8 +155,8 @@ async function auditLog() {
   }))
 }
 
-export async function GET(request: Request) {
-  if (!adminConfigured()) return fail(503, 'not_configured')
+export const GET = safe(async (request: Request) => {
+  if (!adminConfigured()) return notConfigured()
   const action = new URL(request.url).searchParams.get('action')
   const exp = session(request)
   if (action === 'session') return exp ? json({ ok: true, expires: exp }) : fail(401, 'signed_out')
@@ -161,9 +175,9 @@ export async function GET(request: Request) {
   } catch (e) {
     console.error('admin GET', action, e)
     if ((e as { code?: string }).code === 'auth/user-not-found') return fail(404, 'not_found')
-    return fail(500, 'server_error')
+    throw e
   }
-}
+})
 
 // ---------------------------------------------------------------- changes
 
@@ -201,8 +215,8 @@ async function login(request: Request, given: unknown) {
 
 type Body = { action?: string; uid?: unknown; on?: unknown; days?: unknown; note?: unknown; confirm?: unknown; password?: unknown }
 
-export async function POST(request: Request) {
-  if (!adminConfigured()) return fail(503, 'not_configured')
+export const POST = safe(async (request: Request) => {
+  if (!adminConfigured()) return notConfigured()
   if (!sameSite(request)) return fail(403, 'forbidden')
   let body: Body
   try {
@@ -284,6 +298,6 @@ export async function POST(request: Request) {
   } catch (e) {
     console.error('admin POST', body.action, e)
     if ((e as { code?: string }).code === 'auth/user-not-found') return fail(404, 'not_found')
-    return fail(500, 'server_error')
+    throw e
   }
-}
+})

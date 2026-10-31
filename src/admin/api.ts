@@ -50,8 +50,10 @@ interface Session {
   /** null: still checking */
   state: 'checking' | 'in' | 'out' | 'not_configured' | 'offline'
   expires: number | null
+  /** When not configured: which Vercel settings are missing or broken */
+  problems: string[]
 }
-export const useSession = create<Session>(() => ({ state: 'checking', expires: null }))
+export const useSession = create<Session>(() => ({ state: 'checking', expires: null, problems: [] }))
 
 async function call<T>(init: RequestInit & { query?: string }): Promise<T> {
   let res: Response
@@ -71,7 +73,7 @@ async function call<T>(init: RequestInit & { query?: string }): Promise<T> {
   if (!res.ok) {
     const code = String(body.error ?? 'error')
     if (res.status === 401 && code === 'signed_out') useSession.setState({ state: 'out', expires: null })
-    if (res.status === 503) useSession.setState({ state: 'not_configured' })
+    if (res.status === 503) useSession.setState({ state: 'not_configured', problems: Array.isArray(body.problems) ? (body.problems as string[]) : [] })
     throw new AdminError(res.status, code, body)
   }
   return body as T
@@ -88,8 +90,8 @@ export async function checkSession() {
     useSession.setState({ state: 'in', expires: r.expires })
   } catch (e) {
     const err = e as AdminError
-    if (err.code === 'not_configured') useSession.setState({ state: 'not_configured' })
-    else if (err.code === 'no_api' || err.code === 'network') useSession.setState({ state: 'offline' })
+    if (err.code === 'not_configured') return // already set (with what's missing) in call()
+    if (err.code === 'no_api' || err.code === 'network') useSession.setState({ state: 'offline' })
     else useSession.setState({ state: 'out', expires: null })
   }
 }
@@ -120,7 +122,7 @@ export function errorText(e: unknown) {
     case 'forbidden':
       return 'Request blocked (it didn’t come from this site).'
     default:
-      return 'Something went wrong on the server. Try again.'
+      return err?.extra?.message ? `Server error: ${String(err.extra.message)}` : 'Something went wrong on the server. Try again.'
   }
 }
 
