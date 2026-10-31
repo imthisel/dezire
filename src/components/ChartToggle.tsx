@@ -1,14 +1,14 @@
 import { Eye, EyeOff } from 'lucide-react'
 import { useStore } from '../store'
 
-/** Whether chart `id` is folded away (remembered). */
+/** Whether chart (or card) `id` is folded away (remembered). */
 export const useChartHidden = (id: string) => useStore((s) => s.hiddenCharts.includes(id))
 
-/** The Hide / Show button in a chart card's header. */
-export function ChartToggle({ id, name }: { id: string; name: string }) {
+/** The Hide / Show button in a card's header. `name`: what it hides, e.g. "net worth chart". `show`: the button's text while hidden. */
+export function ChartToggle({ id, name, show = 'Show chart' }: { id: string; name: string; show?: string }) {
   const hidden = useChartHidden(id)
   const toggle = useStore((s) => s.toggleChart)
-  const label = hidden ? `Show the ${name} chart` : `Hide the ${name} chart`
+  const label = hidden ? `Show the ${name}` : `Hide the ${name}`
   return (
     <button
       onClick={() => toggle(id)}
@@ -22,7 +22,7 @@ export function ChartToggle({ id, name }: { id: string; name: string }) {
       }`}
     >
       {hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-      <span className="hidden sm:inline">{hidden ? 'Show chart' : 'Hide'}</span>
+      <span className="hidden sm:inline">{hidden ? show : 'Hide'}</span>
     </button>
   )
 }

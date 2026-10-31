@@ -272,7 +272,7 @@ interface State {
   /** Phones: show every month card unfolded instead of just the current one (remembered) */
   openAllMonths: boolean
   setOpenAllMonths: (on: boolean) => void
-  /** Charts folded away for a simpler look, e.g. 'networth' (remembered) */
+  /** Charts and Overview cards folded away for a simpler look, e.g. 'networth', 'assets' (remembered) */
   hiddenCharts: string[]
   toggleChart: (id: string) => void
   /** Phones: how many columns the month and item grids show (pinch to change; remembered) */

@@ -442,7 +442,7 @@ function SpendChart({ period, list, day, onDay, onMonth, hidden }: { period: Per
             </>
           )}
         </div>
-        <ChartToggle id="spend" name="spending" />
+        <ChartToggle id="spend" name="spending chart" />
       </div>
 
       {!hidden && (
