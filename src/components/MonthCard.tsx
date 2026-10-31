@@ -67,10 +67,10 @@ export function MonthCard({ index }: { index: number }) {
     drag.current = null
     if (!d) return
     const mode = isCopy(e) ? 'copy' : 'move'
-    const r = transferItem(d.fromKey, d.id, c.key, mode)
-    // Dropped on an empty spot of its own month: just sent to the bottom of the list
+    // Dropped on an empty spot of its own month (or on itself): leave it where it was
     if (d.fromKey === c.key && mode === 'move') return
-    toast.result(r, `${mode === 'copy' ? 'Copied' : 'Moved'} to ${MONTHS[c.month]} ${c.year}.`)
+    const r = transferItem(d.fromKey, d.id, c.key, mode)
+    toast.result(r,`${mode === 'copy' ? 'Copied' : 'Moved'} to ${MONTHS[c.month]} ${c.year}.`)
   }
 
   function paste() {
