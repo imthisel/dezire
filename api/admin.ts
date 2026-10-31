@@ -46,8 +46,9 @@ const validUid = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z
 
 async function audit(request: Request, action: string, extra: { uid?: string; email?: string | null; detail?: string } = {}) {
   try {
-    await firebase()
-      .db.collection('admin_log')
+    const { db } = await firebase()
+    await db
+      .collection('admin_log')
       .add({ at: FieldValue.serverTimestamp(), action, ip: clientIp(request), ua: (request.headers.get('user-agent') ?? '').slice(0, 200), ...extra })
   } catch (e) {
     console.error('admin_log', e)
@@ -93,7 +94,7 @@ function profileOf(u: UserRecord) {
 }
 
 async function listUsers() {
-  const { db, auth } = firebase()
+  const { db, auth } = await firebase()
   const people: UserRecord[] = []
   let page: string | undefined
   do {
@@ -120,7 +121,7 @@ async function listUsers() {
 }
 
 async function userDetail(uid: string) {
-  const { db, auth } = firebase()
+  const { db, auth } = await firebase()
   const [u, sub, plan, note, log] = await Promise.all([
     auth.getUser(uid),
     db.collection('subscriptions').doc(uid).get(),
@@ -142,7 +143,8 @@ async function userDetail(uid: string) {
 }
 
 async function auditLog() {
-  const snap = await firebase().db.collection('admin_log').orderBy('at', 'desc').limit(300).get()
+  const { db } = await firebase()
+  const snap = await db.collection('admin_log').orderBy('at', 'desc').limit(300).get()
   return snap.docs.map((d) => ({
     id: d.id,
     at: ms(d.get('at')),
@@ -189,7 +191,7 @@ function sameSite(request: Request) {
 }
 
 async function login(request: Request, given: unknown) {
-  const { db } = firebase()
+  const { db } = await firebase()
   const lockRef = db.collection('admin_locks').doc(ipKey(clientIp(request)))
   const lock = await lockRef.get()
   const until = ms(lock.get('until')) ?? 0
@@ -234,7 +236,7 @@ export const POST = safe(async (request: Request) => {
 
   const uid = body.uid
   if (!validUid(uid)) return fail(400, 'bad_uid')
-  const { db, auth } = firebase()
+  const { db, auth } = await firebase()
   const sub = db.collection('subscriptions').doc(uid)
 
   try {

@@ -1,7 +1,6 @@
 import crypto from 'node:crypto'
-import { cert, getApps, initializeApp } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
-import { getFirestore } from 'firebase-admin/firestore'
+import type { Auth } from 'firebase-admin/auth'
+import type { Firestore } from 'firebase-admin/firestore'
 
 /**
  * Admin sign-in. The password is only ever in the ADMIN_PASSWORD environment variable (Vercel → Settings →
@@ -26,7 +25,16 @@ function serviceAccount(): ServiceAccount {
   return account
 }
 
-export function firebase() {
+/**
+ * Firebase, loaded the first time it's needed rather than when the function starts: if loading it ever fails,
+ * the request gets a readable error (see `safe` in api/admin.ts) instead of the whole function failing to start.
+ */
+export async function firebase(): Promise<{ db: Firestore; auth: Auth }> {
+  const [{ cert, getApps, initializeApp }, { getFirestore }, { getAuth }] = await Promise.all([
+    import('firebase-admin/app'),
+    import('firebase-admin/firestore'),
+    import('firebase-admin/auth'),
+  ])
   if (!getApps().length) initializeApp({ credential: cert(serviceAccount() as Record<string, string>) })
   return { db: getFirestore(), auth: getAuth() }
 }
