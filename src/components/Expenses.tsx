@@ -12,6 +12,7 @@ import {
 import { MONTHS, MONTHS_SHORT } from '../lib/time'
 import type { Expense } from '../lib/types'
 import { card } from './Dashboard'
+import { ChartToggle, useChartHidden } from './ChartToggle'
 import { ExpenseSettings, type SettingsTab } from './ExpenseSettings'
 import { toast } from '../toast'
 
@@ -44,6 +45,7 @@ export function Expenses() {
   const today = todayKey()
   const [period, setPeriod] = useState<Period>(() => periodOf(readKind(), today))
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
+  const spendHidden = useChartHidden('spend')
   const [settings, setSettings] = useState<SettingsTab | null>(null)
 
   function setKind(kind: PeriodKind) {
@@ -146,8 +148,9 @@ export function Expenses() {
           <Overview period={period} list={inView} all={expenses} />
 
           <div className="grid gap-4 sm:gap-6 lg:grid-cols-5">
-            <section className={`${card} p-4 sm:p-5 lg:col-span-3`}>
+            <section className={`${card} ${spendHidden ? 'px-4 py-2.5 sm:px-5 lg:col-span-5' : 'p-4 sm:p-5 lg:col-span-3'}`}>
               <SpendChart
+                hidden={spendHidden}
                 period={period}
                 list={inView}
                 day={filters.day}
@@ -158,7 +161,7 @@ export function Expenses() {
                 }}
               />
             </section>
-            <section className={`${card} p-4 sm:p-5 lg:col-span-2`}>
+            <section className={`${card} p-4 sm:p-5 ${spendHidden ? 'lg:col-span-5' : 'lg:col-span-2'}`}>
               <Breakdown list={inView} filters={filters} setFilters={setFilters} />
             </section>
           </div>
@@ -379,7 +382,8 @@ function Insight({ children }: { children: ReactNode }) {
 
 type Bar = { key: string; label: string; tick: string | null; value: number; count: number; future: boolean; today: boolean }
 
-function SpendChart({ period, list, day, onDay, onMonth }: { period: Period; list: Expense[]; day: string | null; onDay: (d: string) => void; onMonth: (monthKey: string) => void }) {
+/** `hidden`: folded to just its header (the average, or the picked day, still shows). */
+function SpendChart({ period, list, day, onDay, onMonth, hidden }: { period: Period; list: Expense[]; day: string | null; onDay: (d: string) => void; onMonth: (monthKey: string) => void; hidden: boolean }) {
   const f = useFmt()
   const today = todayKey()
   const [hover, setHover] = useState<number | null>(null)
@@ -418,10 +422,10 @@ function SpendChart({ period, list, day, onDay, onMonth }: { period: Period; lis
 
   return (
     <div>
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      <div className={`flex items-center justify-between gap-3 ${hidden ? '' : 'mb-4'}`}>
+        <div className="min-w-0 flex-1">
           <h3 className="font-semibold text-white">{yearMode ? 'By month' : 'By day'}</h3>
-          <p className="truncate text-xs text-zinc-500">{yearMode ? 'Tap a month to open it' : 'Tap a day to see just that day'}</p>
+          <p className="truncate text-xs text-zinc-500">{hidden ? 'Chart hidden' : yearMode ? 'Tap a month to open it' : 'Tap a day to see just that day'}</p>
         </div>
         <div className="min-h-[2.5rem] shrink-0 text-right" aria-live="polite">
           {tip ? (
@@ -438,8 +442,11 @@ function SpendChart({ period, list, day, onDay, onMonth }: { period: Period; lis
             </>
           )}
         </div>
+        <ChartToggle id="spend" name="spending" />
       </div>
 
+      {!hidden && (
+      <div className="animate-fade">
       <div className="relative h-40 sm:h-44" onMouseLeave={() => setHover(null)}>
         {/* Average line */}
         {avg > 0 && (
@@ -488,6 +495,8 @@ function SpendChart({ period, list, day, onDay, onMonth }: { period: Period; lis
           </span>
         ))}
       </div>
+      </div>
+      )}
     </div>
   )
 }

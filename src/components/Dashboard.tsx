@@ -6,6 +6,7 @@ import { END_YEAR, START_YEAR, currentIndex, indexOf, labelOf } from '../lib/tim
 import { TREND, kindColor, kindIcon } from '../lib/meta'
 import type { Trend } from '../lib/types'
 import { NetWorthChart } from './NetWorthChart'
+import { ChartToggle, useChartHidden } from './ChartToggle'
 import { useIsPhone } from '../lib/useMedia'
 import { ModeStrip } from './Modes'
 
@@ -22,6 +23,7 @@ export function Dashboard() {
   const f = useFmt()
   const u = useAlt()
   const phone = useIsPhone()
+  const chartHidden = useChartHidden('networth')
 
   // Whole plan: running totals up to the last month with anything in it.
   // Year: only the 12 months of the selected year; net worth and assets as of its December.
@@ -155,15 +157,26 @@ export function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className={`${card} min-w-0 p-4 sm:p-5 lg:col-span-2`}>
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h3 className="font-semibold text-white">Net worth over time</h3>
-            <p className="hidden text-xs text-zinc-500 sm:block">Hover for details · click to open a year</p>
+        {/* Hidden: folds to a slim bar across the top, and Assets takes the full width below it */}
+        <div className={`${card} min-w-0 ${chartHidden ? 'px-4 py-2.5 sm:px-5 lg:col-span-3' : 'p-4 sm:p-5 lg:col-span-2'}`}>
+          <div className={`flex items-center justify-between gap-3 ${chartHidden ? '' : 'mb-3'}`}>
+            <div className="flex min-w-0 items-baseline gap-2.5">
+              <h3 className="shrink-0 font-semibold text-white">Net worth over time</h3>
+              {chartHidden && <p className="truncate text-xs text-zinc-500">Chart hidden</p>}
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              {!chartHidden && <p className="hidden text-xs text-zinc-500 md:block">Hover for details · click to open a year</p>}
+              <ChartToggle id="networth" name="net worth" />
+            </div>
           </div>
-          <NetWorthChart />
+          {!chartHidden && (
+            <div className="animate-fade">
+              <NetWorthChart />
+            </div>
+          )}
         </div>
 
-        <div className={`${card} flex min-w-0 flex-col p-4 sm:p-5`}>
+        <div className={`${card} flex min-w-0 flex-col p-4 sm:p-5 ${chartHidden ? 'lg:col-span-3' : ''}`}>
           <div className="mb-4 flex items-baseline justify-between gap-3">
             <h3 className="font-semibold text-white">{yearMode ? `Bought in ${year}` : 'Assets'}</h3>
             <span className="truncate text-sm tabular-nums text-zinc-300">{f(port.value)} <span className="alt-i text-zinc-500">· {u(port.value)}</span></span>
@@ -178,7 +191,7 @@ export function Dashboard() {
             </div>
           ) : (
             <>
-              <div className="space-y-3">
+              <div className={`space-y-3 ${chartHidden ? 'lg:grid lg:grid-cols-2 lg:gap-x-10 lg:gap-y-3 lg:space-y-0' : ''}`}>
                 {kinds.map((k) => {
                   const Icon = kindIcon(k)
                   const v = port.byCategory[k.id] ?? { value: 0, count: 0 }

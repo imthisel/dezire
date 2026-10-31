@@ -272,6 +272,9 @@ interface State {
   /** Phones: show every month card unfolded instead of just the current one (remembered) */
   openAllMonths: boolean
   setOpenAllMonths: (on: boolean) => void
+  /** Charts folded away for a simpler look, e.g. 'networth' (remembered) */
+  hiddenCharts: string[]
+  toggleChart: (id: string) => void
   /** Phones: how many columns the month and item grids show (pinch to change; remembered) */
   phoneCols: PhoneCols
   setPhoneCols: (cols: PhoneCols) => void
@@ -517,6 +520,9 @@ export const useStore = create<State>()(
       drawer: false,
       openAllMonths: false,
       setOpenAllMonths: (openAllMonths) => set({ openAllMonths }),
+      hiddenCharts: [],
+      toggleChart: (id) =>
+        set((s) => ({ hiddenCharts: s.hiddenCharts.includes(id) ? s.hiddenCharts.filter((c) => c !== id) : [...s.hiddenCharts, id] })),
       phoneCols: 1,
       setPhoneCols: (phoneCols) => set({ phoneCols }),
 
@@ -1216,6 +1222,7 @@ export const useStore = create<State>()(
         view: s.view,
         sidebar: s.sidebar,
         openAllMonths: s.openAllMonths,
+        hiddenCharts: s.hiddenCharts,
         phoneCols: s.phoneCols,
         assetCat: s.assetCat,
         assetPeriod: s.assetPeriod,
