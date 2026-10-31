@@ -258,7 +258,7 @@ interface State {
   removeKind: (id: string, moveTo?: string) => Result
   /** "YYYY-MM-DD", for showing my age on my birth month. null = not set. */
   birthday: string | null
-  /** Free text for each year, keyed by year ("2027"), shown at the top of the year */
+  /** Free text for each year, keyed by year ("2027"), shown at the top of the year. Each mode has its own (see `modes`). */
   yearNotes: Record<string, string>
   setYearNote: (year: number, text: string) => void
   setBirthday: (b: string | null) => void
@@ -311,8 +311,8 @@ interface State {
 
   /**
    * Modes: separate versions of the plan, each with its own months (goals, budgets, items, so its own net worth and
-   * assets) and its own setups. Everything else (calendar, expenses, goals, money plan…) is shared.
-   * The first is always the main plan (id 'main'). `months`, `layouts` and `setupNotes` above hold the mode in use;
+   * assets), its own setups and its own year notes. Everything else (calendar, expenses, goals, money plan…) is shared.
+   * The first is always the main plan (id 'main'). `months`, `layouts`, `setupNotes` and `yearNotes` above hold the mode in use;
    * `modeData` holds the others.
    */
   modes: ModeInfo[]
@@ -433,7 +433,7 @@ try {
 export const MAIN_MODE = 'main'
 export const MAX_MODE_NAME = 32
 const mainMode = (): ModeInfo => ({ id: MAIN_MODE, name: 'Main', createdAt: 0 })
-const emptyMode = (): ModeData => ({ months: {}, layouts: {}, setupNotes: {} })
+const emptyMode = (): ModeData => ({ months: {}, layouts: {}, setupNotes: {}, yearNotes: {} })
 
 /**
  * Saves to this browser a moment after the last change instead of on every one. The whole state is written each time,
@@ -665,14 +665,16 @@ export const useStore = create<State>()(
       switchMode: (id) =>
         set((s) => {
           if (id === s.modeId || !s.modes.some((m) => m.id === id)) return {}
-          const next = s.modeData[id] ?? emptyMode()
+          // Modes saved before they had their own year notes don't have `yearNotes`.
+          const next = { ...emptyMode(), ...s.modeData[id] }
           const { [id]: _opened, ...rest } = s.modeData
           return {
             modeId: id,
             months: next.months,
             layouts: next.layouts,
             setupNotes: next.setupNotes,
-            modeData: { ...rest, [s.modeId]: { months: s.months, layouts: s.layouts, setupNotes: s.setupNotes } },
+            yearNotes: next.yearNotes,
+            modeData: { ...rest, [s.modeId]: { months: s.months, layouts: s.layouts, setupNotes: s.setupNotes, yearNotes: s.yearNotes } },
             // Something cut in the other mode can't be moved from here; a copy still pastes.
             clipboard: s.clipboard?.mode === 'cut' ? null : s.clipboard,
           }
@@ -681,7 +683,7 @@ export const useStore = create<State>()(
         const s = get()
         const mode: ModeInfo = { id: uid(), name: name.trim().slice(0, MAX_MODE_NAME) || `Mode ${s.modes.length + 1}`, createdAt: Date.now() }
         const data: ModeData = copy
-          ? { months: structuredClone(s.months), layouts: structuredClone(s.layouts), setupNotes: { ...s.setupNotes } }
+          ? { months: structuredClone(s.months), layouts: structuredClone(s.layouts), setupNotes: { ...s.setupNotes }, yearNotes: { ...s.yearNotes } }
           : emptyMode()
         set({ modes: [...s.modes, mode], modeData: { ...s.modeData, [mode.id]: data } })
         get().switchMode(mode.id)
@@ -1126,12 +1128,6 @@ export const useStore = create<State>()(
               }))
           }
           const birthday = typeof d.birthday === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.birthday) ? d.birthday : null
-          const yearNotes: Record<string, string> = {}
-          if (d.yearNotes && typeof d.yearNotes === 'object') {
-            for (const [year, text] of Object.entries(d.yearNotes)) {
-              if (/^\d{4}$/.test(year) && typeof text === 'string' && text.trim()) yearNotes[year] = text
-            }
-          }
           // Saves from before Expenses existed don't have them: keep what's here instead of wiping it.
           const cur = get()
           const spending = {
@@ -1147,6 +1143,7 @@ export const useStore = create<State>()(
             months,
             layouts: d.layouts === undefined ? curAll.data[MAIN_MODE].layouts : parseLayouts(d.layouts),
             setupNotes: d.setupNotes === undefined ? curAll.data[MAIN_MODE].setupNotes : parseSetupNotes(d.setupNotes),
+            yearNotes: parseYearNotes(d.yearNotes),
           }
           // Saved by a version without modes: keep the other modes here instead of dropping them.
           const parsed = d.modes === undefined ? null : parseModes(d.modes, kinds)
@@ -1154,8 +1151,8 @@ export const useStore = create<State>()(
           const byMode: Record<string, ModeData> = parsed ? { ...parsed.data, [MAIN_MODE]: main } : { ...curAll.data, [MAIN_MODE]: main }
           const active = list.some((m) => m.id === cur.modeId) ? cur.modeId : MAIN_MODE
           const { [active]: inUse, ...others } = byMode
-          const modeState = { modes: list, modeId: active, modeData: others, months: inUse.months, layouts: inUse.layouts, setupNotes: inUse.setupNotes }
-          set({ ...spending, ...modeState, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, yearNotes, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
+          const modeState = { modes: list, modeId: active, modeData: others, months: inUse.months, layouts: inUse.layouts, setupNotes: inUse.setupNotes, yearNotes: inUse.yearNotes }
+          set({ ...spending, ...modeState, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
           return OK
         } catch {
           return fail('Could not read that file.')
@@ -1166,7 +1163,7 @@ export const useStore = create<State>()(
     }),
     {
       name: 'dizayr-goal-planner-v1',
-      version: 6,
+      version: 7,
       storage: lazyStorage(),
       partialize: (s) => ({
         months: s.months,
@@ -1203,8 +1200,14 @@ export const useStore = create<State>()(
       // v3 had four fixed goal areas with optional custom names; they're now the starter areas, which can be changed.
       // v4 had a fixed peso → US dollar rate (`usdRate`); it's now the main + alternative currency settings.
       // v5 didn't tell events and to-dos apart (`type`).
-      migrate: (persisted) => {
+      // v6 had one set of year notes for every mode; they now belong to the main plan, and each mode has its own.
+      migrate: (persisted, version) => {
         const { currency, usdRate, areaLabels, ...rest } = (persisted ?? {}) as Record<string, unknown>
+        if (version < 7 && rest.modeId && rest.modeId !== MAIN_MODE) {
+          const modeData = (rest.modeData ?? {}) as Record<string, ModeData>
+          rest.modeData = { ...modeData, [MAIN_MODE]: { ...emptyMode(), ...modeData[MAIN_MODE], yearNotes: parseYearNotes(rest.yearNotes) } }
+          rest.yearNotes = {}
+        }
         return {
           months: {},
           year: currentYear(),
@@ -1239,9 +1242,9 @@ function parseLayouts(raw: unknown): Layouts {
 
 
 /** Every mode with its data, the one in use included. */
-function allModes(s: Pick<State, 'modes' | 'modeId' | 'modeData' | 'months' | 'layouts' | 'setupNotes'>) {
-  const data: Record<string, ModeData> = { ...s.modeData, [s.modeId]: { months: s.months, layouts: s.layouts, setupNotes: s.setupNotes } }
-  for (const m of s.modes) data[m.id] ??= emptyMode()
+function allModes(s: Pick<State, 'modes' | 'modeId' | 'modeData' | 'months' | 'layouts' | 'setupNotes' | 'yearNotes'>) {
+  const data: Record<string, ModeData> = { ...s.modeData, [s.modeId]: { months: s.months, layouts: s.layouts, setupNotes: s.setupNotes, yearNotes: s.yearNotes } }
+  for (const m of s.modes) data[m.id] = { ...emptyMode(), ...data[m.id] }
   return { list: s.modes, data }
 }
 
@@ -1256,6 +1259,7 @@ export function savedModes(s: State) {
     months: main.months,
     layouts: main.layouts,
     setupNotes: main.setupNotes,
+    yearNotes: main.yearNotes,
     modes: list.map((m) => (m.id === MAIN_MODE ? { ...m } : { ...m, ...data[m.id] })),
   }
 }
@@ -1279,6 +1283,7 @@ function parseModes(raw: unknown, kinds: ItemKind[]): { list: ModeInfo[]; data: 
         months: parseMonths(x.months, kinds),
         layouts: parseLayouts(x.layouts),
         setupNotes: parseSetupNotes(x.setupNotes),
+        yearNotes: parseYearNotes(x.yearNotes),
       }
     }
   }
@@ -1323,6 +1328,16 @@ function parseSetupNotes(raw: unknown): Record<string, string> {
   if (!raw || typeof raw !== 'object') return out
   for (const [k, text] of Object.entries(raw as Record<string, unknown>)) {
     if (/^\d{4}-\d{2}$/.test(k) && typeof text === 'string' && text.trim()) out[k] = text.slice(0, 4000)
+  }
+  return out
+}
+
+/** Cleans up year notes from a backup file or the cloud. */
+function parseYearNotes(raw: unknown): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (!raw || typeof raw !== 'object') return out
+  for (const [year, text] of Object.entries(raw as Record<string, unknown>)) {
+    if (/^\d{4}$/.test(year) && typeof text === 'string' && text.trim()) out[year] = text
   }
   return out
 }

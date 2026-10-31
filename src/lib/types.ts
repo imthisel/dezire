@@ -66,12 +66,14 @@ export interface ModeInfo {
   createdAt: number
 }
 
-/** What each mode keeps for itself: its months (goals, budgets, items) and its setups. */
+/** What each mode keeps for itself: its months (goals, budgets, items), its setups and its year notes. */
 export interface ModeData {
   months: Record<string, MonthData>
   /** Setups: vehicle id → property id, by setup month */
   layouts: Record<string, Record<string, string>>
   setupNotes: Record<string, string>
+  /** Free text for each year, keyed by year ("2027") */
+  yearNotes: Record<string, string>
 }
 
 /** `warning` is set when the change went through but put a month over its limit. */

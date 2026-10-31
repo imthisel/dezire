@@ -26,8 +26,8 @@ const SAVE_DELAY = 800
 /** The part of the app's state that belongs to the account. */
 const snapshot = () => {
   const s = useStore.getState()
-  const { kinds, goals, goalAreas, sources, birthday, yearNotes, currency, expenses, expenseCats, places, tasks, taskKinds } = s
-  return { ...savedModes(s), kinds, goals, goalAreas, sources, birthday, yearNotes, currency, expenses: expenses.map(compact), expenseCats, places, tasks, taskKinds }
+  const { kinds, goals, goalAreas, sources, birthday, currency, expenses, expenseCats, places, tasks, taskKinds } = s
+  return { ...savedModes(s), kinds, goals, goalAreas, sources, birthday, currency, expenses: expenses.map(compact), expenseCats, places, tasks, taskKinds }
 }
 
 /** An expense without its empty fields, to keep the saved document small (they come back as '' when loaded). */

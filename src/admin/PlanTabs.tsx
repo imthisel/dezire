@@ -469,7 +469,7 @@ export function ScheduleTab({ plan }: { plan: Plan }) {
 // ---------------------------------------------------------------- notes
 
 export function NotesTab({ plan }: { plan: Plan }) {
-  const years = Object.entries(plan.yearNotes).sort(([a], [b]) => a.localeCompare(b))
+  const years = plan.modes.flatMap((m) => Object.entries(m.yearNotes).map(([k, text]) => ({ mode: m.name, key: k, text }))).sort((a, b) => a.key.localeCompare(b.key))
   const months = plan.modes.flatMap((m) =>
     Object.entries(m.months)
       .filter(([, d]) => d.notes?.trim())
@@ -488,8 +488,8 @@ export function NotesTab({ plan }: { plan: Plan }) {
       {years.length > 0 && (
         <Card title="Year notes" className="lg:col-span-2">
           <div className="grid gap-4 md:grid-cols-2">
-            {years.map(([y, text]) => (
-              <Note key={y} label={y} text={text} />
+            {years.map((n) => (
+              <Note key={n.mode + n.key} label={`${n.key}${many ? ` · ${n.mode}` : ''}`} text={n.text} />
             ))}
           </div>
         </Card>

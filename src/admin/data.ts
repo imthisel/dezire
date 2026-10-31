@@ -124,7 +124,7 @@ function cleanMonths(raw: unknown): Record<string, MonthData> {
   return out
 }
 
-export type Mode = { id: string; name: string; months: Record<string, MonthData>; setupNotes: Record<string, string> }
+export type Mode = { id: string; name: string; months: Record<string, MonthData>; setupNotes: Record<string, string>; yearNotes: Record<string, string> }
 
 export type Dream = Item & { key: string; year: number; month: number }
 
@@ -140,14 +140,13 @@ export type Plan = {
   expenseCats: ExpenseCategory[]
   tasks: Task[]
   taskKinds: TaskKind[]
-  yearNotes: Record<string, string>
   birthday: string | null
 }
 
 export function readPlan(data: Record<string, unknown> | null): Plan | null {
   if (!data) return null
   const strings = (v: unknown) => (isObj(v) ? (Object.fromEntries(Object.entries(v).filter(([, t]) => typeof t === 'string' && t.trim())) as Record<string, string>) : {})
-  const main: Mode = { id: 'main', name: 'Main', months: cleanMonths(data.months), setupNotes: strings(data.setupNotes) }
+  const main: Mode = { id: 'main', name: 'Main', months: cleanMonths(data.months), setupNotes: strings(data.setupNotes), yearNotes: strings(data.yearNotes) }
   const modes: Mode[] = [main]
   if (Array.isArray(data.modes)) {
     for (const m of data.modes.filter(isObj)) {
@@ -155,7 +154,7 @@ export function readPlan(data: Record<string, unknown> | null): Plan | null {
         if (typeof m.name === 'string' && m.name.trim()) main.name = m.name.trim()
         continue
       }
-      modes.push({ id: String(m.id), name: String(m.name ?? 'Mode'), months: cleanMonths(m.months), setupNotes: strings(m.setupNotes) })
+      modes.push({ id: String(m.id), name: String(m.name ?? 'Mode'), months: cleanMonths(m.months), setupNotes: strings(m.setupNotes), yearNotes: strings(m.yearNotes) })
     }
   }
   const kinds = Array.isArray(data.kinds) && data.kinds.length ? (data.kinds.filter(isObj) as unknown as ItemKind[]) : DEFAULT_KINDS
@@ -179,7 +178,6 @@ export function readPlan(data: Record<string, unknown> | null): Plan | null {
     expenseCats: parseExpenseCats(data.expenseCats) ?? DEFAULT_EXPENSE_CATS,
     tasks: parseTasks(data.tasks),
     taskKinds: parseTaskKinds(data.taskKinds) ?? DEFAULT_TASK_KINDS,
-    yearNotes: strings(data.yearNotes),
     birthday: typeof data.birthday === 'string' ? data.birthday : null,
   }
 }

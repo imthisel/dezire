@@ -76,7 +76,7 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
         <div role="menu" className="animate-menu absolute left-0 top-full z-50 mt-2 w-[19rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-white/10 bg-[#0e1016] shadow-2xl shadow-black/60 sm:left-auto sm:right-0">
           <div className="border-b border-white/[0.06] px-4 py-3">
             <p className="text-sm font-semibold text-white">Modes</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">Separate versions of your plan, each with its own overview, items, net worth and setups. Calendar, expenses and goals are shared.</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">Separate versions of your plan, each with its own overview, items, net worth, setups and year notes. Calendar, expenses and goals are shared.</p>
           </div>
           <ul className="max-h-72 overflow-y-auto p-1.5">
             {list.map((m) => {
@@ -152,7 +152,7 @@ function ModesModal({ startAdding, onClose }: { startAdding: boolean; onClose: (
   }
 
   function remove(m: ModeInfo) {
-    if (!confirm(`Delete the mode “${m.name}”? Its months, items and setups are deleted for good. Your other modes, calendar and expenses stay.`)) return
+    if (!confirm(`Delete the mode “${m.name}”? Its months, items, setups and year notes are deleted for good. Your other modes, calendar and expenses stay.`)) return
     s.removeMode(m.id)
     toast.info(`Deleted “${m.name}”.`)
   }
@@ -294,7 +294,7 @@ export function ModeStrip() {
         ) : (
           <>
             Mode <span className="font-semibold text-white">{current.name}</span>
-            <span className="text-zinc-500"> · its own overview, items and setups</span>
+            <span className="text-zinc-500"> · its own overview, items, setups and year notes</span>
           </>
         )}
       </p>

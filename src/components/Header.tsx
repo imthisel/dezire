@@ -15,9 +15,9 @@ export function Header() {
 
   function exportData() {
     const s = useStore.getState()
-    const { kinds, currency, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places, tasks, taskKinds } = s
+    const { kinds, currency, goals, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds } = s
     const blob = new Blob(
-      [JSON.stringify({ app: 'dizayr', version: 4, exportedAt: new Date().toISOString(), currency, kinds, goals, goalAreas, sources, birthday, yearNotes, expenses, expenseCats, places, tasks, taskKinds, ...savedModes(s) }, null, 2)],
+      [JSON.stringify({ app: 'dizayr', version: 4, exportedAt: new Date().toISOString(), currency, kinds, goals, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, ...savedModes(s) }, null, 2)],
       { type: 'application/json' },
     )
     const a = document.createElement('a')
