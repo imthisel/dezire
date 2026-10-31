@@ -64,4 +64,14 @@ How it works: anyone who signs in with Google gets **7 days free** (no card). Th
 
 The About page is what signed-out visitors see, and it's always at `/about`.
 
+## Admin page (`/admin`)
+
+A private console for the owner: every account with its email, membership and activity; each person's dreams/items, goals, money plans, spending, calendar and notes; a read-only view of their whole planner; and actions (lifetime access, free membership for any number of days, a new trial, disable / sign out everywhere, private notes, delete, CSV export).
+
+- **Turn it on:** Vercel → Settings → Environment Variables → add `ADMIN_PASSWORD` (8+ characters, Production and Preview) → redeploy. It also needs `FIREBASE_SERVICE_ACCOUNT` (see Payments). Without both, `/admin` stays locked.
+- **Open it:** `https://YOUR-SITE/admin`. It's never linked from the app.
+- **Security:** the password lives only in Vercel, never in the code. Sessions are HttpOnly cookies that end after 8 hours (or 30 minutes idle), 5 wrong passwords lock that address out for 15 minutes, and every sign-in and change is listed under **Activity log** (Firestore `admin_log`). Changing `ADMIN_PASSWORD` signs every admin session out.
+- **Free memberships** are saved as `compUntil` on `subscriptions/{uid}`; republish [`firestore.rules`](firestore.rules) after updating so they count.
+- **Locally:** `npm run dev` doesn't run the `/api` functions, so the admin page says so. Use the deployed site, or `vercel dev`.
+
 Built with Vite, React, TypeScript, Tailwind CSS v4, Zustand and Firebase (Auth + Firestore).

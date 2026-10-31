@@ -41,7 +41,7 @@ export function PlansModal() {
   return (
     <Modal title="Plan & billing" subtitle={<PlanStatus />} onClose={() => openPlans(false)} width="max-w-3xl">
       <div className="py-2">
-        {state !== 'lifetime' && <Pricing compact />}
+        {state !== 'lifetime' && state !== 'comp' && <Pricing compact />}
         {subscribed && billingUrl() && (
           <div className="mt-6 flex justify-center">
             <a

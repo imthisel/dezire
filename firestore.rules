@@ -2,12 +2,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Who may use the app (see src/billing.ts): free trial, a paid plan, or lifetime access.
+    // Who may use the app (see src/billing.ts): free trial, a paid plan, lifetime access, or free time given from the admin page.
     function hasAccess(uid) {
       let path = /databases/$(database)/documents/subscriptions/$(uid);
       let s = get(path).data;
       return exists(path) && (
         s.get('lifetime', false) == true
+        || (s.get('compUntil', null) != null && s.compUntil > request.time)
         || (s.get('accessUntil', null) != null && s.accessUntil > request.time)
         || (s.get('trialStartedAt', null) != null && s.trialStartedAt + duration.value(7, 'd') > request.time)
       );
@@ -27,5 +28,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['trialStartedAt'])
         && request.resource.data.trialStartedAt == request.time;
     }
+
+    // Admin-only collections (admin_log, admin_locks, admin_users): never readable or writable from the browser.
+    // Only the server (api/admin.ts, with the service account) uses them. Everything not matched above is denied anyway.
   }
 }

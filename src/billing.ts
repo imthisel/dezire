@@ -10,15 +10,18 @@ import { toast } from './toast'
  * - `trialStartedAt`: written once by the app on the first sign-in (the Firestore rules only allow it to be "now",
  *   and never changed afterwards), so the free trial can't be restarted.
  * - `accessUntil`, `plan`, `status`…: written only by the payment webhook (api/lemonsqueezy.ts) when someone pays.
- * - `lifetime: true`: set by hand in the Firebase console (e.g. for the owner).
+ * - `lifetime: true`: set from the admin page or by hand in the Firebase console (e.g. for the owner).
+ * - `compUntil`: free membership until then, given from the admin page (api/admin.ts).
  * The Firestore rules check the same thing before letting anyone read or save their data.
  */
-export type AccessState = 'checking' | 'trial' | 'paid' | 'lifetime' | 'ended'
+/** `comp`: a free membership given from the admin page, until `compUntil`. */
+export type AccessState = 'checking' | 'trial' | 'paid' | 'comp' | 'lifetime' | 'ended'
 
 type SubDoc = {
   trialStartedAt?: Timestamp
   accessUntil?: Timestamp | null
   lifetime?: boolean
+  compUntil?: Timestamp | null
   plan?: PlanId | null
   status?: string
   renewsAt?: Timestamp | null
@@ -31,6 +34,8 @@ interface AccessStore {
   trialEndsAt: number | null
   /** Paid until (ms) */
   paidUntil: number | null
+  /** Free membership until (ms) */
+  compUntil: number | null
   plan: PlanId | null
   /** Lemon Squeezy status: active, cancelled, past_due… */
   status: string | null
@@ -44,6 +49,7 @@ export const useAccess = create<AccessStore>(() => ({
   state: 'checking',
   trialEndsAt: null,
   paidUntil: null,
+  compUntil: null,
   plan: null,
   status: null,
   activating: false,
@@ -98,9 +104,12 @@ export function watchAccess(user: User, onChange: (allowed: boolean) => void) {
       const now = Date.now()
       const trialEndsAt = d.trialStartedAt ? d.trialStartedAt.toMillis() + TRIAL_DAYS * DAY : null
       const paidUntil = d.accessUntil ? d.accessUntil.toMillis() : null
+      const compUntil = d.compUntil ? d.compUntil.toMillis() : null
       const state: AccessState = d.lifetime
         ? 'lifetime'
-        : paidUntil && paidUntil > now
+        : compUntil && compUntil > now
+          ? 'comp'
+          : paidUntil && paidUntil > now
           ? 'paid'
           : trialEndsAt && trialEndsAt > now
             ? 'trial'
@@ -111,6 +120,7 @@ export function watchAccess(user: User, onChange: (allowed: boolean) => void) {
         state,
         trialEndsAt,
         paidUntil,
+        compUntil,
         plan: d.plan ?? null,
         status: d.status ?? null,
         activating: was.activating && state !== 'paid',
@@ -119,18 +129,19 @@ export function watchAccess(user: User, onChange: (allowed: boolean) => void) {
 
       // Look again the moment the trial or the paid time runs out.
       clearTimeout(timer)
-      const next = [paidUntil, trialEndsAt].filter((t): t is number => !!t && t > now).sort((a, b) => a - b)[0]
+      const next = [compUntil, paidUntil, trialEndsAt].filter((t): t is number => !!t && t > now).sort((a, b) => a - b)[0]
       if (next) timer = setTimeout(() => {
         const s = useAccess.getState()
         const t = Date.now()
-        const left = (s.paidUntil ?? 0) > t ? 'paid' : (s.trialEndsAt ?? 0) > t ? 'trial' : s.state === 'lifetime' ? 'lifetime' : 'ended'
+        const left =
+          s.state === 'lifetime' ? 'lifetime' : (s.compUntil ?? 0) > t ? 'comp' : (s.paidUntil ?? 0) > t ? 'paid' : (s.trialEndsAt ?? 0) > t ? 'trial' : 'ended'
         useAccess.setState({ state: left })
         report(left !== 'ended')
       }, Math.min(next - now + 1000, 2 ** 31 - 1))
 
       // Chose a plan before signing in: go straight to paying for it.
       const intent = takeIntent()
-      if (intent && state !== 'paid' && state !== 'lifetime') void openCheckout(intent, user)
+      if (intent && state !== 'paid' && state !== 'comp' && state !== 'lifetime') void openCheckout(intent, user)
     },
     (e) => {
       console.error(e)
@@ -148,7 +159,7 @@ export function watchAccess(user: User, onChange: (allowed: boolean) => void) {
 export function stopAccess() {
   stop?.()
   stop = null
-  useAccess.setState({ state: 'checking', trialEndsAt: null, paidUntil: null, plan: null, status: null, activating: false, plansOpen: false })
+  useAccess.setState({ state: 'checking', trialEndsAt: null, paidUntil: null, compUntil: null, plan: null, status: null, activating: false, plansOpen: false })
 }
 
 /** Days left in the free trial (rounded up), or null when not on the trial. */
@@ -243,10 +254,10 @@ export async function openCheckout(plan: PlanId, user: User) {
 
 /**
  * How many modes the account can use: 2 on the 6-month plan and during the free trial, unlimited on the yearly plan
- * (and with lifetime access). While access is still being checked, nothing is limited.
+ * (and with lifetime access or a free membership). While access is still being checked, nothing is limited.
  */
 export function modeLimit(s: Pick<AccessStore, 'state' | 'plan'> = useAccess.getState()) {
-  if (s.state === 'checking' || s.state === 'lifetime') return Infinity
+  if (s.state === 'checking' || s.state === 'lifetime' || s.state === 'comp') return Infinity
   if (s.state === 'paid') return s.plan === 'semiannual' ? 2 : Infinity
   return 2
 }

@@ -42,7 +42,8 @@ export default function App() {
   )
 }
 
-function Planner() {
+/** The planner itself (also shown read-only on the admin page, with someone else's data). */
+export function Planner() {
   const sidebar = useStore((s) => s.sidebar)
   useModeGuard()
   usePinchZoom()

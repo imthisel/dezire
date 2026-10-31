@@ -89,7 +89,9 @@ export function AccountMenu() {
             <span className="text-xs text-zinc-500">
               {access.state === 'lifetime'
                 ? 'Lifetime'
-                : access.state === 'paid'
+                : access.state === 'comp'
+                  ? 'Free'
+                  : access.state === 'paid'
                   ? (access.plan ? PLANS[access.plan].name : 'Active')
                   : access.state === 'trial' && access.trialEndsAt
                     ? `Trial · ${Math.max(0, Math.ceil((access.trialEndsAt - Date.now()) / 86_400_000))}d left`

@@ -535,7 +535,7 @@ export function Pricing({ signin, compact = false }: { signin?: SignIn; compact?
   const access = useAccess()
   const user = useCloud((s) => s.user)
   const order: PlanId[] = ['semiannual', 'annual']
-  const onPlan = access.state === 'paid' || access.state === 'lifetime'
+  const onPlan = access.state === 'paid' || access.state === 'comp' || access.state === 'lifetime'
   const body = (
     <>
       <div className="mx-auto grid max-w-3xl gap-5 md:grid-cols-2">
@@ -781,6 +781,7 @@ export function PlanStatus() {
   const fmt = (ms: number) => new Date(ms).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   let text: ReactNode = null
   if (s.state === 'lifetime') text = 'You have lifetime access. Thank you!'
+  else if (s.state === 'comp' && s.compUntil) text = `You have a free membership until ${fmt(s.compUntil)}. Enjoy!`
   else if (s.state === 'paid' && s.paidUntil)
     text = s.status === 'cancelled' ? `Your plan is cancelled and ends on ${fmt(s.paidUntil)}.` : `You’re on the ${s.plan ? PLANS[s.plan].name : ''} plan. Next renewal around ${fmt(s.paidUntil)}.`
   else if (s.state === 'trial' && s.trialEndsAt) {
