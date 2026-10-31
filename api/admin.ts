@@ -11,7 +11,6 @@
  * (Origin check + a custom header); and every sign-in and change is written to the `admin_log` collection.
  */
 import { FieldValue, Timestamp, type DocumentSnapshot } from 'firebase-admin/firestore'
-import type { UserRecord } from 'firebase-admin/auth'
 import {
   COOKIE, SESSION_MS, adminConfigured, checkSession, clientIp, cookieOf, firebase, ipKey, newSession, passwordMatches, sessionCookie, setupProblems,
 } from './_lib/admin.js'
@@ -78,30 +77,9 @@ function subscriptionOf(s: DocumentSnapshot | undefined) {
   }
 }
 
-function profileOf(u: UserRecord) {
-  return {
-    uid: u.uid,
-    email: u.email ?? null,
-    emailVerified: u.emailVerified,
-    name: u.displayName ?? null,
-    photo: u.photoURL ?? null,
-    disabled: u.disabled,
-    providers: u.providerData.map((p) => p.providerId),
-    createdAt: Date.parse(u.metadata.creationTime) || null,
-    lastSignIn: u.metadata.lastSignInTime ? Date.parse(u.metadata.lastSignInTime) : null,
-    lastRefresh: u.metadata.lastRefreshTime ? Date.parse(u.metadata.lastRefreshTime) : null,
-  }
-}
-
 async function listUsers() {
   const { db, auth } = await firebase()
-  const people: UserRecord[] = []
-  let page: string | undefined
-  do {
-    const r = await auth.listUsers(1000, page)
-    people.push(...r.users)
-    page = r.pageToken
-  } while (page)
+  const people = await auth.list()
   // Only the save time from each plan (not the plan itself), so the list stays fast with many users.
   const [subs, saves, notes] = await Promise.all([
     db.collection('subscriptions').get(),
@@ -112,7 +90,7 @@ async function listUsers() {
   const saved = new Map(saves.docs.map((d) => [d.id, ms(d.get('updatedAt'))]))
   const note = new Map(notes.docs.map((d) => [d.id, (d.get('note') as string) ?? '']))
   return people.map((u) => ({
-    ...profileOf(u),
+    ...u,
     ...subscriptionOf(sub.get(u.uid)),
     lastSaved: saved.get(u.uid) ?? null,
     hasPlan: saved.has(u.uid),
@@ -123,14 +101,14 @@ async function listUsers() {
 async function userDetail(uid: string) {
   const { db, auth } = await firebase()
   const [u, sub, plan, note, log] = await Promise.all([
-    auth.getUser(uid),
+    auth.get(uid),
     db.collection('subscriptions').doc(uid).get(),
     db.collection('users').doc(uid).get(),
     db.collection('admin_users').doc(uid).get(),
     db.collection('admin_log').where('uid', '==', uid).limit(100).get(),
   ])
   return {
-    ...profileOf(u),
+    ...u,
     ...subscriptionOf(sub),
     lastSaved: ms(plan.get('updatedAt')),
     hasPlan: plan.exists,
@@ -240,7 +218,7 @@ export const POST = safe(async (request: Request) => {
   const sub = db.collection('subscriptions').doc(uid)
 
   try {
-    const person = await auth.getUser(uid)
+    const person = await auth.get(uid)
     const log = (action: string, detail?: string) => audit(request, action, { uid, email: person.email ?? null, detail })
 
     switch (body.action) {
@@ -270,13 +248,13 @@ export const POST = safe(async (request: Request) => {
         break
       case 'disable': {
         const on = body.on === true
-        await auth.updateUser(uid, { disabled: on })
-        if (on) await auth.revokeRefreshTokens(uid)
+        await auth.setDisabled(uid, on)
+        if (on) await auth.signOutEverywhere(uid)
         await log(on ? 'disable' : 'enable')
         break
       }
       case 'revoke':
-        await auth.revokeRefreshTokens(uid)
+        await auth.signOutEverywhere(uid)
         await log('sign_out_everywhere')
         break
       case 'note': {
@@ -290,7 +268,7 @@ export const POST = safe(async (request: Request) => {
         if (typeof body.confirm !== 'string' || body.confirm.trim().toLowerCase() !== (person.email ?? uid).toLowerCase()) return fail(400, 'confirm_mismatch')
         await log('delete_account')
         await Promise.all([db.collection('users').doc(uid).delete(), sub.delete(), db.collection('admin_users').doc(uid).delete()])
-        await auth.deleteUser(uid)
+        await auth.remove(uid)
         return json({ ok: true, deleted: true })
       }
       default:

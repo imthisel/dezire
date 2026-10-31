@@ -1,6 +1,6 @@
 import crypto from 'node:crypto'
-import type { Auth } from 'firebase-admin/auth'
 import type { Firestore } from 'firebase-admin/firestore'
+import { accounts, type ServiceAccount } from './accounts.js'
 
 /**
  * Admin sign-in. The password is only ever in the ADMIN_PASSWORD environment variable (Vercel → Settings →
@@ -9,7 +9,6 @@ import type { Firestore } from 'firebase-admin/firestore'
  * so changing the password signs every admin session out.
  */
 
-type ServiceAccount = { project_id?: string; client_email?: string; private_key?: string }
 let account: ServiceAccount | null = null
 /** The key file pasted into FIREBASE_SERVICE_ACCOUNT. A broken paste reads as "no key" (and is reported), never a crash. */
 function serviceAccount(): ServiceAccount {
@@ -29,14 +28,10 @@ function serviceAccount(): ServiceAccount {
  * Firebase, loaded the first time it's needed rather than when the function starts: if loading it ever fails,
  * the request gets a readable error (see `safe` in api/admin.ts) instead of the whole function failing to start.
  */
-export async function firebase(): Promise<{ db: Firestore; auth: Auth }> {
-  const [{ cert, getApps, initializeApp }, { getFirestore }, { getAuth }] = await Promise.all([
-    import('firebase-admin/app'),
-    import('firebase-admin/firestore'),
-    import('firebase-admin/auth'),
-  ])
+export async function firebase(): Promise<{ db: Firestore; auth: ReturnType<typeof accounts> }> {
+  const [{ cert, getApps, initializeApp }, { getFirestore }] = await Promise.all([import('firebase-admin/app'), import('firebase-admin/firestore')])
   if (!getApps().length) initializeApp({ credential: cert(serviceAccount() as Record<string, string>) })
-  return { db: getFirestore(), auth: getAuth() }
+  return { db: getFirestore(), auth: accounts(serviceAccount()) }
 }
 
 const password = () => process.env.ADMIN_PASSWORD ?? ''
@@ -49,7 +44,7 @@ export function setupProblems() {
   const raw = (process.env.FIREBASE_SERVICE_ACCOUNT ?? '').trim()
   const sa = serviceAccount()
   if (!raw) out.push('FIREBASE_SERVICE_ACCOUNT is missing.')
-  else if (!sa.private_key || !sa.client_email)
+  else if (!sa.private_key || !sa.client_email || !sa.project_id)
     out.push('FIREBASE_SERVICE_ACCOUNT isn’t the whole key file. Paste everything from the first { to the last }.')
   if (!password()) out.push('ADMIN_PASSWORD is missing.')
   else if (password().length < 8) out.push('ADMIN_PASSWORD must be at least 8 characters.')
