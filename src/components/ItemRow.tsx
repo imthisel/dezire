@@ -5,7 +5,8 @@ import { TREND, kindIcon } from '../lib/meta'
 import { useFmt, useItemIndex, useKindOf, useStore, useAlt } from '../store'
 import { labelOfKey } from '../lib/time'
 import { goToMonth } from '../nav'
-import { drag } from '../dnd'
+import { drag, dragIds, groupDragImage } from '../dnd'
+import { selection, useSelected } from '../selection'
 import { NotYet } from './Kept'
 import { RunningCostsSummary } from './RunningCosts'
 import { toast } from '../toast'
@@ -30,6 +31,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
   const kind = useKindOf()(item.category)
   const KindIcon = kindIcon(kind)
   const isCut = clipboard?.mode === 'cut' && clipboard.item.id === item.id
+  const selected = useSelected(item.id)
 
   const act = (fn: () => void) => (e: MouseEvent) => {
     e.stopPropagation()
@@ -87,40 +89,62 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
   function onDragOver(e: DragEvent<HTMLLIElement>) {
     const d = drag.current
     if (!d) return
-    setDropAt(d.id === item.id ? null : half(e))
+    setDropAt(dragIds(d).includes(item.id) ? null : half(e))
   }
 
   function onDrop(e: DragEvent<HTMLLIElement>) {
     setDropAt(null)
     const d = drag.current
-    if (!d || d.id === item.id) return
+    // Dropped on (one of) the items being dragged: the month card handles it
+    if (!d || dragIds(d).includes(item.id)) return
     // Handled here; clearing `drag` makes the month card's own drop handler skip it
     drag.current = null
     e.preventDefault()
     const mode = e.ctrlKey || e.altKey || e.metaKey ? 'copy' : 'move'
-    const r = s().transferItem(d.fromKey, d.id, monthKey, mode, { id: item.id, after: half(e) === 'below' })
+    const at = { id: item.id, after: half(e) === 'below' }
+    if (d.group) {
+      const r = s().transferItems(d.group, monthKey, mode, at)
+      toast.result(r, `${mode === 'copy' ? 'Copied' : 'Moved'} ${d.group.length} items.`)
+      return
+    }
+    const r = s().transferItem(d.fromKey, d.id, monthKey, mode, at)
     if (d.fromKey !== monthKey || mode === 'copy') toast.result(r, mode === 'copy' ? 'Copied.' : 'Moved.')
+  }
+
+  function onClick(e: MouseEvent) {
+    if (e.shiftKey) return selection.range(item.id, e.ctrlKey || e.metaKey)
+    if (e.ctrlKey || e.metaKey) return selection.toggle(item.id)
+    selection.clear()
+    selection.setAnchor(item.id)
+    setOpen((o) => !o)
   }
 
   return (
     <li
       draggable
+      data-sel-id={item.id}
       onDragStart={(e) => {
-        drag.current = { fromKey: monthKey, id: item.id }
+        // A picked item takes every picked one along; any other drags on its own (and lets go of the rest).
+        const group = selected ? [...selection.get()].filter((id) => index.byId.has(id)) : []
+        if (!selected) selection.clear()
+        drag.current = { fromKey: monthKey, id: item.id, ...(group.length > 1 && { group }) }
         e.dataTransfer.effectAllowed = 'copyMove'
         e.dataTransfer.setData('text/plain', item.name)
+        if (group.length > 1) groupDragImage(e.nativeEvent, group.length)
       }}
       onDragEnd={() => (drag.current = null)}
       onDragOver={onDragOver}
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropAt(null)}
       onDrop={onDrop}
-      onClick={() => setOpen((o) => !o)}
+      // Shift-clicking shouldn't highlight the text between the two items
+      onMouseDown={(e) => e.shiftKey && e.preventDefault()}
+      onClick={onClick}
       title={over ? 'Not enough money left (or over the budget) this month — move it to another month' : undefined}
       className={`group relative flex cursor-grab flex-wrap items-center gap-2.5 rounded-xl border py-2 pl-2.5 pr-2 transition sm:pl-1.5 ${open ? '' : 'sm:flex-nowrap'} active:cursor-grabbing ${
-        over ? 'border-red-500/60 bg-red-500/15 ring-1 ring-red-500/40' : `${t.border} ${t.bg}`
+        selected ? `border-indigo-400/70 ring-2 ring-indigo-400/60 ${t.bg}` : over ? 'border-red-500/60 bg-red-500/15 ring-1 ring-red-500/40' : `${t.border} ${t.bg}`
       } ${
         // Favorites get a gold glow and edge on top of the trend colour, so the trend still shows.
-        fav ? `bg-gradient-to-r from-amber-300/[0.16] via-amber-300/[0.04] to-transparent ${over ? '' : 'ring-1 ring-amber-300/45'}` : ''
+        fav ? `bg-gradient-to-r from-amber-300/[0.16] via-amber-300/[0.04] to-transparent ${over || selected ? '' : 'ring-1 ring-amber-300/45'}` : ''
       } ${
         isCut ? 'border-dashed opacity-45' : 'hover:brightness-125'
       }`}
@@ -130,6 +154,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
           className={`pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-indigo-400 ${dropAt === 'above' ? '-top-1' : '-bottom-1'}`}
         />
       )}
+      {selected && <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[11px] bg-indigo-400/[0.12]" />}
       {fav && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-l-[11px] bg-gradient-to-b from-amber-200 to-amber-400" />}
       <GripVertical className="hidden h-4 w-4 shrink-0 text-zinc-600 transition group-hover:text-zinc-400 sm:block" />
       <span className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-lg ${t.iconBg} ${t.text}`}>

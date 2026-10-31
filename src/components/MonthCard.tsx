@@ -22,8 +22,10 @@ export function MonthCard({ index }: { index: number }) {
   const items = month?.items ?? EMPTY
   const over = overLimitIds(month, c.available)
   const clipboard = useStore((s) => s.clipboard)
-  const { setMonthField, setMonthNotes, openModal, pasteInto, transferItem } = useStore.getState()
+  const { setMonthField, setMonthNotes, openModal, pasteInto, transferItem, transferItems } = useStore.getState()
   const [dropMode, setDropMode] = useState<null | 'move' | 'copy'>(null)
+  /** How many items the drag over this month carries */
+  const [dropCount, setDropCount] = useState(1)
   const notes = month?.notes ?? ''
   const hasNotes = notes.trim().length > 0
   const [notesOpen, setNotesOpen] = useState(false)
@@ -58,6 +60,7 @@ export function MonthCard({ index }: { index: number }) {
     const copy = isCopy(e)
     e.dataTransfer.dropEffect = copy ? 'copy' : 'move'
     setDropMode(copy ? 'copy' : 'move')
+    setDropCount(drag.current.group?.length ?? 1)
   }
 
   function onDrop(e: DragEvent) {
@@ -67,10 +70,17 @@ export function MonthCard({ index }: { index: number }) {
     drag.current = null
     if (!d) return
     const mode = isCopy(e) ? 'copy' : 'move'
+    const where = `${MONTHS[c.month]} ${c.year}`
+    if (d.group) {
+      // All of them already here: leave them where they were
+      if (mode === 'move' && d.group.every((id) => items.some((i) => i.id === id))) return
+      const r = transferItems(d.group, c.key, mode)
+      return toast.result(r, `${mode === 'copy' ? 'Copied' : 'Moved'} ${d.group.length} items to ${where}.`)
+    }
     // Dropped on an empty spot of its own month (or on itself): leave it where it was
     if (d.fromKey === c.key && mode === 'move') return
     const r = transferItem(d.fromKey, d.id, c.key, mode)
-    toast.result(r,`${mode === 'copy' ? 'Copied' : 'Moved'} to ${MONTHS[c.month]} ${c.year}.`)
+    toast.result(r, `${mode === 'copy' ? 'Copied' : 'Moved'} to ${where}.`)
   }
 
   function paste() {
@@ -344,7 +354,8 @@ export function MonthCard({ index }: { index: number }) {
 
       {dropMode && (
         <div className="pointer-events-none absolute inset-x-4 bottom-14 rounded-lg bg-indigo-500/90 px-3 py-1.5 text-center text-xs font-medium text-white shadow-lg">
-          {dropMode === 'copy' ? 'Drop to copy here' : 'Drop to move here · hold Ctrl to copy'}
+          {dropMode === 'copy' ? 'Drop to copy' : 'Drop to move'}
+          {dropCount > 1 ? ` ${dropCount} items` : ''} here{dropMode === 'move' ? ' · hold Ctrl to copy' : ''}
         </div>
       )}
     </article>

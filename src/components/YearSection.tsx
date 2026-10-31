@@ -13,6 +13,7 @@ import { YearNote } from './YearNote'
 import { MonthTile } from './Tiles'
 import { ZoomControl } from './Zoom'
 import { PHONE_GRID, useCols } from '../zoom'
+import { useBoxSelect } from '../selection'
 
 export function YearSection() {
   const year = useStore((s) => s.year)
@@ -30,9 +31,12 @@ export function YearSection() {
       </div>
     )
   }, [shownYear, cols])
+  // Hold the mouse down on an empty spot and drag to pick several items
+  const area = useRef<HTMLElement>(null)
+  useBoxSelect(area)
 
   return (
-    <section className="space-y-4">
+    <section ref={area} className="space-y-4">
       <YearTabs />
       <YearNote key={year} year={year} />
       <YearSummary />

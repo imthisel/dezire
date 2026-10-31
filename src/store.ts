@@ -335,6 +335,8 @@ interface State {
   /** Stars / unstars an item. Returns whether it is now a favorite. */
   toggleFavorite: (key: string, id: string) => boolean
   transferItem: (fromKey: string, id: string, toKey: string, mode: 'copy' | 'move', at?: DropAt) => Result
+  /** Moves / copies several items (wherever they are) into one month, keeping the order they're shown in. */
+  transferItems: (ids: string[], toKey: string, mode: 'copy' | 'move', at?: DropAt) => Result
 
   copyToClipboard: (key: string, id: string, mode: 'copy' | 'cut') => void
   pasteInto: (key: string) => Result
@@ -786,6 +788,31 @@ export const useStore = create<State>()(
         // Reordering inside the same month doesn't change what it spends
         if (mode === 'move' && fromKey === toKey) return OK
         return warned(toKey, item.price, months)
+      },
+
+      transferItems: (ids, toKey, mode, at) => {
+        const { months } = get()
+        const want = new Set(ids)
+        // In the order they're shown: by month, then by place in the month
+        const picked = Object.keys(months)
+          .sort()
+          .flatMap((key) => months[key].items.filter((i) => want.has(i.id)).map((item) => ({ key, item })))
+        if (!picked.length) return fail('Those items no longer exist.')
+        if (picked.length === 1) return get().transferItem(picked[0].key, picked[0].item.id, toKey, mode, at)
+        if (mode === 'move' && at && want.has(at.id)) return OK
+        const next = { ...months }
+        if (mode === 'move') for (const { key } of picked) next[key] = { ...next[key], items: next[key].items.filter((i) => !want.has(i.id)) }
+        const dest = next[toKey] ?? emptyMonth()
+        const moved = picked.map(({ item }) => (mode === 'move' ? item : { ...item, id: uid(), createdAt: Date.now() }))
+        const items = [...dest.items]
+        const ti = at ? items.findIndex((i) => i.id === at.id) : -1
+        if (ti < 0) items.push(...moved)
+        else items.splice(ti + (at!.after ? 1 : 0), 0, ...moved)
+        next[toKey] = { ...dest, items }
+        set({ months: next })
+        // Only what wasn't already in that month adds to what it spends
+        const added = picked.reduce((sum, p) => sum + (mode === 'copy' || p.key !== toKey ? p.item.price : 0), 0)
+        return added ? warned(toKey, added, months) : OK
       },
 
       copyToClipboard: (key, id, mode) => {

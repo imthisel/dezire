@@ -16,6 +16,7 @@ import { GoalModal } from './components/GoalModal'
 import { KindsModal } from './components/KindsModal'
 import { GoalAreasModal } from './components/GoalAreasModal'
 import { ClipboardBar } from './components/ClipboardBar'
+import { SelectionBar } from './components/SelectionBar'
 import { Toasts } from './components/Toasts'
 import { AuthGate } from './components/AuthGate'
 import { MobileNav } from './components/MobileNav'
@@ -70,6 +71,7 @@ export function Planner() {
 
       <MobileNavM />
       <ClipboardBar />
+      <SelectionBar />
       <ZoomHud />
       <Modals />
       <PlansModal />
