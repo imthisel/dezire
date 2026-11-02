@@ -72,6 +72,8 @@ export interface ModeData {
   /** Setups: vehicle id → property id, by setup month */
   layouts: Record<string, Record<string, string>>
   setupNotes: Record<string, string>
+  /** Setups: the properties marked as favorites, by setup month */
+  setupFavorites: Record<string, string[]>
   /** Free text for each year, keyed by year ("2027") */
   yearNotes: Record<string, string>
 }

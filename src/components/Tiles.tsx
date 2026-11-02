@@ -111,7 +111,8 @@ export function MonthTile({ index, cols }: { index: number; cols: Exclude<PhoneC
 }
 
 /** An item (Favorites / Assets) at a glance: what it is, its price, and when. */
-export function ItemTile({ item, domId, when, cols }: { item: Item; domId: string; when: string; cols: Exclude<PhoneCols, 1> }) {
+/** `favorite`: shows it as one, when that's decided elsewhere (a property's favorite in a setup). */
+export function ItemTile({ item, domId, when, cols, favorite = !!item.favorite }: { item: Item; domId: string; when: string; cols: Exclude<PhoneCols, 1>; favorite?: boolean }) {
   const f = useFmt()
   const kind = useKindOf()(item.category)
   const Icon = kindIcon(kind)
@@ -126,14 +127,14 @@ export function ItemTile({ item, domId, when, cols }: { item: Item; domId: strin
       aria-label={`${item.name} · ${f(item.price)} · ${when}. Tap to open.`}
       className={`relative flex min-w-0 flex-col overflow-hidden rounded-2xl border text-left transition active:scale-[0.97] ${t.border} ${t.bg} ${
         small ? 'p-2.5' : 'p-3'
-      } ${item.favorite ? 'bg-gradient-to-br from-amber-300/[0.12] via-transparent to-transparent ring-1 ring-amber-300/30' : ''}`}
+      } ${favorite ? 'bg-gradient-to-br from-amber-300/[0.12] via-transparent to-transparent ring-1 ring-amber-300/30' : ''}`}
     >
-      {item.favorite && <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-gradient-to-b from-amber-200 to-amber-400" />}
+      {favorite && <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-gradient-to-b from-amber-200 to-amber-400" />}
       <span className="flex items-start justify-between gap-1">
         <span className={`grid shrink-0 place-items-center rounded-lg ${t.iconBg} ${t.text} ${small ? 'h-7 w-7' : 'h-8 w-8'}`}>
           <Icon className={small ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
         </span>
-        {item.favorite && <Star className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-300" aria-label="Favorite" />}
+        {favorite && <Star className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-300" aria-label="Favorite" />}
       </span>
       <span className={`mt-2 line-clamp-2 break-words font-semibold leading-snug text-white ${small ? 'text-xs' : 'text-[13px]'}`}>{item.name}</span>
       <span className={`mt-auto block truncate pt-1.5 font-bold tabular-nums text-white ${small ? 'text-sm' : 'text-base'}`}>{f(item.price, true)}</span>

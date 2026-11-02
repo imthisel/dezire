@@ -149,7 +149,7 @@ async function connect(user: User) {
   let offlineEdits = false
   const unsubStore = useStore.subscribe((s, prev) => {
     if (applyingRemote) return
-    if (s.months === prev.months && s.kinds === prev.kinds && s.goals === prev.goals && s.goalAreas === prev.goalAreas && s.sources === prev.sources && s.birthday === prev.birthday && s.yearNotes === prev.yearNotes && s.currency === prev.currency && s.expenses === prev.expenses && s.expenseCats === prev.expenseCats && s.places === prev.places && s.layouts === prev.layouts && s.setupNotes === prev.setupNotes && s.modes === prev.modes && s.modeData === prev.modeData && s.tasks === prev.tasks && s.taskKinds === prev.taskKinds) return
+    if (s.months === prev.months && s.kinds === prev.kinds && s.goals === prev.goals && s.goalAreas === prev.goalAreas && s.sources === prev.sources && s.birthday === prev.birthday && s.yearNotes === prev.yearNotes && s.currency === prev.currency && s.expenses === prev.expenses && s.expenseCats === prev.expenseCats && s.places === prev.places && s.layouts === prev.layouts && s.setupNotes === prev.setupNotes && s.setupFavorites === prev.setupFavorites && s.modes === prev.modes && s.modeData === prev.modeData && s.tasks === prev.tasks && s.taskKinds === prev.taskKinds) return
     pending = true
     if (!navigator.onLine) offlineEdits = true
     useCloud.setState({ status: navigator.onLine ? 'saving' : 'offline' })

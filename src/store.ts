@@ -312,6 +312,8 @@ interface State {
   layouts: Layouts
   /** Free text for each setup, keyed by its month ("2027-06"), shown with that setup only */
   setupNotes: Record<string, string>
+  /** The properties marked as favorites in each setup, by setup month. Each setup has its own (see `modes`). */
+  setupFavorites: Record<string, string[]>
 
   /**
    * Modes: separate versions of the plan, each with its own months (goals, budgets, items, so its own net worth and
@@ -332,6 +334,8 @@ interface State {
   /** Deletes a mode and everything in it (not the main one). */
   removeMode: (id: string) => void
   setSetupNote: (monthKey: string, text: string) => void
+  /** Marks or unmarks a property as a favorite in one setup. Returns whether it now is one. */
+  toggleSetupFavorite: (monthKey: string, propertyId: string) => boolean
   /** Puts a vehicle at a property in one setup (null = take it off / not placed). */
   setKeptAt: (monthKey: string, vehicleId: string, propertyId: string | null) => void
   /** Empties a setup. */
@@ -443,9 +447,9 @@ try {
 export const MAIN_MODE = 'main'
 export const MAX_MODE_NAME = 32
 const mainMode = (): ModeInfo => ({ id: MAIN_MODE, name: 'Main', createdAt: 0 })
-const emptyMode = (): ModeData => ({ months: {}, layouts: {}, setupNotes: {}, yearNotes: {} })
+const emptyMode = (): ModeData => ({ months: {}, layouts: {}, setupNotes: {}, setupFavorites: {}, yearNotes: {} })
 /** A separate copy of the plan in use, so changing one never touches the other. */
-const copyOfPlan = (s: ModeData): ModeData => ({ months: structuredClone(s.months), layouts: structuredClone(s.layouts), setupNotes: { ...s.setupNotes }, yearNotes: { ...s.yearNotes } })
+const copyOfPlan = (s: ModeData): ModeData => ({ months: structuredClone(s.months), layouts: structuredClone(s.layouts), setupNotes: { ...s.setupNotes }, setupFavorites: structuredClone(s.setupFavorites), yearNotes: { ...s.yearNotes } })
 
 /**
  * Saves to this browser a moment after the last change instead of on every one. The whole state is written each time,
@@ -674,6 +678,7 @@ export const useStore = create<State>()(
 
       layouts: {},
       setupNotes: {},
+      setupFavorites: {},
       modes: [mainMode()],
       modeId: MAIN_MODE,
       modeData: {},
@@ -688,8 +693,9 @@ export const useStore = create<State>()(
             months: next.months,
             layouts: next.layouts,
             setupNotes: next.setupNotes,
+            setupFavorites: next.setupFavorites,
             yearNotes: next.yearNotes,
-            modeData: { ...rest, [s.modeId]: { months: s.months, layouts: s.layouts, setupNotes: s.setupNotes, yearNotes: s.yearNotes } },
+            modeData: { ...rest, [s.modeId]: { months: s.months, layouts: s.layouts, setupNotes: s.setupNotes, setupFavorites: s.setupFavorites, yearNotes: s.yearNotes } },
             // Something cut in the other mode can't be moved from here; a copy still pastes.
             clipboard: s.clipboard?.mode === 'cut' ? null : s.clipboard,
           }
@@ -729,6 +735,16 @@ export const useStore = create<State>()(
           const { [monthKey]: _old, ...rest } = s.setupNotes
           return { setupNotes: text ? { ...rest, [monthKey]: text } : rest }
         }),
+      toggleSetupFavorite: (monthKey, propertyId) => {
+        const list = get().setupFavorites[monthKey] ?? []
+        const now = !list.includes(propertyId)
+        const next = now ? [...list, propertyId] : list.filter((id) => id !== propertyId)
+        set((s) => {
+          const { [monthKey]: _old, ...rest } = s.setupFavorites
+          return { setupFavorites: next.length ? { ...rest, [monthKey]: next } : rest }
+        })
+        return now
+      },
       setKeptAt: (monthKey, vehicleId, propertyId) =>
         set((s) => {
           const { [vehicleId]: _old, ...rest } = s.layouts[monthKey] ?? {}
@@ -1189,6 +1205,7 @@ export const useStore = create<State>()(
             places?: unknown
             layouts?: unknown
             setupNotes?: unknown
+            setupFavorites?: unknown
             tasks?: unknown
             taskKinds?: unknown
             modes?: unknown
@@ -1229,6 +1246,7 @@ export const useStore = create<State>()(
             months,
             layouts: d.layouts === undefined ? curAll.data[MAIN_MODE].layouts : parseLayouts(d.layouts),
             setupNotes: d.setupNotes === undefined ? curAll.data[MAIN_MODE].setupNotes : parseSetupNotes(d.setupNotes),
+            setupFavorites: d.setupFavorites === undefined ? curAll.data[MAIN_MODE].setupFavorites : parseSetupFavorites(d.setupFavorites),
             yearNotes: parseYearNotes(d.yearNotes),
           }
           // Saved by a version without modes: keep the other modes here instead of dropping them.
@@ -1237,7 +1255,7 @@ export const useStore = create<State>()(
           const byMode: Record<string, ModeData> = parsed ? { ...parsed.data, [MAIN_MODE]: main } : { ...curAll.data, [MAIN_MODE]: main }
           const active = list.some((m) => m.id === cur.modeId) ? cur.modeId : MAIN_MODE
           const { [active]: inUse, ...others } = byMode
-          const modeState = { modes: list, modeId: active, modeData: others, months: inUse.months, layouts: inUse.layouts, setupNotes: inUse.setupNotes, yearNotes: inUse.yearNotes }
+          const modeState = { modes: list, modeId: active, modeData: others, months: inUse.months, layouts: inUse.layouts, setupNotes: inUse.setupNotes, setupFavorites: inUse.setupFavorites, yearNotes: inUse.yearNotes }
           set({ ...spending, ...modeState, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
           return OK
         } catch {
@@ -1245,7 +1263,7 @@ export const useStore = create<State>()(
         }
       },
 
-      resetAll: () => set({ modes: [mainMode()], modeId: MAIN_MODE, modeData: {}, tasks: [], taskKinds: DEFAULT_TASK_KINDS, layouts: {}, setupNotes: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
+      resetAll: () => set({ modes: [mainMode()], modeId: MAIN_MODE, modeData: {}, tasks: [], taskKinds: DEFAULT_TASK_KINDS, layouts: {}, setupNotes: {}, setupFavorites: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
       name: 'dizayr-goal-planner-v1',
@@ -1265,6 +1283,7 @@ export const useStore = create<State>()(
         places: s.places,
         layouts: s.layouts,
         setupNotes: s.setupNotes,
+        setupFavorites: s.setupFavorites,
         modes: s.modes,
         modeId: s.modeId,
         modeData: s.modeData,
@@ -1329,8 +1348,8 @@ function parseLayouts(raw: unknown): Layouts {
 
 
 /** Every mode with its data, the one in use included. */
-function allModes(s: Pick<State, 'modes' | 'modeId' | 'modeData' | 'months' | 'layouts' | 'setupNotes' | 'yearNotes'>) {
-  const data: Record<string, ModeData> = { ...s.modeData, [s.modeId]: { months: s.months, layouts: s.layouts, setupNotes: s.setupNotes, yearNotes: s.yearNotes } }
+function allModes(s: Pick<State, 'modes' | 'modeId' | 'modeData' | 'months' | 'layouts' | 'setupNotes' | 'setupFavorites' | 'yearNotes'>) {
+  const data: Record<string, ModeData> = { ...s.modeData, [s.modeId]: { months: s.months, layouts: s.layouts, setupNotes: s.setupNotes, setupFavorites: s.setupFavorites, yearNotes: s.yearNotes } }
   for (const m of s.modes) data[m.id] = { ...emptyMode(), ...data[m.id] }
   return { list: s.modes, data }
 }
@@ -1346,6 +1365,7 @@ export function savedModes(s: State) {
     months: main.months,
     layouts: main.layouts,
     setupNotes: main.setupNotes,
+    setupFavorites: main.setupFavorites,
     yearNotes: main.yearNotes,
     modes: list.map((m) => (m.id === MAIN_MODE ? { ...m } : { ...m, ...data[m.id] })),
   }
@@ -1370,6 +1390,7 @@ function parseModes(raw: unknown, kinds: ItemKind[]): { list: ModeInfo[]; data: 
         months: parseMonths(x.months, kinds),
         layouts: parseLayouts(x.layouts),
         setupNotes: parseSetupNotes(x.setupNotes),
+        setupFavorites: parseSetupFavorites(x.setupFavorites),
         yearNotes: parseYearNotes(x.yearNotes),
       }
     }
@@ -1415,6 +1436,18 @@ function parseSetupNotes(raw: unknown): Record<string, string> {
   if (!raw || typeof raw !== 'object') return out
   for (const [k, text] of Object.entries(raw as Record<string, unknown>)) {
     if (/^\d{4}-\d{2}$/.test(k) && typeof text === 'string' && text.trim()) out[k] = text.slice(0, 4000)
+  }
+  return out
+}
+
+/** Cleans up setup favorites from a backup file or the cloud. */
+function parseSetupFavorites(raw: unknown): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  if (!raw || typeof raw !== 'object') return out
+  for (const [k, ids] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^\d{4}-\d{2}$/.test(k) || !Array.isArray(ids)) continue
+    const list = [...new Set(ids.filter((id): id is string => typeof id === 'string' && !!id))]
+    if (list.length) out[k] = list
   }
   return out
 }

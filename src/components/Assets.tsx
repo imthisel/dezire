@@ -76,6 +76,7 @@ export function Assets() {
   const asOfLabel = `${period.mode === 'month' ? MONTHS_SHORT[period.month] : 'Dec'} ${fromIndex(asOf).year}`
   // Setups: vehicles are arranged across properties, a separate version for each setup.
   const parking = useParking(period.mode === 'month' ? keyOf(asOf) : null, setups)
+  const setupFavs = useSetupFavorites(parking)
 
   /** Every item in the chosen years, any kind. */
   // Setups: vehicles sold in an earlier setup are listed on their own, not as cards.
@@ -180,6 +181,7 @@ export function Assets() {
 
         <PeriodPicker period={period} setups={setups} birthSet={birthMonth !== null} />
         {parking && (cat === 'all' || cat === 'property' || cat === 'vehicle') && <LayoutBar parking={parking} setups={setups} birthMonth={birthMonth} />}
+        {parking && (cat === 'all' || cat === 'property' || cat === 'vehicle') && <SetupFavorites parking={parking} />}
         {/* Each setup has its own note */}
         {parking && (
           <div className="relative mt-3">
@@ -189,7 +191,7 @@ export function Assets() {
 
         {/* Totals */}
         <div className="relative mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-          <Tile k="Items" v={String(ofKind.length)} sub={ofKind.length ? `${ofKind.filter((a) => a.item.favorite).length} favorite` : 'Nothing yet'} />
+          <Tile k="Items" v={String(ofKind.length)} sub={ofKind.length ? `${ofKind.filter((a) => (parking && a.item.category === 'property' ? setupFavs.includes(a.item.id) : a.item.favorite)).length} favorite` : 'Nothing yet'} />
           <Tile k="Price paid" v={f(paid)} sub={`≈ ${u(paid)}`} />
           <Tile k={`Worth by ${asOfLabel}`} v={f(worth)} sub={`≈ ${u(worth)}`} cls="text-indigo-200" />
           <Tile
@@ -411,12 +413,13 @@ function YearTotals({ list, asOf, asOfLabel }: { list: Asset[]; asOf: number; as
 
 function Grid({ list, asOf, asOfLabel, parking }: { list: Asset[]; asOf: number; asOfLabel: string; parking: Parking | null }) {
   const cols = useCols()
+  const setupFavs = useSetupFavorites(parking)
   return (
     <div data-zoom-grid className={`grid md:grid-cols-2 2xl:grid-cols-3 ${PHONE_GRID[cols]}`}>
       {list.map((a) => {
         if (cols === 1) return <AssetCard key={a.item.id} asset={a} asOf={asOf} asOfLabel={asOfLabel} parking={parking} />
         const { month, year } = fromIndex(a.index)
-        return <ItemTile key={a.item.id} item={a.item} domId={`asset-${a.item.id}`} when={`${MONTHS_SHORT[month]} ${year}`} cols={cols} />
+        return <ItemTile key={a.item.id} item={a.item} domId={`asset-${a.item.id}`} when={`${MONTHS_SHORT[month]} ${year}`} cols={cols} favorite={parking && a.item.category === 'property' ? setupFavs.includes(a.item.id) : undefined} />
       })}
     </div>
   )
@@ -525,6 +528,59 @@ function PeriodPicker({ period, setups, birthSet }: { period: AssetPeriod; setup
   )
 }
 
+const NO_FAVORITES: string[] = []
+/** The properties marked as favorites in this setup. */
+const useSetupFavorites = (parking: Parking | null) => useStore((s) => (parking && s.setupFavorites[parking.monthKey]) || NO_FAVORITES)
+
+/** Every property owned by this setup, to mark the favorites among them. Works however far the phone's grid is zoomed out. */
+function SetupFavorites({ parking }: { parking: Parking }) {
+  const favs = useSetupFavorites(parking)
+  const { properties, at, monthKey } = parking
+  if (!properties.length) return null
+  const count = properties.filter((p) => favs.includes(p.item.id)).length
+  const parked = (id: string) => [...at.values()].filter((home) => home === id).length
+
+  return (
+    <div className="animate-fade relative mt-2 rounded-xl border border-amber-300/15 bg-gradient-to-r from-amber-300/[0.06] to-transparent py-2.5">
+      <p className="flex items-baseline justify-between gap-3 px-3">
+        <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-100">
+          <Star className={`h-3.5 w-3.5 self-center ${count ? 'fill-amber-300 text-amber-300' : 'text-amber-200/70'}`} />
+          Favorite properties
+        </span>
+        <span className="shrink-0 text-xs tabular-nums text-zinc-500">
+          {count ? `${count} of ${properties.length}` : 'Tap to mark for this setup'}
+        </span>
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1.5 px-3">
+        {properties.map((p) => {
+          const on = favs.includes(p.item.id)
+          const n = parked(p.item.id)
+          return (
+            <button
+              key={p.item.id}
+              onClick={() => useStore.getState().toggleSetupFavorite(monthKey, p.item.id)}
+              aria-pressed={on}
+              title={`${on ? 'Remove from' : 'Add to'} favorites in the ${labelOfKey(monthKey)} setup`}
+              className={`inline-flex h-9 min-w-0 max-w-full items-center gap-1.5 rounded-full sm:max-w-[15rem] border pl-2.5 pr-3 text-sm font-medium transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70 ${
+                on ? 'border-amber-300/50 bg-amber-300/15 text-amber-50' : 'border-white/10 text-zinc-400 hover:border-amber-300/30 hover:text-zinc-100'
+              }`}
+            >
+              <Star className={`h-4 w-4 shrink-0 transition-transform duration-200 ${on ? 'scale-110 fill-amber-300 text-amber-300' : 'text-zinc-500'}`} strokeWidth={on ? 2 : 1.75} />
+              <span className="truncate">{p.item.name}</span>
+              {n > 0 && (
+                <span className={`inline-flex shrink-0 items-center gap-0.5 text-xs tabular-nums ${on ? 'text-amber-100/70' : 'text-zinc-500'}`}>
+                  <Car className="h-3 w-3" aria-label="Vehicles here" />
+                  {n}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 /** A setup's summary, with ways to fill it: copy the setup before, or start from where vehicles are usually kept. */
 function LayoutBar({ parking, setups, birthMonth }: { parking: Parking; setups: number[]; birthMonth: number | null }) {
   const layouts = useStore((s) => s.layouts)
@@ -608,6 +664,7 @@ function SetupVehicles({ parking, setups }: { parking: Parking; setups: number[]
   const index = useItemIndex()
   const layouts = useStore((s) => s.layouts)
   const [showSold, setShowSold] = useState(true)
+  const favs = useSetupFavorites(parking)
   if (!vehicles.length) return null
   const label = labelOfKey(monthKey)
   const placed = vehicles.filter((v) => at.has(v.item.id))
@@ -648,7 +705,7 @@ function SetupVehicles({ parking, setups }: { parking: Parking; setups: number[]
         <Group tone="rose" title="Not at a property" note="sold" count={unplaced.length} empty="Everything you still have is at a property">
           {unplaced.map((v) => (
             <Box key={v.item.id} v={v} sub={`Bought ${shortLabel(v.key)}`} tone="rose">
-              <PutAt v={v.item} properties={properties} onPut={put} />
+              <PutAt v={v.item} properties={properties} favs={favs} onPut={put} />
             </Box>
           ))}
         </Group>
@@ -998,8 +1055,10 @@ function IconBtn({ label, onClick, children }: { label: string; onClick: () => v
 }
 
 /** A small house button that opens the list of properties (a real menu underneath, so it works well on phones). */
-function PutAt({ v, properties, onPut, back }: { v: Item; properties: Parking['properties']; onPut: (v: Item, pid: string) => void; back?: boolean }) {
+function PutAt({ v, properties, favs, onPut, back }: { v: Item; properties: Parking['properties']; favs: string[]; onPut: (v: Item, pid: string) => void; back?: boolean }) {
   if (!properties.length) return null
+  // Favorites first
+  const ordered = [...properties.filter((p) => favs.includes(p.item.id)), ...properties.filter((p) => !favs.includes(p.item.id))]
   const label = back ? `Bring ${v.name} back: put it at…` : `Put ${v.name} at…`
   return (
     <label title={label} className="relative grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-md border border-teal-300/25 bg-teal-400/10 text-teal-100 transition hover:bg-teal-400/20">
@@ -1009,9 +1068,9 @@ function PutAt({ v, properties, onPut, back }: { v: Item; properties: Parking['p
         <option value="" disabled>
           {back ? 'Bring back to…' : 'Put at…'}
         </option>
-        {properties.map((p) => (
+        {ordered.map((p) => (
           <option key={p.item.id} value={p.item.id}>
-            {p.item.name}
+            {favs.includes(p.item.id) ? `★ ${p.item.name}` : p.item.name}
           </option>
         ))}
       </select>
@@ -1041,7 +1100,10 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel, parking }: { 
   const t = TREND[item.trend]
   const kind = useKindOf()(item.category)
   const KindIcon = kindIcon(kind)
-  const fav = !!item.favorite
+  // In a setup, a property's star is its favorite in that setup (see SetupFavorites); everything else has the one star.
+  const setupFavs = useSetupFavorites(parking)
+  const inSetup = parking !== null && item.category === 'property'
+  const fav = inSetup ? setupFavs.includes(item.id) : !!item.favorite
   const later = valueAfter(item, asOf - index)
   const change = later - item.price
   const { month, year } = fromIndex(index)
@@ -1071,6 +1133,7 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel, parking }: { 
   }
 
   function star() {
+    if (inSetup) return void useStore.getState().toggleSetupFavorite(parking.monthKey, item.id)
     const now = useStore.getState().toggleFavorite(key, item.id)
     toast.info(now ? `★ Added “${item.name}” to Favorites.` : `Removed “${item.name}” from Favorites.`)
   }
@@ -1125,12 +1188,13 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel, parking }: { 
           <p className="truncate text-xs text-zinc-400">
             {kind.label} · {MONTHS_SHORT[month]} {year}
             {parking && key === parking.monthKey && <span className="ml-1.5 rounded-full bg-emerald-400/15 px-1.5 py-px text-[10px] font-semibold text-emerald-200">New</span>}
+            {inSetup && fav && <span className="animate-fade ml-1.5 rounded-full bg-amber-300/15 px-1.5 py-px text-[10px] font-semibold text-amber-200">Setup favorite</span>}
           </p>
         </div>
         <button
           onClick={star}
-          title={fav ? 'Remove from Favorites' : 'Add to Favorites'}
-          aria-label={fav ? 'Remove from Favorites' : 'Add to Favorites'}
+          title={inSetup ? `${fav ? 'Remove from' : 'Add to'} favorites in the ${labelOfKey(parking.monthKey)} setup` : fav ? 'Remove from Favorites' : 'Add to Favorites'}
+          aria-label={inSetup ? `${fav ? 'Remove from' : 'Add to'} setup favorites` : fav ? 'Remove from Favorites' : 'Add to Favorites'}
           aria-pressed={fav}
           className={`-mr-1 -mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-lg transition active:scale-90 ${
             fav ? 'text-amber-300 hover:bg-amber-300/10' : 'text-zinc-600 hover:bg-white/10 hover:text-amber-300'
