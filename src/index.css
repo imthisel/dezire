@@ -201,6 +201,27 @@ html.zooming [data-zoom-item] {
   to { transform: scaleX(1); }
 }
 
+/* The upgrade button: a soft light passing over it now and then, so it catches the eye without demanding it */
+@keyframes premium-sheen {
+  0%, 80% { transform: translateX(-160%) skewX(-18deg); }
+  100% { transform: translateX(360%) skewX(-18deg); }
+}
+.premium-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.premium-sheen::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.65), transparent);
+  transform: translateX(-160%) skewX(-18deg);
+  animation: premium-sheen 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
 /* About page: sections fade up as they scroll into view (see useReveal) */
 .reveal {
   opacity: 0;
@@ -252,6 +273,7 @@ html.zooming [data-zoom-item] {
   .marquee { overflow-x: auto; }
   .marquee-track, .float-slow, .float-slower { animation: none !important; }
   .draw-line { animation: none !important; stroke-dasharray: none; }
+  .premium-sheen::after { animation: none !important; }
 }
 
 ::selection {

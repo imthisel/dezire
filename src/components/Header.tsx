@@ -5,6 +5,7 @@ import { toast } from '../toast'
 import { AccountMenu, SaveIndicator } from './AccountMenu'
 import { CurrencyMenu } from './CurrencyMenu'
 import { ModeSwitcher } from './Modes'
+import { PremiumBadge } from './Plans'
 import { toggleSidebar, useDocked } from './Sidebar'
 
 export function Header() {
@@ -52,10 +53,10 @@ export function Header() {
       {!phone && <ModeSwitcher phone={false} />}
       <CurrencyMenu phone={phone} />
       <button className={`${btn} ${phone ? 'h-10 w-10 px-0' : ''}`} onClick={exportData} title="Download a backup of all your data" aria-label="Export backup">
-        <Download className="h-4 w-4" /> {!phone && 'Export'}
+        <Download className="h-4 w-4" /> {!phone && <span className="hidden min-[1400px]:inline">Export</span>}
       </button>
       <button className={`${btn} ${phone ? 'h-10 w-10 px-0' : ''}`} onClick={() => fileRef.current?.click()} title="Restore from a backup file" aria-label="Import backup">
-        <Upload className="h-4 w-4" /> {!phone && 'Import'}
+        <Upload className="h-4 w-4" /> {!phone && <span className="hidden min-[1400px]:inline">Import</span>}
       </button>
       <button
         className={`${btn} hover:border-red-500/40 hover:text-red-300 ${phone ? 'h-10 w-10 px-0' : ''}`}
@@ -93,12 +94,15 @@ export function Header() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <div className="hidden items-center gap-2 sm:flex">{tools(false)}</div>
+          <div className="hidden items-center gap-2 xl:flex">{tools(false)}</div>
+          <PremiumBadge />
           <SaveIndicator />
           <AccountMenu />
         </div>
       </div>
 
+      {/* Tablets and small laptops: the tools don't fit beside the logo, so they get their own row */}
+      <div className="mt-4 hidden items-center justify-end gap-2 sm:flex xl:hidden">{tools(false)}</div>
       <div className="mt-4 flex items-center gap-2 sm:hidden">{tools(true)}</div>
       {/* Phones: the mode in use, on its own row so the name has room */}
       <div className="mt-2 flex sm:hidden">

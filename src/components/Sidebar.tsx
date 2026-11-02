@@ -8,6 +8,7 @@ import { todayKey } from '../lib/expenses'
 import { happensOn, isDoneOn, isEvent } from '../lib/tasks'
 import { useSortable } from '../sortable'
 import { installApp, useApp } from '../appUpdate'
+import { PremiumCard } from './Plans'
 import type { IncomeSource } from '../lib/types'
 
 /** Wide screens keep the sidebar docked on the left; smaller ones slide it over the page. */
@@ -220,6 +221,7 @@ export function Sidebar() {
           </Group>
         </nav>
 
+        <PremiumCard onOpen={() => useStore.getState().setDrawer(false)} />
         {!appInstalled && (
           <button
             onClick={() => {

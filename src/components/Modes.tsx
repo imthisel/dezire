@@ -59,13 +59,13 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
   }, [menu])
 
   return (
-    <div ref={root} className={`relative ${phone ? 'min-w-0 flex-1' : ''}`}>
+    <div ref={root} className={`relative min-w-0 ${phone ? 'flex-1' : ''}`}>
       <button
         onClick={() => setMenu((o) => !o)}
         aria-expanded={menu}
         aria-haspopup="menu"
         title="Modes: separate versions of your plan"
-        className={`flex w-full items-center gap-2 rounded-xl border bg-white/[0.03] pl-2.5 pr-2 text-sm font-medium transition ${phone ? 'h-10' : 'h-9 max-w-[13rem]'} ${
+        className={`flex w-full items-center gap-2 rounded-xl border bg-white/[0.03] pl-2.5 pr-2 text-sm font-medium transition ${phone ? 'h-10' : 'h-9 max-w-[11rem]'} ${
           menu ? 'border-indigo-400/50 ring-2 ring-indigo-500/20' : 'border-white/10 hover:border-white/20'
         }`}
       >
@@ -76,7 +76,7 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
       </button>
 
       {menu && (
-        <div role="menu" className="animate-menu absolute left-0 top-full z-50 mt-2 w-[19rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-white/10 bg-[#0e1016] shadow-2xl shadow-black/60 sm:left-auto sm:right-0">
+        <div role="menu" className="animate-menu absolute left-0 top-full z-50 mt-2 w-[19rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-white/10 bg-[#0e1016] shadow-2xl shadow-black/60 xl:left-auto xl:right-0">
           <div className="border-b border-white/[0.06] px-4 py-3">
             <p className="text-sm font-semibold text-white">Modes</p>
             <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">Separate versions of your plan, each with its own overview, items, net worth, setups and year notes. Calendar, expenses and goals are shared.</p>
