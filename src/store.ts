@@ -1527,6 +1527,51 @@ export function placementAt(index: ItemIndex, layouts: Layouts, monthKey: string
   return { monthKey, at, vehiclesAt, unplaced, sold, vehicles, properties: index.properties.filter((p) => p.key <= monthKey) }
 }
 
+/**
+ * Undoes a vehicle's sale from the setup being looked at, however long ago it was sold: it goes to the first favorite
+ * property in every arranged setup from the sale on, and in this one. Favorites come in the order they were marked:
+ * this setup's first, then the closest setups' (earlier ones before later ones). A setup from before a favorite was
+ * bought uses the next one owned by then. Setups that aren't arranged yet sell nothing, so they're left alone, except
+ * this one: it starts as a copy of the arranged setup before it, so the other vehicles aren't left off (which would sell them).
+ * Returns where it went and how to undo this, or null when there's no favorite to put it in.
+ */
+export function undoSale(index: ItemIndex, monthKey: string, vehicleId: string, setups: number[]) {
+  const { layouts, setupFavorites, modeId } = useStore.getState()
+  const favKeys = Object.keys(setupFavorites)
+  const order = [
+    ...new Set([monthKey, ...favKeys.filter((k) => k < monthKey).sort().reverse(), ...favKeys.filter((k) => k > monthKey).sort()].flatMap((k) => setupFavorites[k] ?? [])),
+  ]
+  const home = order.find((id) => ownedProperty(index, id, monthKey))
+  const sale = placementAt(index, layouts, monthKey, setups).sold.find((x) => x.placed.item.id === vehicleId)
+  if (!home || !sale) return null
+
+  const arranged = Object.keys(layouts).filter((k) => setups.includes(Number(k.slice(5)) - 1) && Object.keys(layouts[k]).length > 0)
+  const before = arranged.filter((k) => k < monthKey).sort().pop()
+  const seed = before ? layouts[before] : {}
+  const next: Layouts = {}
+  for (const k of new Set([...arranged.filter((x) => x >= sale.since), monthKey])) {
+    const own = layouts[k]?.[vehicleId]
+    const spot = order.find((id) => ownedProperty(index, id, k)) ?? (ownedProperty(index, own, k) ? own : index.properties.find((p) => p.key <= k)?.item.id)
+    if (!spot) return null
+    next[k] = { ...(Object.keys(layouts[k] ?? {}).length ? layouts[k] : seed), [vehicleId]: spot }
+  }
+  useStore.setState({ layouts: { ...layouts, ...next } })
+
+  return {
+    home: index.byId.get(home)!.item,
+    undo: () =>
+      useStore.setState((s) => {
+        if (s.modeId !== modeId) return {}
+        const back = { ...s.layouts }
+        for (const k of Object.keys(next)) {
+          if (layouts[k]) back[k] = layouts[k]
+          else delete back[k]
+        }
+        return { layouts: back }
+      }),
+  }
+}
+
 export function useParking(monthKey: string | null, setups: number[]): Parking | null {
   const index = useItemIndex()
   const layouts = useStore((s) => s.layouts)

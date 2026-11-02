@@ -4,7 +4,7 @@ import {
   Plus, RotateCcw, Settings2, Star, Trash2, TrendingDown, TrendingUp, X,
 } from 'lucide-react'
 import {
-  placementAt, setupMonths, useFmt, useItemIndex, useKindOf, useKinds, useParking, useStore, useAlt, type AssetCat, type AssetPeriod, type Parking,
+  placementAt, setupMonths, undoSale, useFmt, useItemIndex, useKindOf, useKinds, useParking, useStore, useAlt, type AssetCat, type AssetPeriod, type Parking,
 } from '../store'
 import { SetupNote } from './YearNote'
 import { ModeStrip } from './Modes'
@@ -537,7 +537,9 @@ function SetupFavorites({ parking }: { parking: Parking }) {
   const favs = useSetupFavorites(parking)
   const { properties, at, monthKey } = parking
   if (!properties.length) return null
-  const count = properties.filter((p) => favs.includes(p.item.id)).length
+  // In the order they were marked: the first is where a vehicle goes when its sale is undone.
+  const ranked = favs.filter((id) => properties.some((p) => p.item.id === id))
+  const count = ranked.length
   const parked = (id: string) => [...at.values()].filter((home) => home === id).length
 
   return (
@@ -566,6 +568,7 @@ function SetupFavorites({ parking }: { parking: Parking }) {
               }`}
             >
               <Star className={`h-4 w-4 shrink-0 transition-transform duration-200 ${on ? 'scale-110 fill-amber-300 text-amber-300' : 'text-zinc-500'}`} strokeWidth={on ? 2 : 1.75} />
+              {on && count > 1 && <span className="shrink-0 text-xs font-semibold tabular-nums text-amber-200/90">{ranked.indexOf(p.item.id) + 1}</span>}
               <span className="truncate">{p.item.name}</span>
               {n > 0 && (
                 <span className={`inline-flex shrink-0 items-center gap-0.5 text-xs tabular-nums ${on ? 'text-amber-100/70' : 'text-zinc-500'}`}>
@@ -577,6 +580,7 @@ function SetupFavorites({ parking }: { parking: Parking }) {
           )
         })}
       </div>
+      {count > 0 && <p className="mt-2 px-3 text-[11px] text-zinc-500">Undoing a vehicle's sale puts it at {count > 1 ? 'number 1' : 'this one'}. If that's unmarked, the next in line takes over.</p>}
     </div>
   )
 }
@@ -733,11 +737,14 @@ function SetupVehicles({ parking, setups }: { parking: Parking; setups: number[]
                   <Box key={v.item.id} v={v} sub={`Sold by ${shortLabel(since)}${plannedAt ? ` · was at ${plannedAt}` : ''}`} dim>
                     <button
                       onClick={() => {
+                        const done = undoSale(index, monthKey, v.item.id, setups)
+                        if (done) return toast.undo(`“${v.item.name}” is back, at ${done.home.name}.`, done.undo)
+                        // No favorite to put it in: it's placed by hand, in the setup it was left off.
                         const y = Number(since.slice(0, 4))
                         useStore.getState().setAssetPeriod({ mode: 'month', from: y, to: y, month: Number(since.slice(5)) - 1 })
-                        toast.info(`This is the ${labelOfKey(since)} setup · put “${v.item.name}” at a property here to undo the sale.`)
+                        toast.info(`This is the ${labelOfKey(since)} setup · put “${v.item.name}” at a property here to undo the sale, or mark a favorite property first.`)
                       }}
-                      title={`Undo the sale: open the ${labelOfKey(since)} setup and put it at a property there`}
+                      title="Undo the sale: puts it at your first favorite property"
                       className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-white/10 px-1.5 text-[11px] font-medium text-zinc-300 transition hover:bg-white/10 hover:text-white"
                     >
                       <RotateCcw className="h-3 w-3" /> Undo
