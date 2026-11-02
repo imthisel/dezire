@@ -1,18 +1,24 @@
 import { useState } from 'react'
 import { Check } from 'lucide-react'
-import { fitCheck, useFmt, useStore, useAlt } from '../store'
+import { fitCheck, useFmt, useItemIndex, useStore, useAlt } from '../store'
 import { MONTHS_SHORT, YEARS, indexOf, indexOfKey, fromIndex, keyOf, labelOfKey } from '../lib/time'
 import { TREND } from '../lib/meta'
 import { Modal } from './Modal'
+import { selection } from '../selection'
 import { toast } from '../toast'
 
-export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
+export function MoveDialog({ monthKey, id, group, startCopy }: { monthKey: string; id: string; group?: string[]; startCopy?: boolean }) {
   const f = useFmt()
   const u = useAlt()
   const months = useStore((s) => s.months)
   const close = useStore((s) => s.closeModal)
-  const item = months[monthKey]?.items.find((i) => i.id === id)
-  const [mode, setMode] = useState<'move' | 'copy'>('move')
+  const index = useItemIndex()
+  const picks = (group ?? [id]).flatMap((x) => index.byId.get(x) ?? [])
+  const item = picks[0]?.item
+  const several = picks.length > 1
+  const total = picks.reduce((sum, p) => sum + p.item.price, 0)
+  const what = several ? `${picks.length} items` : `“${item?.name}”`
+  const [mode, setMode] = useState<'move' | 'copy'>(startCopy ? 'copy' : 'move')
   const [year, setYear] = useState(fromIndex(indexOfKey(monthKey)).year)
   const [picked, setPicked] = useState<string[]>([])
 
@@ -25,7 +31,7 @@ export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
     const warnings: string[] = []
     const done: string[] = []
     for (const k of keys) {
-      const r = s.transferItem(monthKey, id, k, mode)
+      const r = s.transferItems(picks.map((p) => p.item.id), k, mode)
       if (!r.ok) errors.push(r.error)
       else {
         done.push(k)
@@ -34,7 +40,8 @@ export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
     }
     if (done.length) {
       const where = done.length === 1 ? labelOfKey(done[0]) : `${done.length} months`
-      toast.success(`${mode === 'move' ? 'Moved' : 'Copied'} “${item!.name}” to ${where}.`)
+      toast.success(`${mode === 'move' ? 'Moved' : 'Copied'} ${what} to ${where}.`)
+      if (group) selection.clear()
       close()
     }
     warnings.forEach((w) => toast.warning(w))
@@ -48,12 +55,18 @@ export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
 
   return (
     <Modal
-      title={mode === 'move' ? 'Move item' : 'Copy item'}
+      title={`${mode === 'move' ? 'Move' : 'Copy'} ${several ? what : 'item'}`}
       subtitle={
-        <span className="inline-flex items-center gap-1.5">
-          <t.icon className={`h-3.5 w-3.5 ${t.text}`} />
-          {item.name} · {f(item.price)} <span className="alt-i">(≈ {u(item.price)})</span> · from {labelOfKey(monthKey)}
-        </span>
+        several ? (
+          <>
+            {f(total)} <span className="alt-i">(≈ {u(total)})</span> in total
+          </>
+        ) : (
+          <span className="inline-flex items-center gap-1.5">
+            <t.icon className={`h-3.5 w-3.5 ${t.text}`} />
+            {item.name} · {f(item.price)} <span className="alt-i">(≈ {u(item.price)})</span> · from {labelOfKey(monthKey)}
+          </span>
+        )
       }
       onClose={close}
       width="max-w-lg"
@@ -70,7 +83,7 @@ export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
             </button>
           </div>
         ) : (
-          <p className="text-xs text-zinc-500">Tap a month to move the item there.</p>
+          <p className="text-xs text-zinc-500">Tap a month to move {several ? 'them' : 'the item'} there.</p>
         )
       }
     >
@@ -109,15 +122,17 @@ export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {MONTHS_SHORT.map((label, mo) => {
             const key = keyOf(indexOf(year, mo))
-            const isSource = key === monthKey && mode === 'move'
-            const fit = fitCheck(months, key, item.price)
+            // Moving: what's already in that month doesn't add to it, and there's nothing to do when all of them are.
+            const coming = mode === 'move' ? picks.filter((p) => p.key !== key) : picks
+            const isSource = !coming.length
+            const fit = fitCheck(months, key, coming.reduce((sum, p) => sum + p.item.price, 0))
             const on = picked.includes(key)
             const disabled = isSource
             return (
               <button
                 key={key}
                 disabled={disabled}
-                title={isSource ? 'Item is already here' : (fit.warning ?? undefined)}
+                title={isSource ? (several ? 'They are already here' : 'Item is already here') : (fit.warning ?? undefined)}
                 onClick={() => clickMonth(key)}
                 className={`relative rounded-xl border px-2 py-2.5 text-left transition ${
                   on
@@ -138,7 +153,7 @@ export function MoveDialog({ monthKey, id }: { monthKey: string; id: string }) {
             )
           })}
         </div>
-        <p className="text-[11px] text-zinc-500">Red months don't have enough budget or earnings for this item. You can still put it there; it'll just be marked red.</p>
+        <p className="text-[11px] text-zinc-500">Red months don't have enough budget or earnings for {several ? 'these items' : 'this item'}. You can still put {several ? 'them' : 'it'} there; {several ? "they'll" : "it'll"} just be marked red.</p>
       </div>
     </Modal>
   )

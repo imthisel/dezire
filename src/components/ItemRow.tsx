@@ -1,12 +1,12 @@
 import { useState, type DragEvent, type MouseEvent } from 'react'
-import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Car, Copy, CopyPlus, GripVertical, Home, Pencil, Plus, Scissors, Star, StickyNote, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Car, Check, Copy, CopyPlus, GripVertical, Home, Pencil, Plus, Scissors, Star, StickyNote, Trash2 } from 'lucide-react'
 import type { Item } from '../lib/types'
 import { TREND, kindIcon } from '../lib/meta'
 import { useFmt, useItemIndex, useKindOf, useStore, useAlt } from '../store'
 import { labelOfKey } from '../lib/time'
 import { goToMonth } from '../nav'
 import { drag, dragIds, groupDragImage } from '../dnd'
-import { selection, useSelected } from '../selection'
+import { selection, usePicking, useSelected } from '../selection'
 import { NotYet } from './Kept'
 import { RunningCostsSummary } from './RunningCosts'
 import { toast } from '../toast'
@@ -23,7 +23,10 @@ interface Props {
 export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props) {
   const f = useFmt()
   const u = useAlt()
-  const [open, setOpen] = useState(false)
+  const [unfolded, setOpen] = useState(false)
+  // Picking items on a touch screen: a tap picks, so nothing in the row can be pressed by accident.
+  const picking = usePicking()
+  const open = unfolded && !picking
   /** Where a dragged item would land relative to this one */
   const [dropAt, setDropAt] = useState<null | 'above' | 'below'>(null)
   const clipboard = useStore((s) => s.clipboard)
@@ -112,6 +115,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
   }
 
   function onClick(e: MouseEvent) {
+    if (picking) return selection.toggle(item.id)
     if (e.shiftKey) return selection.range(item.id, e.ctrlKey || e.metaKey)
     if (e.ctrlKey || e.metaKey) return selection.toggle(item.id)
     selection.clear()
@@ -125,8 +129,9 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
       data-sel-id={item.id}
       onDragStart={(e) => {
         // A picked item takes every picked one along; any other drags on its own (and lets go of the rest).
-        const group = selected ? [...selection.get()].filter((id) => index.byId.has(id)) : []
-        if (!selected) selection.clear()
+        // While picking on a touch screen, nothing is let go of: this one joins the ones already picked.
+        const group = selected || picking ? [...new Set([...selection.get(), item.id])].filter((id) => index.byId.has(id)) : []
+        if (!selected && !picking) selection.clear()
         drag.current = { fromKey: monthKey, id: item.id, ...(group.length > 1 && { group }) }
         e.dataTransfer.effectAllowed = 'copyMove'
         e.dataTransfer.setData('text/plain', item.name)
@@ -156,7 +161,20 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
       )}
       {selected && <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[11px] bg-indigo-400/[0.12]" />}
       {fav && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-l-[11px] bg-gradient-to-b from-amber-200 to-amber-400" />}
-      <GripVertical className="hidden h-4 w-4 shrink-0 text-zinc-600 transition group-hover:text-zinc-400 sm:block" />
+      {picking ? (
+        <span
+          role="checkbox"
+          aria-checked={selected}
+          aria-label={item.name}
+          className={`relative grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full border-2 transition-colors duration-150 sm:ml-1 ${
+            selected ? 'border-indigo-400 bg-indigo-500 text-white' : 'border-zinc-500/80 bg-black/20 text-transparent'
+          }`}
+        >
+          <Check className={`h-3.5 w-3.5 transition-transform duration-150 ${selected ? 'scale-100' : 'scale-50'}`} strokeWidth={3.25} />
+        </span>
+      ) : (
+        <GripVertical className="hidden h-4 w-4 shrink-0 text-zinc-600 transition group-hover:text-zinc-400 sm:block" />
+      )}
       <span className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-lg ${t.iconBg} ${t.text}`}>
         <KindIcon className="h-4 w-4" />
         {fav && (
@@ -200,19 +218,19 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
         title={fav ? 'Remove from Favorites' : 'Add to Favorites'}
         aria-label={fav ? 'Remove from Favorites' : 'Add to Favorites'}
         aria-pressed={fav}
-        className={`-mx-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg transition active:scale-90 ${
+        className={`-mx-1 h-8 w-8 shrink-0 place-items-center rounded-lg transition active:scale-90 ${picking ? 'hidden' : 'grid'} ${
           fav ? 'text-amber-300 hover:bg-amber-300/10' : 'text-zinc-600 hover:bg-white/10 hover:text-amber-300'
         }`}
       >
         <Star className={`h-4 w-4 ${fav ? 'fill-amber-300' : ''}`} strokeWidth={fav ? 2 : 1.75} />
       </button>
-      <div className={`shrink-0 text-right ${open ? 'max-sm:block sm:hidden' : 'sm:group-hover:hidden'}`}>
+      <div className={`shrink-0 text-right ${open ? 'max-sm:block sm:hidden' : picking ? '' : 'sm:group-hover:hidden'}`}>
         <p className={`text-sm font-semibold tabular-nums ${over ? 'text-red-300' : 'text-zinc-100'}`}>{f(item.price)}</p>
         <p className="alt text-[10px] tabular-nums text-zinc-500">≈ {u(item.price)}</p>
       </div>
       <div
         className={`shrink-0 items-center gap-0.5 max-sm:order-last max-sm:w-full max-sm:justify-between max-sm:border-t max-sm:border-white/[0.06] max-sm:pt-1.5 ${
-          open ? 'animate-fade flex' : 'hidden sm:group-hover:flex'
+          open ? 'animate-fade flex' : picking ? 'hidden' : 'hidden sm:group-hover:flex'
         }`}
       >
         {actions.map((a) => (

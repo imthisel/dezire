@@ -128,7 +128,7 @@ function Modals() {
   return (
     <>
       {modal.type === 'item' && <ItemModal key={`${modal.key}-${modal.editId ?? 'new'}`} monthKey={modal.key} editId={modal.editId} />}
-      {modal.type === 'move' && <MoveDialog key={modal.id} monthKey={modal.key} id={modal.id} />}
+      {modal.type === 'move' && <MoveDialog key={modal.id} monthKey={modal.key} id={modal.id} group={modal.group} startCopy={modal.copy} />}
       {modal.type === 'expense' && <ExpenseModal key={modal.editId ?? `new-${modal.date ?? ''}`} editId={modal.editId} date={modal.date} />}
       {modal.type === 'task' && <TaskModal key={modal.editId ?? `new-${modal.date ?? ''}-${modal.start ?? ''}`} {...modal} />}
       {modal.type === 'kinds' && <KindsModal onClose={close} />}

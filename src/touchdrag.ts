@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
+import { selection } from './selection'
 
 /*
  * One-finger dragging on touch screens. Phones' own drag and drop is unreliable (and fights with scrolling),
  * so on touch we do it ourselves: press and hold a draggable row, then move it with the same finger.
  * The row follows the finger, and the usual drag events (dragstart / dragover / drop / dragend) are sent to the
  * page, so every list that can be sorted with a mouse works the same way here — including scrolling near the edges
- * (see autoscroll.ts).
+ * (see autoscroll.ts). Holding a month item and letting go without moving picks it instead (see selection.ts).
  */
 
 const HOLD_MS = 280
@@ -73,6 +74,8 @@ export function useTouchDrag() {
       y: number
       over: Element | null
       accepted: boolean
+      /** The finger has left where the hold began: it's a real drag, not just a press */
+      moved: boolean
       tick: ReturnType<typeof setInterval>
     }
     let pending: Pending | null = null
@@ -123,7 +126,7 @@ export function useTouchDrag() {
       })
 
       root.setAttribute('data-touch-drag', '')
-      active = { src: p.el, dt, ghost, dx, dy, x: p.x, y: p.y, over: null, accepted: false, tick: 0 as never }
+      active = { src: p.el, dt, ghost, dx, dy, x: p.x, y: p.y, over: null, accepted: false, moved: false, tick: 0 as never }
       // Keep telling the page where the finger is even when it's still: the list scrolls under it.
       active.tick = setInterval(() => active && hover(active.x, active.y), 90)
       hover(p.x, p.y)
@@ -149,7 +152,7 @@ export function useTouchDrag() {
       if (!a) return
       active = null
       clearInterval(a.tick)
-      if (drop && a.over && a.accepted) fire(a.over, 'drop', a.x, a.y, a.dt)
+      if (drop && a.moved && a.over && a.accepted) fire(a.over, 'drop', a.x, a.y, a.dt)
       else if (a.over) fire(a.over, 'dragleave', a.x, a.y, a.dt, null)
       // The row may have left the page mid-drag (e.g. another year opened); still let everyone know it ended.
       fire(a.src.isConnected ? a.src : document, 'dragend', a.x, a.y, a.dt)
@@ -184,7 +187,9 @@ export function useTouchDrag() {
       // The finger is moving the row, not the page.
       if (e.cancelable) e.preventDefault()
       const t = e.touches[0]
-      if (t) hover(t.clientX, t.clientY)
+      if (!t) return
+      if (Math.hypot(t.clientX - active.x, t.clientY - active.y) > SLOP) active.moved = true
+      if (active.moved) hover(t.clientX, t.clientY)
     }
 
     function onEnd(e: TouchEvent) {
@@ -192,7 +197,12 @@ export function useTouchDrag() {
       if (!active) return
       // No tap / click on whatever is under the finger after a drop.
       if (e.cancelable) e.preventDefault()
+      const { src, moved } = active
       finish(e.type === 'touchend')
+      if (e.type === 'touchend' && !moved && src.dataset.selId) {
+        selection.startPicking()
+        selection.toggle(src.dataset.selId)
+      }
     }
 
     // The phone's own drag (and its long-press menu) would start on top of ours.

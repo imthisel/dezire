@@ -5,11 +5,15 @@ import { useEffect, useSyncExternalStore, type RefObject } from 'react'
  * picks everything between the last one clicked and this one, and holding the mouse down on an empty spot then
  * dragging draws a box that picks every item it touches. Dragging any picked item then takes all of them along.
  * Item rows mark themselves with `data-sel-id`.
+ *
+ * Touch screens have no Ctrl or Shift, so they get a picking mode instead, started by holding an item (see touchdrag.ts)
+ * or with a month's Select button. While it's on, a tap picks or un-picks an item, until it's ended with the selection bar.
  */
 
 let picked: ReadonlySet<string> = new Set()
 /** Where a Shift-click range starts from */
 let anchor: string | null = null
+let picking = false
 const subs = new Set<() => void>()
 const subscribe = (f: () => void) => (subs.add(f), () => void subs.delete(f))
 
@@ -27,7 +31,16 @@ export const selection = {
   has: (id: string) => picked.has(id),
   clear() {
     anchor = null
+    const ended = picking
+    picking = false
     set(new Set())
+    if (ended) subs.forEach((f) => f())
+  },
+  picking: () => picking,
+  startPicking() {
+    if (picking) return
+    picking = true
+    subs.forEach((f) => f())
   },
   /** Ctrl/⌘-click: adds or takes away one item. */
   toggle(id: string) {
@@ -47,12 +60,20 @@ export const selection = {
     set(next)
   },
   set: (ids: Iterable<string>) => set(new Set(ids)),
+  /** Picks all of these, or lets go of them when they're all picked already. */
+  toggleAll(ids: string[]) {
+    const next = new Set(picked)
+    if (ids.every((id) => next.has(id))) ids.forEach((id) => next.delete(id))
+    else ids.forEach((id) => next.add(id))
+    set(next)
+  },
   /** A plain click: Shift-clicking another item next picks from this one. */
   setAnchor: (id: string) => void (anchor = id),
 }
 
 export const useSelected = (id: string) => useSyncExternalStore(subscribe, () => picked.has(id))
 export const useSelection = () => useSyncExternalStore(subscribe, () => picked)
+export const usePicking = () => useSyncExternalStore(subscribe, () => picking)
 
 /** Things that do their own thing on a click, so pressing on them never starts a selection box. */
 const OWN_CLICK = '[data-sel-id], input, textarea, select, button, a, label, [contenteditable], [role="button"], [draggable="true"]'

@@ -1,5 +1,5 @@
 import { useEffect, useState, type DragEvent, type ReactNode } from 'react'
-import { AlertTriangle, Cake, ChevronDown, ClipboardPaste, Plus, StickyNote, Target, X } from 'lucide-react'
+import { AlertTriangle, Cake, ChevronDown, CheckCheck, ClipboardPaste, ListChecks, Plus, StickyNote, Target, X } from 'lucide-react'
 import { fitText } from '../lib/money'
 import { ageIn, turnsLabel, useBirthday } from './Birthday'
 import { useFmt, usePlan, useStore, useAlt } from '../store'
@@ -8,11 +8,33 @@ import { overLimitIds } from '../lib/calc'
 import { MoneyInput } from './MoneyInput'
 import { ItemRow } from './ItemRow'
 import { drag } from '../dnd'
+import { selection, usePicking, useSelection } from '../selection'
 import { toast } from '../toast'
 import { useIsPhone } from '../lib/useMedia'
 import { openOnZoom, zoomName } from '../zoom'
 
 const EMPTY: never[] = []
+
+/** Touch screens: starts picking items, and once that's on, picks a whole month. A mouse has Ctrl, Shift and the box instead. */
+function MonthPicker({ ids }: { ids: string[] }) {
+  const picking = usePicking()
+  const picked = useSelection()
+  const all = ids.every((id) => picked.has(id))
+  const cls = 'inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium transition'
+  return (
+    <div className={`-mb-1.5 mt-2 justify-end ${picking ? 'flex' : 'hidden pointer-coarse:flex'}`}>
+      {picking ? (
+        <button onClick={() => selection.toggleAll(ids)} aria-pressed={all} className={`animate-fade ${cls} ${all ? 'text-indigo-200' : 'text-zinc-300'} active:bg-white/10`}>
+          <CheckCheck className="h-3.5 w-3.5" /> {all ? 'Deselect month' : 'Select month'}
+        </button>
+      ) : (
+        <button onClick={selection.startPicking} className={`${cls} text-zinc-400 active:bg-white/10`}>
+          <ListChecks className="h-3.5 w-3.5" /> Select
+        </button>
+      )}
+    </div>
+  )
+}
 
 export function MonthCard({ index }: { index: number }) {
   const c = usePlan()[index]
@@ -311,6 +333,8 @@ export function MonthCard({ index }: { index: number }) {
         <Total k="Money left" v={f(c.cash, true)} usd={u(c.cash, true)} cls={c.cash < 0 ? 'text-red-300' : 'text-white'} />
       </div>
 
+      {items.length > 0 && <MonthPicker ids={items.map((i) => i.id)} />}
+
       {/* Items */}
       <ul className="mt-3 flex flex-1 flex-col gap-1.5">
         {items.map((it, i) => (
@@ -355,7 +379,7 @@ export function MonthCard({ index }: { index: number }) {
       {dropMode && (
         <div className="pointer-events-none absolute inset-x-4 bottom-14 rounded-lg bg-indigo-500/90 px-3 py-1.5 text-center text-xs font-medium text-white shadow-lg">
           {dropMode === 'copy' ? 'Drop to copy' : 'Drop to move'}
-          {dropCount > 1 ? ` ${dropCount} items` : ''} here{dropMode === 'move' ? ' · hold Ctrl to copy' : ''}
+          {dropCount > 1 ? ` ${dropCount} items` : ''} here{dropMode === 'move' && <span className="pointer-coarse:hidden"> · hold Ctrl to copy</span>}
         </div>
       )}
     </article>

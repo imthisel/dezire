@@ -19,7 +19,8 @@ import { DEFAULT_TASK_KINDS, MAX_TASK_KIND_NAME, TASK_COLORS, UNKNOWN_TASK_KIND,
 export type Clip = { mode: 'copy' | 'cut'; fromKey: string; item: Item }
 export type ModalState =
   | { type: 'item'; key: string; editId?: string }
-  | { type: 'move'; key: string; id: string }
+  /** `group`: several picked items going together (`id` and `key` are then the first of them). `copy`: starts on Copy. */
+  | { type: 'move'; key: string; id: string; group?: string[]; copy?: boolean }
   | { type: 'goal'; year: number; editId?: string; area?: GoalArea }
   | { type: 'kinds' }
   /** `openId`: the area to show unfolded. `add`: start with the cursor in the new-area box. */
@@ -343,6 +344,8 @@ interface State {
   /** Moves / copies several items (wherever they are) into one month, keeping the order they're shown in. */
   transferItems: (ids: string[], toKey: string, mode: 'copy' | 'move', at?: DropAt) => Result
 
+  /** Deletes several items at once, wherever they are. Returns how to undo it. */
+  removeItems: (ids: string[]) => () => void
   copyToClipboard: (key: string, id: string, mode: 'copy' | 'cut') => void
   pasteInto: (key: string) => Result
   clearClipboard: () => void
@@ -833,6 +836,42 @@ export const useStore = create<State>()(
         // Only what wasn't already in that month adds to what it spends
         const added = picked.reduce((sum, p) => sum + (mode === 'copy' || p.key !== toKey ? p.item.price : 0), 0)
         return added ? warned(toKey, added, months) : OK
+      },
+
+      removeItems: (ids) => {
+        const want = new Set(ids)
+        const { months: before, modeId } = get()
+        // Their months, and the months of any vehicles kept at a deleted property.
+        const touched = Object.keys(before).filter((k) => before[k].items.some((i) => want.has(i.id) || (i.propertyId && want.has(i.propertyId))))
+        set((s) => {
+          const months = { ...s.months }
+          for (const k of touched) {
+            months[k] = {
+              ...months[k],
+              items: months[k].items.filter((i) => !want.has(i.id)).map((i) => (i.propertyId && want.has(i.propertyId) ? { ...i, propertyId: undefined } : i)),
+            }
+          }
+          return { months, clipboard: s.clipboard?.mode === 'cut' && want.has(s.clipboard.item.id) ? null : s.clipboard }
+        })
+        return () =>
+          set((s) => {
+            if (s.modeId !== modeId) return {}
+            const months = { ...s.months }
+            for (const k of touched) {
+              // Back in their places, keeping anything changed or added since.
+              const now = new Map((s.months[k]?.items ?? []).map((i) => [i.id, i]))
+              const had = before[k].items
+              const back = had.flatMap((i) => {
+                if (want.has(i.id)) return [i]
+                const cur = now.get(i.id)
+                if (!cur) return []
+                return [i.propertyId && want.has(i.propertyId) ? { ...cur, propertyId: i.propertyId } : cur]
+              })
+              const added = [...now.values()].filter((i) => !had.some((h) => h.id === i.id))
+              months[k] = { ...(s.months[k] ?? before[k]), items: [...back, ...added] }
+            }
+            return { months }
+          })
       },
 
       copyToClipboard: (key, id, mode) => {
