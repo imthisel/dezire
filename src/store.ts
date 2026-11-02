@@ -325,6 +325,8 @@ interface State {
   switchMode: (id: string) => void
   /** Adds a mode, empty or as a copy of the one in use, and opens it. Returns its id. */
   addMode: (name: string, copy: boolean) => string
+  /** Replaces another mode's plan with a copy of the one in use, which stays open. Returns how to undo it. */
+  copyModeOver: (id: string) => () => void
   renameMode: (id: string, name: string) => void
   /** Deletes a mode and everything in it (not the main one). */
   removeMode: (id: string) => void
@@ -439,6 +441,8 @@ export const MAIN_MODE = 'main'
 export const MAX_MODE_NAME = 32
 const mainMode = (): ModeInfo => ({ id: MAIN_MODE, name: 'Main', createdAt: 0 })
 const emptyMode = (): ModeData => ({ months: {}, layouts: {}, setupNotes: {}, yearNotes: {} })
+/** A separate copy of the plan in use, so changing one never touches the other. */
+const copyOfPlan = (s: ModeData): ModeData => ({ months: structuredClone(s.months), layouts: structuredClone(s.layouts), setupNotes: { ...s.setupNotes }, yearNotes: { ...s.yearNotes } })
 
 /**
  * Saves to this browser a moment after the last change instead of on every one. The whole state is written each time,
@@ -690,12 +694,22 @@ export const useStore = create<State>()(
       addMode: (name, copy) => {
         const s = get()
         const mode: ModeInfo = { id: uid(), name: name.trim().slice(0, MAX_MODE_NAME) || `Mode ${s.modes.length + 1}`, createdAt: Date.now() }
-        const data: ModeData = copy
-          ? { months: structuredClone(s.months), layouts: structuredClone(s.layouts), setupNotes: { ...s.setupNotes }, yearNotes: { ...s.yearNotes } }
-          : emptyMode()
+        const data = copy ? copyOfPlan(s) : emptyMode()
         set({ modes: [...s.modes, mode], modeData: { ...s.modeData, [mode.id]: data } })
         get().switchMode(mode.id)
         return mode.id
+      },
+      copyModeOver: (id) => {
+        const s = get()
+        if (id === s.modeId || !s.modes.some((m) => m.id === id)) return () => {}
+        const before = { ...emptyMode(), ...s.modeData[id] }
+        set({ modeData: { ...s.modeData, [id]: copyOfPlan(s) } })
+        return () =>
+          set((now) => {
+            if (!now.modes.some((m) => m.id === id)) return {}
+            // It may have been opened since, and then its plan is the one in use.
+            return now.modeId === id ? before : { modeData: { ...now.modeData, [id]: before } }
+          })
       },
       renameMode: (id, name) =>
         set((s) => ({ modes: s.modes.map((m) => (m.id === id ? { ...m, name: name.trim().slice(0, MAX_MODE_NAME) || m.name } : m)) })),

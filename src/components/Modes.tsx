@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { Check, ChevronDown, Copy, Crown, FilePlus2, Layers, Lock, Pencil, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { AlertTriangle, ArrowRight, Check, ChevronDown, Copy, Crown, FilePlus2, Layers, Lock, Pencil, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react'
 import { MAIN_MODE, MAX_MODE_NAME, useStore } from '../store'
 import { openPlans, useModeLimit } from '../billing'
 import type { ModeInfo } from '../lib/types'
@@ -16,6 +16,9 @@ const COLORS = [
   { dot: 'bg-rose-400', text: 'text-rose-200', soft: 'bg-rose-500/15', ring: 'ring-rose-400/40', strip: 'from-rose-500/20 border-rose-400/25' },
 ]
 export const modeColor = (index: number) => COLORS[index % COLORS.length]
+
+const NAME_INPUT =
+  'h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm'
 
 /** The modes in order, with which ones the current plan can open (the first ones, up to its limit; the main one always). */
 function useModes() {
@@ -39,7 +42,7 @@ function open(m: { id: string; name: string; locked: boolean }) {
 export function ModeSwitcher({ phone }: { phone: boolean }) {
   const { list, current, canAdd } = useModes()
   const [menu, setMenu] = useState(false)
-  const [manage, setManage] = useState<null | 'list' | 'new'>(null)
+  const [manage, setManage] = useState<null | 'list' | 'new' | 'copy'>(null)
   const root = useRef<HTMLDivElement>(null)
   const c = modeColor(current.index)
 
@@ -110,6 +113,15 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
             <button
               onClick={() => {
                 setMenu(false)
+                setManage('copy')
+              }}
+              className="col-span-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white/10 text-xs font-medium text-zinc-200 transition hover:bg-white/5"
+            >
+              <Copy className="h-3.5 w-3.5" /> Copy this mode
+            </button>
+            <button
+              onClick={() => {
+                setMenu(false)
                 if (canAdd) setManage('new')
                 else openPlans()
               }}
@@ -131,13 +143,14 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
         </div>
       )}
 
-      {manage && <ModesModal startAdding={manage === 'new'} onClose={() => setManage(null)} />}
+      {manage === 'copy' && <CopyModeModal onClose={() => setManage(null)} />}
+      {(manage === 'list' || manage === 'new') && <ModesModal startAdding={manage === 'new'} onCopy={() => setManage('copy')} onClose={() => setManage(null)} />}
     </div>
   )
 }
 
 /** Manage modes: rename, delete, and add one (empty, or a copy of the one in use). */
-function ModesModal({ startAdding, onClose }: { startAdding: boolean; onClose: () => void }) {
+function ModesModal({ startAdding, onCopy, onClose }: { startAdding: boolean; onCopy: () => void; onClose: () => void }) {
   const { list, current, limit, canAdd } = useModes()
   const [adding, setAdding] = useState(startAdding && canAdd)
   const [name, setName] = useState('')
@@ -161,7 +174,7 @@ function ModesModal({ startAdding, onClose }: { startAdding: boolean; onClose: (
     <Modal title="Modes" subtitle="Separate versions of your plan. Mode 1 is your main plan." onClose={onClose} width="max-w-lg">
       <ul className="space-y-1.5">
         {list.map((m) => (
-          <ModeRow key={m.id} m={m} current={m.id === current.id} onDelete={() => remove(m)} />
+          <ModeRow key={m.id} m={m} current={m.id === current.id} onCopy={onCopy} onDelete={() => remove(m)} />
         ))}
       </ul>
 
@@ -192,7 +205,7 @@ function ModesModal({ startAdding, onClose }: { startAdding: boolean; onClose: (
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && create()}
               placeholder={`e.g. Dream life, Safe plan, Mode ${list.length + 1}`}
-              className="h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm"
+              className={NAME_INPUT}
             />
             <div className="grid grid-cols-2 gap-2">
               <StartOption on={!copy} onClick={() => setCopy(false)} icon={FilePlus2} title="Start empty" hint="A blank plan" />
@@ -219,7 +232,7 @@ function ModesModal({ startAdding, onClose }: { startAdding: boolean; onClose: (
   )
 }
 
-function ModeRow({ m, current, onDelete }: { m: ModeInfo & { index: number; main: boolean; locked: boolean }; current: boolean; onDelete: () => void }) {
+function ModeRow({ m, current, onCopy, onDelete }: { m: ModeInfo & { index: number; main: boolean; locked: boolean }; current: boolean; onCopy: () => void; onDelete: () => void }) {
   const [name, setName] = useState(m.name)
   const c = modeColor(m.index)
   return (
@@ -246,6 +259,11 @@ function ModeRow({ m, current, onDelete }: { m: ModeInfo & { index: number; main
           {m.locked && ' · locked on your plan'}
         </span>
       </span>
+      {current && (
+        <button onClick={onCopy} title="Copy this mode" aria-label={`Copy ${m.name}`} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-400 transition hover:bg-white/10 hover:text-white">
+          <Copy className="h-4 w-4" />
+        </button>
+      )}
       {!current && (
         <button
           onClick={() => open(m)}
@@ -274,6 +292,149 @@ function StartOption({ on, onClick, icon: Icon, title, hint }: { on: boolean; on
       <Icon className={`h-4 w-4 ${on ? 'text-indigo-200' : 'text-zinc-500'}`} />
       <span className="w-full truncate text-sm font-semibold text-white">{title}</span>
       <span className="text-[11px] text-zinc-500">{hint}</span>
+    </button>
+  )
+}
+
+/** "Dream life copy", or "Dream life copy 2" when that's taken. Always fits the name limit. */
+function copyName(name: string, taken: string[]) {
+  for (let n = 1; ; n++) {
+    const ending = n === 1 ? ' copy' : ` copy ${n}`
+    const made = name.slice(0, MAX_MODE_NAME - ending.length).trimEnd() + ending
+    if (!taken.includes(made)) return made
+  }
+}
+
+const NEW_MODE = 'new'
+
+/** Copy the mode in use: into a new mode, or over one you already have. */
+function CopyModeModal({ onClose }: { onClose: () => void }) {
+  const { list, current, canAdd } = useModes()
+  const others = list.filter((m) => m.id !== current.id && !m.locked)
+  const suggested = copyName(current.name, list.map((m) => m.name))
+  // Nothing is picked when the only choices would replace a mode: that has to be a deliberate click.
+  const [to, setTo] = useState<string | null>(canAdd ? NEW_MODE : null)
+  const [name, setName] = useState(suggested)
+  const target = others.find((m) => m.id === to)
+  const creating = to === NEW_MODE
+  const c = modeColor(current.index)
+
+  function copy() {
+    const s = useStore.getState()
+    if (creating) {
+      const id = s.addMode(name.trim() || suggested, true)
+      const made = useStore.getState().modes.find((m) => m.id === id)
+      toast.success(`Now in “${made?.name}”. It starts as a copy of “${current.name}”.`)
+    } else if (target) {
+      toast.undo(`“${target.name}” is now a copy of “${current.name}”.`, s.copyModeOver(target.id))
+    } else return
+    onClose()
+  }
+
+  return (
+    <Modal
+      title="Copy this mode"
+      subtitle="Make a separate copy to change freely. This mode stays as it is."
+      onClose={onClose}
+      width="max-w-lg"
+      footer={
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={onClose} className="h-10 shrink-0 rounded-xl px-4 text-sm font-medium text-zinc-400 hover:text-white">
+            Cancel
+          </button>
+          <button
+            onClick={copy}
+            disabled={!creating && !target}
+            className={`inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              target ? 'bg-amber-400 text-zinc-950 hover:bg-amber-300' : 'bg-gradient-to-r from-indigo-500 to-indigo-400 text-white shadow-lg shadow-indigo-500/20'
+            }`}
+          >
+            <Copy className="h-4 w-4 shrink-0" />
+            <span className="truncate">{target ? `Replace “${target.name}”` : creating ? 'Copy and open' : 'Copy'}</span>
+          </button>
+        </div>
+      }
+    >
+      <div className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ring-1 ${c.soft} ${c.ring}`}>
+        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${c.dot}`} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-white">{current.name}</span>
+          <span className="block text-[11px] text-zinc-400">Months, items, net worth, setups and year notes</span>
+        </span>
+      </div>
+
+      <p className="mb-2 mt-5 flex items-center gap-1.5 text-xs font-medium text-zinc-400">
+        <ArrowRight className="h-3.5 w-3.5" /> Copy to
+      </p>
+      <div role="radiogroup" aria-label="Copy to" className="space-y-1.5">
+        {canAdd ? (
+          <CopyTarget on={creating} onClick={() => setTo(NEW_MODE)} title="A new mode" hint="Starts as an exact copy">
+            <Plus className="h-4 w-4 text-indigo-200" />
+          </CopyTarget>
+        ) : (
+          <button
+            onClick={() => openPlans()}
+            className="flex w-full items-center gap-2.5 rounded-xl border border-dashed border-white/15 px-2.5 py-2 text-left transition hover:border-white/30"
+          >
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/[0.04]">
+              <Sparkles className="h-4 w-4 text-indigo-200" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-zinc-200">A new mode</span>
+              <span className="block text-[11px] text-zinc-500">Get Yearly for unlimited modes</span>
+            </span>
+          </button>
+        )}
+        {creating && (
+          <input
+            autoFocus
+            value={name}
+            maxLength={MAX_MODE_NAME}
+            onFocus={(e) => e.target.select()}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && copy()}
+            aria-label="New mode name"
+            placeholder={suggested}
+            className={`animate-fade ${NAME_INPUT}`}
+          />
+        )}
+        {others.map((m) => {
+          const mc = modeColor(m.index)
+          return (
+            <CopyTarget key={m.id} on={to === m.id} onClick={() => setTo(m.id)} title={m.name} hint={m.main ? 'Your main plan · replaces what’s in it' : 'Replaces what’s in it'}>
+              {m.main ? <Crown className="h-4 w-4 text-amber-300" /> : <span className={`h-2.5 w-2.5 rounded-full ${mc.dot}`} />}
+            </CopyTarget>
+          )
+        })}
+      </div>
+
+      {target && (
+        <p className="animate-fade mt-3 flex gap-2 rounded-xl border border-amber-400/25 bg-amber-400/[0.07] px-3 py-2.5 text-xs leading-relaxed text-amber-100/90">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />
+          <span>
+            What’s in “{target.name}” now is replaced by this copy. You can undo it right after. Calendar, expenses and goals are shared, so they don’t change.
+          </span>
+        </p>
+      )}
+    </Modal>
+  )
+}
+
+function CopyTarget({ on, onClick, title, hint, children }: { on: boolean; onClick: () => void; title: string; hint: string; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={on}
+      onClick={onClick}
+      className={`flex w-full items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition ${on ? 'border-indigo-400/60 bg-indigo-500/15' : 'border-white/[0.07] hover:border-white/20'}`}
+    >
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/[0.04]">{children}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-zinc-100">{title}</span>
+        <span className="block text-[11px] text-zinc-500">{hint}</span>
+      </span>
+      {on && <Check className="h-4 w-4 shrink-0 text-indigo-200" />}
     </button>
   )
 }
