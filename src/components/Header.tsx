@@ -12,6 +12,7 @@ export function Header() {
   const docked = useDocked()
   const sidebar = useStore((s) => s.sidebar)
   const symbol = useStore((s) => s.currency.main.symbol)
+  const hideBackup = useStore((s) => s.hideBackupButtons)
   const fileRef = useRef<HTMLInputElement>(null)
 
   function exportData() {
@@ -52,12 +53,16 @@ export function Header() {
     <>
       {!phone && <ModeSwitcher phone={false} />}
       <CurrencyMenu phone={phone} />
+      {!hideBackup && (
+        <>
       <button className={`${btn} ${phone ? 'h-10 w-10 px-0' : ''}`} onClick={exportData} title="Download a backup of all your data" aria-label="Export backup">
         <Download className="h-4 w-4" /> {!phone && <span className="hidden min-[1400px]:inline">Export</span>}
       </button>
       <button className={`${btn} ${phone ? 'h-10 w-10 px-0' : ''}`} onClick={() => fileRef.current?.click()} title="Restore from a backup file" aria-label="Import backup">
         <Upload className="h-4 w-4" /> {!phone && <span className="hidden min-[1400px]:inline">Import</span>}
       </button>
+        </>
+      )}
       <button
         className={`${btn} hover:border-red-500/40 hover:text-red-300 ${phone ? 'h-10 w-10 px-0' : ''}`}
         onClick={reset}

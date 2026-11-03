@@ -46,6 +46,7 @@ export default function App() {
 /** The planner itself (also shown read-only on the admin page, with someone else's data). */
 export function Planner() {
   const sidebar = useStore((s) => s.sidebar)
+  const hideBackup = useStore((s) => s.hideBackupButtons)
   useModeGuard()
   usePinchZoom()
   useDragAutoScroll()
@@ -65,7 +66,7 @@ export function Planner() {
         <HeaderM />
         <Pages />
         <footer className="px-4 pb-28 text-center text-xs text-zinc-600 sm:pb-10">
-          Saved automatically to your Google account · use Export for an offline backup
+          Saved automatically to your Google account{!hideBackup && ' · use Export for an offline backup'}
         </footer>
       </div>
 

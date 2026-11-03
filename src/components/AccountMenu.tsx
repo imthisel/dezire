@@ -3,6 +3,8 @@ import { AlertCircle, Cake, Check, CloudOff, CreditCard, Loader2, LogOut } from 
 import { signOut, useCloud, type SaveStatus } from '../cloud'
 import { toast } from '../toast'
 import { BirthdayInput } from './Birthday'
+import { Switch } from './CurrencyMenu'
+import { useStore } from '../store'
 import { openPlans, useAccess } from '../billing'
 import { AppSettings } from './AppInstall'
 import { PLANS } from '../lib/plans'
@@ -28,6 +30,7 @@ export function SaveIndicator() {
 export function AccountMenu() {
   const user = useCloud((s) => s.user)
   const access = useAccess()
+  const hideBackup = useStore((s) => s.hideBackupButtons)
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
 
@@ -75,6 +78,13 @@ export function AccountMenu() {
               <span className="font-normal text-zinc-600">· shows your age on your birth month</span>
             </p>
             <BirthdayInput />
+          </div>
+          <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-zinc-300">Export &amp; Import buttons</p>
+              <p className="text-xs text-zinc-500">Show them in the header</p>
+            </div>
+            <Switch on={!hideBackup} onChange={(on) => useStore.getState().setHideBackupButtons(!on)} label="Show the Export and Import buttons" />
           </div>
           <AppSettings onAction={() => setOpen(false)} />
           <button

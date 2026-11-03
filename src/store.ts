@@ -276,6 +276,9 @@ interface State {
   /** Charts and Overview cards folded away for a simpler look, e.g. 'networth', 'assets' (remembered) */
   hiddenCharts: string[]
   toggleChart: (id: string) => void
+  /** Export and Import are taken out of the header for a simpler look; turned back on from the account menu (remembered) */
+  hideBackupButtons: boolean
+  setHideBackupButtons: (hide: boolean) => void
   /** Phones: how many columns the month and item grids show (pinch to change; remembered) */
   phoneCols: PhoneCols
   setPhoneCols: (cols: PhoneCols) => void
@@ -534,6 +537,8 @@ export const useStore = create<State>()(
       hiddenCharts: [],
       toggleChart: (id) =>
         set((s) => ({ hiddenCharts: s.hiddenCharts.includes(id) ? s.hiddenCharts.filter((c) => c !== id) : [...s.hiddenCharts, id] })),
+      hideBackupButtons: false,
+      setHideBackupButtons: (hideBackupButtons) => set({ hideBackupButtons }),
       phoneCols: 1,
       setPhoneCols: (phoneCols) => set({ phoneCols }),
 
@@ -1295,6 +1300,7 @@ export const useStore = create<State>()(
         sidebar: s.sidebar,
         openAllMonths: s.openAllMonths,
         hiddenCharts: s.hiddenCharts,
+        hideBackupButtons: s.hideBackupButtons,
         phoneCols: s.phoneCols,
         assetCat: s.assetCat,
         assetPeriod: s.assetPeriod,
