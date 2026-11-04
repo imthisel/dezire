@@ -152,7 +152,7 @@ function ClearModal({ items, expenses, tasks, goals, sources, onClose }: { items
 
   const options: { id: ClearPart; title: string; hint: string }[] = [
     needsMode
-      ? { id: 'plan', title: `The budgets in “${modeName}”`, hint: 'Your weekly, monthly and per-need budgets. Your expenses stay.' }
+      ? { id: 'plan', title: `The budgets in “${modeName}”`, hint: 'Your monthly budgets and categories. Your expenses stay.' }
       : { id: 'plan', title: `The plan in “${modeName}”`, hint: `${plural(items, 'item')}, goals to make, budgets, setups and year notes` },
     { id: 'expenses', title: 'Expenses', hint: plural(expenses, 'expense') },
     { id: 'calendar', title: 'Calendar & tasks', hint: plural(tasks, 'entry').replace('entrys', 'entries') },

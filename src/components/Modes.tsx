@@ -34,7 +34,7 @@ const KINDS: { id: ModeKind; title: string; line: string; points: string[]; icon
     id: 'needs',
     title: 'Needs',
     line: 'Everyday money',
-    points: ['Your own weekly and monthly budgets', 'Groceries, transport, bills and more'],
+    points: ['Week by week, with a budget for each month', 'Groceries, transport, bills and more'],
     icon: ShoppingBasket,
     on: 'border-emerald-400/60 bg-emerald-500/15',
     iconCls: 'bg-gradient-to-br from-emerald-400 to-teal-500',
@@ -114,7 +114,7 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
         <div role="menu" className="animate-menu absolute left-0 top-full z-50 mt-2 w-[19rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-white/10 bg-[#0e1016] shadow-2xl shadow-black/60 xl:left-auto xl:right-0">
           <div className="border-b border-white/[0.06] px-4 py-3">
             <p className="text-sm font-semibold text-white">Modes</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">Wants modes plan your big goals, with their own items, net worth and setups. Needs modes set weekly and monthly budgets. Calendar, expenses and goals are shared.</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">Wants modes plan your big goals, with their own items, net worth and setups. Needs modes track everyday spending week by week. Calendar, expenses and goals are shared.</p>
           </div>
           <ul className="max-h-72 overflow-y-auto p-1.5">
             {list.map((m) => {
@@ -205,14 +205,14 @@ export function ModesModal({ startAdding, onCopy, onClose }: { startAdding: bool
       copying
         ? `Now in “${made?.name}”. It starts as a copy of “${current.name}”.`
         : kind === 'needs'
-          ? `Now in “${made?.name}”. Set your weekly and monthly budgets to get going.`
+          ? `Now in “${made?.name}”. Set a monthly budget and start adding.`
           : `Now in “${made?.name}”. It starts empty, separate from “${current.name}”.`,
     )
     onClose()
   }
 
   function remove(m: ModeInfo) {
-    if (!confirm(`Delete the mode “${m.name}”? ${modeKind(m) === 'needs' ? 'Its budgets are' : 'Its months, items, setups and year notes are'} deleted for good. Your other modes, calendar and expenses stay.`)) return
+    if (!confirm(`Delete the mode “${m.name}”? ${modeKind(m) === 'needs' ? 'Its budgets and categories are' : 'Its months, items, setups and year notes are'} deleted for good. Your other modes, calendar and expenses stay.`)) return
     s.removeMode(m.id)
     toast.info(`Deleted “${m.name}”.`)
   }
@@ -290,11 +290,11 @@ export function ModesModal({ startAdding, onCopy, onClose }: { startAdding: bool
             />
             {canCopy ? (
               <div className="grid grid-cols-2 gap-2">
-                <StartOption on={!copy} onClick={() => setCopy(false)} icon={FilePlus2} title={kind === 'needs' ? 'Start fresh' : 'Start empty'} hint={kind === 'needs' ? 'Common needs, no amounts' : 'A blank plan'} />
+                <StartOption on={!copy} onClick={() => setCopy(false)} icon={FilePlus2} title={kind === 'needs' ? 'Start fresh' : 'Start empty'} hint={kind === 'needs' ? 'Common categories, no budget' : 'A blank plan'} />
                 <StartOption on={copy} onClick={() => setCopy(true)} icon={Copy} title={`Copy “${current.name}”`} hint="Then change it freely" />
               </div>
             ) : (
-              kind === 'needs' && <p className="text-xs leading-relaxed text-zinc-400">Starts with groceries, food, transport, bills and health. You set the amounts, and you can change the list. It reads what you log in Expenses, so nothing is entered twice.</p>
+              kind === 'needs' && <p className="text-xs leading-relaxed text-zinc-400">Offers groceries, food, transport, bills and health, and you can change the list. What you add shows in Expenses too, so nothing is entered twice.</p>
             )}
             <div className="flex justify-end gap-2">
               <button onClick={() => setAdding(false)} className="h-10 rounded-xl px-4 text-sm font-medium text-zinc-400 hover:text-white">
@@ -445,7 +445,7 @@ export function CopyModeModal({ onClose }: { onClose: () => void }) {
         <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${c.dot}`} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-white">{current.name}</span>
-          <span className="block text-[11px] text-zinc-400">{current.kind === 'needs' ? 'Weekly, monthly and per-need budgets' : 'Months, items, net worth, setups and year notes'}</span>
+          <span className="block text-[11px] text-zinc-400">{current.kind === 'needs' ? 'Monthly budgets and categories' : 'Months, items, net worth, setups and year notes'}</span>
         </span>
       </div>
 

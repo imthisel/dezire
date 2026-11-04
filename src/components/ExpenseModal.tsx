@@ -14,7 +14,7 @@ const field =
   'h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm'
 
 /** Add or edit an expense. Only the amount and the day are needed. */
-export function ExpenseModal({ editId, date: startDate, category: startCategory }: { editId?: string; date?: string; category?: string }) {
+export function ExpenseModal({ editId, date: startDate }: { editId?: string; date?: string }) {
   const editing = useStore((s) => (editId ? s.expenses.find((e) => e.id === editId) : undefined))
   const close = useStore((s) => s.closeModal)
   const f = useFmt()
@@ -22,7 +22,7 @@ export function ExpenseModal({ editId, date: startDate, category: startCategory 
   const [amount, setAmount] = useState<number | null>(editing?.amount ?? null)
   const [date, setDate] = useState(editing?.date ?? startDate ?? todayKey())
   const [name, setName] = useState(editing?.name ?? '')
-  const [category, setCategory] = useState(editing?.category ?? startCategory ?? '')
+  const [category, setCategory] = useState(editing?.category ?? '')
   const [place, setPlace] = useState(editing?.place ?? '')
   const [notes, setNotes] = useState(editing?.notes ?? '')
   const [notesOpen, setNotesOpen] = useState(!!editing?.notes)

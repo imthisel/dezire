@@ -81,20 +81,14 @@ export interface ModeInfo {
 
 /** Wants: the long-term plan (months, items, net worth). Needs: weekly and monthly budgets for everyday spending. */
 export type ModeKind = 'wants' | 'needs'
-export type NeedRhythm = 'week' | 'month'
-export interface NeedBudget {
-  /** 0 = no budget set */
-  amount: number
-  rhythm: NeedRhythm
-}
-/** A Needs mode's budgets. A need is an expense category with a budget; what was spent comes from Expenses. */
+/** A Needs mode's budgets and categories. What's added in its weeks is saved as expenses. */
 export interface NeedsPlan {
-  /** Your own total for a week and a month. 0 = add up the needs instead. */
-  weekly: number
+  /** The budget every month starts with (0 = none) */
   monthly: number
-  /** ExpenseCategory ids, in order */
+  /** Budgets set for one month ("2027-03"), in place of the usual one */
+  monthBudgets: Record<string, number>
+  /** ExpenseCategory ids offered when adding, in order */
   cats: string[]
-  budgets: Record<string, NeedBudget>
 }
 
 /** What each mode keeps for itself: its months (goals, budgets, items), its setups and its year notes. */

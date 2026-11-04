@@ -1,557 +1,637 @@
-import { useMemo, useState, type ReactNode } from 'react'
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Gauge, Pencil, Plus, ReceiptText, ShoppingBasket, Trash2 } from 'lucide-react'
-import { useFmt, useStore } from '../store'
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { AlertTriangle, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Copy, Plus, Settings2, ShoppingBasket, Trash2, Wallet } from 'lucide-react'
+import { useAlt, useCurrentNeeds, useFmt, useStore } from '../store'
 import { useExpenseCats } from '../expenseHooks'
 import { MASK, plain } from '../lib/money'
-import { MAX_CAT_NAME, MAX_DATE, MIN_DATE, catColor, catIcon, dayLabel, fromKey, inPeriod, periodDays, periodLabel, periodOf, shiftPeriod, todayKey, type Period } from '../lib/expenses'
-import { MONTHS_SHORT } from '../lib/time'
-import { budgetOf, monthBudget, monthFromNeeds, needsIn, paceOf, spentByCat, spentOnNeeds, weekBudget, weekFromNeeds, type Pace } from '../lib/needs'
-import type { NeedRhythm } from '../lib/types'
-import { goTo } from '../nav'
+import { MAX_DATE, WEEKDAYS, addDays, catColor, catIcon, daysInMonth, fromKey, todayKey } from '../lib/expenses'
+import { budgetFor, needsByMonth, sameWeekdayIn, weekLabel, weekOfDay, weeksOfMonth, type NeedWeek } from '../lib/needs'
+import { END_YEAR, MONTHS, MONTHS_SHORT, START_YEAR, YEARS, currentYear } from '../lib/time'
+import type { Expense, ExpenseCategory, NeedsPlan } from '../lib/types'
 import { card } from './Dashboard'
-import { Modal } from './Modal'
 import { MoneyInput } from './MoneyInput'
+import { NeedsPicker } from './NeedItemModal'
 import { toast } from '../toast'
 
-/** The plan in the mode in use, without needs whose category has since been deleted (their budgets shouldn't count). */
-function useNeeds() {
-  const raw = useStore((s) => s.modes.find((m) => m.id === s.modeId)?.needs)
-  const cats = useExpenseCats()
-  return useMemo(() => raw && { ...raw, cats: raw.cats.filter((id) => cats.some((c) => c.id === id)) }, [raw, cats])
+const OPEN_KEY = 'dizayr-needs-open'
+const monthKey = (year: number, m: number) => `${year}-${String(m + 1).padStart(2, '0')}`
+const sum = (list: Expense[]) => list.reduce((n, e) => n + e.amount, 0)
+const barCls = (pct: number) => (pct > 1 ? 'bg-rose-400' : pct >= 0.85 ? 'bg-amber-300' : 'bg-emerald-400')
+
+/** A new item in a week: on today when today is in it, otherwise on the week's first day. */
+const addTo = (w: Pick<NeedWeek, 'start' | 'end'>) => {
+  const today = todayKey()
+  useStore.getState().openModal({ type: 'need', date: today >= w.start && today <= w.end ? today : w.start })
 }
 
-const addSpending = (category?: string) => useStore.getState().openModal({ type: 'expense', category })
+/** The months opened by hand, remembered on this device. Every month starts minimized. */
+function useOpenMonths() {
+  const [open, setOpen] = useState<string[]>(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(OPEN_KEY) ?? '[]')
+      return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []
+    } catch {
+      return []
+    }
+  })
+  const save = (next: string[]) => {
+    setOpen(next)
+    try {
+      localStorage.setItem(OPEN_KEY, JSON.stringify(next))
+    } catch {
+      // Not remembered; fine.
+    }
+  }
+  return { open, toggle: (k: string) => save(open.includes(k) ? open.filter((x) => x !== k) : [...open, k]), show: (k: string) => !open.includes(k) && save([...open, k]) }
+}
 
-/** A Needs mode's main page: this week and this month against your own budgets, need by need. */
+/** A Needs mode's main page: laid out like the Overview, with months that open into their weeks. */
 export function NeedsPage() {
-  const plan = useNeeds()
-  const cats = useExpenseCats()
+  const plan = useCurrentNeeds()
+  const allCats = useExpenseCats()
   const expenses = useStore((s) => s.expenses)
   const modeName = useStore((s) => s.modes.find((m) => m.id === s.modeId)?.name ?? 'Needs')
-  const f = useFmt()
-  const today = todayKey()
-  const [week, setWeek] = useState(() => periodOf('week', today))
-  const [month, setMonth] = useState(() => periodOf('month', today))
+  const year = useStore((s) => s.year)
+  const months = useOpenMonths()
   const [picking, setPicking] = useState(false)
-  const hasBudgets = !!plan && (plan.weekly > 0 || plan.monthly > 0 || plan.cats.some((id) => budgetOf(plan, id).amount > 0))
-  const [editing, setEditing] = useState(!hasBudgets)
-
-  const weekSpent = useMemo(() => spentByCat(expenses, week), [expenses, week])
-  const monthSpent = useMemo(() => spentByCat(expenses, month), [expenses, month])
+  const byMonth = useMemo(() => (plan ? needsByMonth(expenses, plan) : new Map<string, Expense[]>()), [expenses, plan])
   if (!plan) return null
 
-  const needs = needsIn(plan, cats)
-  const weekly = needs.filter((n) => n.rhythm === 'week')
-  const monthly = needs.filter((n) => n.rhythm === 'month')
-  const setNeeds = useStore.getState().setNeeds
+  const today = todayKey()
+  const cats = plan.cats.flatMap((id) => allCats.filter((c) => c.id === id))
 
-  // Spending this month outside the needs, so it's clear what isn't being counted.
-  const counted = new Set(plan.cats)
-  const elsewhere = [...monthSpent].reduce((n, [id, v]) => (counted.has(id) ? n : n + v), 0)
-
-  const recent = expenses
-    .filter((e) => counted.has(e.category) && inPeriod(e.date, month))
-    .sort((a, b) => (a.date === b.date ? b.createdAt - a.createdAt : a.date < b.date ? 1 : -1))
-    .slice(0, 6)
+  function openMonth(key: string) {
+    months.show(key)
+    requestAnimationFrame(() => document.getElementById(`need-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <section className={`${card} relative overflow-hidden border-emerald-400/20 bg-gradient-to-br from-emerald-500/[0.1] to-teal-500/[0.03] p-4 sm:p-6`}>
-        <div className="relative flex flex-wrap items-center gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-lg shadow-emerald-500/20">
-            <ShoppingBasket className="h-5 w-5 text-white" strokeWidth={2.5} />
-          </div>
-          <div className="min-w-0 flex-1 basis-40">
-            <p className="flex items-center gap-2">
-              <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-200">Needs</span>
-              <span className="truncate text-sm text-zinc-400">{modeName}</span>
-            </p>
-            <h2 className="mt-1 text-xl font-bold tracking-tight text-white sm:text-2xl">Your everyday budget</h2>
-          </div>
-          <button
-            onClick={() => addSpending()}
-            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-4 text-sm font-semibold text-emerald-950 shadow-lg shadow-emerald-500/20 transition hover:brightness-110"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.5} /> Add spending
-          </button>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="flex flex-wrap items-center gap-2 text-sm font-medium uppercase tracking-[0.18em] text-zinc-400">
+            <ShoppingBasket className="h-4 w-4 text-emerald-300" /> Everyday budget
+            <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-emerald-200">Needs</span>
+          </h2>
+          <p className="mt-0.5 truncate text-sm text-zinc-500">
+            <span className="text-zinc-300">{modeName}</span> · week by week, Sunday to Saturday
+          </p>
         </div>
-      </section>
-
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-        <PeriodCard
-          label="week"
-          period={week}
-          onMove={(by) => setWeek((p) => shiftPeriod(p, by))}
-          onNow={() => setWeek(periodOf('week', today))}
-          spent={spentOnNeeds(plan, cats, weekSpent, 'week')}
-          budget={weekBudget(plan)}
-          own={plan.weekly}
-          fromNeeds={weekFromNeeds(plan)}
-          onBudget={(weekly) => setNeeds({ weekly })}
-          counts={weekly.length ? `Counts your weekly needs: ${weekly.map((n) => n.cat.label).join(', ')}.` : 'No weekly needs yet. Set one below to “Every week”.'}
-        />
-        <PeriodCard
-          label="month"
-          period={month}
-          onMove={(by) => setMonth((p) => shiftPeriod(p, by))}
-          onNow={() => setMonth(periodOf('month', today))}
-          spent={spentOnNeeds(plan, cats, monthSpent)}
-          budget={monthBudget(plan, month)}
-          own={plan.monthly}
-          fromNeeds={monthFromNeeds(plan, month)}
-          onBudget={(monthly) => setNeeds({ monthly })}
-          counts="Counts all your needs, weekly ones too."
-        />
+        <button onClick={() => addTo(weekOfDay(today))} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-4 text-sm font-semibold text-emerald-950 shadow-lg shadow-emerald-500/20 transition hover:brightness-110">
+          <Plus className="h-4 w-4" strokeWidth={2.5} /> Add item
+        </button>
       </div>
 
-      <section className={`${card} overflow-hidden`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-3 sm:px-5">
-          <div className="min-w-0">
-            <h3 className="font-semibold text-white">Your needs</h3>
-            <p className="text-[13px] text-zinc-500">{editing ? 'Set a budget for each one, and whether it runs weekly or monthly.' : 'Each one follows the week and month shown above.'}</p>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <button onClick={() => setPicking(true)} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/10 px-3 text-[13px] font-medium text-zinc-200 transition hover:bg-white/5">
-              <Plus className="h-3.5 w-3.5" /> Add a need
-            </button>
-            <button
-              onClick={() => setEditing((e) => !e)}
-              aria-pressed={editing}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-medium transition ${editing ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-100' : 'border-white/10 text-zinc-200 hover:bg-white/5'}`}
-            >
-              <Pencil className="h-3.5 w-3.5" /> {editing ? 'Done' : 'Edit budgets'}
-            </button>
-          </div>
-        </div>
-        {needs.length === 0 ? (
-          <div className="px-4 py-10 text-center">
-            <p className="text-sm text-zinc-400">No needs yet. Add groceries, transport, bills, or whatever you can’t go without.</p>
-            <button onClick={() => setPicking(true)} className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/10 px-3 text-[13px] font-medium text-zinc-200 transition hover:bg-white/5">
-              <Plus className="h-3.5 w-3.5" /> Add a need
-            </button>
-          </div>
-        ) : (
-          <>
-            <NeedGroup title="Every week" list={weekly} when={periodLabel(week)} spent={weekSpent} editing={editing} />
-            <NeedGroup title="Every month" list={monthly} when={periodLabel(month)} spent={monthSpent} editing={editing} />
-          </>
-        )}
-      </section>
+      <Stats plan={plan} byMonth={byMonth} />
 
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-5">
         <section className={`${card} min-w-0 p-4 sm:p-5 lg:col-span-3`}>
-          <History />
+          <YearChart plan={plan} byMonth={byMonth} year={year} onOpen={openMonth} />
         </section>
         <section className={`${card} min-w-0 p-4 sm:p-5 lg:col-span-2`}>
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="font-semibold text-white">Latest in {MONTHS_SHORT[fromKey(month.start).getMonth()]}</h3>
-            <button onClick={() => goTo('expenses')} className="text-xs font-medium text-zinc-400 transition hover:text-white">
-              See all in Expenses
-            </button>
-          </div>
-          {recent.length === 0 ? (
-            <p className="mt-6 pb-4 text-center text-sm text-zinc-500">Nothing spent on your needs in this month yet.</p>
-          ) : (
-            <ul className="mt-2 divide-y divide-white/[0.06]">
-              {recent.map((e) => {
-                const cat = cats.find((c) => c.id === e.category)
-                const Icon = cat ? catIcon(cat) : ReceiptText
-                return (
-                  <li key={e.id}>
-                    <button onClick={() => useStore.getState().openModal({ type: 'expense', editId: e.id })} className="flex w-full items-center gap-3 py-2.5 text-left transition hover:opacity-80">
-                      <Icon className={`h-4 w-4 shrink-0 ${cat ? catColor(cat).text : 'text-zinc-500'}`} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm text-zinc-100">{e.name || cat?.label}</span>
-                        <span className="block truncate text-xs text-zinc-500">{dayLabel(e.date)}</span>
-                      </span>
-                      <span className="shrink-0 text-sm font-medium tabular-nums text-zinc-200">{f(e.amount)}</span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-          {elsewhere > 0 && (
-            <p className="mt-3 border-t border-white/[0.06] pt-3 text-xs leading-relaxed text-zinc-500">
-              {f(elsewhere)} more this month went to things outside your needs, so it isn’t counted here.
-            </p>
-          )}
+          <Breakdown cats={cats} byMonth={byMonth} year={year} onEdit={() => setPicking(true)} />
         </section>
       </div>
+
+      <section className="space-y-4">
+        <NeedYearTabs expenses={byMonth} />
+        <YearGlance plan={plan} byMonth={byMonth} year={year} />
+        <ul className="space-y-2.5">
+          {Array.from({ length: 12 }, (_, m) => {
+            const key = monthKey(year, m)
+            return <MonthRow key={key} monthKeyStr={key} plan={plan} items={byMonth.get(key) ?? []} open={months.open.includes(key)} onToggle={() => months.toggle(key)} cats={allCats} />
+          })}
+        </ul>
+      </section>
 
       {picking && <NeedsPicker onClose={() => setPicking(false)} />}
     </div>
   )
 }
 
-const PACE: Record<Exclude<Pace, 'none'>, { label: string; cls: string; icon: typeof Gauge; bar: string }> = {
-  good: { label: 'On track', cls: 'text-emerald-300', icon: CheckCircle2, bar: 'bg-emerald-400' },
-  fast: { label: 'Spending fast', cls: 'text-amber-300', icon: Gauge, bar: 'bg-amber-400' },
-  over: { label: 'Over budget', cls: 'text-rose-300', icon: AlertTriangle, bar: 'bg-rose-400' },
-}
-
-/** How much of the period has gone by, 0–1. Past periods are finished; future ones haven't started. */
-function elapsedOf(p: Period, today: string) {
-  if (today > p.end) return 1
-  if (today < p.start) return 0
-  return (Math.round((fromKey(today).getTime() - fromKey(p.start).getTime()) / 86400000) + 1) / periodDays(p)
-}
-
-function PeriodCard({ label, period, onMove, onNow, spent, budget, own, fromNeeds, onBudget, counts }: {
-  label: 'week' | 'month'
-  period: Period
-  onMove: (by: number) => void
-  onNow: () => void
-  spent: number
-  budget: number
-  own: number
-  fromNeeds: number
-  onBudget: (v: number) => void
-  counts: string
-}) {
+function Stats({ plan, byMonth }: { plan: NeedsPlan; byMonth: Map<string, Expense[]> }) {
   const f = useFmt()
-  const masked = useStore((s) => s.device.masked)
+  const u = useAlt()
   const today = todayKey()
-  const isNow = inPeriod(today, period)
-  const elapsed = elapsedOf(period, today)
-  const pace = paceOf(spent, budget, elapsed)
-  const st = pace === 'none' ? null : PACE[pace]
+  const key = today.slice(0, 7)
+  const list = byMonth.get(key) ?? []
+  const spent = sum(list)
+  const budget = budgetFor(plan, key)
   const left = budget - spent
-  const daysLeft = isNow ? periodDays(period) - Math.round(elapsed * periodDays(period)) + 1 : 0
-  const canPrev = shiftPeriod(period, -1).end >= MIN_DATE
-  const canNext = shiftPeriod(period, 1).start <= MAX_DATE
-  const title = label === 'week' ? 'Weekly budget' : 'Monthly budget'
+  const d = fromKey(today)
+  const daysLeft = daysInMonth(d.getFullYear(), d.getMonth()) - d.getDate() + 1
+  const week = weekOfDay(today)
+  const weekSpent = sum(list.filter((e) => e.date >= week.start && e.date <= week.end))
+  const yearKey = key.slice(0, 4)
+  const yearSpent = [...byMonth].reduce((n, [k, l]) => (k.startsWith(yearKey) ? n + sum(l) : n), 0)
+  const yearCount = [...byMonth].reduce((n, [k, l]) => (k.startsWith(yearKey) ? n + l.length : n), 0)
+  const pct = budget > 0 ? spent / budget : undefined
 
   return (
-    <section className={`${card} flex min-w-0 flex-col p-4 sm:p-5`}>
-      <div className="flex items-center gap-1">
-        <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-400">
-          {isNow ? `This ${label}` : periodLabel(period)}
-          {isNow && <span className="ml-1.5 text-zinc-600">· {periodLabel(period)}</span>}
-        </h3>
-        {!isNow && (
-          <button onClick={onNow} className="mr-1 h-8 shrink-0 rounded-lg px-2 text-xs font-medium text-emerald-200 transition hover:bg-emerald-400/10">
-            This {label}
-          </button>
-        )}
-        <MoveBtn label={`Previous ${label}`} disabled={!canPrev} onClick={() => onMove(-1)}>
-          <ChevronLeft className="h-4 w-4" />
-        </MoveBtn>
-        <MoveBtn label={`Next ${label}`} disabled={!canNext} onClick={() => onMove(1)}>
-          <ChevronRight className="h-4 w-4" />
-        </MoveBtn>
-      </div>
-
-      <p key={`${period.start}-${spent}`} className="animate-tick mt-2 truncate text-3xl font-bold tracking-tight tabular-nums text-white sm:text-4xl">
-        {f(spent)}
-      </p>
-      <p className="mt-0.5 text-sm text-zinc-500">{budget > 0 ? `spent of ${f(budget)}` : 'spent'}</p>
-
-      <Meter value={spent} max={budget} bar={st?.bar} marker={isNow ? elapsed : undefined} className="mt-3 h-2.5" label={`Spent this ${label}`} />
-
-      {st ? (
-        <p className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px]">
-          <span className={`inline-flex items-center gap-1 font-medium ${st.cls}`}>
-            <st.icon className="h-3.5 w-3.5" /> {st.label}
-          </span>
-          <span className="text-zinc-400">
-            {left >= 0 ? `${f(left)} left` : `by ${f(-left)}`}
-            {left > 0 && isNow && daysLeft > 1 && ` · about ${f(left / daysLeft)} a day`}
-          </span>
-        </p>
-      ) : (
-        <p className="mt-2.5 text-[13px] text-zinc-500">Set a budget to see how you’re doing.</p>
-      )}
-
-      <div className="mt-auto pt-4">
-        <label className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t border-white/[0.06] pt-3">
-          <span className="text-sm font-medium text-zinc-200">{title}</span>
-          <MoneyInput
-            value={own}
-            onChange={(v) => onBudget(v ?? 0)}
-            ariaLabel={title}
-            placeholder={fromNeeds > 0 ? (masked ? MASK : plain(Math.round(fromNeeds))) : '0'}
-            className="w-36"
-          />
-        </label>
-        <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
-          {own > 0 ? 'Your own total.' : fromNeeds > 0 ? 'Added up from your needs. Type your own total to replace it.' : 'Type a total, or set budgets for each need below.'} {counts}
-          {isNow && budget > 0 && ' The white mark on the bar is today.'}
-        </p>
-      </div>
-    </section>
-  )
-}
-
-function MoveBtn({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button onClick={onClick} disabled={disabled} aria-label={label} title={label} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-400 transition hover:bg-white/5 hover:text-white disabled:opacity-30">
-      {children}
-    </button>
-  )
-}
-
-/** A filled bar. Past the budget it stays full and takes the warning colour. `marker`: how far through the period today is. */
-function Meter({ value, max, bar = 'bg-emerald-400', marker, className, label }: { value: number; max: number; bar?: string; marker?: number; className: string; label: string }) {
-  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0
-  return (
-    <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} className={`relative rounded-full bg-white/[0.08] ${className}`}>
-      <div className={`h-full rounded-full transition-[width] duration-500 ease-out ${bar}`} style={{ width: `${pct}%` }} />
-      {marker !== undefined && max > 0 && <span title="Today" className="absolute -top-1 -bottom-1 w-0.5 -translate-x-1/2 rounded-full bg-white/70 ring-2 ring-[#0b0c11]" style={{ left: `${marker * 100}%` }} />}
+    <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
+      <Stat highlight icon={<ShoppingBasket className="h-4 w-4 text-emerald-300" />} iconCls="bg-emerald-400/15" label="Spent this month" value={f(spent)} alt={u(spent)} sub={budget > 0 ? `of ${f(budget)} budget` : `in ${MONTHS[d.getMonth()]}`} progress={pct} />
+      <Stat
+        icon={<Wallet className={`h-4 w-4 ${left < 0 ? 'text-rose-300' : 'text-sky-300'}`} />}
+        iconCls={left < 0 ? 'bg-rose-400/15' : 'bg-sky-400/15'}
+        label={left < 0 ? 'Over budget' : 'Left this month'}
+        value={budget > 0 ? f(Math.abs(left)) : '—'}
+        alt={budget > 0 ? u(Math.abs(left)) : ''}
+        valueCls={left < 0 ? 'text-rose-300' : 'text-white'}
+        sub={budget === 0 ? 'Set a budget below' : left > 0 ? `about ${f(left / daysLeft)} a day` : left < 0 ? 'Past this month’s budget' : 'All used'}
+      />
+      <Stat icon={<CalendarDays className="h-4 w-4 text-violet-300" />} iconCls="bg-violet-400/15" label={`This week · Week ${week.n}`} value={f(weekSpent)} alt={u(weekSpent)} sub={weekLabel(week)} />
+      <Stat icon={<Wallet className="h-4 w-4 text-amber-300" />} iconCls="bg-amber-400/15" label={`Spent in ${yearKey}`} value={f(yearSpent)} alt={u(yearSpent)} sub={`${yearCount} ${yearCount === 1 ? 'item' : 'items'}`} />
     </div>
   )
 }
 
-function NeedGroup({ title, list, when, spent, editing }: { title: string; list: ReturnType<typeof needsIn>; when: string; spent: Map<string, number>; editing: boolean }) {
-  if (!list.length) return null
+function Stat(p: { icon: ReactNode; iconCls: string; label: string; value: string; alt: string; sub: string; valueCls?: string; progress?: number; highlight?: boolean }) {
+  const altCode = useStore((s) => s.currency.alt.code)
   return (
-    <div>
-      <p className="flex items-center justify-between gap-2 bg-white/[0.02] px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 sm:px-5">
-        <span>{title}</span>
-        <span className="truncate font-normal normal-case tracking-normal">{when}</span>
+    <div className={`${card} relative min-w-0 overflow-hidden p-3.5 sm:p-5 ${p.highlight ? 'border-emerald-400/30 bg-gradient-to-br from-emerald-500/[0.14] via-white/[0.02] to-teal-500/[0.06]' : ''}`}>
+      <div className="flex items-center gap-2 sm:gap-2.5">
+        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${p.iconCls}`}>{p.icon}</span>
+        <span className="truncate text-xs font-medium text-zinc-400 sm:text-sm">{p.label}</span>
+      </div>
+      <p key={p.value} className={`animate-tick mt-2.5 truncate text-xl font-bold leading-none tracking-tight tabular-nums sm:mt-3 sm:text-[28px] ${p.valueCls ?? 'text-white'}`}>
+        {p.value}
       </p>
-      <ul className="divide-y divide-white/[0.06]">
-        {list.map((n) => (
-          <NeedRow key={n.cat.id} need={n} spent={spent.get(n.cat.id) ?? 0} editing={editing} />
-        ))}
-      </ul>
+      {p.alt && (
+        <p className="alt mt-1.5 truncate text-xs font-medium tabular-nums text-zinc-400 sm:text-sm">
+          ≈ {p.alt} {altCode}
+        </p>
+      )}
+      <p className="mt-1.5 truncate text-xs text-zinc-500">{p.sub}</p>
+      {p.progress !== undefined && (
+        <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/5">
+          <div className={`h-full rounded-full transition-all duration-500 ${barCls(p.progress)}`} style={{ width: `${Math.min(100, p.progress * 100)}%` }} />
+        </div>
+      )}
     </div>
   )
 }
 
-function NeedRow({ need, spent, editing }: { need: ReturnType<typeof needsIn>[number]; spent: number; editing: boolean }) {
+/** Each month of the year against its budget. Pressing a month opens it below. */
+function YearChart({ plan, byMonth, year, onOpen }: { plan: NeedsPlan; byMonth: Map<string, Expense[]>; year: number; onOpen: (key: string) => void }) {
   const f = useFmt()
-  const { cat, amount, rhythm } = need
-  const Icon = catIcon(cat)
-  const { setNeedBudget, removeNeed } = useStore.getState()
-  const over = amount > 0 && spent > amount
-  return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-2.5 px-4 py-3 sm:px-5">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/[0.05]">
-        <Icon className={`h-4 w-4 ${catColor(cat).text}`} />
-      </span>
-      <div className="min-w-0 flex-1 basis-40">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="truncate text-sm font-medium text-zinc-100">{cat.label}</p>
-          <p className="shrink-0 text-[13px] tabular-nums text-zinc-400">
-            <span className="font-medium text-zinc-100">{f(spent)}</span>
-            {amount > 0 && ` of ${f(amount)}`}
-          </p>
-        </div>
-        {amount > 0 ? (
-          <>
-            <Meter value={spent} max={amount} bar={over ? 'bg-rose-400' : undefined} className="mt-1.5 h-1.5" label={`${cat.label} spent`} />
-            <p className={`mt-1 inline-flex items-center gap-1 text-xs ${over ? 'text-rose-300' : 'text-zinc-500'}`}>
-              {over && <AlertTriangle className="h-3 w-3" />}
-              {over ? `Over by ${f(spent - amount)}` : `${f(amount - spent)} left`}
-            </p>
-          </>
-        ) : (
-          !editing && <p className="mt-0.5 text-xs text-zinc-500">No budget set</p>
-        )}
-      </div>
-      {editing ? (
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <MoneyInput value={amount} onChange={(v) => setNeedBudget(cat.id, { amount: v ?? 0 })} ariaLabel={`${cat.label} budget`} className="w-28" />
-          <div role="radiogroup" aria-label={`${cat.label} runs`} className="inline-flex gap-0.5 rounded-lg border border-white/10 bg-black/20 p-0.5">
-            {(['week', 'month'] as NeedRhythm[]).map((r) => (
-              <button
-                key={r}
-                type="button"
-                role="radio"
-                aria-checked={rhythm === r}
-                onClick={() => setNeedBudget(cat.id, { rhythm: r })}
-                className={`h-7 rounded-md px-2 text-xs font-medium transition ${rhythm === r ? 'bg-emerald-400/20 text-emerald-100 ring-1 ring-emerald-400/40' : 'text-zinc-400 hover:text-white'}`}
-              >
-                {r === 'week' ? 'Weekly' : 'Monthly'}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => {
-              const undo = removeNeed(cat.id)
-              toast.undo(`Removed “${cat.label}” from your needs. Its expenses stay in Expenses.`, undo)
-            }}
-            aria-label={`Remove ${cat.label} from your needs`}
-            title="Remove from needs"
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-500 transition hover:bg-red-500/10 hover:text-red-300"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      ) : (
-        <button onClick={() => addSpending(cat.id)} aria-label={`Add spending on ${cat.label}`} title={`Add spending on ${cat.label}`} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 text-zinc-300 transition hover:bg-white/5 hover:text-white">
-          <Plus className="h-4 w-4" />
-        </button>
-      )}
-    </li>
-  )
-}
-
-/** Choose which spending categories are needs, or make a new one. */
-function NeedsPicker({ onClose }: { onClose: () => void }) {
-  const cats = useExpenseCats()
-  const plan = useNeeds()
-  const [name, setName] = useState('')
-  const { addNeed, removeNeed, addExpenseCat } = useStore.getState()
-
-  function create() {
-    if (!name.trim()) return
-    addNeed(addExpenseCat(name))
-    setName('')
-  }
-
-  return (
-    <Modal
-      title="Your needs"
-      subtitle="The things you can’t go without. They’re the same categories you pick when adding an expense."
-      onClose={onClose}
-      width="max-w-md"
-      footer={
-        <div className="flex justify-end">
-          <button onClick={onClose} className="h-10 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-5 text-sm font-semibold text-emerald-950">
-            Done
-          </button>
-        </div>
-      }
-    >
-      <div className="space-y-1.5">
-        {cats.map((c) => {
-          const on = !!plan?.cats.includes(c.id)
-          const Icon = catIcon(c)
-          return (
-            <button
-              key={c.id}
-              type="button"
-              role="checkbox"
-              aria-checked={on}
-              onClick={() => (on ? removeNeed(c.id) : addNeed(c.id))}
-              className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${on ? 'border-emerald-400/50 bg-emerald-400/10' : 'border-white/[0.07] hover:border-white/20'}`}
-            >
-              <Icon className={`h-4 w-4 shrink-0 ${catColor(c).text}`} />
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-100">{c.label}</span>
-              <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border text-[11px] font-bold ${on ? 'border-emerald-400 bg-emerald-500 text-white' : 'border-white/20 text-transparent'}`}>✓</span>
-            </button>
-          )
-        })}
-      </div>
-      <div className="mt-4 flex gap-2">
-        <input
-          value={name}
-          maxLength={MAX_CAT_NAME}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && create()}
-          placeholder="Something else, like Rent or Baby"
-          aria-label="New need"
-          className="h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/20"
-        />
-        <button onClick={create} disabled={!name.trim()} className="h-10 shrink-0 rounded-xl border border-white/10 px-3 text-sm font-medium text-zinc-200 transition hover:bg-white/5 disabled:opacity-40">
-          Add
-        </button>
-      </div>
-    </Modal>
-  )
-}
-
-type Span = { key: string; label: string; full: string; spent: number; budget: number; now: boolean }
-
-/** The last few weeks or months against their budget. */
-function History() {
-  const plan = useNeeds()
-  const cats = useExpenseCats()
-  const expenses = useStore((s) => s.expenses)
-  const f = useFmt()
-  const [kind, setKind] = useState<'week' | 'month'>('week')
   const [picked, setPicked] = useState<string | null>(null)
-  const today = todayKey()
-
-  const spans = useMemo<Span[]>(() => {
-    if (!plan) return []
-    const out: Span[] = []
-    let p = periodOf(kind, today)
-    for (let i = 0; i < (kind === 'week' ? 8 : 6); i++) {
-      const d = fromKey(p.start)
-      const spent = spentOnNeeds(plan, cats, spentByCat(expenses, p), kind === 'week' ? 'week' : undefined)
-      out.unshift({
-        key: p.start,
-        label: kind === 'week' ? `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}` : MONTHS_SHORT[d.getMonth()],
-        full: periodLabel(p),
-        spent,
-        budget: kind === 'week' ? weekBudget(plan) : monthBudget(plan, p),
-        now: i === 0,
-      })
-      p = shiftPeriod(p, -1)
-    }
-    return out
-  }, [plan, cats, expenses, kind, today])
-
-  // Weeks have one budget; months differ by a few days when it's added up from weekly needs, so the line uses this one's.
-  const line = spans[spans.length - 1]?.budget ?? 0
-  const top = Math.max(line, ...spans.map((s) => s.spent), 1) * 1.08
-  const shown = spans.find((s) => s.key === picked) ?? spans[spans.length - 1]
+  const thisMonth = todayKey().slice(0, 7)
+  const bars = Array.from({ length: 12 }, (_, m) => {
+    const key = monthKey(year, m)
+    return { key, m, spent: sum(byMonth.get(key) ?? []), budget: budgetFor(plan, key) }
+  })
+  const top = Math.max(...bars.map((b) => Math.max(b.spent, b.budget)), 1) * 1.08
+  const shown = bars.find((b) => b.key === picked) ?? bars.find((b) => b.key === thisMonth)
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-semibold text-white">{kind === 'week' ? 'Weekly needs' : 'All needs'}, recently</h3>
-        <div role="radiogroup" aria-label="Show" className="inline-flex gap-0.5 rounded-lg border border-white/10 bg-black/20 p-0.5">
-          {(['week', 'month'] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              role="radio"
-              aria-checked={kind === k}
-              onClick={() => {
-                setKind(k)
-                setPicked(null)
-              }}
-              className={`h-7 rounded-md px-2.5 text-xs font-medium transition ${kind === k ? 'bg-white/10 text-white' : 'text-zinc-400 hover:text-white'}`}
-            >
-              {k === 'week' ? 'Weeks' : 'Months'}
-            </button>
-          ))}
-        </div>
-      </div>
-      {shown && (
-        <p className="mt-2 truncate text-[13px] tabular-nums text-zinc-400" aria-live="polite">
-          <span className="text-zinc-300">{shown.full}:</span> <span className="font-medium text-white">{f(shown.spent)}</span>
-          {shown.budget > 0 && ` of ${f(shown.budget)}`}
-        </p>
-      )}
-      <div className="relative mt-3 flex h-36 items-end gap-1 sm:gap-1.5" onMouseLeave={() => setPicked(null)}>
-        {line > 0 && (
-          <div aria-hidden className="pointer-events-none absolute inset-x-0 border-t border-dashed border-white/30" style={{ bottom: `${(line / top) * 100}%` }}>
-            <span className="absolute -top-4 left-0 text-[10px] text-zinc-500">budget</span>
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h3 className="font-semibold text-white">Spending in {year}</h3>
+        {shown ? (
+          <p className="truncate text-[13px] tabular-nums text-zinc-400" aria-live="polite">
+            <span className="text-zinc-300">{MONTHS[shown.m]}:</span> <span className="font-medium text-white">{f(shown.spent)}</span>
+            {shown.budget > 0 && ` of ${f(shown.budget)}`}
+          </p>
+        ) : (
+          <p className="text-[13px] text-zinc-500">Press a month to open it</p>
         )}
-        {spans.map((s) => {
-          const over = s.budget > 0 && s.spent > s.budget
+      </div>
+      <div className="relative mt-4 flex h-44 items-end gap-1 sm:gap-1.5" onMouseLeave={() => setPicked(null)}>
+        {bars.map((b) => {
+          const over = b.budget > 0 && b.spent > b.budget
           return (
             <button
-              key={s.key}
+              key={b.key}
               type="button"
-              onMouseEnter={() => setPicked(s.key)}
-              onFocus={() => setPicked(s.key)}
-              onClick={() => setPicked(s.key)}
-              aria-label={`${s.full}: ${f(s.spent)}${s.budget > 0 ? ` of ${f(s.budget)}` : ''}${over ? ', over budget' : ''}`}
-              className="group flex h-full min-w-0 flex-1 items-end rounded-t outline-none focus-visible:bg-white/5"
+              onMouseEnter={() => setPicked(b.key)}
+              onFocus={() => setPicked(b.key)}
+              onClick={() => onOpen(b.key)}
+              aria-label={`${MONTHS[b.m]}: ${f(b.spent)}${b.budget > 0 ? ` of ${f(b.budget)} budget` : ''}${over ? ', over budget' : ''}. Open this month.`}
+              className={`relative flex h-full min-w-0 flex-1 items-end rounded-t outline-none transition focus-visible:bg-white/10 ${picked === b.key ? 'bg-white/[0.05]' : ''}`}
             >
-              <span
-                className={`block w-full rounded-t transition-[height] duration-500 ease-out ${over ? 'bg-rose-400' : 'bg-emerald-400'} ${s.now ? '' : 'opacity-60'} ${picked === s.key ? '!opacity-100' : ''}`}
-                style={{ height: `${s.spent > 0 ? Math.max(2, (s.spent / top) * 100) : 0}%` }}
-              />
+              <span className={`block w-full rounded-t transition-[height] duration-500 ease-out ${over ? 'bg-rose-400' : 'bg-emerald-400'} ${b.key === thisMonth || picked === b.key ? '' : 'opacity-60'}`} style={{ height: `${b.spent > 0 ? Math.max(2, (b.spent / top) * 100) : 0}%` }} />
+              {b.budget > 0 && <span aria-hidden className="absolute inset-x-0 border-t-2 border-dashed border-white/40" style={{ bottom: `${(b.budget / top) * 100}%` }} />}
             </button>
           )
         })}
       </div>
       <div className="mt-1.5 flex gap-1 border-t border-white/[0.08] pt-1.5 sm:gap-1.5" aria-hidden>
-        {spans.map((s, i) => (
-          // Narrow screens: every other label, counted back from the latest, so they fit in full.
-          <span key={s.key} className={`min-w-0 flex-1 whitespace-nowrap text-center text-[10px] tabular-nums ${(spans.length - 1 - i) % 2 ? 'max-sm:invisible' : ''} ${s.now ? 'font-medium text-zinc-200' : 'text-zinc-500'}`}>
-            {s.label}
+        {bars.map((b) => (
+          <span key={b.key} className={`min-w-0 flex-1 text-center text-[10px] ${b.key === thisMonth ? 'font-semibold text-zinc-200' : 'text-zinc-500'}`}>
+            <span className="sm:hidden">{MONTHS_SHORT[b.m].slice(0, 1)}</span>
+            <span className="hidden sm:inline">{MONTHS_SHORT[b.m]}</span>
           </span>
         ))}
       </div>
+      <p className="mt-2 text-xs text-zinc-500">The dashed line on each month is its budget.</p>
     </>
+  )
+}
+
+/** Where the year's money goes, in each category's own colour. */
+function Breakdown({ cats, byMonth, year, onEdit }: { cats: ExpenseCategory[]; byMonth: Map<string, Expense[]>; year: number; onEdit: () => void }) {
+  const f = useFmt()
+  const u = useAlt()
+  const totals = new Map<string, { n: number; count: number }>()
+  for (const [k, list] of byMonth) {
+    if (!k.startsWith(String(year))) continue
+    for (const e of list) {
+      const t = totals.get(e.category) ?? { n: 0, count: 0 }
+      totals.set(e.category, { n: t.n + e.amount, count: t.count + 1 })
+    }
+  }
+  const all = [...totals.values()].reduce((n, t) => n + t.n, 0)
+  return (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-semibold text-white">Where it goes</h3>
+        <button onClick={onEdit} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 px-2 text-xs font-medium text-zinc-400 transition hover:bg-white/5 hover:text-white">
+          <Settings2 className="h-3.5 w-3.5" /> Categories
+        </button>
+      </div>
+      {cats.length === 0 ? (
+        <p className="mt-6 text-center text-sm text-zinc-500">No categories yet.</p>
+      ) : (
+        <ul className="mt-3.5 space-y-3">
+          {cats.map((c) => {
+            const Icon = catIcon(c)
+            const col = catColor(c)
+            const t = totals.get(c.id) ?? { n: 0, count: 0 }
+            return (
+              <li key={c.id}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-2 text-sm text-zinc-200">
+                    <Icon className={`h-4 w-4 shrink-0 ${col.text}`} />
+                    <span className="truncate">{c.label}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-zinc-600">×{t.count}</span>
+                  </span>
+                  <span className="shrink-0 text-right text-sm font-semibold tabular-nums text-white">
+                    {f(t.n, true)} <span className="alt-i ml-1 text-[11px] font-normal text-zinc-500">· {u(t.n, true)}</span>
+                  </span>
+                </div>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                  <div className={`h-full rounded-full transition-all duration-500 ${col.bar}`} style={{ width: `${all > 0 ? (t.n / all) * 100 : 0}%` }} />
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </>
+  )
+}
+
+function NeedYearTabs({ expenses }: { expenses: Map<string, Expense[]> }) {
+  const year = useStore((s) => s.year)
+  const setYear = useStore((s) => s.setYear)
+  const f = useFmt()
+  const strip = useRef<HTMLDivElement>(null)
+  const first = useRef(true)
+  const thisYear = currentYear()
+  useEffect(() => {
+    const el = strip.current
+    const tab = el?.querySelector<HTMLElement>(`[data-year="${year}"]`)
+    if (!el || !tab) return
+    el.scrollTo({ left: tab.offsetLeft - (el.clientWidth - tab.offsetWidth) / 2, behavior: first.current ? 'auto' : 'smooth' })
+    first.current = false
+  }, [year])
+  return (
+    <div className="sticky top-0 z-30 -mx-4 bg-[#07080c]/85 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <div className="flex items-center gap-2">
+        <button onClick={() => setYear(year - 1)} disabled={year <= START_YEAR} aria-label="Previous year" className="hidden h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 text-zinc-300 transition hover:bg-white/5 disabled:opacity-30 sm:grid">
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <div ref={strip} className="scrollbar-none relative flex flex-1 gap-1.5 overflow-x-auto">
+          {YEARS.map((y) => {
+            const total = [...expenses].reduce((n, [k, l]) => (k.startsWith(String(y)) ? n + sum(l) : n), 0)
+            const active = y === year
+            return (
+              <button key={y} data-year={y} onClick={() => setYear(y)} aria-pressed={active} className={`relative flex min-w-[70px] shrink-0 flex-col items-center rounded-xl px-3 py-1.5 transition ${active ? 'bg-gradient-to-b from-emerald-500/30 to-emerald-500/10 text-white ring-1 ring-emerald-400/50' : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-200'}`}>
+                <span className="text-sm font-semibold tabular-nums">{y}</span>
+                <span className={`text-[10px] tabular-nums ${total > 0 ? (active ? 'text-emerald-200' : 'text-zinc-500') : 'text-transparent'}`}>{total > 0 ? f(total, true) : '·'}</span>
+                {y === thisYear && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400" title="This year" />}
+              </button>
+            )
+          })}
+        </div>
+        <button onClick={() => setYear(year + 1)} disabled={year >= END_YEAR} aria-label="Next year" className="hidden h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 text-zinc-300 transition hover:bg-white/5 disabled:opacity-30 sm:grid">
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** The year's totals, and the budget every month starts with. */
+function YearGlance({ plan, byMonth, year }: { plan: NeedsPlan; byMonth: Map<string, Expense[]>; year: number }) {
+  const f = useFmt()
+  const keys = Array.from({ length: 12 }, (_, m) => monthKey(year, m))
+  const budget = keys.reduce((n, k) => n + budgetFor(plan, k), 0)
+  const spent = keys.reduce((n, k) => n + sum(byMonth.get(k) ?? []), 0)
+  const count = keys.reduce((n, k) => n + (byMonth.get(k)?.length ?? 0), 0)
+  return (
+    <div className={`${card} p-4 sm:p-5`}>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div className="flex min-w-0 items-baseline gap-3">
+          <h3 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{year}</h3>
+          <span className="hidden truncate text-sm text-zinc-500 sm:inline">year at a glance</span>
+        </div>
+        <label className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span className="text-sm font-medium text-zinc-200">
+            Usual monthly budget
+            <span className="block text-xs font-normal text-zinc-500">Every month starts with this</span>
+          </span>
+          <MoneyInput value={plan.monthly} onChange={(v) => useStore.getState().setNeeds({ monthly: v ?? 0 })} ariaLabel="Usual monthly budget" className="w-36" />
+        </label>
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-x-4 sm:max-w-xl sm:gap-x-6">
+        <Mini k="Budget" v={f(budget)} />
+        <Mini k="Spent" v={f(spent)} cls="text-rose-300" />
+        <Mini k={budget - spent < 0 ? 'Over' : 'Left'} v={f(Math.abs(budget - spent))} cls={budget - spent < 0 ? 'text-rose-300' : 'text-emerald-300'} />
+      </div>
+      <p className="mt-2 text-xs text-zinc-500">
+        {count} {count === 1 ? 'item' : 'items'} in {year}
+      </p>
+    </div>
+  )
+}
+
+function Mini({ k, v, cls = 'text-white' }: { k: string; v: string; cls?: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="truncate text-[10px] font-medium uppercase tracking-wider text-zinc-500">{k}</p>
+      <p className={`truncate text-sm font-semibold tabular-nums sm:text-base ${cls}`}>{v}</p>
+    </div>
+  )
+}
+
+function MonthRow({ monthKeyStr: key, plan, items, open, onToggle, cats }: { monthKeyStr: string; plan: NeedsPlan; items: Expense[]; open: boolean; onToggle: () => void; cats: ExpenseCategory[] }) {
+  const f = useFmt()
+  const masked = useStore((s) => s.device.masked)
+  const m = Number(key.slice(5))
+  const isNow = todayKey().slice(0, 7) === key
+  const spent = sum(items)
+  const budget = budgetFor(plan, key)
+  const own = plan.monthBudgets[key] ?? null
+  const left = budget - spent
+  const pct = budget > 0 ? spent / budget : 0
+  const over = budget > 0 && spent > budget
+  const weeks = useMemo(() => weeksOfMonth(key), [key])
+
+  const shares = useMemo(() => {
+    const t = new Map<string, number>()
+    for (const e of items) t.set(e.category, (t.get(e.category) ?? 0) + e.amount)
+    return [...t].flatMap(([id, n]) => cats.filter((c) => c.id === id).map((c) => ({ c, n })))
+  }, [items, cats])
+
+  // Spent in this month on things outside the categories here (still in Expenses).
+  const allExpenses = useStore((s) => s.expenses)
+  const outside = useMemo(() => {
+    const counted = new Set(plan.cats)
+    return allExpenses.reduce((n, e) => (e.date.startsWith(key) && !counted.has(e.category) ? n + e.amount : n), 0)
+  }, [allExpenses, plan.cats, key])
+
+  return (
+    <li id={`need-${key}`} className={`${card} scroll-mt-20 overflow-hidden transition ${isNow ? 'border-emerald-400/30' : ''}`}>
+      <button onClick={onToggle} aria-expanded={open} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-left transition hover:bg-white/[0.025] sm:grid-cols-[11rem_minmax(0,1fr)_auto_auto] sm:gap-x-5 sm:px-5">
+        <span className="min-w-0">
+          <span className="flex items-center gap-2">
+            <span className="truncate text-base font-bold tracking-tight text-white sm:text-lg">{MONTHS[m - 1]}</span>
+            {isNow && <span className="shrink-0 rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-200">This month</span>}
+          </span>
+          <span className="block truncate text-xs text-zinc-500">
+            {items.length ? `${items.length} ${items.length === 1 ? 'item' : 'items'}` : 'Nothing yet'} · {weeks.length} weeks
+          </span>
+        </span>
+        {/* The bar: its own row on phones, the middle on bigger screens */}
+        <span className="col-span-2 row-start-2 block min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
+          <span className="block h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+            <span className={`block h-full rounded-full transition-all duration-500 ${barCls(pct)}`} style={{ width: `${Math.min(100, pct * 100)}%` }} />
+          </span>
+        </span>
+        <span className="min-w-0 text-right">
+          <span className="block text-sm font-semibold tabular-nums text-white sm:text-base">{f(spent)}</span>
+          <span className={`flex items-center justify-end gap-1 text-xs tabular-nums ${over ? 'text-rose-300' : 'text-zinc-500'}`}>
+            {over && <AlertTriangle className="h-3 w-3" />}
+            {budget > 0 ? (over ? `over by ${f(-left)}` : `${f(left)} left`) : 'No budget'}
+          </span>
+        </span>
+        <ChevronDown className={`hidden h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-300 sm:block ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="animate-fade border-t border-white/[0.06] p-3 sm:p-5">
+          <div className="grid grid-cols-3 gap-2 sm:max-w-xl">
+            <Field label="Budget">
+              <MoneyInput value={own} nullable onChange={(v) => useStore.getState().setNeedMonthBudget(key, v)} ariaLabel={`${MONTHS[m - 1]} budget`} placeholder={plan.monthly > 0 ? (masked ? MASK : plain(plan.monthly)) : '0'} />
+            </Field>
+            <Field label="Spent">
+              <ReadOnly text={f(spent)} cls="border-white/[0.06] bg-white/[0.03] text-zinc-100" />
+            </Field>
+            <Field label={over ? 'Over' : 'Left'}>
+              <ReadOnly text={budget > 0 ? f(Math.abs(left)) : '—'} cls={over ? 'border-rose-400/30 bg-rose-500/10 text-rose-200' : 'border-emerald-400/20 bg-emerald-500/[0.07] text-emerald-200'} />
+            </Field>
+          </div>
+
+          {shares.length > 0 && (
+            <div className="mt-3">
+              <div className="flex h-2 gap-0.5 overflow-hidden rounded-full" aria-hidden>
+                {shares.map(({ c, n }) => (
+                  <span key={c.id} className={catColor(c).bar} style={{ width: `${(n / spent) * 100}%` }} />
+                ))}
+              </div>
+              <ul className="mt-2 flex flex-wrap gap-x-3.5 gap-y-1">
+                {shares.map(({ c, n }) => (
+                  <li key={c.id} className="flex items-center gap-1.5 text-xs text-zinc-400">
+                    <span className={`h-2 w-2 rounded-full ${catColor(c).bar}`} />
+                    {c.label} <span className="font-medium tabular-nums text-zinc-200">{f(n, true)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className={`mt-4 grid gap-2.5 sm:grid-cols-2 sm:gap-3 ${weeks.length === 6 ? 'xl:grid-cols-3' : 'xl:grid-cols-4'}`}>
+            {weeks.map((w) => (
+              <WeekCard key={w.n} week={w} items={items.filter((e) => e.date >= w.start && e.date <= w.end)} cats={cats} />
+            ))}
+          </div>
+
+          {outside > 0 && <p className="mt-3 text-xs leading-relaxed text-zinc-500">{f(outside)} more went to other categories this month. It’s in Expenses, but isn’t counted here.</p>}
+        </div>
+      )}
+    </li>
+  )
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
+      {children}
+    </div>
+  )
+}
+
+function ReadOnly({ text, cls }: { text: string; cls: string }) {
+  return (
+    <div title={text} className={`flex h-9 min-w-0 items-center truncate rounded-lg border px-2 text-sm font-medium tabular-nums tracking-tight ${cls}`}>
+      {text}
+    </div>
+  )
+}
+
+/** What's being dragged between weeks. */
+let dragged: string | null = null
+
+function WeekCard({ week, items, cats }: { week: NeedWeek; items: Expense[]; cats: ExpenseCategory[] }) {
+  const f = useFmt()
+  const today = todayKey()
+  const isNow = today >= week.start && today <= week.end
+  const [drop, setDrop] = useState<null | 'move' | 'copy'>(null)
+  const total = sum(items)
+
+  const isCopy = (e: DragEvent) => e.ctrlKey || e.altKey || e.metaKey
+
+  function onDrop(e: DragEvent) {
+    e.preventDefault()
+    setDrop(null)
+    const id = dragged
+    dragged = null
+    if (!id) return
+    const s = useStore.getState()
+    const item = s.expenses.find((x) => x.id === id)
+    if (!item) return
+    const to = sameWeekdayIn(item.date, week)
+    if (isCopy(e)) {
+      const copy = s.addExpense({ ...item, date: to })
+      return toast.undo(`Copied to Week ${week.n}.`, () => useStore.getState().removeExpense(copy))
+    }
+    if (item.date >= week.start && item.date <= week.end) return
+    const from = item.date
+    s.updateExpense(id, { ...item, date: to })
+    toast.undo(`Moved to Week ${week.n}.`, () => {
+      const now = useStore.getState().expenses.find((x) => x.id === id)
+      if (now) useStore.getState().updateExpense(id, { ...now, date: from })
+    })
+  }
+
+  return (
+    <article
+      onDragOver={(e) => {
+        if (!dragged) return
+        e.preventDefault()
+        const mode = isCopy(e) ? 'copy' : 'move'
+        e.dataTransfer.dropEffect = mode
+        setDrop(mode)
+      }}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDrop(null)}
+      onDrop={onDrop}
+      className={`relative flex min-w-0 flex-col rounded-2xl border p-3 transition ${drop ? 'border-emerald-400/60 bg-emerald-500/10' : isNow ? 'border-emerald-400/35 bg-emerald-500/[0.05]' : 'border-white/[0.07] bg-black/20'}`}
+    >
+      <header className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h4 className="flex items-center gap-1.5 text-sm font-semibold text-white">
+            Week {week.n}
+            {isNow && <span className="rounded-full bg-emerald-400/15 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-emerald-200">Now</span>}
+          </h4>
+          <p className="truncate text-xs text-zinc-500">{weekLabel(week)}</p>
+        </div>
+        <p className="shrink-0 text-sm font-semibold tabular-nums text-zinc-100">{f(total)}</p>
+      </header>
+
+      <ul className="mt-2.5 flex flex-1 flex-col gap-1.5">
+        {items.map((e) => (
+          <NeedRow key={e.id} item={e} cat={cats.find((c) => c.id === e.category)} />
+        ))}
+        {items.length === 0 && <li className="grid flex-1 place-items-center rounded-xl border border-dashed border-white/[0.08] px-2 py-4 text-center text-xs text-zinc-600">Nothing yet</li>}
+      </ul>
+
+      <button onClick={() => addTo(week)} className="mt-2.5 inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-sm font-medium text-zinc-200 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white">
+        <Plus className="h-4 w-4" /> Add item
+      </button>
+
+      {drop && (
+        <div className="pointer-events-none absolute inset-x-3 bottom-14 rounded-lg bg-emerald-500/90 px-2 py-1 text-center text-xs font-semibold text-emerald-950 shadow-lg">
+          Drop to {drop}
+        </div>
+      )}
+    </article>
+  )
+}
+
+function NeedRow({ item, cat }: { item: Expense; cat?: ExpenseCategory }) {
+  const f = useFmt()
+  const u = useAlt()
+  if (!cat) return null
+  const Icon = catIcon(cat)
+  const col = catColor(cat)
+  const d = fromKey(item.date)
+  const title = item.name || cat.label
+  const s = useStore.getState
+
+  function copyNext() {
+    const to = addDays(item.date, 7)
+    if (to > MAX_DATE) return
+    const id = s().addExpense({ ...item, date: to })
+    toast.undo(`Copied “${title}” to next week.`, () => useStore.getState().removeExpense(id))
+  }
+  function remove() {
+    const gone = s().removeExpense(item.id)
+    if (gone) toast.undo(`Deleted “${title}”.`, () => useStore.getState().restoreExpense(gone))
+  }
+
+  return (
+    <li
+      draggable
+      onDragStart={(e) => {
+        dragged = item.id
+        e.dataTransfer.effectAllowed = 'copyMove'
+        e.dataTransfer.setData('text/plain', title)
+      }}
+      onDragEnd={() => (dragged = null)}
+      onClick={() => s().openModal({ type: 'need', editId: item.id })}
+      title={`${cat.label} · click to edit · drag to another week`}
+      className={`group relative flex cursor-grab items-center gap-2 rounded-xl border border-white/[0.07] py-1.5 pl-1.5 pr-2 transition hover:brightness-125 active:cursor-grabbing ${col.soft}`}
+    >
+      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-black/25 ${col.text}`}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-medium text-zinc-100">{title}</span>
+        <span className="block truncate text-[11px] text-zinc-400">
+          {WEEKDAYS[d.getDay()]} {d.getDate()}
+          {item.name ? ` · ${cat.label}` : ''}
+        </span>
+      </span>
+      <span className="shrink-0 text-right sm:group-hover:hidden">
+        <span className="block text-[13px] font-semibold tabular-nums text-white">{f(item.amount)}</span>
+        <span className="alt text-[10px] tabular-nums text-zinc-400">≈ {u(item.amount, true)}</span>
+      </span>
+      <span className="hidden shrink-0 items-center gap-0.5 sm:group-hover:flex">
+        <RowBtn label="Copy to next week" onClick={copyNext}>
+          <Copy className="h-3.5 w-3.5" />
+        </RowBtn>
+        <RowBtn label={`Delete ${title}`} onClick={remove} danger>
+          <Trash2 className="h-3.5 w-3.5" />
+        </RowBtn>
+      </span>
+    </li>
+  )
+}
+
+function RowBtn({ label, onClick, danger, children }: { label: string; onClick: () => void; danger?: boolean; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      className={`grid h-7 w-7 place-items-center rounded-md text-zinc-300 transition hover:bg-white/10 ${danger ? 'hover:text-red-300' : 'hover:text-white'}`}
+    >
+      {children}
+    </button>
   )
 }

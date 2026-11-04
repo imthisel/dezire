@@ -7,6 +7,7 @@ import { MoneyPlan } from './components/MoneyPlan'
 import { Favorites } from './components/Favorites'
 import { Expenses } from './components/Expenses'
 import { NeedsPage } from './components/NeedsPage'
+import { NeedItemModal } from './components/NeedItemModal'
 import { ExpenseModal } from './components/ExpenseModal'
 import { Assets } from './components/Assets'
 import { Schedule } from './components/Schedule'
@@ -146,7 +147,8 @@ function Modals() {
     <>
       {modal.type === 'item' && <ItemModal key={`${modal.key}-${modal.editId ?? 'new'}`} monthKey={modal.key} editId={modal.editId} />}
       {modal.type === 'move' && <MoveDialog key={modal.id} monthKey={modal.key} id={modal.id} group={modal.group} startCopy={modal.copy} />}
-      {modal.type === 'expense' && <ExpenseModal key={modal.editId ?? `new-${modal.date ?? ''}-${modal.category ?? ''}`} editId={modal.editId} date={modal.date} category={modal.category} />}
+      {modal.type === 'expense' && <ExpenseModal key={modal.editId ?? `new-${modal.date ?? ''}`} editId={modal.editId} date={modal.date} />}
+      {modal.type === 'need' && <NeedItemModal key={modal.editId ?? `new-${modal.date ?? ''}`} editId={modal.editId} date={modal.date} />}
       {modal.type === 'task' && <TaskModal key={modal.editId ?? `new-${modal.date ?? ''}-${modal.start ?? ''}`} {...modal} />}
       {modal.type === 'kinds' && <KindsModal onClose={close} />}
       {modal.type === 'goalAreas' && <GoalAreasModal onClose={close} openId={modal.openId} add={modal.add} />}

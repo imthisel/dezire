@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { create } from 'zustand'
 import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware'
-import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, ItemLink, ModeKind, MonthData, NeedBudget, NeedsPlan, PlanStep, ModeData, ModeInfo, Result, RunningCosts, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
+import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, ItemLink, ModeKind, MonthData, NeedsPlan, PlanStep, ModeData, ModeInfo, Result, RunningCosts, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
 import {
   DEFAULT_GOAL_AREAS, DEFAULT_KINDS, GOAL_COLORS, GOAL_ICONS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_AREA, UNKNOWN_KIND,
   guessAreaIcon, guessIcon,
@@ -29,7 +29,9 @@ export type ModalState =
   /** `openId`: the area to show unfolded. `add`: start with the cursor in the new-area box. */
   | { type: 'goalAreas'; openId?: string; add?: boolean }
   /** Add (no `editId`) or edit an expense. `date`: the day a new one starts on. */
-  | { type: 'expense'; editId?: string; date?: string; category?: string }
+  | { type: 'expense'; editId?: string; date?: string }
+  /** Add (no `editId`) or edit something in a week of a Needs mode. `date`: the day a new one starts on. */
+  | { type: 'need'; editId?: string; date?: string }
   /** Add (no `editId`) or edit a task. The rest is what a new one starts with (e.g. the time dragged out on the calendar). */
   | { type: 'task'; editId?: string; entry?: TaskType; date?: string; start?: number | null; duration?: number; kind?: string; title?: string }
   | null
@@ -341,7 +343,8 @@ interface State {
   addMode: (name: string, copy: boolean, kind?: ModeKind) => string
   /** Changes the budgets of the Needs mode in use. */
   setNeeds: (patch: Partial<NeedsPlan>) => void
-  setNeedBudget: (id: string, patch: Partial<NeedBudget>) => void
+  /** One month's budget, in place of the usual one (null: back to the usual one). */
+  setNeedMonthBudget: (key: string, amount: number | null) => void
   addNeed: (id: string) => void
   /** Takes a category out of the needs (its expenses stay). Returns how to undo it. */
   removeNeed: (id: string) => () => void
@@ -754,16 +757,14 @@ export const useStore = create<State>()(
           })
       },
       setNeeds: (patch) => set((s) => ({ modes: changeNeeds(s, (n) => ({ ...n, ...patch })) })),
-      setNeedBudget: (id, patch) =>
+      setNeedMonthBudget: (key, amount) =>
         set((s) => ({
-          modes: changeNeeds(s, (n) => ({ ...n, budgets: { ...n.budgets, [id]: { ...(n.budgets[id] ?? { amount: 0, rhythm: 'week' as const }), ...patch } } })),
+          modes: changeNeeds(s, (n) => {
+            const { [key]: _old, ...rest } = n.monthBudgets
+            return { ...n, monthBudgets: amount === null ? rest : { ...rest, [key]: Math.max(0, amount) } }
+          }),
         })),
-      addNeed: (id) =>
-        set((s) => ({
-          modes: changeNeeds(s, (n) =>
-            n.cats.includes(id) ? n : { ...n, cats: [...n.cats, id], budgets: { ...n.budgets, [id]: n.budgets[id] ?? { amount: 0, rhythm: 'week' } } },
-          ),
-        })),
+      addNeed: (id) => set((s) => ({ modes: changeNeeds(s, (n) => (n.cats.includes(id) ? n : { ...n, cats: [...n.cats, id] })) })),
       removeNeed: (id) => {
         const before = get().modes.find((m) => m.id === get().modeId)?.needs
         set((s) => ({ modes: changeNeeds(s, (n) => ({ ...n, cats: n.cats.filter((c) => c !== id) })) }))
@@ -1387,7 +1388,13 @@ export const useStore = create<State>()(
       // Settings added in a later version get their defaults, and old ones are checked.
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<State>
-        return { ...current, ...p, prefs: parsePrefs(p.prefs), device: parseDevice(p.device) }
+        return {
+          ...current,
+          ...p,
+          prefs: parsePrefs(p.prefs),
+          device: parseDevice(p.device),
+          ...(p.modes ? { modes: p.modes.map((m) => (m.needs ? { ...m, needs: parseNeeds(m.needs) } : m)) } : {}),
+        }
       },
     },
   ),
@@ -1410,6 +1417,13 @@ function parseLayouts(raw: unknown): Layouts {
 
 /** Is the mode in use a Needs mode? */
 export const inNeedsMode = (s: Pick<State, 'modes' | 'modeId'>) => modeKind(s.modes.find((m) => m.id === s.modeId)) === 'needs'
+
+/** The Needs plan of the mode in use, without categories that have since been deleted. */
+export function useCurrentNeeds() {
+  const raw = useStore((s) => s.modes.find((m) => m.id === s.modeId)?.needs)
+  const cats = useStore((s) => s.expenseCats)
+  return useMemo(() => raw && { ...raw, cats: raw.cats.filter((id) => cats.some((c) => c.id === id)) }, [raw, cats])
+}
 
 /** The modes list with the budgets of the mode in use changed. */
 const changeNeeds = (s: Pick<State, 'modes' | 'modeId' | 'expenseCats'>, change: (n: NeedsPlan) => NeedsPlan) =>
