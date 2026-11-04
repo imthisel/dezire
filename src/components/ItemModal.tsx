@@ -1,10 +1,12 @@
 import { useCallback, useState, type ReactNode } from 'react'
-import { AlertTriangle, Car, Check, ChevronDown, Home, Settings2, StickyNote } from 'lucide-react'
+import { AlertTriangle, Car, Check, ChevronDown, Home, Link2, Settings2, StickyNote } from 'lucide-react'
 import { fitCheck, useFmt, useItemIndex, useKindOf, useKinds, useStore, useAlt } from '../store'
 import { TREND, kindColor, kindIcon } from '../lib/meta'
 import { labelOfKey } from '../lib/time'
 import { NotYet } from './Kept'
-import type { Category, Trend } from '../lib/types'
+import { MAX_LINKS, pastedUrl } from '../lib/links'
+import type { Category, ItemLink, Trend } from '../lib/types'
+import { LinksEditor, emptyDraft, withDraft, type LinkDraft } from './ItemLinks'
 import { Modal } from './Modal'
 import { KindsModal } from './KindsModal'
 import { MoneyInput } from './MoneyInput'
@@ -33,7 +35,9 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
   const [rate, setRate] = useState<string>(editing ? String(editing.rate) : '')
   const [rateTouched, setRateTouched] = useState(!!editing)
   const [notes, setNotes] = useState(editing?.notes ?? '')
-  const [notesOpen, setNotesOpen] = useState(!!editing?.notes)
+  const [links, setLinks] = useState<ItemLink[]>(editing?.links ?? [])
+  const [linkDraft, setLinkDraft] = useState<LinkDraft | null>(null)
+  const [notesOpen, setNotesOpen] = useState(!!editing?.notes || !!editing?.links?.length)
   // Vehicles: what it costs to run each year (optional)
   const [running, setRunning] = useState<RunningDraft>(() => draftOf(editing?.running, lastFuelPrice()))
   const index = useItemIndex()
@@ -70,6 +74,13 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
 
   function save() {
     if (!ready) return
+    // A link still being typed is saved with the item, not lost. One that isn't a real address has to be fixed first.
+    const allLinks = withDraft(links, linkDraft)
+    if (!allLinks) {
+      setNotesOpen(true)
+      setLinkDraft({ ...linkDraft!, bad: true, focus: 'url' })
+      return toast.error('That link doesn’t look right. Fix it or remove it to save.')
+    }
     const runningCosts = category === 'vehicle' ? cleanRunning(runningOf(running)) : null
     if (runningCosts) rememberFuelPrice(runningCosts.fuelPrice)
     const data = {
@@ -79,6 +90,7 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
       price: price!,
       rate: rateNum,
       notes: notes.trim(),
+      links: allLinks.length ? allLinks : undefined,
       propertyId: category === 'vehicle' && propertyId ? propertyId : undefined,
       running: runningCosts ?? undefined,
     }
@@ -345,24 +357,39 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
             aria-expanded={notesOpen}
             className="group flex w-full items-center gap-2.5 text-left"
           >
-            <span className={`grid h-6 w-6 place-items-center rounded-full transition ${notes.trim() ? 'bg-amber-300/20 text-amber-200' : 'bg-white/10 text-zinc-300'}`}>
+            <span className={`grid h-6 w-6 place-items-center rounded-full transition ${notes.trim() || links.length ? 'bg-amber-300/20 text-amber-200' : 'bg-white/10 text-zinc-300'}`}>
               <StickyNote className="h-3.5 w-3.5" />
             </span>
-            <span className="text-sm font-semibold text-zinc-200">Notes</span>
+            <span className="text-sm font-semibold text-zinc-200">Notes &amp; links</span>
             <span className="rounded-full bg-white/[0.06] px-1.5 py-px text-[10px] font-medium uppercase tracking-wider text-zinc-500">optional</span>
+            {!notesOpen && links.length > 0 && (
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs text-sky-200/80">
+                <Link2 className="h-3 w-3" /> {links.length}
+              </span>
+            )}
             {!notesOpen && notes.trim() && <span className="min-w-0 flex-1 truncate text-xs text-zinc-500">{notes.trim()}</span>}
             <ChevronDown className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform group-hover:text-zinc-300 ${notesOpen ? 'rotate-180' : ''}`} />
           </button>
           {notesOpen && (
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              autoFocus={!editing?.notes}
-              rows={3}
-              maxLength={2000}
-              placeholder="Anything to remember: where to buy it, the exact model, why you want it, a link…"
-              className="animate-fade mt-2.5 block min-h-[5.5rem] w-full resize-y rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base leading-relaxed text-zinc-100 outline-none transition [field-sizing:content] placeholder:text-zinc-600 hover:border-white/20 focus:border-amber-300/50 focus:ring-2 focus:ring-amber-300/15 sm:text-sm"
-            />
+            <div className="animate-fade">
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                onPaste={(e) => {
+                  // Pasting a web address on its own: make it a link with a name instead of a long address in the note.
+                  const url = pastedUrl(e.clipboardData.getData('text'))
+                  if (!url || linkDraft || links.length >= MAX_LINKS) return
+                  e.preventDefault()
+                  setLinkDraft(emptyDraft(url))
+                }}
+                autoFocus={!editing?.notes && !editing?.links?.length}
+                rows={3}
+                maxLength={2000}
+                placeholder="Anything to remember: where to buy it, the exact model, why you want it…"
+                className="mt-2.5 block min-h-[5.5rem] w-full resize-y rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base leading-relaxed text-zinc-100 outline-none transition [field-sizing:content] placeholder:text-zinc-600 hover:border-white/20 focus:border-amber-300/50 focus:ring-2 focus:ring-amber-300/15 sm:text-sm"
+              />
+              <LinksEditor links={links} onChange={setLinks} draft={linkDraft} setDraft={setLinkDraft} note={notes} onNote={setNotes} />
+            </div>
           )}
         </section>
 

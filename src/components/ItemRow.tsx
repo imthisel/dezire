@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type MouseEvent } from 'react'
-import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Car, Check, Copy, CopyPlus, GripVertical, Home, Pencil, Plus, Scissors, Star, StickyNote, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Car, Check, Copy, CopyPlus, GripVertical, Home, Link2, Pencil, Plus, Scissors, Star, StickyNote, Trash2 } from 'lucide-react'
 import type { Item } from '../lib/types'
 import { TREND, kindIcon } from '../lib/meta'
 import { useFmt, useItemIndex, useKindOf, useStore, useAlt } from '../store'
@@ -7,6 +7,7 @@ import { labelOfKey } from '../lib/time'
 import { goToMonth } from '../nav'
 import { drag, dragIds, groupDragImage } from '../dnd'
 import { selection, usePicking, useSelected } from '../selection'
+import { ItemLinks } from './ItemLinks'
 import { NotYet } from './Kept'
 import { RunningCostsSummary } from './RunningCosts'
 import { toast } from '../toast'
@@ -43,6 +44,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
   const s = useStore.getState
   const fav = !!item.favorite
   const note = item.notes?.trim() ?? ''
+  const hasLinks = !!item.links?.length
   const index = useItemIndex()
   const isProperty = item.category === 'property'
   const isVehicle = item.category === 'vehicle'
@@ -203,6 +205,11 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
               <title>Has a note · click to read</title>
             </StickyNote>
           )}
+          {hasLinks && !open && (
+            <Link2 aria-label="Has links" className="h-3 w-3 shrink-0 text-sky-300/70">
+              <title>Has links · click to see them</title>
+            </Link2>
+          )}
         </p>
         <p className={`flex items-center gap-1 truncate text-[11px] ${t.text}`}>
           <t.icon className="h-3 w-3 shrink-0" />
@@ -313,14 +320,17 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
       {/* Note: only shown once the item is clicked open */}
       {open && (
         <div className="animate-fade basis-full" onClick={(e) => e.stopPropagation()}>
-          {note ? (
+          {note || hasLinks ? (
             <div className="flex gap-2.5 rounded-lg border border-amber-200/15 bg-black/30 py-2 pl-2.5 pr-1.5">
               <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-200/70" />
-              <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-zinc-300">{note}</p>
+              <div className="min-w-0 flex-1">
+                {note && <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-zinc-300">{note}</p>}
+                <ItemLinks links={item.links} className={note ? 'mt-2' : ''} />
+              </div>
               <button
                 onClick={edit}
-                title="Edit note"
-                aria-label="Edit note"
+                title="Edit notes and links"
+                aria-label="Edit notes and links"
                 className="-my-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-white"
               >
                 <Pencil className="h-3 w-3" />
@@ -331,7 +341,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
               onClick={edit}
               className="inline-flex h-7 items-center gap-1.5 rounded-md px-1 text-xs text-zinc-500 transition hover:text-amber-200"
             >
-              <Plus className="h-3 w-3" /> Add a note
+              <Plus className="h-3 w-3" /> Add a note or link
             </button>
           )}
         </div>

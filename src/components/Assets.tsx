@@ -3,6 +3,7 @@ import {
   ArrowUpDown, BadgeDollarSign, Cake, Fuel, CalendarCheck, CalendarDays, CalendarRange, Car, ChevronDown, ChevronLeft, ChevronRight, Copy, Gem, Home, Infinity as All, Pencil,
   Plus, RotateCcw, Settings2, Star, Trash2, TrendingDown, TrendingUp, X,
 } from 'lucide-react'
+import { ItemLinks } from './ItemLinks'
 import {
   placementAt, setupMonths, undoSale, useFmt, useItemIndex, useKindOf, useKinds, useParking, useStore, useAlt, type AssetCat, type AssetPeriod, type Parking,
 } from '../store'
@@ -1221,6 +1222,8 @@ function AssetCard({ asset: { item, key, index }, asOf, asOfLabel, parking }: { 
           {item.trend !== 'stable' && item.rate > 0 && <span className="opacity-80">· {item.rate}%/yr</span>}
         </span>
       </div>
+
+      <ItemLinks links={item.links} className="mt-3" />
 
       <Kept item={item} drag parking={parking} />
       {isVehicle && <RunningCostsSummary running={item.running} />}

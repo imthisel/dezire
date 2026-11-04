@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { create } from 'zustand'
 import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware'
-import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, ModeKind, MonthData, NeedBudget, NeedsPlan, PlanStep, ModeData, ModeInfo, Result, RunningCosts, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
+import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, ItemLink, ModeKind, MonthData, NeedBudget, NeedsPlan, PlanStep, ModeData, ModeInfo, Result, RunningCosts, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
 import {
   DEFAULT_GOAL_AREAS, DEFAULT_KINDS, GOAL_COLORS, GOAL_ICONS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_AREA, UNKNOWN_KIND,
   guessAreaIcon, guessIcon,
@@ -14,6 +14,7 @@ import {
   DEFAULT_EXPENSE_CATS, MAX_CAT_NAME, MAX_ITEM_NAME, MAX_PLACE_NAME, clampDate, guessExpenseIcon, isDate, parseExpenseCats, parseExpenses, parsePlaces,
   todayKey, uniq,
 } from './lib/expenses'
+import { parseLinks } from './lib/links'
 import { modeKind, parseNeeds, starterNeeds } from './lib/needs'
 import { DEFAULT_DEVICE, DEFAULT_PREFS, live, parseDevice, parsePrefs, type DevicePrefs, type Prefs } from './lib/prefs'
 import { DEFAULT_TASK_KINDS, MAX_TASK_KIND_NAME, TASK_COLORS, UNKNOWN_TASK_KIND, cleanTask, guessTaskIcon, parseTaskKinds, parseTasks, type TaskInput } from './lib/tasks'
@@ -50,7 +51,7 @@ export type AreaPatch = Partial<Omit<GoalAreaDef, 'id'>>
 export type ExpenseInput = { date: string; amount: number; name?: string; category?: string; place?: string; notes?: string }
 export type ExpenseCatPatch = Partial<Omit<ExpenseCategory, 'id'>>
 export type TaskKindPatch = Partial<Omit<TaskKind, 'id'>>
-export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string; propertyId?: string; running?: RunningCosts }
+export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string; links?: ItemLink[]; propertyId?: string; running?: RunningCosts }
 
 const OK: Result = { ok: true }
 /** Tidies what was typed for an expense. */
@@ -1492,6 +1493,7 @@ function parseMonths(raw: unknown, kinds: ItemKind[]): Record<string, MonthData>
             createdAt: Number(i.createdAt) || Date.now(),
             ...(i.favorite ? { favorite: true } : {}),
             ...(typeof i.notes === 'string' && i.notes.trim() ? { notes: i.notes } : {}),
+            ...(parseLinks(i.links).length ? { links: parseLinks(i.links) } : {}),
             ...(typeof i.propertyId === 'string' && i.propertyId ? { propertyId: i.propertyId } : {}),
             ...(cleanRunning(i.running) ? { running: cleanRunning(i.running)! } : {}),
           }))

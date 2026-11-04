@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { BarChart3, CalendarDays, Pencil, Star } from 'lucide-react'
+import { ItemLinks } from './ItemLinks'
 import { useFmt, useKindOf, useStore, useAlt } from '../store'
 import { TREND, kindIcon } from '../lib/meta'
 import { valueAfter } from '../lib/calc'
@@ -344,6 +345,8 @@ function FavCard({ fav: { item, key, index } }: { fav: Fav }) {
           {item.trend !== 'stable' && item.rate > 0 && <span className="opacity-80">· {item.rate}%/yr</span>}
         </span>
       </div>
+
+      <ItemLinks links={item.links} className="mt-3" />
 
       <Kept item={item} />
 

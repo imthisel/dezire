@@ -1,5 +1,6 @@
 import { savedModes, useStore } from './store'
 import { WEEKDAYS, addDays, fromKey } from './lib/expenses'
+import { linkName } from './lib/links'
 import { starterNeeds } from './lib/needs'
 import { DUE_SPAN, isEvent } from './lib/tasks'
 import { keyOf, labelOfKey, TOTAL_MONTHS } from './lib/time'
@@ -131,10 +132,10 @@ export function downloadItemsCsv() {
   const rows: unknown[][] = []
   for (let i = 0; i < TOTAL_MONTHS; i++) {
     const key = keyOf(i)
-    for (const it of months[key]?.items ?? []) rows.push([labelOfKey(key), it.name, name.get(it.category) ?? '', it.trend, it.price, currency.main.code, it.trend === 'stable' ? '' : it.rate, it.favorite ? 'Yes' : '', it.notes ?? ''])
+    for (const it of months[key]?.items ?? []) rows.push([labelOfKey(key), it.name, name.get(it.category) ?? '', it.trend, it.price, currency.main.code, it.trend === 'stable' ? '' : it.rate, it.favorite ? 'Yes' : '', it.notes ?? '', (it.links ?? []).map((l) => `${linkName(l)}: ${l.url}`).join('\n')])
   }
   if (!rows.length) return toast.info('No items to download yet.')
-  download(`dizayr-items-${today()}.csv`, sheet([['Month', 'Item', 'Kind', 'Value', 'Price', 'Currency', 'Yearly %', 'Favorite', 'Notes'], ...rows]), 'text/csv')
+  download(`dizayr-items-${today()}.csv`, sheet([['Month', 'Item', 'Kind', 'Value', 'Price', 'Currency', 'Yearly %', 'Favorite', 'Notes', 'Links'], ...rows]), 'text/csv')
   toast.success(`Downloaded ${rows.length} item${rows.length === 1 ? '' : 's'}.`)
 }
 

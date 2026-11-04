@@ -6,6 +6,7 @@ import { fmt } from '../lib/money'
 import { MONTHS, MONTHS_SHORT, labelOfKey } from '../lib/time'
 import { NO_CATEGORY, catColor, catIcon, longDate, todayKey } from '../lib/expenses'
 import { UNKNOWN_TASK_KIND, fmtRange, fmtTime, isEvent, repeatLabel, taskColor } from '../lib/tasks'
+import { ItemLinks } from '../components/ItemLinks'
 import { download, dreamsOf, type Plan } from './data'
 import { Card, Empty, Segmented, cx } from './ui'
 
@@ -135,6 +136,7 @@ export function DreamsTab({ plan }: { plan: Plan }) {
                           {d.createdAt ? ` · added ${new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
                         </p>
                         {d.notes ? <p className="mt-1.5 whitespace-pre-wrap text-zinc-300">{d.notes}</p> : <p className="mt-1.5 text-zinc-600">No notes.</p>}
+                        <ItemLinks links={d.links} className="mt-2" />
                       </div>
                     )}
                   </li>

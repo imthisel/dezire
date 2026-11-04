@@ -4,6 +4,7 @@ import { DEFAULT_CURRENCIES, parseCurrencies, type Currencies } from '../lib/mon
 import { computeAll } from '../lib/calc'
 import { DEFAULT_EXPENSE_CATS, parseExpenseCats, parseExpenses } from '../lib/expenses'
 import { DEFAULT_TASK_KINDS, parseTaskKinds, parseTasks } from '../lib/tasks'
+import { parseLinks } from '../lib/links'
 import { TRIAL_DAYS } from '../lib/plans'
 import type { Sub, UserRow } from './api'
 
@@ -117,6 +118,7 @@ function cleanMonths(raw: unknown): Record<string, MonthData> {
             createdAt: num(i.createdAt),
             favorite: i.favorite === true,
             notes: typeof i.notes === 'string' ? i.notes : undefined,
+            links: parseLinks(i.links),
           }))
         : [],
     }

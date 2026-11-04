@@ -14,6 +14,13 @@ export interface ItemKind {
   color: string
 }
 
+/** A link on an item. `label`: the name it shows as ('' = the site's name). `url` is always a checked web or email address. */
+export interface ItemLink {
+  id: string
+  label: string
+  url: string
+}
+
 export interface Item {
   id: string
   name: string
@@ -27,6 +34,8 @@ export interface Item {
   favorite?: boolean
   /** Free text, shown when the item is clicked open */
   notes?: string
+  /** Named links, shown with the notes */
+  links?: ItemLink[]
   /** Vehicles only: id of the Land / Property item it's kept at (any month) */
   propertyId?: string
   /** Vehicles only, optional: what it costs to run each year (an estimate) */
