@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CalendarDays, Check, Download, Flag, Gem, Receipt, Trash2, Upload } from 'lucide-react'
 import { clearData, downloadBackup, downloadCalendar, downloadExpensesCsv, downloadGoalsCsv, downloadItemsCsv, readBackup, restoreBackup, type BackupInfo, type ClearPart } from '../../backup'
 import { snapshot } from '../../cloud'
-import { useStore } from '../../store'
+import { inNeedsMode, useStore } from '../../store'
 import { Modal } from '../Modal'
 import { ActionRow, Button, Group, Row, ToggleRow } from './ui'
 
@@ -144,13 +144,16 @@ const CONFIRM_WORD = 'DELETE'
 
 function ClearModal({ items, expenses, tasks, goals, sources, onClose }: { items: number; expenses: number; tasks: number; goals: number; sources: number; onClose: () => void }) {
   const modeName = useStore((s) => s.modes.find((m) => m.id === s.modeId)?.name ?? 'Main')
+  const needsMode = useStore(inNeedsMode)
   const [picked, setPicked] = useState<ClearPart[]>([])
   const [typed, setTyped] = useState('')
   const everything = picked.includes('everything')
   const ready = picked.length > 0 && (!everything || typed.trim().toUpperCase() === CONFIRM_WORD)
 
   const options: { id: ClearPart; title: string; hint: string }[] = [
-    { id: 'plan', title: `The plan in “${modeName}”`, hint: `${plural(items, 'item')}, goals to make, budgets, setups and year notes` },
+    needsMode
+      ? { id: 'plan', title: `The budgets in “${modeName}”`, hint: 'Your weekly, monthly and per-need budgets. Your expenses stay.' }
+      : { id: 'plan', title: `The plan in “${modeName}”`, hint: `${plural(items, 'item')}, goals to make, budgets, setups and year notes` },
     { id: 'expenses', title: 'Expenses', hint: plural(expenses, 'expense') },
     { id: 'calendar', title: 'Calendar & tasks', hint: plural(tasks, 'entry').replace('entrys', 'entries') },
     { id: 'goals', title: 'Yearly goals', hint: plural(goals, 'goal') },

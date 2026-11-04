@@ -1,6 +1,6 @@
-import { CalendarCheck, Flag, Gem, LayoutDashboard, Menu, Receipt } from 'lucide-react'
+import { CalendarCheck, Flag, Gem, LayoutDashboard, Menu, Receipt, ShoppingBasket } from 'lucide-react'
 import { goTo, useActiveSection, type Section } from '../nav'
-import { useStore } from '../store'
+import { inNeedsMode, useStore } from '../store'
 import type { NavId } from '../lib/prefs'
 
 /** The everyday places; everything else is one tap away under More (the side menu). */
@@ -16,6 +16,11 @@ export function MobileNav() {
   const active = useActiveSection()
   const drawer = useStore((s) => s.drawer)
   const hiddenNav = useStore((s) => s.prefs.hiddenNav)
+  const needsMode = useStore(inNeedsMode)
+  // A Needs mode has no assets of its own, and Home is its budget.
+  const tabs = SECTIONS.filter((s) => !hiddenNav.includes(s.id as NavId) && !(needsMode && s.id === 'assets')).map((s) =>
+    needsMode && s.id === 'overview' ? { ...s, label: 'Budget', icon: ShoppingBasket } : s,
+  )
   // Months and Goals are part of Home; Favorites and Money plan live under More.
   const current = active === 'years' || active === 'goals' ? 'overview' : active
   const inMore = !SECTIONS.some((s) => s.id === current)
@@ -23,7 +28,7 @@ export function MobileNav() {
   return (
     <nav data-tabbar className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-[#0b0c11]/90 backdrop-blur-xl sm:hidden">
       <div className="mx-auto flex max-w-md">
-        {SECTIONS.filter((s) => !hiddenNav.includes(s.id as NavId)).map((s) => (
+        {tabs.map((s) => (
           <Tab key={s.id} on={!drawer && current === s.id} label={s.label} icon={s.icon} onClick={() => goTo(s.id)} />
         ))}
         <Tab on={drawer || inMore} label="More" icon={Menu} onClick={() => useStore.getState().setDrawer(!drawer)} />

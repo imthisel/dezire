@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore, type CSSProperties } from 'react'
 import { flushSync } from 'react-dom'
-import { useStore, type PhoneCols } from './store'
+import { inNeedsMode, useStore, type PhoneCols } from './store'
 import { useIsPhone } from './lib/useMedia'
 import { touchDragging } from './touchdrag'
 
@@ -103,7 +103,7 @@ export function usePinchZoom() {
     const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
     const allowed = () => {
       const s = useStore.getState()
-      return window.matchMedia('(max-width: 639px)').matches && !s.modal && s.view !== 'plan'
+      return window.matchMedia('(max-width: 639px)').matches && !s.modal && s.view !== 'plan' && !inNeedsMode(s)
     }
     const visible = (el: Element) => {
       const r = el.getBoundingClientRect()

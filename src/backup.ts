@@ -1,5 +1,6 @@
 import { savedModes, useStore } from './store'
 import { WEEKDAYS, addDays, fromKey } from './lib/expenses'
+import { starterNeeds } from './lib/needs'
 import { DUE_SPAN, isEvent } from './lib/tasks'
 import { keyOf, labelOfKey, TOTAL_MONTHS } from './lib/time'
 import { toast } from './toast'
@@ -86,7 +87,13 @@ export function clearData(parts: ClearPart[]) {
   if (parts.includes('everything')) s.resetAll()
   else {
     useStore.setState({
-      ...(parts.includes('plan') ? { months: {}, layouts: {}, setupNotes: {}, setupFavorites: {}, yearNotes: {}, clipboard: null } : {}),
+      ...(parts.includes('plan')
+        ? {
+            months: {}, layouts: {}, setupNotes: {}, setupFavorites: {}, yearNotes: {}, clipboard: null,
+            // A Needs mode's plan is its budgets: back to where a new one starts.
+            modes: s.modes.map((m) => (m.id === s.modeId && m.kind === 'needs' ? { ...m, needs: starterNeeds(s.expenseCats) } : m)),
+          }
+        : {}),
       ...(parts.includes('expenses') ? { expenses: [] } : {}),
       ...(parts.includes('calendar') ? { tasks: [] } : {}),
       ...(parts.includes('goals') ? { goals: {} } : {}),

@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { create } from 'zustand'
 import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware'
-import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, MonthData, PlanStep, ModeData, ModeInfo, Result, RunningCosts, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
+import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, ModeKind, MonthData, NeedBudget, NeedsPlan, PlanStep, ModeData, ModeInfo, Result, RunningCosts, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
 import {
   DEFAULT_GOAL_AREAS, DEFAULT_KINDS, GOAL_COLORS, GOAL_ICONS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_AREA, UNKNOWN_KIND,
   guessAreaIcon, guessIcon,
@@ -14,6 +14,7 @@ import {
   DEFAULT_EXPENSE_CATS, MAX_CAT_NAME, MAX_ITEM_NAME, MAX_PLACE_NAME, clampDate, guessExpenseIcon, isDate, parseExpenseCats, parseExpenses, parsePlaces,
   todayKey, uniq,
 } from './lib/expenses'
+import { modeKind, parseNeeds, starterNeeds } from './lib/needs'
 import { DEFAULT_DEVICE, DEFAULT_PREFS, live, parseDevice, parsePrefs, type DevicePrefs, type Prefs } from './lib/prefs'
 import { DEFAULT_TASK_KINDS, MAX_TASK_KIND_NAME, TASK_COLORS, UNKNOWN_TASK_KIND, cleanTask, guessTaskIcon, parseTaskKinds, parseTasks, type TaskInput } from './lib/tasks'
 
@@ -27,7 +28,7 @@ export type ModalState =
   /** `openId`: the area to show unfolded. `add`: start with the cursor in the new-area box. */
   | { type: 'goalAreas'; openId?: string; add?: boolean }
   /** Add (no `editId`) or edit an expense. `date`: the day a new one starts on. */
-  | { type: 'expense'; editId?: string; date?: string }
+  | { type: 'expense'; editId?: string; date?: string; category?: string }
   /** Add (no `editId`) or edit a task. The rest is what a new one starts with (e.g. the time dragged out on the calendar). */
   | { type: 'task'; editId?: string; entry?: TaskType; date?: string; start?: number | null; duration?: number; kind?: string; title?: string }
   | null
@@ -335,8 +336,14 @@ interface State {
   modeData: Record<string, ModeData>
   /** Opens another mode. */
   switchMode: (id: string) => void
-  /** Adds a mode, empty or as a copy of the one in use, and opens it. Returns its id. */
-  addMode: (name: string, copy: boolean) => string
+  /** Adds a mode, empty or as a copy of the one in use (same kind only), and opens it. Returns its id. */
+  addMode: (name: string, copy: boolean, kind?: ModeKind) => string
+  /** Changes the budgets of the Needs mode in use. */
+  setNeeds: (patch: Partial<NeedsPlan>) => void
+  setNeedBudget: (id: string, patch: Partial<NeedBudget>) => void
+  addNeed: (id: string) => void
+  /** Takes a category out of the needs (its expenses stay). Returns how to undo it. */
+  removeNeed: (id: string) => () => void
   /** Replaces another mode's plan with a copy of the one in use, which stays open. Returns how to undo it. */
   copyModeOver: (id: string) => () => void
   renameMode: (id: string, name: string) => void
@@ -714,10 +721,17 @@ export const useStore = create<State>()(
             clipboard: s.clipboard?.mode === 'cut' ? null : s.clipboard,
           }
         }),
-      addMode: (name, copy) => {
+      addMode: (name, copy, kind = 'wants') => {
         const s = get()
-        const mode: ModeInfo = { id: uid(), name: name.trim().slice(0, MAX_MODE_NAME) || `Mode ${s.modes.length + 1}`, createdAt: Date.now() }
-        const data = copy ? copyOfPlan(s) : emptyMode()
+        const from = s.modes.find((m) => m.id === s.modeId)
+        const sameKind = copy && modeKind(from) === kind
+        const mode: ModeInfo = {
+          id: uid(),
+          name: name.trim().slice(0, MAX_MODE_NAME) || `Mode ${s.modes.length + 1}`,
+          createdAt: Date.now(),
+          ...(kind === 'needs' ? { kind, needs: sameKind && from?.needs ? structuredClone(from.needs) : starterNeeds(s.expenseCats) } : {}),
+        }
+        const data = sameKind && kind === 'wants' ? copyOfPlan(s) : emptyMode()
         set({ modes: [...s.modes, mode], modeData: { ...s.modeData, [mode.id]: data } })
         get().switchMode(mode.id)
         return mode.id
@@ -726,13 +740,33 @@ export const useStore = create<State>()(
         const s = get()
         if (id === s.modeId || !s.modes.some((m) => m.id === id)) return () => {}
         const before = { ...emptyMode(), ...s.modeData[id] }
-        set({ modeData: { ...s.modeData, [id]: copyOfPlan(s) } })
+        const needsBefore = s.modes.find((m) => m.id === id)?.needs
+        const needsNow = s.modes.find((m) => m.id === s.modeId)?.needs
+        const withNeeds = (list: ModeInfo[], needs: NeedsPlan | undefined) => (needs ? list.map((m) => (m.id === id ? { ...m, needs: structuredClone(needs) } : m)) : list)
+        set({ modeData: { ...s.modeData, [id]: copyOfPlan(s) }, modes: withNeeds(s.modes, needsNow) })
         return () =>
           set((now) => {
             if (!now.modes.some((m) => m.id === id)) return {}
+            const modes = withNeeds(now.modes, needsBefore)
             // It may have been opened since, and then its plan is the one in use.
-            return now.modeId === id ? before : { modeData: { ...now.modeData, [id]: before } }
+            return now.modeId === id ? { ...before, modes } : { modeData: { ...now.modeData, [id]: before }, modes }
           })
+      },
+      setNeeds: (patch) => set((s) => ({ modes: changeNeeds(s, (n) => ({ ...n, ...patch })) })),
+      setNeedBudget: (id, patch) =>
+        set((s) => ({
+          modes: changeNeeds(s, (n) => ({ ...n, budgets: { ...n.budgets, [id]: { ...(n.budgets[id] ?? { amount: 0, rhythm: 'week' as const }), ...patch } } })),
+        })),
+      addNeed: (id) =>
+        set((s) => ({
+          modes: changeNeeds(s, (n) =>
+            n.cats.includes(id) ? n : { ...n, cats: [...n.cats, id], budgets: { ...n.budgets, [id]: n.budgets[id] ?? { amount: 0, rhythm: 'week' } } },
+          ),
+        })),
+      removeNeed: (id) => {
+        const before = get().modes.find((m) => m.id === get().modeId)?.needs
+        set((s) => ({ modes: changeNeeds(s, (n) => ({ ...n, cats: n.cats.filter((c) => c !== id) })) }))
+        return () => before && set((s) => ({ modes: changeNeeds(s, () => before) }))
       },
       renameMode: (id, name) =>
         set((s) => ({ modes: s.modes.map((m) => (m.id === id ? { ...m, name: name.trim().slice(0, MAX_MODE_NAME) || m.name } : m)) })),
@@ -1373,6 +1407,12 @@ function parseLayouts(raw: unknown): Layouts {
 
 // ---- Modes ----
 
+/** Is the mode in use a Needs mode? */
+export const inNeedsMode = (s: Pick<State, 'modes' | 'modeId'>) => modeKind(s.modes.find((m) => m.id === s.modeId)) === 'needs'
+
+/** The modes list with the budgets of the mode in use changed. */
+const changeNeeds = (s: Pick<State, 'modes' | 'modeId' | 'expenseCats'>, change: (n: NeedsPlan) => NeedsPlan) =>
+  s.modes.map((m) => (m.id === s.modeId && m.kind === 'needs' ? { ...m, needs: change(m.needs ?? starterNeeds(s.expenseCats)) } : m))
 
 /** Every mode with its data, the one in use included. */
 function allModes(s: Pick<State, 'modes' | 'modeId' | 'modeData' | 'months' | 'layouts' | 'setupNotes' | 'setupFavorites' | 'yearNotes'>) {
@@ -1412,7 +1452,12 @@ function parseModes(raw: unknown, kinds: ItemKind[]): { list: ModeInfo[]; data: 
         continue
       }
       if (list.some((m) => m.id === x.id)) continue
-      list.push({ id: x.id, name: name || `Mode ${list.length + 2}`, createdAt: Number(x.createdAt) || Date.now() })
+      list.push({
+        id: x.id,
+        name: name || `Mode ${list.length + 2}`,
+        createdAt: Number(x.createdAt) || Date.now(),
+        ...(x.kind === 'needs' ? { kind: 'needs' as const, needs: parseNeeds(x.needs) } : {}),
+      })
       data[x.id] = {
         months: parseMonths(x.months, kinds),
         layouts: parseLayouts(x.layouts),

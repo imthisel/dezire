@@ -1,11 +1,12 @@
 import { memo, useDeferredValue, useEffect, useMemo } from 'react'
-import { useStore, type View } from './store'
+import { inNeedsMode, useStore, type View } from './store'
 import { Header } from './components/Header'
 import { Dashboard } from './components/Dashboard'
 import { YearSection } from './components/YearSection'
 import { MoneyPlan } from './components/MoneyPlan'
 import { Favorites } from './components/Favorites'
 import { Expenses } from './components/Expenses'
+import { NeedsPage } from './components/NeedsPage'
 import { ExpenseModal } from './components/ExpenseModal'
 import { Assets } from './components/Assets'
 import { Schedule } from './components/Schedule'
@@ -51,6 +52,7 @@ export default function App() {
 export function Planner() {
   const sidebar = useStore((s) => s.sidebar)
   const hideBackup = useStore((s) => s.prefs.hideBackup)
+  const needs = useStore(inNeedsMode)
   useModeGuard()
   usePinchZoom()
   useDragAutoScroll()
@@ -60,8 +62,9 @@ export function Planner() {
   return (
     <div className="relative min-h-screen overflow-x-clip bg-[#07080c] text-zinc-100 antialiased">
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[520px] overflow-hidden">
-        <div className="absolute -top-40 left-1/4 h-[420px] w-[620px] rounded-full bg-indigo-600/20 blur-[120px]" />
-        <div className="absolute -top-32 right-0 h-[360px] w-[480px] rounded-full bg-emerald-500/10 blur-[120px]" />
+        {/* A Needs mode is green from the top of the page, so it's clear at a glance which kind of mode this is. */}
+        <div className={`absolute -top-40 left-1/4 h-[420px] w-[620px] rounded-full blur-[120px] ${needs ? 'bg-emerald-500/25' : 'bg-indigo-600/20'}`} />
+        <div className={`absolute -top-32 right-0 h-[360px] w-[480px] rounded-full blur-[120px] ${needs ? 'bg-teal-400/15' : 'bg-emerald-500/10'}`} />
       </div>
 
       <SidebarM />
@@ -91,13 +94,14 @@ const HeaderM = memo(Header)
 const MobileNavM = memo(MobileNav)
 
 /** The page for a view (built once per view, so redrawing around it doesn't redo it). */
-function page(view: View) {
+function page(view: View, needs: boolean) {
   if (view === 'plan') return <MoneyPlan />
   if (view === 'expenses') return <Expenses />
   if (view === 'favorites') return <Favorites />
   if (view === 'assets') return <Assets />
   if (view === 'calendar') return <Schedule />
   if (view === 'settings') return <Settings />
+  if (needs) return <NeedsPage />
   return (
     <>
       <Dashboard />
@@ -112,15 +116,16 @@ function page(view: View) {
  */
 const Pages = memo(function Pages() {
   const view = useStore((s) => s.view)
+  const needs = useStore(inNeedsMode)
   const shown = useDeferredValue(view)
-  const content = useMemo(() => page(shown), [shown])
+  const content = useMemo(() => page(shown, needs), [shown, needs])
   return (
     <main
       data-view={shown}
       aria-busy={view !== shown}
       className={`mx-auto max-w-[1440px] px-4 pb-16 transition-opacity duration-150 sm:px-6 sm:pb-32 lg:px-8 ${view !== shown ? 'opacity-50' : ''}`}
     >
-      <div key={shown} className="animate-page space-y-6 sm:space-y-8">
+      <div key={`${shown}-${needs}`} className="animate-page space-y-6 sm:space-y-8">
         {content}
       </div>
     </main>
@@ -141,7 +146,7 @@ function Modals() {
     <>
       {modal.type === 'item' && <ItemModal key={`${modal.key}-${modal.editId ?? 'new'}`} monthKey={modal.key} editId={modal.editId} />}
       {modal.type === 'move' && <MoveDialog key={modal.id} monthKey={modal.key} id={modal.id} group={modal.group} startCopy={modal.copy} />}
-      {modal.type === 'expense' && <ExpenseModal key={modal.editId ?? `new-${modal.date ?? ''}`} editId={modal.editId} date={modal.date} />}
+      {modal.type === 'expense' && <ExpenseModal key={modal.editId ?? `new-${modal.date ?? ''}-${modal.category ?? ''}`} editId={modal.editId} date={modal.date} category={modal.category} />}
       {modal.type === 'task' && <TaskModal key={modal.editId ?? `new-${modal.date ?? ''}-${modal.start ?? ''}`} {...modal} />}
       {modal.type === 'kinds' && <KindsModal onClose={close} />}
       {modal.type === 'goalAreas' && <GoalAreasModal onClose={close} openId={modal.openId} add={modal.add} />}

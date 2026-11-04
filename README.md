@@ -23,6 +23,10 @@ Production build: `npm run build`, then `npm run preview`.
 - Money boxes accept `100k`, `1.5m` or `250,000`.
 - **Accounts:** everyone signs in with Google. Data is saved automatically to their own account (Firestore document `users/{uid}`) and syncs across their devices. **Export** / **Import** still work for offline backups.
 
+## Modes: Wants and Needs
+
+A new mode is one of two kinds. **Wants** is the long-term plan (months, items, net worth, setups). **Needs** is an everyday budget: your own weekly and monthly totals, and a budget per need. A need is an expense category, and what was spent always comes from Expenses, so nothing is entered twice. Each need runs weekly or monthly: the week counts weekly needs only (so a month's rent paid on a Tuesday doesn't ruin that week), and the month counts them all. Needs modes are always green with a basket icon, and green is used for no Wants mode. See `src/lib/needs.ts`.
+
 ## Settings
 
 Press your profile picture → **Settings** (or Settings in the side menu). It has its own address (`#settings/appearance`), so Back works and a reload stays put. Settings that belong to the person (accent colour, week start, clock, header buttons, side menu…) are saved with the account and follow them to every device; settings that belong to the screen (text size, motion, start page, hidden amounts, reminders…) stay on that device. See `src/lib/prefs.ts`.

@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { Download, Eye, EyeOff, Menu, PanelLeftClose, PanelLeftOpen, RotateCcw, Target, Upload } from 'lucide-react'
-import { useStore } from '../store'
+import { inNeedsMode, useStore } from '../store'
 import { downloadBackup, readBackup, restoreBackup } from '../backup'
 import { toast } from '../toast'
 import { AccountMenu, SaveIndicator } from './AccountMenu'
@@ -15,6 +15,7 @@ export function Header() {
   const symbol = useStore((s) => s.currency.main.symbol)
   const prefs = useStore((s) => s.prefs)
   const masked = useStore((s) => s.device.masked)
+  const needs = useStore(inNeedsMode)
   const fileRef = useRef<HTMLInputElement>(null)
   // Tablets and phones give the tools their own rows; with everything hidden those rows go too.
   const anyTool = !prefs.hideCurrency || !prefs.hideBackup || !prefs.hideReset || prefs.privacyButton
@@ -85,8 +86,8 @@ export function Header() {
           <div className="min-w-0">
             <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">Dizayr</h1>
             <p className="truncate text-xs text-zinc-400">
-              <span className="sm:hidden">{symbol} planner · 2026 – 2040</span>
-              <span className="hidden sm:inline">Goals, budgets &amp; net worth in {symbol} · 2026 – 2040</span>
+              <span className="sm:hidden">{needs ? `${symbol} everyday budget` : `${symbol} planner · 2026 – 2040`}</span>
+              <span className="hidden sm:inline">{needs ? <>Everyday budget in {symbol}</> : <>Goals, budgets &amp; net worth in {symbol} · 2026 – 2040</>}</span>
             </p>
           </div>
         </div>

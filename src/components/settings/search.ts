@@ -58,7 +58,7 @@ export const SEARCH: { id: string; section: SettingsSection; title: string; word
   { id: 'list-cats', section: 'lists', title: 'Expense categories', words: 'food bills spending edit' },
   { id: 'list-places', section: 'lists', title: 'Places', words: 'stores saved expenses' },
   { id: 'list-tasks', section: 'lists', title: 'Kinds of tasks', words: 'school work colours calendar' },
-  { id: 'list-modes', section: 'lists', title: 'Modes', words: 'versions plans rename delete copy' },
+  { id: 'list-modes', section: 'lists', title: 'Modes', words: 'versions plans rename delete copy wants needs budget weekly monthly' },
 
   { id: 'backup', section: 'data', title: 'Download a backup', words: 'export save json file' },
   { id: 'restore', section: 'data', title: 'Restore from a backup', words: 'import upload json file' },
