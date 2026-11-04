@@ -3,9 +3,11 @@ import { onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut as fbS
 import { doc, getDoc, getDocFromCache, onSnapshot, serverTimestamp, setDoc, waitForPendingWrites, type DocumentReference, type DocumentSnapshot } from 'firebase/firestore'
 import { auth, db, googleProvider } from './lib/firebase'
 import { savedModes, useStore } from './store'
+import { DEFAULT_PREFS } from './lib/prefs'
 import type { Expense } from './lib/types'
 import { toast } from './toast'
 import { stopAccess, watchAccess } from './billing'
+import { leaveSettings } from './settingsNav'
 
 export type SaveStatus = 'saved' | 'saving' | 'offline' | 'error'
 
@@ -24,10 +26,10 @@ const clientId = Math.random().toString(36).slice(2)
 const SAVE_DELAY = 800
 
 /** The part of the app's state that belongs to the account. */
-const snapshot = () => {
+export const snapshot = () => {
   const s = useStore.getState()
-  const { kinds, goals, goalAreas, sources, birthday, currency, expenses, expenseCats, places, tasks, taskKinds } = s
-  return { ...savedModes(s), kinds, goals, goalAreas, sources, birthday, currency, expenses: expenses.map(compact), expenseCats, places, tasks, taskKinds }
+  const { kinds, goals, goalAreas, sources, birthday, currency, expenses, expenseCats, places, tasks, taskKinds, prefs } = s
+  return { ...savedModes(s), kinds, goals, goalAreas, sources, birthday, currency, expenses: expenses.map(compact), expenseCats, places, tasks, taskKinds, prefs }
 }
 
 /** An expense without its empty fields, to keep the saved document small (they come back as '' when loaded). */
@@ -149,7 +151,7 @@ async function connect(user: User) {
   let offlineEdits = false
   const unsubStore = useStore.subscribe((s, prev) => {
     if (applyingRemote) return
-    if (s.months === prev.months && s.kinds === prev.kinds && s.goals === prev.goals && s.goalAreas === prev.goalAreas && s.sources === prev.sources && s.birthday === prev.birthday && s.yearNotes === prev.yearNotes && s.currency === prev.currency && s.expenses === prev.expenses && s.expenseCats === prev.expenseCats && s.places === prev.places && s.layouts === prev.layouts && s.setupNotes === prev.setupNotes && s.setupFavorites === prev.setupFavorites && s.modes === prev.modes && s.modeData === prev.modeData && s.tasks === prev.tasks && s.taskKinds === prev.taskKinds) return
+    if (s.months === prev.months && s.kinds === prev.kinds && s.goals === prev.goals && s.goalAreas === prev.goalAreas && s.sources === prev.sources && s.birthday === prev.birthday && s.yearNotes === prev.yearNotes && s.currency === prev.currency && s.expenses === prev.expenses && s.expenseCats === prev.expenseCats && s.places === prev.places && s.layouts === prev.layouts && s.setupNotes === prev.setupNotes && s.setupFavorites === prev.setupFavorites && s.modes === prev.modes && s.modeData === prev.modeData && s.tasks === prev.tasks && s.taskKinds === prev.taskKinds && s.prefs === prev.prefs) return
     pending = true
     if (!navigator.onLine) offlineEdits = true
     useCloud.setState({ status: navigator.onLine ? 'saving' : 'offline' })
@@ -213,7 +215,9 @@ export async function signOut() {
   await stopSync?.()
   stopSync = null
   await fbSignOut(auth)
+  leaveSettings()
   useStore.getState().resetAll()
+  useStore.setState({ prefs: DEFAULT_PREFS })
 }
 
 export function retryLoad() {

@@ -150,7 +150,7 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
 }
 
 /** Manage modes: rename, delete, and add one (empty, or a copy of the one in use). */
-function ModesModal({ startAdding, onCopy, onClose }: { startAdding: boolean; onCopy: () => void; onClose: () => void }) {
+export function ModesModal({ startAdding, onCopy, onClose }: { startAdding: boolean; onCopy: () => void; onClose: () => void }) {
   const { list, current, limit, canAdd } = useModes()
   const [adding, setAdding] = useState(startAdding && canAdd)
   const [name, setName] = useState('')
@@ -308,7 +308,7 @@ function copyName(name: string, taken: string[]) {
 const NEW_MODE = 'new'
 
 /** Copy the mode in use: into a new mode, or over one you already have. */
-function CopyModeModal({ onClose }: { onClose: () => void }) {
+export function CopyModeModal({ onClose }: { onClose: () => void }) {
   const { list, current, canAdd } = useModes()
   const others = list.filter((m) => m.id !== current.id && !m.locked)
   const suggested = copyName(current.name, list.map((m) => m.name))

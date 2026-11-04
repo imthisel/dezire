@@ -1,3 +1,5 @@
+import { live } from './prefs'
+
 /** A currency as shown in the app: its sign (₱) and short code (PHP). */
 export type Currency = { symbol: string; code: string }
 /** The second currency amounts are also shown in. `rate` = main-currency units per 1 of it. */
@@ -72,7 +74,11 @@ export const plain = (n: number) => cents.format(n)
 const compact1 = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
 const compact2 = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 })
 
+/** What stands in for an amount while amounts are hidden (see `masked` in lib/prefs). */
+export const MASK = '••••••'
+
 export function fmt(n: number, symbol: string, compact = false) {
+  if (live.masked) return `${symbol}${MASK}`
   const neg = n < -0.005
   const a = Math.abs(n)
   let s: string

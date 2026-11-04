@@ -3,6 +3,7 @@ import {
   PiggyBank, Pill, Plane, Receipt, Repeat, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Utensils, Wifi, Wrench, Zap, Beer, Scissors,
   HandHeart, type LucideIcon,
 } from 'lucide-react'
+import { live } from './prefs'
 import type { Expense, ExpenseCategory } from './types'
 import { KIND_COLORS } from './meta'
 import { END_YEAR, MONTHS, MONTHS_SHORT, START_YEAR } from './time'
@@ -139,6 +140,11 @@ export const MAX_DATE = `${END_YEAR}-12-31`
 export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export const WEEKDAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+/** The weekdays (0 = Sunday … 6 = Saturday) in the order a week is shown, starting on the day picked in Settings. */
+export const weekOrder = () => Array.from({ length: 7 }, (_, i) => (live.weekStart + i) % 7)
+/** The first day of the week `k` falls in. */
+export const startOfWeek = (k: string) => addDays(k, -((fromKey(k).getDay() - live.weekStart + 7) % 7))
+
 const pad = (n: number) => String(n).padStart(2, '0')
 export const toKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 /** Noon, so moving by days never trips over daylight-saving changes. */
@@ -179,11 +185,11 @@ export type PeriodKind = 'week' | 'month' | 'year'
 /** A stretch of days, both ends included. */
 export type Period = { kind: PeriodKind; start: string; end: string }
 
-/** The week (Sunday to Saturday), month or year that `k` falls in. */
+/** The week, month or year that `k` falls in. */
 export function periodOf(kind: PeriodKind, k: string): Period {
   const d = fromKey(k)
   if (kind === 'week') {
-    const start = addDays(k, -d.getDay())
+    const start = startOfWeek(k)
     return { kind, start, end: addDays(start, 6) }
   }
   if (kind === 'month') {

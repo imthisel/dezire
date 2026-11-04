@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useStore, type AssetCat, type View } from './store'
 
 /** Places the sidebar and the phone tab bar can jump to. Also `month-<key>`, `assets-<category>`, and on the Money plan page `plan-add` and `source-<id>`. */
-export type Section = 'overview' | 'years' | 'goals' | 'favorites' | 'assets' | 'plan' | 'expenses' | 'calendar'
+export type Section = 'overview' | 'years' | 'goals' | 'favorites' | 'assets' | 'plan' | 'expenses' | 'calendar' | 'settings'
 
 export const PLANNER_SECTIONS = ['overview', 'years', 'goals'] as const
 

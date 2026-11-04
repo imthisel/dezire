@@ -1,6 +1,7 @@
 import { useRef } from 'react'
-import { Download, Menu, PanelLeftClose, PanelLeftOpen, RotateCcw, Target, Upload } from 'lucide-react'
-import { savedModes, useStore } from '../store'
+import { Download, Eye, EyeOff, Menu, PanelLeftClose, PanelLeftOpen, RotateCcw, Target, Upload } from 'lucide-react'
+import { useStore } from '../store'
+import { downloadBackup, readBackup, restoreBackup } from '../backup'
 import { toast } from '../toast'
 import { AccountMenu, SaveIndicator } from './AccountMenu'
 import { CurrencyMenu } from './CurrencyMenu'
@@ -12,32 +13,11 @@ export function Header() {
   const docked = useDocked()
   const sidebar = useStore((s) => s.sidebar)
   const symbol = useStore((s) => s.currency.main.symbol)
-  const hideBackup = useStore((s) => s.hideBackupButtons)
+  const prefs = useStore((s) => s.prefs)
+  const masked = useStore((s) => s.device.masked)
   const fileRef = useRef<HTMLInputElement>(null)
-
-  function exportData() {
-    const s = useStore.getState()
-    const { kinds, currency, goals, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds } = s
-    const blob = new Blob(
-      [JSON.stringify({ app: 'dizayr', version: 4, exportedAt: new Date().toISOString(), currency, kinds, goals, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, ...savedModes(s) }, null, 2)],
-      { type: 'application/json' },
-    )
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `dizayr-backup-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(a.href)
-    toast.success('Backup downloaded.')
-  }
-
-  async function importFile(file: File) {
-    try {
-      const r = useStore.getState().importData(JSON.parse(await file.text()))
-      r.ok ? toast.success('Backup restored.') : toast.error(r.error)
-    } catch {
-      toast.error('That file is not valid JSON.')
-    }
-  }
+  // Tablets and phones give the tools their own rows; with everything hidden those rows go too.
+  const anyTool = !prefs.hideCurrency || !prefs.hideBackup || !prefs.hideReset || prefs.privacyButton
 
   function reset() {
     if (confirm('Delete ALL money goals, budgets, items, expenses, yearly goals, money plans, tasks, year and setup notes and your birthday from 2026–2040? This cannot be undone.')) {
@@ -51,11 +31,22 @@ export function Header() {
 
   const tools = (phone: boolean) => (
     <>
-      {!phone && <ModeSwitcher phone={false} />}
-      <CurrencyMenu phone={phone} />
-      {!hideBackup && (
+      {!phone && !prefs.hideModes && <ModeSwitcher phone={false} />}
+      {!prefs.hideCurrency && <CurrencyMenu phone={phone} />}
+      {prefs.privacyButton && (
+        <button
+          className={`${btn} ${masked ? 'border-indigo-400/40 text-indigo-200' : ''} ${phone ? 'h-10 w-10 px-0' : 'w-9 px-0'}`}
+          onClick={() => useStore.getState().setDevice({ masked: !masked })}
+          title={masked ? 'Show amounts' : 'Hide amounts'}
+          aria-label={masked ? 'Show amounts' : 'Hide amounts'}
+          aria-pressed={masked}
+        >
+          {masked ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      )}
+      {!prefs.hideBackup && (
         <>
-      <button className={`${btn} ${phone ? 'h-10 w-10 px-0' : ''}`} onClick={exportData} title="Download a backup of all your data" aria-label="Export backup">
+      <button className={`${btn} ${phone ? 'h-10 w-10 px-0' : ''}`} onClick={downloadBackup} title="Download a backup of all your data" aria-label="Export backup">
         <Download className="h-4 w-4" /> {!phone && <span className="hidden min-[1400px]:inline">Export</span>}
       </button>
       <button className={`${btn} ${phone ? 'h-10 w-10 px-0' : ''}`} onClick={() => fileRef.current?.click()} title="Restore from a backup file" aria-label="Import backup">
@@ -63,14 +54,16 @@ export function Header() {
       </button>
         </>
       )}
-      <button
-        className={`${btn} hover:border-red-500/40 hover:text-red-300 ${phone ? 'h-10 w-10 px-0' : ''}`}
-        onClick={reset}
-        title="Clear everything"
-        aria-label="Clear everything"
-      >
-        <RotateCcw className="h-4 w-4" />
-      </button>
+      {!prefs.hideReset && (
+        <button
+          className={`${btn} hover:border-red-500/40 hover:text-red-300 ${phone ? 'h-10 w-10 px-0' : ''}`}
+          onClick={reset}
+          title="Clear everything"
+          aria-label="Clear everything"
+        >
+          <RotateCcw className="h-4 w-4" />
+        </button>
+      )}
     </>
   )
 
@@ -107,12 +100,14 @@ export function Header() {
       </div>
 
       {/* Tablets and small laptops: the tools don't fit beside the logo, so they get their own row */}
-      <div className="mt-4 hidden items-center justify-end gap-2 sm:flex xl:hidden">{tools(false)}</div>
-      <div className="mt-4 flex items-center gap-2 sm:hidden">{tools(true)}</div>
+      {(anyTool || !prefs.hideModes) && <div className="mt-4 hidden items-center justify-end gap-2 sm:flex xl:hidden">{tools(false)}</div>}
+      {anyTool && <div className="mt-4 flex items-center gap-2 sm:hidden">{tools(true)}</div>}
       {/* Phones: the mode in use, on its own row so the name has room */}
-      <div className="mt-2 flex sm:hidden">
-        <ModeSwitcher phone />
-      </div>
+      {!prefs.hideModes && (
+        <div className={`${anyTool ? 'mt-2' : 'mt-4'} flex sm:hidden`}>
+          <ModeSwitcher phone />
+        </div>
+      )}
 
       <input
         ref={fileRef}
@@ -121,7 +116,7 @@ export function Header() {
         hidden
         onChange={(e) => {
           const f = e.target.files?.[0]
-          if (f) importFile(f)
+          if (f) void readBackup(f).then((info) => info && restoreBackup(info.data))
           e.target.value = ''
         }}
       />

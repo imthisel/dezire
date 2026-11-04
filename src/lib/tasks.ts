@@ -4,6 +4,7 @@ import {
 } from 'lucide-react'
 import type { Repeat, Task, TaskKind, TaskType } from './types'
 import { WEEKDAYS, addDays, fromKey, isDate, todayKey } from './expenses'
+import { live } from './prefs'
 
 // ---- Kinds ----
 
@@ -92,10 +93,11 @@ export const snap = (m: number) => Math.round(m / SNAP) * SNAP
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
 const pad = (n: number) => String(n).padStart(2, '0')
 
-/** 570 → "9:30 AM"; with `short`, whole hours drop the minutes ("9 AM"). */
+/** 570 → "9:30 AM"; with `short`, whole hours drop the minutes ("9 AM"). On the 24-hour clock: "09:30". */
 export function fmtTime(m: number, short = false) {
   const h = Math.floor(m / 60) % 24
   const mm = m % 60
+  if (live.clock === '24') return `${pad(h)}:${pad(mm)}`
   const ap = h < 12 ? 'AM' : 'PM'
   const h12 = h % 12 || 12
   return short && mm === 0 ? `${h12} ${ap}` : `${h12}:${pad(mm)} ${ap}`

@@ -39,6 +39,18 @@ self.addEventListener('message', (event) => {
   )
 })
 
+// Clicking a reminder (see src/reminders.ts): back to the app, opening it if it's closed.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  event.waitUntil(
+    (async () => {
+      const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      if (open[0]) return open[0].focus()
+      return self.clients.openWindow(PAGE)
+    })(),
+  )
+})
+
 /** Files the page needs, read from its HTML. */
 const assetsIn = (html) =>
   [...html.matchAll(/(?:src|href)="(\/[^"]+)"/g)].map((m) => m[1]).filter((u) => !u.startsWith('/__/') && !u.startsWith('//'))

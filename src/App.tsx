@@ -1,4 +1,4 @@
-import { memo, useDeferredValue, useMemo } from 'react'
+import { memo, useDeferredValue, useEffect, useMemo } from 'react'
 import { useStore, type View } from './store'
 import { Header } from './components/Header'
 import { Dashboard } from './components/Dashboard'
@@ -28,12 +28,16 @@ import { useModeGuard } from './components/Modes'
 import { usePinchZoom } from './zoom'
 import { useDragAutoScroll } from './autoscroll'
 import { useTouchDrag } from './touchdrag'
+import { useBackgroundJobs } from './reminders'
+import { startSettingsNav } from './settingsNav'
+import { Settings } from './components/settings/Settings'
 
 export default function App() {
   return (
     <>
       <AuthGate>
         <Planner />
+        <BackgroundJobs />
       </AuthGate>
       {/* Everywhere, signed in or not (the About page too) */}
       <Toasts />
@@ -46,11 +50,12 @@ export default function App() {
 /** The planner itself (also shown read-only on the admin page, with someone else's data). */
 export function Planner() {
   const sidebar = useStore((s) => s.sidebar)
-  const hideBackup = useStore((s) => s.hideBackupButtons)
+  const hideBackup = useStore((s) => s.prefs.hideBackup)
   useModeGuard()
   usePinchZoom()
   useDragAutoScroll()
   useTouchDrag()
+  useEffect(startSettingsNav, [])
 
   return (
     <div className="relative min-h-screen overflow-x-clip bg-[#07080c] text-zinc-100 antialiased">
@@ -92,6 +97,7 @@ function page(view: View) {
   if (view === 'favorites') return <Favorites />
   if (view === 'assets') return <Assets />
   if (view === 'calendar') return <Schedule />
+  if (view === 'settings') return <Settings />
   return (
     <>
       <Dashboard />
@@ -120,6 +126,11 @@ const Pages = memo(function Pages() {
     </main>
   )
 })
+
+function BackgroundJobs() {
+  useBackgroundJobs()
+  return null
+}
 
 /** The open dialog, if any. */
 function Modals() {

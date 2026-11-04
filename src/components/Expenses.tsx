@@ -22,7 +22,7 @@ const KINDS: { id: PeriodKind; label: string }[] = [
   { id: 'year', label: 'Year' },
 ]
 const NAMES: Record<PeriodKind, string> = { week: 'week', month: 'month', year: 'year' }
-const PERIOD_KEY = 'dizayr-expense-period'
+export const PERIOD_KEY = 'dizayr-expense-period'
 
 const readKind = (): PeriodKind => {
   try {

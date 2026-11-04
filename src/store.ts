@@ -14,6 +14,7 @@ import {
   DEFAULT_EXPENSE_CATS, MAX_CAT_NAME, MAX_ITEM_NAME, MAX_PLACE_NAME, clampDate, guessExpenseIcon, isDate, parseExpenseCats, parseExpenses, parsePlaces,
   todayKey, uniq,
 } from './lib/expenses'
+import { DEFAULT_DEVICE, DEFAULT_PREFS, live, parseDevice, parsePrefs, type DevicePrefs, type Prefs } from './lib/prefs'
 import { DEFAULT_TASK_KINDS, MAX_TASK_KIND_NAME, TASK_COLORS, UNKNOWN_TASK_KIND, cleanTask, guessTaskIcon, parseTaskKinds, parseTasks, type TaskInput } from './lib/tasks'
 
 export type Clip = { mode: 'copy' | 'cut'; fromKey: string; item: Item }
@@ -31,7 +32,7 @@ export type ModalState =
   | { type: 'task'; editId?: string; entry?: TaskType; date?: string; start?: number | null; duration?: number; kind?: string; title?: string }
   | null
 export type PhoneCols = 1 | 2 | 3
-export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses' | 'calendar'
+export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses' | 'calendar' | 'settings'
 /** Assets page: which kind of item, and which years */
 export type AssetCat = 'all' | Category
 /** `month` (0–11) is used by the 'month' mode: one of the year's setups (see `setupMonths`). */
@@ -219,7 +220,7 @@ function parseSources(list: unknown): IncomeSource[] {
 
 const warned = (key: string, price: number, months: Record<string, MonthData>, excludeId?: string): Result => {
   const { warning } = fitCheck(months, key, price, excludeId)
-  return warning ? { ok: true, warning } : OK
+  return warning && live.budgetWarnings ? { ok: true, warning } : OK
 }
 
 interface State {
@@ -266,6 +267,8 @@ interface State {
 
   /** Which page is showing */
   view: View
+  /** The page Settings was opened from, to go back to */
+  prevView: View
   /** Sidebar shown on wide screens (remembered) */
   sidebar: boolean
   /** Sidebar slid open on small screens (not remembered) */
@@ -276,9 +279,12 @@ interface State {
   /** Charts and Overview cards folded away for a simpler look, e.g. 'networth', 'assets' (remembered) */
   hiddenCharts: string[]
   toggleChart: (id: string) => void
-  /** Export and Import are taken out of the header for a simpler look; turned back on from the account menu (remembered) */
-  hideBackupButtons: boolean
-  setHideBackupButtons: (hide: boolean) => void
+  /** Settings that follow the account (saved with the plan, the same on every device). See lib/prefs. */
+  prefs: Prefs
+  setPrefs: (patch: Partial<Prefs>) => void
+  /** Settings that stay on this device. See lib/prefs. */
+  device: DevicePrefs
+  setDevice: (patch: Partial<DevicePrefs>) => void
   /** Phones: how many columns the month and item grids show (pinch to change; remembered) */
   phoneCols: PhoneCols
   setPhoneCols: (cols: PhoneCols) => void
@@ -530,6 +536,7 @@ export const useStore = create<State>()(
           return { yearNotes: text ? { ...rest, [year]: text } : rest }
         }),
       view: 'planner',
+      prevView: 'planner',
       sidebar: true,
       drawer: false,
       openAllMonths: false,
@@ -537,12 +544,14 @@ export const useStore = create<State>()(
       hiddenCharts: [],
       toggleChart: (id) =>
         set((s) => ({ hiddenCharts: s.hiddenCharts.includes(id) ? s.hiddenCharts.filter((c) => c !== id) : [...s.hiddenCharts, id] })),
-      hideBackupButtons: false,
-      setHideBackupButtons: (hideBackupButtons) => set({ hideBackupButtons }),
+      prefs: DEFAULT_PREFS,
+      setPrefs: (patch) => set((s) => ({ prefs: parsePrefs({ ...s.prefs, ...patch }) })),
+      device: DEFAULT_DEVICE,
+      setDevice: (patch) => set((s) => ({ device: parseDevice({ ...s.device, ...patch }) })),
       phoneCols: 1,
       setPhoneCols: (phoneCols) => set({ phoneCols }),
 
-      setView: (view) => set({ view }),
+      setView: (view) => set((s) => ({ view, prevView: view === 'settings' && s.view !== 'settings' ? s.view : s.prevView })),
       assetCat: 'all',
       assetPeriod: { mode: 'all', from: currentYear(), to: Math.min(END_YEAR, currentYear() + 4), month: new Date().getMonth() },
       setAssetCat: (assetCat) => set({ assetCat }),
@@ -1214,6 +1223,7 @@ export const useStore = create<State>()(
             tasks?: unknown
             taskKinds?: unknown
             modes?: unknown
+            prefs?: unknown
           }
           if (!d || typeof d !== 'object' || !d.months || typeof d.months !== 'object') {
             return fail('That file is not a Dizayr backup.')
@@ -1261,7 +1271,9 @@ export const useStore = create<State>()(
           const active = list.some((m) => m.id === cur.modeId) ? cur.modeId : MAIN_MODE
           const { [active]: inUse, ...others } = byMode
           const modeState = { modes: list, modeId: active, modeData: others, months: inUse.months, layouts: inUse.layouts, setupNotes: inUse.setupNotes, setupFavorites: inUse.setupFavorites, yearNotes: inUse.yearNotes }
-          set({ ...spending, ...modeState, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
+          // Saved before settings followed the account: keep what's here.
+          const prefs = d.prefs === undefined ? cur.prefs : parsePrefs(d.prefs)
+          set({ ...spending, ...modeState, prefs, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
           return OK
         } catch {
           return fail('Could not read that file.')
@@ -1272,7 +1284,7 @@ export const useStore = create<State>()(
     }),
     {
       name: 'dizayr-goal-planner-v1',
-      version: 7,
+      version: 8,
       storage: lazyStorage(),
       partialize: (s) => ({
         months: s.months,
@@ -1296,11 +1308,13 @@ export const useStore = create<State>()(
         taskKinds: s.taskKinds,
         year: s.year,
         dashMode: s.dashMode,
-        view: s.view,
+        // Settings has its own address, so a reload finds it again from there.
+        view: s.view === 'settings' ? s.prevView : s.view,
         sidebar: s.sidebar,
         openAllMonths: s.openAllMonths,
         hiddenCharts: s.hiddenCharts,
-        hideBackupButtons: s.hideBackupButtons,
+        prefs: s.prefs,
+        device: s.device,
         phoneCols: s.phoneCols,
         assetCat: s.assetCat,
         assetPeriod: s.assetPeriod,
@@ -1313,8 +1327,10 @@ export const useStore = create<State>()(
       // v4 had a fixed peso → US dollar rate (`usdRate`); it's now the main + alternative currency settings.
       // v5 didn't tell events and to-dos apart (`type`).
       // v6 had one set of year notes for every mode; they now belong to the main plan, and each mode has its own.
+      // v7 kept the only setting (hide Export and Import) on its own; it's now part of `prefs`.
       migrate: (persisted, version) => {
-        const { currency, usdRate, areaLabels, ...rest } = (persisted ?? {}) as Record<string, unknown>
+        const { currency, usdRate, areaLabels, hideBackupButtons, ...rest } = (persisted ?? {}) as Record<string, unknown>
+        if (version < 8 && hideBackupButtons === true) rest.prefs = { ...DEFAULT_PREFS, hideBackup: true }
         if (version < 7 && rest.modeId && rest.modeId !== MAIN_MODE) {
           const modeData = (rest.modeData ?? {}) as Record<string, ModeData>
           rest.modeData = { ...modeData, [MAIN_MODE]: { ...emptyMode(), ...modeData[MAIN_MODE], yearNotes: parseYearNotes(rest.yearNotes) } }
@@ -1332,6 +1348,11 @@ export const useStore = create<State>()(
           ...(rest.assetCat === 'other' ? { assetCat: 'status' } : {}),
           currency: parseCurrencies(currency, usdRate),
         } as Pick<State, 'months' | 'kinds' | 'goalAreas' | 'currency' | 'year' | 'dashMode'>
+      },
+      // Settings added in a later version get their defaults, and old ones are checked.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<State>
+        return { ...current, ...p, prefs: parsePrefs(p.prefs), device: parseDevice(p.device) }
       },
     },
   ),
@@ -1665,8 +1686,9 @@ export const useCurrency = () => useStore((s) => s.currency)
 /** Formats an amount in the main currency: ₱100,000 */
 export function useFmt() {
   const symbol = useStore((s) => s.currency.main.symbol)
-  // The same function until the symbol changes, so lists that depend on it aren't redone on every render.
-  return useCallback((n: number, compact = false) => fmt(n, symbol, compact), [symbol])
+  const masked = useStore((s) => s.device.masked)
+  // The same function until the symbol changes (or amounts are hidden), so lists that depend on it aren't redone on every render.
+  return useCallback((n: number, compact = false) => fmt(n, symbol, compact), [symbol, masked])
 }
 
 /**
@@ -1675,12 +1697,27 @@ export function useFmt() {
  */
 export function useAlt() {
   const alt = useStore((s) => s.currency.alt)
-  return useCallback((n: number, compact = false) => fmtAlt(n, alt, compact), [alt])
+  const masked = useStore((s) => s.device.masked)
+  return useCallback((n: number, compact = false) => fmtAlt(n, alt, compact), [alt, masked])
 }
 
-// Lets CSS fade out every alternative-currency amount at once when it's turned off (see `.alt` in index.css).
+// Lets CSS follow the settings (see index.css), e.g. fading out every alternative-currency amount at once when it's turned off.
 if (typeof document !== 'undefined') {
-  const sync = () => document.documentElement.toggleAttribute('data-alt-off', !useStore.getState().currency.alt.show)
+  const root = document.documentElement
+  // Set before the first draw, so the page doesn't flash the defaults.
+  const opening = useStore.getState().device
+  if (opening.maskOnOpen && !opening.masked) useStore.setState((s) => ({ device: { ...s.device, masked: true } }))
+  if (opening.startPage !== 'last') useStore.setState({ view: opening.startPage })
+  const sync = () => {
+    const { currency, prefs, device } = useStore.getState()
+    Object.assign(live, { weekStart: prefs.weekStart, clock: prefs.clock, masked: device.masked, budgetWarnings: prefs.budgetWarnings, eventLength: prefs.eventLength })
+    root.toggleAttribute('data-alt-off', !currency.alt.show)
+    root.dataset.accent = prefs.accent
+    root.dataset.text = device.textSize
+    root.toggleAttribute('data-calm', device.calm)
+    root.toggleAttribute('data-solid', device.solid)
+    root.toggleAttribute('data-noglow', !device.glow)
+  }
   sync()
   useStore.subscribe(sync)
 }

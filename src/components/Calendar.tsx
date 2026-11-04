@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
-import { MAX_DATE, MIN_DATE, WEEKDAYS, addDays, clampDate, daysInMonth, fromKey, longDate, toKey, todayKey } from '../lib/expenses'
+import { MAX_DATE, MIN_DATE, WEEKDAYS, addDays, clampDate, daysInMonth, fromKey, longDate, startOfWeek, toKey, todayKey, weekOrder } from '../lib/expenses'
 import { MONTHS, MONTHS_SHORT } from '../lib/time'
 
 interface Props {
@@ -64,8 +64,8 @@ export function Calendar({ value, onChange, marks, min = MIN_DATE, max = MAX_DAT
     onChange(k)
   }
 
-  // Six weeks, starting on the Sunday on or before the 1st.
-  const start = addDays(first, -fromKey(first).getDay())
+  // Six weeks, starting on the first day of the week the 1st falls in.
+  const start = startOfWeek(first)
   const days = Array.from({ length: 42 }, (_, i) => addDays(start, i))
 
   function onKey(e: KeyboardEvent<HTMLDivElement>) {
@@ -185,9 +185,9 @@ export function Calendar({ value, onChange, marks, min = MIN_DATE, max = MAX_DAT
       ) : (
         <>
           <div className="grid grid-cols-7 pb-1" aria-hidden>
-            {WEEKDAYS.map((d, i) => (
-              <span key={d} className={`text-center text-[11px] font-medium uppercase tracking-wider ${i === 0 ? 'text-rose-300/60' : 'text-zinc-500'}`}>
-                {d.slice(0, 2)}
+            {weekOrder().map((i) => (
+              <span key={i} className={`text-center text-[11px] font-medium uppercase tracking-wider ${i === 0 ? 'text-rose-300/60' : 'text-zinc-500'}`}>
+                {WEEKDAYS[i].slice(0, 2)}
               </span>
             ))}
           </div>

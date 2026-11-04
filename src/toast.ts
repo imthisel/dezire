@@ -27,6 +27,8 @@ export const toast = {
   warning: (m: string) => push('warning', m),
   /** Info with an Undo button, shown a little longer. */
   undo: (m: string, run: () => void) => push('info', m, 6000, { label: 'Undo', run }),
+  /** Info with a button of its own, shown long enough to read and press. */
+  action: (m: string, label: string, run: () => void) => push('info', m, 10000, { label, run }),
   /** Error, success, or (when it went over a month's limit) a warning. */
   result: (r: Result, success: string) =>
     !r.ok ? push('error', r.error) : r.warning ? push('warning', `${success} ${r.warning}`) : push('success', success),

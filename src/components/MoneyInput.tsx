@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fitText, parseMoney, plain } from '../lib/money'
+import { MASK, fitText, parseMoney, plain } from '../lib/money'
 import { useStore } from '../store'
 
 interface Props {
@@ -19,6 +19,7 @@ const toText = (v: number | null, nullable?: boolean) => (v === null || (v === 0
 /** Money box that accepts "100k", "1.5m", "250,000" and updates totals as you type. */
 export function MoneyInput({ value, onChange, placeholder = '0', nullable, className = '', ariaLabel, autoFocus, size = 'sm' }: Props) {
   const symbol = useStore((s) => s.currency.main.symbol)
+  const masked = useStore((s) => s.device.masked)
   const [text, setText] = useState(() => toText(value, nullable))
   const [focused, setFocused] = useState(false)
   const [bad, setBad] = useState(false)
@@ -58,7 +59,8 @@ export function MoneyInput({ value, onChange, placeholder = '0', nullable, class
         aria-label={ariaLabel}
         aria-invalid={bad}
         autoFocus={autoFocus}
-        value={text}
+        // Amounts hidden: what's in the box only shows while typing in it.
+        value={masked && !focused && text ? MASK : text}
         placeholder={placeholder}
         onFocus={(e) => {
           setFocused(true)

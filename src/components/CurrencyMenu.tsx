@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeftRight, ChevronDown, Eye, EyeOff } from 'lucide-react'
 import { useCurrency, useStore } from '../store'
-import { CURRENCY_PRESETS, fmt, fmtAlt, type Currency } from '../lib/money'
+import { CURRENCY_PRESETS, fmt, fmtAlt, plain, type Currency } from '../lib/money'
 
 /** Header control: main + alternative currency, with a quick show/hide for the alternative amounts. */
 export function CurrencyMenu({ phone }: { phone: boolean }) {
@@ -47,7 +47,7 @@ export function CurrencyMenu({ phone }: { phone: boolean }) {
           </span>
           <span className="grid min-w-0 flex-1 overflow-hidden text-left">
             <span className={`col-start-1 row-start-1 truncate tabular-nums transition-all ${ease} ${alt.show ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0'}`}>
-              {fmt(alt.rate, main.symbol)} <span className="text-zinc-500">= {alt.symbol}1</span>
+              {main.symbol}{plain(alt.rate)} <span className="text-zinc-500">= {alt.symbol}1</span>
             </span>
             <span
               className={`col-start-1 row-start-1 truncate text-zinc-400 transition-all ${ease} ${alt.show ? 'translate-y-2 opacity-0' : 'translate-y-0 opacity-100'}`}
@@ -167,7 +167,7 @@ const ACCENT = {
 }
 
 /** Sign + code boxes. Empty boxes aren't saved; they go back to the current value when you leave them. */
-function CurrencyFields({ value, onChange, accent }: { value: Currency; onChange: (p: Partial<Currency>) => void; accent: keyof typeof ACCENT }) {
+export function CurrencyFields({ value, onChange, accent }: { value: Currency; onChange: (p: Partial<Currency>) => void; accent: keyof typeof ACCENT }) {
   return (
     <div className="grid grid-cols-[5.5rem_1fr] gap-2">
       <Field label="Sign" accent={accent}>
@@ -227,7 +227,7 @@ function DraftInput(props: { value: string; max: number; upper?: boolean; onComm
   )
 }
 
-function Presets({ value, onPick, accent, exclude }: { value: Currency; onPick: (c: Currency) => void; accent: keyof typeof ACCENT; exclude?: string }) {
+export function Presets({ value, onPick, accent, exclude }: { value: Currency; onPick: (c: Currency) => void; accent: keyof typeof ACCENT; exclude?: string }) {
   return (
     <div className="scrollbar-none -mx-4 flex gap-1.5 overflow-x-auto px-4">
       {CURRENCY_PRESETS.filter((c) => c.code !== exclude).map((c) => {
@@ -251,7 +251,7 @@ function Presets({ value, onPick, accent, exclude }: { value: Currency; onPick: 
 }
 
 /** "1 $ = ₱ [62.7]" */
-function RateInput() {
+export function RateInput() {
   const { main, alt } = useCurrency()
   const setAlt = useStore((s) => s.setAltCurrency)
   const [text, setText] = useState(String(alt.rate))

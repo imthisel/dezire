@@ -1,12 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Check, CloudOff, Download, Loader2, Monitor, MoreVertical, RefreshCw, RefreshCcw, Share, Smartphone, SquarePlus, Sparkles, X } from 'lucide-react'
-import { applyUpdate, checkForUpdate, closeGuide, installApp, platform, snoozeUpdate, useApp, type Platform } from '../appUpdate'
+import { applyUpdate, closeGuide, installApp, platform, snoozeUpdate, useApp, type Platform } from '../appUpdate'
 import { Modal } from './Modal'
-
-const builtDate = (iso: string) => {
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
 
 /** "A new version is ready": shown whenever the site has a newer version than the one running. */
 export function UpdateBanner() {
@@ -132,55 +127,6 @@ function Step({ n, icon, children }: { n: number; icon: ReactNode; children: Rea
         <span>{children}</span>
       </span>
     </li>
-  )
-}
-
-/** Settings (account menu): the version, Check for updates, and installing the app. */
-export function AppSettings({ onAction }: { onAction?: () => void }) {
-  const { version, builtAt, update, checking, installed } = useApp()
-  return (
-    <div className="border-b border-white/[0.06] p-4">
-      <p className="mb-2 flex items-center justify-between text-xs font-medium text-zinc-400">
-        <span>App</span>
-        <span className="font-normal tabular-nums text-zinc-600">
-          Version {version}
-          {version !== 'dev' && builtDate(builtAt) && ` · ${builtDate(builtAt)}`}
-        </span>
-      </p>
-      <div className="grid grid-cols-2 gap-2">
-        {update ? (
-          <button
-            onClick={() => void applyUpdate()}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-400 text-xs font-semibold text-white"
-          >
-            <Sparkles className="h-3.5 w-3.5" /> Update now
-          </button>
-        ) : (
-          <button
-            onClick={() => void checkForUpdate(true)}
-            disabled={checking}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white/10 text-xs font-medium text-zinc-200 transition hover:bg-white/5 disabled:opacity-60"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${checking ? 'animate-spin' : ''}`} /> Check for updates
-          </button>
-        )}
-        {installed ? (
-          <span className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-emerald-400/10 text-xs font-medium text-emerald-200">
-            <Check className="h-3.5 w-3.5" /> Installed
-          </span>
-        ) : (
-          <button
-            onClick={() => {
-              onAction?.()
-              void installApp()
-            }}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white/10 text-xs font-medium text-zinc-200 transition hover:bg-white/5"
-          >
-            <Download className="h-3.5 w-3.5" /> Install the app
-          </button>
-        )}
-      </div>
-    </div>
   )
 }
 

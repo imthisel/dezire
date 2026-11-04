@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarClock, CalendarDays, CalendarRange, ChevronDown, CircleCheck, CircleSlash, NotebookPen, Plus, Repeat, Trash2, X } from 'lucide-react'
 import { useStore, type ModalState } from '../store'
-import { WEEKDAYS, addDays, dayLabel, fromKey, longDate, todayKey } from '../lib/expenses'
+import { WEEKDAYS, addDays, dayLabel, fromKey, longDate, todayKey, weekOrder } from '../lib/expenses'
+import { live } from '../lib/prefs'
 import {
   DAY_MINUTES, EVERY_DAY, MAX_TASK_TITLE, SNAP, WEEKDAYS_ONLY, WEEKENDS, fmtDuration, fmtRange, fmtTime, fromTimeInput, nowMinutes, occurrencesIn, repeatLabel,
   taskColor, taskIcon, toTimeInput,
@@ -18,7 +19,7 @@ type When = 'none' | 'date' | 'repeat'
 const field =
   'h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm'
 const LAST_KIND = 'dizayr-last-task-kind'
-const DURATIONS = [15, 30, 60, 90, 120, 180]
+const DURATIONS = [15, 30, 45, 60, 90, 120, 180]
 
 const readLastKind = () => {
   try {
@@ -59,7 +60,7 @@ export function TaskModal({ editId, entry, date: startDate, start: startAt, dura
   // Events: all day. Tasks: due any time that day (no due time).
   const [allDay, setAllDay] = useState(editing ? editing.date !== '' && editing.start === null : startAt === null || (type === 'todo' && startAt === undefined))
   const [start, setStart] = useState(editing?.start ?? startAt ?? (type === 'todo' ? 17 * 60 : nextHour()))
-  const [duration, setDuration] = useState(editing?.start != null && editing.type === 'event' ? editing.duration : (startDuration ?? 60))
+  const [duration, setDuration] = useState(editing?.start != null && editing.type === 'event' ? editing.duration : (startDuration ?? live.eventLength))
   const [days, setDays] = useState<number[]>(editing?.repeat?.days ?? [fromKey(startDate || today).getDay()])
   const [until, setUntil] = useState(editing?.repeat?.until ?? '')
   const [notes, setNotes] = useState(editing?.notes ?? '')
@@ -239,7 +240,8 @@ export function TaskModal({ editId, entry, date: startDate, start: startAt, dura
             {when === 'repeat' && (
               <Section label="Every">
                 <div className="flex gap-1.5">
-                  {WEEKDAYS.map((w, i) => {
+                  {weekOrder().map((i) => {
+                    const w = WEEKDAYS[i]
                     const on = days.includes(i)
                     return (
                       <button
@@ -336,7 +338,7 @@ export function TaskModal({ editId, entry, date: startDate, start: startAt, dura
                       )}
                     </div>
                     <p className="mt-2 text-xs text-zinc-500">
-                      Tip: on the calendar, drag an event to move it, or drag its bottom edge to make it longer (past 12 AM it carries on into the next day).
+                      Tip: on the calendar, drag an event to move it, or drag its bottom edge to make it longer (past {fmtTime(0, true)} it carries on into the next day).
                     </p>
                   </>
                 )}

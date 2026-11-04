@@ -3,7 +3,7 @@ import {
   AlertCircle, CalendarCheck, CalendarRange, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleCheck, Eye, EyeOff, Inbox, Plus, Repeat, Settings2,
 } from 'lucide-react'
 import { useStore, useTaskKindOf } from '../store'
-import { MAX_DATE, MIN_DATE, WEEKDAYS, addDays, dayLabel, fromKey, longDate, periodLabel, todayKey } from '../lib/expenses'
+import { MAX_DATE, MIN_DATE, WEEKDAYS, addDays, dayLabel, fromKey, longDate, periodLabel, startOfWeek, todayKey, weekOrder } from '../lib/expenses'
 import {
   DAY_MINUTES, byTime, fmtRange, fmtTime, happensOn, isEvent, nextOpenDay, nowMinutes, occurrencesIn, repeatLabel, taskColor, taskIcon, type Occurrence,
 } from '../lib/tasks'
@@ -24,7 +24,7 @@ const VIEWS: { id: CalView; label: string; short: string; key: string }[] = [
   { id: 'week', label: 'Week', short: 'Week', key: 'W' },
   { id: 'month', label: 'Month', short: 'Month', key: 'M' },
 ]
-const VIEW_KEY = 'dizayr-calendar-view'
+export const VIEW_KEY = 'dizayr-calendar-view'
 const HIDDEN_KEY = 'dizayr-hidden-task-kinds'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -51,12 +51,12 @@ function daysOf(view: CalView, anchor: string): string[] {
   if (view === 'day') return [anchor]
   if (view === '3day') return [anchor, addDays(anchor, 1), addDays(anchor, 2)]
   if (view === 'week') {
-    const start = addDays(anchor, -fromKey(anchor).getDay())
+    const start = startOfWeek(anchor)
     return Array.from({ length: 7 }, (_, i) => addDays(start, i))
   }
-  // Six weeks, starting on the Sunday on or before the 1st.
+  // Six weeks, starting on the first day of the week the 1st falls in.
   const first = `${anchor.slice(0, 7)}-01`
-  const start = addDays(first, -fromKey(first).getDay())
+  const start = startOfWeek(first)
   return Array.from({ length: 42 }, (_, i) => addDays(start, i))
 }
 
@@ -119,7 +119,7 @@ export function Schedule() {
     before.current = { view, start: days[0] }
     if (prev.view === view && prev.start === days[0]) return
     // Not while a task is being stretched into the next day (the grid shouldn't move under the pointer), nor for reduced motion.
-    if (document.documentElement.hasAttribute('data-touch-drag') || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (document.documentElement.hasAttribute('data-touch-drag') || matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.hasAttribute('data-calm')) return
     const dx = prev.view !== view ? 0 : days[0] > prev.start ? 18 : -18
     body.current?.animate([{ opacity: 0.25, transform: `translateX(${dx}px)` }, { opacity: 1, transform: 'none' }], {
       duration: 260,
@@ -309,9 +309,9 @@ function MonthGrid({ days, month, occurrences, onPickDay }: { days: string[]; mo
   return (
     <div className="select-none">
       <div className="grid grid-cols-7 border-b border-white/[0.07]">
-        {WEEKDAYS.map((w, i) => (
-          <span key={w} className={`py-2 text-center text-[10.5px] font-semibold uppercase tracking-wider ${i === 0 ? 'text-rose-300/60' : 'text-zinc-500'}`}>
-            {w}
+        {weekOrder().map((i) => (
+          <span key={i} className={`py-2 text-center text-[10.5px] font-semibold uppercase tracking-wider ${i === 0 ? 'text-rose-300/60' : 'text-zinc-500'}`}>
+            {WEEKDAYS[i]}
           </span>
         ))}
       </div>

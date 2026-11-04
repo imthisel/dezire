@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ArrowLeft, Eye, Loader2 } from 'lucide-react'
 import { Planner } from '../App'
 import { useStore } from '../store'
+import { DEFAULT_PREFS } from '../lib/prefs'
 import { currentYear } from '../lib/time'
 import { api, errorText, type UserDetail } from './api'
 import { displayName } from './data'
@@ -33,8 +34,9 @@ export function Preview({ uid }: { uid: string }) {
       .catch((e) => live && setError(errorText(e)))
     return () => {
       live = false
-      // Don't leave their data in memory once you leave.
+      // Don't leave their data (or their colours) behind once you leave.
       useStore.getState().resetAll()
+      useStore.setState({ prefs: DEFAULT_PREFS })
     }
   }, [uid])
 

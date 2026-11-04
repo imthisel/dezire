@@ -1,15 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, Cake, Check, CloudOff, CreditCard, Loader2, LogOut } from 'lucide-react'
+import { AlertCircle, Check, ChevronRight, CloudOff, CreditCard, Loader2, LogOut, Settings } from 'lucide-react'
 import { signOut, useCloud, type SaveStatus } from '../cloud'
 import { toast } from '../toast'
-import { BirthdayInput } from './Birthday'
-import { Switch } from './CurrencyMenu'
-import { useStore } from '../store'
 import { openPlans, useAccess } from '../billing'
-import { AppSettings } from './AppInstall'
 import { PLANS } from '../lib/plans'
+import { openSettings } from '../settingsNav'
 
-const STATUS: Record<SaveStatus, { label: string; cls: string; icon: typeof Check; spin?: boolean }> = {
+export const STATUS: Record<SaveStatus, { label: string; cls: string; icon: typeof Check; spin?: boolean }> = {
   saved: { label: 'Saved', cls: 'text-emerald-300', icon: Check },
   saving: { label: 'Saving…', cls: 'text-zinc-400', icon: Loader2, spin: true },
   offline: { label: 'Offline · will sync', cls: 'text-amber-300', icon: CloudOff },
@@ -30,7 +27,6 @@ export function SaveIndicator() {
 export function AccountMenu() {
   const user = useCloud((s) => s.user)
   const access = useAccess()
-  const hideBackup = useStore((s) => s.hideBackupButtons)
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
 
@@ -72,21 +68,17 @@ export function AccountMenu() {
               <p className="truncate text-xs text-zinc-500">{user.email}</p>
             </div>
           </div>
-          <div className="border-b border-white/[0.06] p-4">
-            <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-zinc-400">
-              <Cake className="h-3.5 w-3.5 text-pink-300" /> Birthday
-              <span className="font-normal text-zinc-600">· shows your age on your birth month</span>
-            </p>
-            <BirthdayInput />
-          </div>
-          <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-zinc-300">Export &amp; Import buttons</p>
-              <p className="text-xs text-zinc-500">Show them in the header</p>
-            </div>
-            <Switch on={!hideBackup} onChange={(on) => useStore.getState().setHideBackupButtons(!on)} label="Show the Export and Import buttons" />
-          </div>
-          <AppSettings onAction={() => setOpen(false)} />
+          <button
+            onClick={() => {
+              setOpen(false)
+              openSettings()
+            }}
+            className="flex w-full items-center gap-2.5 border-b border-white/[0.06] px-4 py-3 text-left text-sm font-medium text-zinc-100 transition hover:bg-white/5 hover:text-white"
+          >
+            <Settings className="h-4 w-4 text-indigo-300" />
+            <span className="flex-1">Settings</span>
+            <ChevronRight className="h-4 w-4 text-zinc-600" />
+          </button>
           <button
             onClick={() => {
               setOpen(false)
@@ -124,7 +116,7 @@ export function AccountMenu() {
   )
 }
 
-function Avatar({ url, name }: { url: string | null; name: string }) {
+export function Avatar({ url, name }: { url: string | null; name: string }) {
   const [broken, setBroken] = useState(false)
   if (url && !broken) {
     return <img src={url} alt="" referrerPolicy="no-referrer" onError={() => setBroken(true)} className="h-full w-full object-cover" />

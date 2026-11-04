@@ -23,6 +23,10 @@ Production build: `npm run build`, then `npm run preview`.
 - Money boxes accept `100k`, `1.5m` or `250,000`.
 - **Accounts:** everyone signs in with Google. Data is saved automatically to their own account (Firestore document `users/{uid}`) and syncs across their devices. **Export** / **Import** still work for offline backups.
 
+## Settings
+
+Press your profile picture → **Settings** (or Settings in the side menu). It has its own address (`#settings/appearance`), so Back works and a reload stays put. Settings that belong to the person (accent colour, week start, clock, header buttons, side menu…) are saved with the account and follow them to every device; settings that belong to the screen (text size, motion, start page, hidden amounts, reminders…) stay on that device. See `src/lib/prefs.ts`.
+
 ## Setup: Google login and cloud saving (Firebase)
 
 1. Go to https://console.firebase.google.com and click **Create a project**. Google Analytics is optional.
@@ -48,9 +52,9 @@ Production build: `npm run build`, then `npm run preview`.
 
 ## The app (install, offline, updates)
 
-Dizayr installs as an app straight from the website (it's a Progressive Web App): **Download the app** on the About page, in the side menu, or in the account menu. Chrome, Edge and Android install in one tap; on iPhone/iPad it shows the two taps (Share → Add to Home Screen). The installed app is the same site, so it uses the same account and data, works offline (edits sync when back online), and needs nothing from an app store.
+Dizayr installs as an app straight from the website (it's a Progressive Web App): **Download the app** on the About page, in the side menu, or in Settings → Help & app. Chrome, Edge and Android install in one tap; on iPhone/iPad it shows the two taps (Share → Add to Home Screen). The installed app is the same site, so it uses the same account and data, works offline (edits sync when back online), and needs nothing from an app store.
 
-**Updating the app = pushing to GitHub.** Every deploy gets a version (the commit), written to `/version.json`. The app checks it when it opens, when it comes back to the screen, and every 15 minutes; if there's a newer one it shows **"A new version of Dizayr is ready · Update now"**, and after updating says **"Dizayr was updated"**. Users can also press **Check for updates** in the account menu. Nothing else to do.
+**Updating the app = pushing to GitHub.** Every deploy gets a version (the commit), written to `/version.json`. The app checks it when it opens, when it comes back to the screen, and every 15 minutes; if there's a newer one it shows **"A new version of Dizayr is ready · Update now"**, and after updating says **"Dizayr was updated"**. Users can also press **Check for updates** in Settings → Help & app. Nothing else to do.
 
 ## Payments: 7-day free trial and plans (Lemon Squeezy)
 

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent 
 import { AlertCircle, Check, Plus, Repeat } from 'lucide-react'
 import { useStore, useTaskKindOf } from '../store'
 import { WEEKDAYS, addDays, fromKey, todayKey } from '../lib/expenses'
+import { live } from '../lib/prefs'
 import {
   DAY_MINUTES, DUE_SPAN, MAX_DURATION, SNAP, byTime, daysBetween, fmtDuration, fmtRange, fmtTime, isEvent, layoutDay, nowMinutes, segmentsOf, snap,
   taskColor, type Occurrence, type Segment,
@@ -229,9 +230,9 @@ export function TimeGrid({ days, occurrences, onPickDay, onShowDay }: Props) {
     if (d.mode === 'create') {
       const a = Math.min(d.anchor, d.cur)
       const b = Math.max(d.anchor, d.cur)
-      // Just a click: an hour from where it was clicked.
-      const start = b - a < SNAP ? Math.min(d.anchor, DAY_MINUTES - 60) : a
-      const duration = b - a < SNAP ? 60 : b - a
+      // Just a click: the usual length (see Settings) from where it was clicked.
+      const start = b - a < SNAP ? Math.min(d.anchor, DAY_MINUTES - live.eventLength) : a
+      const duration = b - a < SNAP ? live.eventLength : b - a
       s.openModal({ type: 'task', entry: 'event', date: days[d.col], start, duration })
     } else if (d.mode === 'resize') {
       const t = d.occ.task
@@ -312,8 +313,8 @@ export function TimeGrid({ days, occurrences, onPickDay, onShowDay }: Props) {
     if (!p || Math.hypot(e.clientX - p.x, e.clientY - p.y) > SLOP) return
     // A tap or click: open the task, or start a new one at that time.
     if (p.occ) return useStore.getState().openModal({ type: 'task', editId: p.occ.task.id })
-    const start = clamp(Math.floor(minuteAt(p.y) / 30) * 30, 0, DAY_MINUTES - 60)
-    useStore.getState().openModal({ type: 'task', entry: 'event', date: days[p.col], start, duration: 60 })
+    const start = clamp(Math.floor(minuteAt(p.y) / 30) * 30, 0, DAY_MINUTES - live.eventLength)
+    useStore.getState().openModal({ type: 'task', entry: 'event', date: days[p.col], start, duration: live.eventLength })
   }
 
   function onResizeDown(e: ReactPointerEvent<HTMLElement>, occ: Occurrence) {
@@ -478,7 +479,7 @@ export function TimeGrid({ days, occurrences, onPickDay, onShowDay }: Props) {
                   {resizing && resizing.from != null && !resizing.armed && addDays(resizing.occ.day, resizing.from / DAY_MINUTES) === d && (
                     <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 z-30">
                       <div className="h-1 animate-pulse bg-indigo-400 shadow-[0_0_12px_rgba(129,140,248,0.9)]" />
-                      <p className="mx-auto mt-1.5 w-fit rounded-md bg-indigo-500 px-1.5 py-0.5 text-[10.5px] font-semibold text-white shadow-lg">↑ Keep dragging from 12 AM</p>
+                      <p className="mx-auto mt-1.5 w-fit rounded-md bg-indigo-500 px-1.5 py-0.5 text-[10.5px] font-semibold text-white shadow-lg">↑ Keep dragging from {fmtTime(0, true)}</p>
                     </div>
                   )}
 
@@ -518,7 +519,7 @@ function EndsLabel({ drag, at }: { drag: Extract<Drag, { mode: 'resize' }>; at: 
       Ends {later > 0 && <span className="text-indigo-200">{WEEKDAYS[fromKey(day).getDay()]} </span>}
       {fmtTime(end % DAY_MINUTES, true)}
       <span className="text-zinc-400"> · {fmtDuration(drag.duration)}</span>
-      {drag.from != null && !drag.armed && <span className="block text-[11px] font-normal text-indigo-200">Move up to 12 AM to keep going</span>}
+      {drag.from != null && !drag.armed && <span className="block text-[11px] font-normal text-indigo-200">Move up to {fmtTime(0, true)} to keep going</span>}
     </div>
   )
 }

@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { CalendarCheck, CalendarDays, Download, Flag, Gem, GripVertical, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings2, Star, Target, X } from 'lucide-react'
+import { CalendarCheck, CalendarDays, Download, Flag, Gem, GripVertical, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, Star, Target, X } from 'lucide-react'
 import { useFmt, useKinds, useStore } from '../store'
 import { SOURCE_KIND, kindColor, kindIcon } from '../lib/meta'
 import { useMedia } from '../lib/useMedia'
 import { goTo, useActiveSection } from '../nav'
+import { openSettings } from '../settingsNav'
 import { todayKey } from '../lib/expenses'
 import { happensOn, isDoneOn, isEvent } from '../lib/tasks'
 import { useSortable } from '../sortable'
@@ -48,6 +49,7 @@ export function Sidebar() {
   const dueToday = useStore((s) => s.tasks.filter((t) => !isEvent(t) && happensOn(t, today) && !isDoneOn(t, today)).length)
   const shown = docked ? sidebar : drawer
   const appInstalled = useApp((s) => s.installed)
+  const hiddenNav = useStore((s) => s.prefs.hiddenNav)
   // Money plans can be put in order by dragging them in the list below.
   const [dragSource, setDragSource] = useState<string | null>(null)
 
@@ -99,17 +101,17 @@ export function Sidebar() {
             <Link icon={LayoutDashboard} label="Overview" on={active === 'overview'} onClick={() => goTo('overview')} />
             <Link icon={CalendarDays} label="Months" on={active === 'years'} onClick={() => goTo('years')} />
             <Link icon={Flag} label="Yearly goals" on={active === 'goals'} onClick={() => goTo('goals')} />
-            <Link
+            {!hiddenNav.includes('favorites') && <Link
               icon={Star}
               label="Favorites"
               on={active === 'favorites'}
               onClick={() => goTo('favorites')}
               badge={favorites || undefined}
               iconCls="text-amber-300"
-            />
+            />}
           </Group>
 
-          <Group label="Time">
+          {!hiddenNav.includes('calendar') && <Group label="Time">
             <Link
               icon={CalendarCheck}
               label="Calendar"
@@ -136,9 +138,9 @@ export function Sidebar() {
             >
               <Plus className="h-4 w-4" /> Add a task
             </button>
-          </Group>
+          </Group>}
 
-          <Group label="Spending">
+          {!hiddenNav.includes('expenses') && <Group label="Spending">
             <Link
               icon={Receipt}
               label="Expenses"
@@ -157,9 +159,9 @@ export function Sidebar() {
             >
               <Plus className="h-4 w-4" /> Add an expense
             </button>
-          </Group>
+          </Group>}
 
-          <Group label="What you own">
+          {!hiddenNav.includes('assets') && <Group label="What you own">
             <Link
               icon={Gem}
               label="Assets"
@@ -201,9 +203,9 @@ export function Sidebar() {
                 </button>
               </li>
             </ul>
-          </Group>
+          </Group>}
 
-          <Group label="Making the money">
+          {!hiddenNav.includes('plan') && <Group label="Making the money">
             <Link icon={Rocket} label="Money plan" on={active === 'plan'} onClick={() => goTo('plan')} badge={sources.length || undefined} />
             {sources.length > 0 && (
               <ul className="ml-[1.4rem] mt-1 space-y-0.5 border-l border-white/[0.07] pl-2">
@@ -218,6 +220,10 @@ export function Sidebar() {
             >
               <Plus className="h-4 w-4" /> Add a way to earn
             </button>
+          </Group>}
+
+          <Group label="You">
+            <Link icon={Settings} label="Settings" on={active === 'settings'} onClick={() => openSettings()} />
           </Group>
         </nav>
 
