@@ -3,7 +3,7 @@ import { CalendarCheck, CalendarDays, Download, Flag, Gem, GripVertical, LayoutD
 import { inNeedsMode, useFmt, useKinds, useStore } from '../store'
 import { SOURCE_KIND, kindColor, kindIcon } from '../lib/meta'
 import { useMedia } from '../lib/useMedia'
-import { goTo, useActiveSection } from '../nav'
+import { goHome, goTo, useActiveSection } from '../nav'
 import { openSettings } from '../settingsNav'
 import { todayKey } from '../lib/expenses'
 import { happensOn, isDoneOn, isEvent } from '../lib/tasks'
@@ -81,12 +81,17 @@ export function Sidebar() {
         }`}
       >
         <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] lg:pt-6">
-          <div className="flex items-center gap-2.5">
+          <a
+            href="/"
+            onClick={goHome}
+            title="Go to Overview"
+            className="flex items-center gap-2.5 rounded-xl transition hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+          >
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-indigo-400 to-emerald-400">
               <Target className="h-4 w-4 text-white" strokeWidth={2.5} />
             </span>
             <span className="font-bold tracking-tight text-white">Dizayr</span>
-          </div>
+          </a>
           <button
             onClick={() => toggleSidebar(docked)}
             title={docked ? 'Hide sidebar' : 'Close'}

@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { Download, Eye, EyeOff, Menu, PanelLeftClose, PanelLeftOpen, RotateCcw, Target, Upload } from 'lucide-react'
 import { inNeedsMode, useStore } from '../store'
 import { downloadBackup, readBackup, restoreBackup } from '../backup'
+import { goHome } from '../nav'
 import { toast } from '../toast'
 import { AccountMenu, SaveIndicator } from './AccountMenu'
 import { CurrencyMenu } from './CurrencyMenu'
@@ -80,6 +81,12 @@ export function Header() {
           >
             {docked && sidebar ? <PanelLeftClose className="h-5 w-5" /> : docked ? <PanelLeftOpen className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
+          <a
+            href="/"
+            onClick={goHome}
+            title="Go to Overview"
+            className="flex min-w-0 items-center gap-3 rounded-2xl transition hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+          >
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-indigo-400 to-emerald-400 shadow-lg shadow-indigo-500/20 sm:h-11 sm:w-11">
             <Target className="h-5 w-5 text-white sm:h-6 sm:w-6" strokeWidth={2.5} />
           </div>
@@ -90,6 +97,7 @@ export function Header() {
               <span className="hidden sm:inline">{needs ? <>Everyday budget in {symbol}</> : <>Goals, budgets &amp; net worth in {symbol} · 2026 – 2040</>}</span>
             </p>
           </div>
+          </a>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">

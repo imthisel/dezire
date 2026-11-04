@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { useStore, type AssetCat, type View } from './store'
 
 /** Places the sidebar and the phone tab bar can jump to. Also `month-<key>`, `assets-<category>`, and on the Money plan page `plan-add` and `source-<id>`. */
@@ -62,6 +62,13 @@ function whenShown(view: View, id: string, then: () => void) {
     else requestAnimationFrame(check)
   }
   requestAnimationFrame(check)
+}
+
+/** The logo and name: a link to the top of the Overview. Ctrl / Cmd / Shift-click still opens a new tab or window, as links do. */
+export function goHome(e: MouseEvent<HTMLAnchorElement>) {
+  if (e.ctrlKey || e.metaKey || e.shiftKey) return
+  e.preventDefault()
+  goTo('overview')
 }
 
 /** Opens the Planner on the month `key` ("2027-03"). */
