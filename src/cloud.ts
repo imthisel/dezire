@@ -29,7 +29,9 @@ const SAVE_DELAY = 800
 export const snapshot = () => {
   const s = useStore.getState()
   const { kinds, goals, goalAreas, sources, birthday, currency, expenses, expenseCats, places, tasks, taskKinds, prefs } = s
-  return { ...savedModes(s), kinds, goals, goalAreas, sources, birthday, currency, expenses: expenses.map(compact), expenseCats, places, tasks, taskKinds, prefs }
+  const saved = savedModes(s)
+  const modes = saved.modes.map((m) => (m.needs ? { ...m, needs: { ...m.needs, items: m.needs.items.map((i) => ({ ...compact(i), ...(i.expenseId ? { expenseId: i.expenseId } : {}) })) } } : m))
+  return { ...saved, modes, kinds, goals, goalAreas, sources, birthday, currency, expenses: expenses.map(compact), expenseCats, places, tasks, taskKinds, prefs }
 }
 
 /** An expense without its empty fields, to keep the saved document small (they come back as '' when loaded). */

@@ -81,7 +81,7 @@ export interface ModeInfo {
 
 /** Wants: the long-term plan (months, items, net worth). Needs: weekly and monthly budgets for everyday spending. */
 export type ModeKind = 'wants' | 'needs'
-/** A Needs mode's budgets and categories. What's added in its weeks is saved as expenses. */
+/** A Needs mode's budgets, categories and items. Its items stay here until one is sent to Expenses. */
 export interface NeedsPlan {
   /** The budget every month starts with (0 = none) */
   monthly: number
@@ -89,6 +89,8 @@ export interface NeedsPlan {
   monthBudgets: Record<string, number>
   /** ExpenseCategory ids offered when adding, in order */
   cats: string[]
+  /** What's been added in its weeks */
+  items: NeedItem[]
 }
 
 /** What each mode keeps for itself: its months (goals, budgets, items), its setups and its year notes. */
@@ -169,6 +171,14 @@ export interface ExpenseCategory {
   color: string
   /** Things usually bought in it ("Lunch", "Coffee"), offered as one-tap names when adding */
   items: string[]
+}
+
+/**
+ * Something in a week of a Needs mode. It counts in Expenses only once it's sent there: `expenseId` is then the expense
+ * that mirrors it. It can outlive that expense, so an item is "in Expenses" only while the expense exists.
+ */
+export interface NeedItem extends Expense {
+  expenseId?: string
 }
 
 /** Money spent. Only `date` and `amount` are needed; the rest is optional. */

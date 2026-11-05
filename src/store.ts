@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { create } from 'zustand'
 import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware'
-import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, ItemLink, ModeKind, MonthData, NeedsPlan, PlanStep, ModeData, ModeInfo, Result, RunningCosts, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
+import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, ItemLink, ModeKind, MonthData, NeedItem, NeedsPlan, PlanStep, ModeData, ModeInfo, Result, RunningCosts, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
 import {
   DEFAULT_GOAL_AREAS, DEFAULT_KINDS, GOAL_COLORS, GOAL_ICONS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_AREA, UNKNOWN_KIND,
   guessAreaIcon, guessIcon,
@@ -15,7 +15,7 @@ import {
   todayKey, uniq,
 } from './lib/expenses'
 import { parseLinks } from './lib/links'
-import { modeKind, parseNeeds, starterNeeds } from './lib/needs'
+import { isSent, modeKind, parseNeeds, starterNeeds, unlinkedCopy } from './lib/needs'
 import { DEFAULT_DEVICE, DEFAULT_PREFS, live, parseDevice, parsePrefs, type DevicePrefs, type Prefs } from './lib/prefs'
 import { DEFAULT_TASK_KINDS, MAX_TASK_KIND_NAME, TASK_COLORS, UNKNOWN_TASK_KIND, cleanTask, guessTaskIcon, parseTaskKinds, parseTasks, type TaskInput } from './lib/tasks'
 
@@ -56,6 +56,8 @@ export type TaskKindPatch = Partial<Omit<TaskKind, 'id'>>
 export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string; links?: ItemLink[]; propertyId?: string; running?: RunningCosts }
 
 const OK: Result = { ok: true }
+/** Short ids: there can be thousands of expenses and items, and they all live in one saved document. */
+const shortId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)
 /** Tidies what was typed for an expense. */
 function cleanExpense(d: ExpenseInput) {
   return {
@@ -346,8 +348,18 @@ interface State {
   /** One month's budget, in place of the usual one (null: back to the usual one). */
   setNeedMonthBudget: (key: string, amount: number | null) => void
   addNeed: (id: string) => void
-  /** Takes a category out of the needs (its expenses stay). Returns how to undo it. */
+  /** Takes a category out of what's offered when adding (what's in it stays). Returns how to undo it. */
   removeNeed: (id: string) => () => void
+  /** Adds an item to the Needs mode in use. It stays out of Expenses unless `send` is set. */
+  addNeedItem: (data: ExpenseInput, send?: boolean) => string
+  /** Changes an item, and its expense when it's in Expenses. */
+  updateNeedItem: (id: string, data: ExpenseInput) => void
+  /** Deletes an item, and its expense when it's in Expenses. */
+  removeNeedItem: (id: string) => { item: NeedItem; wasSent: boolean; undo: () => void } | undefined
+  /** Sends items to Expenses, or takes them back out (they stay in Needs). Says how many changed and how to undo it. */
+  setNeedsSent: (ids: string[], on: boolean) => { count: number; undo: () => void }
+  /** Makes items from existing expenses. `keep`: they stay in Expenses, linked; otherwise they move out of it. */
+  importNeedItems: (expenseIds: string[], keep: boolean) => { count: number; undo: () => void }
   /** Replaces another mode's plan with a copy of the one in use, which stays open. Returns how to undo it. */
   copyModeOver: (id: string) => () => void
   renameMode: (id: string, name: string) => void
@@ -733,7 +745,7 @@ export const useStore = create<State>()(
           id: uid(),
           name: name.trim().slice(0, MAX_MODE_NAME) || `Mode ${s.modes.length + 1}`,
           createdAt: Date.now(),
-          ...(kind === 'needs' ? { kind, needs: sameKind && from?.needs ? structuredClone(from.needs) : starterNeeds(s.expenseCats) } : {}),
+          ...(kind === 'needs' ? { kind, needs: sameKind && from?.needs ? unlinkedCopy(from.needs) : starterNeeds(s.expenseCats) } : {}),
         }
         const data = sameKind && kind === 'wants' ? copyOfPlan(s) : emptyMode()
         set({ modes: [...s.modes, mode], modeData: { ...s.modeData, [mode.id]: data } })
@@ -747,7 +759,7 @@ export const useStore = create<State>()(
         const needsBefore = s.modes.find((m) => m.id === id)?.needs
         const needsNow = s.modes.find((m) => m.id === s.modeId)?.needs
         const withNeeds = (list: ModeInfo[], needs: NeedsPlan | undefined) => (needs ? list.map((m) => (m.id === id ? { ...m, needs: structuredClone(needs) } : m)) : list)
-        set({ modeData: { ...s.modeData, [id]: copyOfPlan(s) }, modes: withNeeds(s.modes, needsNow) })
+        set({ modeData: { ...s.modeData, [id]: copyOfPlan(s) }, modes: withNeeds(s.modes, needsNow && unlinkedCopy(needsNow)) })
         return () =>
           set((now) => {
             if (!now.modes.some((m) => m.id === id)) return {}
@@ -769,6 +781,88 @@ export const useStore = create<State>()(
         const before = get().modes.find((m) => m.id === get().modeId)?.needs
         set((s) => ({ modes: changeNeeds(s, (n) => ({ ...n, cats: n.cats.filter((c) => c !== id) })) }))
         return () => before && set((s) => ({ modes: changeNeeds(s, () => before) }))
+      },
+      addNeedItem: (data, send) => {
+        const item: NeedItem = { id: shortId(), ...cleanExpense(data), createdAt: Date.now() }
+        set((s) => ({ modes: changeNeeds(s, (n) => ({ ...n, items: [...n.items, item] })) }))
+        if (send) get().setNeedsSent([item.id], true)
+        return item.id
+      },
+      updateNeedItem: (id, data) =>
+        set((s) => {
+          const clean = cleanExpense(data)
+          const link = currentItems(s).find((i) => i.id === id)?.expenseId
+          return {
+            modes: changeNeeds(s, (n) => ({ ...n, items: n.items.map((i) => (i.id === id ? { ...i, ...clean } : i)) })),
+            ...(link ? { expenses: s.expenses.map((e) => (e.id === link ? { ...e, ...clean } : e)) } : {}),
+          }
+        }),
+      removeNeedItem: (id) => {
+        const s = get()
+        const item = currentItems(s).find((i) => i.id === id)
+        if (!item) return undefined
+        const mode = s.modeId
+        const expense = s.expenses.find((e) => e.id === item.expenseId)
+        set((now) => ({
+          modes: changeNeeds(now, (n) => ({ ...n, items: n.items.filter((i) => i.id !== id) })),
+          ...(expense ? { expenses: now.expenses.filter((e) => e.id !== expense.id) } : {}),
+        }))
+        const undo = () =>
+          set((now) =>
+            now.modeId !== mode
+              ? {}
+              : {
+                  modes: changeNeeds(now, (n) => ({ ...n, items: [...n.items, item] })),
+                  ...(expense && !now.expenses.some((e) => e.id === expense.id) ? { expenses: [...now.expenses, expense] } : {}),
+                },
+          )
+        return { item, wasSent: !!expense, undo }
+      },
+      setNeedsSent: (ids, on) => {
+        const s = get()
+        const inExpenses = new Set(s.expenses.map((e) => e.id))
+        const wanted = new Set(ids)
+        const changing = currentItems(s).filter((i) => wanted.has(i.id) && isSent(i, inExpenses) !== on)
+        const changed = changing.map((i) => i.id)
+        if (changing.length) {
+          const links = new Map(changing.map((i) => [i.id, shortId()]))
+          const gone = new Set(changing.map((i) => i.expenseId))
+          const made: Expense[] = changing.map(({ expenseId: _old, ...i }) => ({ ...i, id: links.get(i.id)!, createdAt: Date.now() }))
+          set((now) => ({
+            modes: changeNeeds(now, (n) => ({
+              ...n,
+              items: n.items.map((i) => {
+                if (!links.has(i.id)) return i
+                const { expenseId: _old, ...rest } = i
+                return on ? { ...rest, expenseId: links.get(i.id) } : rest
+              }),
+            })),
+            expenses: on ? [...now.expenses, ...made] : now.expenses.filter((e) => !gone.has(e.id)),
+          }))
+        }
+        return { count: changed.length, undo: () => void get().setNeedsSent(changed, !on) }
+      },
+      importNeedItems: (expenseIds, keep) => {
+        const s = get()
+        const wanted = new Set(expenseIds)
+        const picked = s.expenses.filter((e) => wanted.has(e.id))
+        const mode = s.modeId
+        const items: NeedItem[] = picked.map((e) => ({ ...e, id: shortId(), ...(keep ? { expenseId: e.id } : {}) }))
+        const made = new Set(items.map((i) => i.id))
+        set((now) => ({
+          modes: changeNeeds(now, (n) => ({ ...n, items: [...n.items, ...items] })),
+          ...(keep ? {} : { expenses: now.expenses.filter((e) => !wanted.has(e.id)) }),
+        }))
+        const undo = () =>
+          set((now) => {
+            if (now.modeId !== mode) return {}
+            const here = new Set(now.expenses.map((e) => e.id))
+            return {
+              modes: changeNeeds(now, (n) => ({ ...n, items: n.items.filter((i) => !made.has(i.id)) })),
+              ...(keep ? {} : { expenses: [...now.expenses, ...picked.filter((e) => !here.has(e.id))] }),
+            }
+          })
+        return { count: items.length, undo }
       },
       renameMode: (id, name) =>
         set((s) => ({ modes: s.modes.map((m) => (m.id === id ? { ...m, name: name.trim().slice(0, MAX_MODE_NAME) || m.name } : m)) })),
@@ -1103,12 +1197,16 @@ export const useStore = create<State>()(
         })),
 
       addExpense: (data) => {
-        // Short ids: there can be thousands of expenses, and they all live in one saved document.
-        const e: Expense = { id: Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4), ...cleanExpense(data), createdAt: Date.now() }
+        const e: Expense = { id: shortId(), ...cleanExpense(data), createdAt: Date.now() }
         set((s) => ({ expenses: [...s.expenses, e] }))
         return e.id
       },
-      updateExpense: (id, data) => set((s) => ({ expenses: s.expenses.map((e) => (e.id === id ? { ...e, ...cleanExpense(data) } : e)) })),
+      updateExpense: (id, data) =>
+        set((s) => {
+          const clean = cleanExpense(data)
+          // An item sent here from Needs stays the same as its expense.
+          return { expenses: s.expenses.map((e) => (e.id === id ? { ...e, ...clean } : e)), modes: mapNeedItems(s.modes, (i) => (i.expenseId === id ? { ...i, ...clean } : i)) }
+        }),
       removeExpense: (id) => {
         const e = get().expenses.find((x) => x.id === id)
         if (e) set((s) => ({ expenses: s.expenses.filter((x) => x.id !== id) }))
@@ -1151,6 +1249,7 @@ export const useStore = create<State>()(
           return {
             expenseCats: s.expenseCats.filter((c) => c.id !== id),
             expenses: s.expenses.some((e) => e.category === id) ? s.expenses.map((e) => (e.category === id ? { ...e, category: target } : e)) : s.expenses,
+            modes: mapNeedItems(s.modes, (i) => (i.category === id ? { ...i, category: target } : i)),
           }
         }),
       addPlace: (name) =>
@@ -1169,6 +1268,7 @@ export const useStore = create<State>()(
         set({
           places: uniq(places.map((p) => (p.toLowerCase() === old ? name : p))),
           expenses: used ? expenses.map((e) => (e.place.toLowerCase() === old ? { ...e, place: name } : e)) : expenses,
+          modes: mapNeedItems(get().modes, (i) => (i.place.toLowerCase() === old ? { ...i, place: name } : i)),
         })
         return used
       },
@@ -1428,6 +1528,22 @@ export function useCurrentNeeds() {
 /** The modes list with the budgets of the mode in use changed. */
 const changeNeeds = (s: Pick<State, 'modes' | 'modeId' | 'expenseCats'>, change: (n: NeedsPlan) => NeedsPlan) =>
   s.modes.map((m) => (m.id === s.modeId && m.kind === 'needs' ? { ...m, needs: change(m.needs ?? starterNeeds(s.expenseCats)) } : m))
+
+/** The items of the Needs mode in use. */
+const currentItems = (s: Pick<State, 'modes' | 'modeId'>) => s.modes.find((m) => m.id === s.modeId)?.needs?.items ?? []
+
+/** Changes items in every Needs mode. `modes` itself comes back when nothing changed, so nothing saves for no reason. */
+function mapNeedItems(modes: ModeInfo[], change: (i: NeedItem) => NeedItem) {
+  let any = false
+  const out = modes.map((m) => {
+    if (!m.needs) return m
+    const items = m.needs.items.map(change)
+    if (items.every((x, n) => x === m.needs!.items[n])) return m
+    any = true
+    return { ...m, needs: { ...m.needs, items } }
+  })
+  return any ? out : modes
+}
 
 /** Every mode with its data, the one in use included. */
 function allModes(s: Pick<State, 'modes' | 'modeId' | 'modeData' | 'months' | 'layouts' | 'setupNotes' | 'setupFavorites' | 'yearNotes'>) {

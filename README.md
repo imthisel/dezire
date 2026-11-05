@@ -25,7 +25,7 @@ Production build: `npm run build`, then `npm run preview`.
 
 ## Modes: Wants and Needs
 
-A new mode is one of two kinds. **Wants** is the long-term plan (months, items, net worth, setups). **Needs** is everyday spending, laid out like the Overview: months open into their weeks (always Sunday to Saturday, cut off at the month's edges, so a month has 4 to 6), and each week has its own items. Adding asks for a colour-coded category (Groceries, Transport…). Each month has a budget, with a usual one every month starts with. What's added is saved as an expense, so it's in Expenses too and nothing is entered twice. Needs modes are always green with a basket icon, and green is used for no Wants mode. See `src/lib/needs.ts`.
+A new mode is one of two kinds. **Wants** is the long-term plan (months, items, net worth, setups). **Needs** is everyday spending, laid out like the Overview: months open into their weeks (always Sunday to Saturday, cut off at the month's edges, so a month has 4 to 6), and each week has its own items. Adding asks for a colour-coded category (Groceries, Transport…). Each month has a budget, with a usual one every month starts with. A Needs mode keeps its own items, apart from Expenses: an item only counts there once it's ticked (one by one, by week or by month), and it then stays the same on both sides until it's unticked. Expenses from before can be brought in with **Bring in from Expenses**. Needs modes are always green with a basket icon, and green is used for no Wants mode. See `src/lib/needs.ts`.
 
 ## Settings
 

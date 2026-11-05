@@ -1,23 +1,24 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { Check, ChevronDown, Copy, Settings2, StickyNote, Trash2 } from 'lucide-react'
+import { Check, ChevronDown, Copy, Receipt, Settings2, StickyNote, Trash2 } from 'lucide-react'
 import { useCurrentNeeds, useFmt, useStore } from '../store'
 import { useExpenseCats } from '../expenseHooks'
 import { MAX_CAT_NAME, MAX_DATE, MAX_ITEM_NAME, MIN_DATE, WEEKDAYS, addDays, catColor, catIcon, clampDate, fromKey, todayKey } from '../lib/expenses'
-import { budgetFor, daysOfWeek, needsByMonth, weekLabel, weekOfDay } from '../lib/needs'
+import { budgetFor, daysOfWeek, isSent, needsByMonth, weekLabel, weekOfDay } from '../lib/needs'
 import { MONTHS } from '../lib/time'
 import { Modal } from './Modal'
 import { MoneyInput } from './MoneyInput'
 import { toast } from '../toast'
 
-/** Add or edit something in a week of a Needs mode. It's saved as an expense, so it shows in Expenses too. */
+/** Add or edit something in a week of a Needs mode. It stays out of Expenses unless the box here is ticked. */
 export function NeedItemModal({ editId, date: startDate }: { editId?: string; date?: string }) {
-  const editing = useStore((s) => (editId ? s.expenses.find((e) => e.id === editId) : undefined))
   const close = useStore((s) => s.closeModal)
   const plan = useCurrentNeeds()
-  const expenses = useStore((s) => s.expenses)
+  const editing = editId ? plan?.items.find((e) => e.id === editId) : undefined
   const allCats = useExpenseCats()
   const f = useFmt()
-  const cats = plan ? plan.cats.flatMap((id) => allCats.filter((c) => c.id === id)) : []
+  const wasSent = useStore((s) => !!editing?.expenseId && s.expenses.some((e) => e.id === editing.expenseId))
+  // An item keeps its category even when that's since been taken off the list.
+  const cats = plan ? [...plan.cats, ...(editing && !plan.cats.includes(editing.category) ? [editing.category] : [])].flatMap((id) => allCats.filter((c) => c.id === id)) : []
 
   const [category, setCategory] = useState(editing?.category ?? '')
   const [name, setName] = useState(editing?.name ?? '')
@@ -26,6 +27,7 @@ export function NeedItemModal({ editId, date: startDate }: { editId?: string; da
   const [notes, setNotes] = useState(editing?.notes ?? '')
   const [notesOpen, setNotesOpen] = useState(!!editing?.notes)
   const [picking, setPicking] = useState(false)
+  const [send, setSend] = useState(wasSent)
   const amountBox = useRef<HTMLDivElement>(null)
 
   const week = weekOfDay(date)
@@ -37,9 +39,9 @@ export function NeedItemModal({ editId, date: startDate }: { editId?: string; da
   const monthKey = date.slice(0, 7)
   const left = useMemo(() => {
     if (!plan) return 0
-    const spent = (needsByMonth(expenses, plan).get(monthKey) ?? []).filter((e) => e.id !== editId).reduce((n, e) => n + e.amount, 0)
+    const spent = (needsByMonth(plan).get(monthKey) ?? []).filter((e) => e.id !== editId).reduce((n, e) => n + e.amount, 0)
     return budgetFor(plan, monthKey) - spent - (amount ?? 0)
-  }, [plan, expenses, monthKey, editId, amount])
+  }, [plan, monthKey, editId, amount])
   const hasBudget = !!plan && budgetFor(plan, monthKey) > 0
 
   function save(again: boolean) {
@@ -48,26 +50,29 @@ export function NeedItemModal({ editId, date: startDate }: { editId?: string; da
     const s = useStore.getState()
     const what = name.trim() || picked!.label
     if (editing) {
-      s.updateExpense(editing.id, data)
-      toast.success(`Updated “${what}”.`)
+      s.updateNeedItem(editing.id, data)
+      if (send !== wasSent) s.setNeedsSent([editing.id], send)
+      toast.success(send === wasSent ? `Updated “${what}”.` : send ? `Updated “${what}” and sent it to Expenses.` : `Updated “${what}” and took it out of Expenses.`)
       return close()
     }
-    s.addExpense(data)
-    toast.success(`Added ${f(amount!)} · ${what} to Week ${week.n}.`)
+    s.addNeedItem(data, send)
+    toast.success(`Added ${f(amount!)} · ${what} to Week ${week.n}${send ? ' and to Expenses' : ''}.`)
     if (!again) return close()
     // Ready for the next one: same week and category, the shopping-list way.
     setName('')
     setAmount(null)
     setNotes('')
     setNotesOpen(false)
+    setSend(false)
     requestAnimationFrame(() => amountBox.current?.querySelector('input')?.focus())
   }
 
   function remove() {
     if (!editing) return
-    const gone = useStore.getState().removeExpense(editing.id)
+    const gone = useStore.getState().removeNeedItem(editing.id)
     close()
-    if (gone) toast.undo(`Deleted “${gone.name || picked?.label || 'item'}”.`, () => useStore.getState().restoreExpense(gone))
+    const what = gone?.item.name || picked?.label || 'item'
+    if (gone) toast.undo(gone.wasSent ? `Deleted “${what}” from Needs and Expenses.` : `Deleted “${what}”.`, gone.undo)
   }
 
   function copyToNextWeek() {
@@ -75,9 +80,9 @@ export function NeedItemModal({ editId, date: startDate }: { editId?: string; da
     const to = addDays(editing.date, 7)
     if (to > MAX_DATE) return
     const s = useStore.getState()
-    const id = s.addExpense({ ...editing, date: to })
+    const id = s.addNeedItem({ ...editing, date: to })
     close()
-    toast.undo(`Copied to Week ${weekOfDay(to).n} of ${MONTHS[fromKey(to).getMonth()]}.`, () => useStore.getState().removeExpense(id))
+    toast.undo(`Copied to Week ${weekOfDay(to).n} of ${MONTHS[fromKey(to).getMonth()]}.`, () => useStore.getState().removeNeedItem(id))
   }
 
   return (
@@ -94,7 +99,7 @@ export function NeedItemModal({ editId, date: startDate }: { editId?: string; da
                 Left in {MONTHS[fromKey(date).getMonth()]} after this: <span className={`font-semibold tabular-nums ${left < 0 ? 'text-red-300' : 'text-zinc-200'}`}>{f(left)}</span>
               </>
             ) : (
-              'Also shows in Expenses.'
+              send ? 'Goes to Expenses too.' : 'Stays in Needs only.'
             )}
           </p>
           <div className="flex gap-2">
@@ -249,6 +254,27 @@ export function NeedItemModal({ editId, date: startDate }: { editId?: string; da
           )}
         </section>
 
+        <button
+          type="button"
+          role="switch"
+          aria-checked={send}
+          onClick={() => setSend((v) => !v)}
+          className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${send ? 'border-emerald-400/60 bg-emerald-500/15 ring-1 ring-emerald-400/30' : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]'}`}
+        >
+          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl transition ${send ? 'bg-emerald-400/25 text-emerald-200' : 'bg-white/[0.06] text-zinc-400'}`}>
+            <Receipt className="h-[18px] w-[18px]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-white">Send to Expenses</span>
+            <span className="block text-xs leading-relaxed text-zinc-400">{send ? 'This will count in your Expenses totals too.' : 'Off: this stays in Needs and won’t touch Expenses.'}</span>
+          </span>
+          <span className={`relative h-6 w-10 shrink-0 rounded-full transition ${send ? 'bg-emerald-400' : 'bg-white/15'}`}>
+            <span className={`absolute top-0.5 grid h-5 w-5 place-items-center rounded-full bg-white shadow transition-all ${send ? 'left-[18px] text-emerald-600' : 'left-0.5 text-transparent'}`}>
+              <Check className="h-3 w-3" strokeWidth={3.5} />
+            </span>
+          </span>
+        </button>
+
         {editing && (
           <div className="flex flex-wrap gap-2 border-t border-white/[0.06] pt-4">
             <button type="button" onClick={copyToNextWeek} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-[13px] font-medium text-zinc-200 transition hover:bg-white/5">
@@ -295,7 +321,7 @@ export function NeedsPicker({ onClose }: { onClose: () => void }) {
   return (
     <Modal
       title="Your categories"
-      subtitle="What you can pick when adding an item. Taking one off hides it here; what’s in it stays in Expenses."
+      subtitle="What you can pick when adding an item. Taking one off only removes the choice; what’s already in it stays."
       onClose={onClose}
       width="max-w-md"
       footer={

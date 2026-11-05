@@ -212,7 +212,7 @@ export function ModesModal({ startAdding, onCopy, onClose }: { startAdding: bool
   }
 
   function remove(m: ModeInfo) {
-    if (!confirm(`Delete the mode “${m.name}”? ${modeKind(m) === 'needs' ? 'Its budgets and categories are' : 'Its months, items, setups and year notes are'} deleted for good. Your other modes, calendar and expenses stay.`)) return
+    if (!confirm(`Delete the mode “${m.name}”? ${modeKind(m) === 'needs' ? 'Its items, budgets and categories are' : 'Its months, items, setups and year notes are'} deleted for good. Your other modes, calendar and expenses stay${modeKind(m) === 'needs' ? ', including anything already sent to Expenses' : ''}.`)) return
     s.removeMode(m.id)
     toast.info(`Deleted “${m.name}”.`)
   }
@@ -294,7 +294,7 @@ export function ModesModal({ startAdding, onCopy, onClose }: { startAdding: bool
                 <StartOption on={copy} onClick={() => setCopy(true)} icon={Copy} title={`Copy “${current.name}”`} hint="Then change it freely" />
               </div>
             ) : (
-              kind === 'needs' && <p className="text-xs leading-relaxed text-zinc-400">Offers groceries, food, transport, bills and health, and you can change the list. What you add shows in Expenses too, so nothing is entered twice.</p>
+              kind === 'needs' && <p className="text-xs leading-relaxed text-zinc-400">Offers groceries, food, transport, bills and health, and you can change the list. What you add stays here, and only goes to Expenses when you tick it.</p>
             )}
             <div className="flex justify-end gap-2">
               <button onClick={() => setAdding(false)} className="h-10 rounded-xl px-4 text-sm font-medium text-zinc-400 hover:text-white">
@@ -445,7 +445,7 @@ export function CopyModeModal({ onClose }: { onClose: () => void }) {
         <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${c.dot}`} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-white">{current.name}</span>
-          <span className="block text-[11px] text-zinc-400">{current.kind === 'needs' ? 'Monthly budgets and categories' : 'Months, items, net worth, setups and year notes'}</span>
+          <span className="block text-[11px] text-zinc-400">{current.kind === 'needs' ? 'Items, monthly budgets and categories' : 'Months, items, net worth, setups and year notes'}</span>
         </span>
       </div>
 
@@ -556,7 +556,7 @@ export function ModeStrip() {
 
 /**
  * If the mode in use is locked (the plan changed to one with fewer modes), go back to the main plan.
- * A Needs mode has no items of its own, so pages built around them send you to its budget.
+ * A Needs mode has no assets of its own, so pages built around them send you to its budget.
  */
 export function useModeGuard() {
   const { current } = useModes()

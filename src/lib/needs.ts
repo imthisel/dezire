@@ -1,10 +1,10 @@
-import type { Expense, ExpenseCategory, ModeKind, NeedsPlan } from './types'
-import { addDays, daysInMonth, fromKey } from './expenses'
+import type { Expense, ExpenseCategory, ModeInfo, ModeKind, NeedItem, NeedsPlan } from './types'
+import { addDays, daysInMonth, fromKey, parseExpenses } from './expenses'
 import { MONTHS_SHORT } from './time'
 
 /**
- * Needs modes: everyday spending, laid out like the Overview but month → week → items. What's added is an expense, so it's
- * in Expenses too and nothing is entered twice. A category counts when it's one of the plan's `cats`. Each month has a budget.
+ * Needs modes: everyday spending, laid out like the Overview but month → week → items. A mode keeps its own items, apart from
+ * Expenses. Ticking one sends it across as a linked expense; the two then stay the same until it's unticked. Each month has a budget.
  */
 
 export const modeKind = (m: { kind?: ModeKind } | undefined): ModeKind => (m?.kind === 'needs' ? 'needs' : 'wants')
@@ -12,7 +12,7 @@ export const modeKind = (m: { kind?: ModeKind } | undefined): ModeKind => (m?.ki
 /** What a new Needs mode offers when adding something, among the categories that exist. */
 const STARTERS = ['groceries', 'food', 'transport', 'bills', 'health']
 
-export const starterNeeds = (cats: ExpenseCategory[]): NeedsPlan => ({ monthly: 0, monthBudgets: {}, cats: STARTERS.filter((id) => cats.some((c) => c.id === id)) })
+export const starterNeeds = (cats: ExpenseCategory[]): NeedsPlan => ({ monthly: 0, monthBudgets: {}, cats: STARTERS.filter((id) => cats.some((c) => c.id === id)), items: [] })
 
 const amount = (v: unknown) => Math.max(0, Math.round((Number(v) || 0) * 100) / 100)
 
@@ -23,7 +23,25 @@ export function parseNeeds(raw: unknown): NeedsPlan {
   const saved = (r.monthBudgets && typeof r.monthBudgets === 'object' ? r.monthBudgets : {}) as Record<string, unknown>
   const monthBudgets: Record<string, number> = {}
   for (const [k, v] of Object.entries(saved)) if (/^\d{4}-\d{2}$/.test(k) && v != null && Number.isFinite(Number(v))) monthBudgets[k] = amount(v)
-  return { monthly: amount(r.monthly), monthBudgets, cats }
+  return { monthly: amount(r.monthly), monthBudgets, cats, items: parseNeedItems(r.items) }
+}
+
+function parseNeedItems(list: unknown): NeedItem[] {
+  if (!Array.isArray(list)) return []
+  return list.flatMap((x: { expenseId?: unknown }) => parseExpenses([x]).map((e) => (typeof x?.expenseId === 'string' && x.expenseId ? { ...e, expenseId: x.expenseId } : e)))
+}
+
+/** The same plan for another mode: its items start out of Expenses, so one expense never has two items. */
+export const unlinkedCopy = (plan: NeedsPlan): NeedsPlan => ({ ...structuredClone(plan), items: plan.items.map(({ expenseId: _link, ...i }) => i) })
+
+/** Is this item in Expenses? `ids`: the id of every expense. */
+export const isSent = (item: NeedItem, ids: Set<string>) => !!item.expenseId && ids.has(item.expenseId)
+
+/** Expenses that could be brought into a plan: in its categories, and not already an item in any Needs mode. */
+export function importable(expenses: Expense[], plan: NeedsPlan, modes: ModeInfo[]) {
+  const linked = new Set(modes.flatMap((m) => m.needs?.items.flatMap((i) => i.expenseId ?? []) ?? []))
+  const offered = new Set(plan.cats)
+  return expenses.filter((e) => offered.has(e.category) && !linked.has(e.id))
 }
 
 /** A month's budget: its own when set, otherwise the usual one. */
@@ -71,12 +89,10 @@ export function sameWeekdayIn(day: string, w: Pick<NeedWeek, 'start' | 'end'>) {
   return days.find((k) => fromKey(k).getDay() === weekday) ?? (weekday < fromKey(days[0]).getDay() ? days[0] : days[days.length - 1])
 }
 
-/** The expenses that belong in the plan, by month ("2027-03"), in date order. */
-export function needsByMonth(expenses: Expense[], plan: NeedsPlan) {
-  const counted = new Set(plan.cats)
-  const out = new Map<string, Expense[]>()
-  for (const e of expenses) {
-    if (!counted.has(e.category)) continue
+/** The plan's items by month ("2027-03"), in date order. */
+export function needsByMonth(plan: NeedsPlan) {
+  const out = new Map<string, NeedItem[]>()
+  for (const e of plan.items) {
     const k = e.date.slice(0, 7)
     const list = out.get(k)
     if (list) list.push(e)

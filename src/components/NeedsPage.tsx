@@ -3,18 +3,19 @@ import { AlertTriangle, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Co
 import { useAlt, useCurrentNeeds, useFmt, useStore } from '../store'
 import { useExpenseCats } from '../expenseHooks'
 import { MASK, plain } from '../lib/money'
-import { MAX_DATE, WEEKDAYS, addDays, catColor, catIcon, daysInMonth, fromKey, todayKey } from '../lib/expenses'
-import { budgetFor, needsByMonth, sameWeekdayIn, weekLabel, weekOfDay, weeksOfMonth, type NeedWeek } from '../lib/needs'
+import { MAX_DATE, NO_CATEGORY, WEEKDAYS, addDays, catColor, catIcon, daysInMonth, fromKey, todayKey } from '../lib/expenses'
+import { budgetFor, importable, isSent, needsByMonth, sameWeekdayIn, weekLabel, weekOfDay, weeksOfMonth, type NeedWeek } from '../lib/needs'
 import { END_YEAR, MONTHS, MONTHS_SHORT, START_YEAR, YEARS, currentYear } from '../lib/time'
-import type { Expense, ExpenseCategory, NeedsPlan } from '../lib/types'
+import type { ExpenseCategory, NeedItem, NeedsPlan } from '../lib/types'
 import { card } from './Dashboard'
 import { MoneyInput } from './MoneyInput'
 import { NeedsPicker } from './NeedItemModal'
+import { BringInModal, NeedsBridge, SendBar, SendTick, flipSent } from './NeedsBridge'
 import { toast } from '../toast'
 
 const OPEN_KEY = 'dizayr-needs-open'
 const monthKey = (year: number, m: number) => `${year}-${String(m + 1).padStart(2, '0')}`
-const sum = (list: Expense[]) => list.reduce((n, e) => n + e.amount, 0)
+const sum = (list: NeedItem[]) => list.reduce((n, e) => n + e.amount, 0)
 const barCls = (pct: number) => (pct > 1 ? 'bg-rose-400' : pct >= 0.85 ? 'bg-amber-300' : 'bg-emerald-400')
 
 /** A new item in a week: on today when today is in it, otherwise on the week's first day. */
@@ -50,13 +51,19 @@ export function NeedsPage() {
   const allCats = useExpenseCats()
   const expenses = useStore((s) => s.expenses)
   const modeName = useStore((s) => s.modes.find((m) => m.id === s.modeId)?.name ?? 'Needs')
+  const modes = useStore((s) => s.modes)
   const year = useStore((s) => s.year)
   const months = useOpenMonths()
   const [picking, setPicking] = useState(false)
-  const byMonth = useMemo(() => (plan ? needsByMonth(expenses, plan) : new Map<string, Expense[]>()), [expenses, plan])
+  const [bringing, setBringing] = useState(false)
+  const byMonth = useMemo(() => (plan ? needsByMonth(plan) : new Map<string, NeedItem[]>()), [plan])
+  const sentIds = useMemo(() => new Set(expenses.map((e) => e.id)), [expenses])
+  const canBring = useMemo(() => (plan ? importable(expenses, plan, modes) : []), [expenses, plan, modes])
   if (!plan) return null
 
   const today = todayKey()
+  const thisMonth = byMonth.get(today.slice(0, 7)) ?? []
+  const thisMonthSent = thisMonth.filter((e) => isSent(e, sentIds))
   const cats = plan.cats.flatMap((id) => allCats.filter((c) => c.id === id))
 
   function openMonth(key: string) {
@@ -81,14 +88,25 @@ export function NeedsPage() {
         </button>
       </div>
 
-      <Stats plan={plan} byMonth={byMonth} />
+      <Stats plan={plan} byMonth={byMonth} sentIds={sentIds} />
+
+      <NeedsBridge
+        sent={sum(thisMonthSent)}
+        total={sum(thisMonth)}
+        count={thisMonth.length}
+        sentCount={thisMonthSent.length}
+        month={MONTHS[fromKey(today).getMonth()]}
+        canBring={canBring.length}
+        firstTime={plan.items.length === 0}
+        onBring={() => setBringing(true)}
+      />
 
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-5">
         <section className={`${card} min-w-0 p-4 sm:p-5 lg:col-span-3`}>
           <YearChart plan={plan} byMonth={byMonth} year={year} onOpen={openMonth} />
         </section>
         <section className={`${card} min-w-0 p-4 sm:p-5 lg:col-span-2`}>
-          <Breakdown cats={cats} byMonth={byMonth} year={year} onEdit={() => setPicking(true)} />
+          <Breakdown cats={cats} allCats={allCats} byMonth={byMonth} year={year} onEdit={() => setPicking(true)} />
         </section>
       </div>
 
@@ -98,17 +116,18 @@ export function NeedsPage() {
         <ul className="space-y-2.5">
           {Array.from({ length: 12 }, (_, m) => {
             const key = monthKey(year, m)
-            return <MonthRow key={key} monthKeyStr={key} plan={plan} items={byMonth.get(key) ?? []} open={months.open.includes(key)} onToggle={() => months.toggle(key)} cats={allCats} />
+            return <MonthRow key={key} monthKeyStr={key} plan={plan} items={byMonth.get(key) ?? []} open={months.open.includes(key)} onToggle={() => months.toggle(key)} cats={allCats} sentIds={sentIds} />
           })}
         </ul>
       </section>
 
       {picking && <NeedsPicker onClose={() => setPicking(false)} />}
+      {bringing && <BringInModal list={canBring} onClose={() => setBringing(false)} />}
     </div>
   )
 }
 
-function Stats({ plan, byMonth }: { plan: NeedsPlan; byMonth: Map<string, Expense[]> }) {
+function Stats({ plan, byMonth, sentIds }: { plan: NeedsPlan; byMonth: Map<string, NeedItem[]>; sentIds: Set<string> }) {
   const f = useFmt()
   const u = useAlt()
   const today = todayKey()
@@ -124,6 +143,7 @@ function Stats({ plan, byMonth }: { plan: NeedsPlan; byMonth: Map<string, Expens
   const yearKey = key.slice(0, 4)
   const yearSpent = [...byMonth].reduce((n, [k, l]) => (k.startsWith(yearKey) ? n + sum(l) : n), 0)
   const yearCount = [...byMonth].reduce((n, [k, l]) => (k.startsWith(yearKey) ? n + l.length : n), 0)
+  const yearSent = [...byMonth].reduce((n, [k, l]) => (k.startsWith(yearKey) ? n + l.filter((e) => isSent(e, sentIds)).length : n), 0)
   const pct = budget > 0 ? spent / budget : undefined
 
   return (
@@ -139,7 +159,7 @@ function Stats({ plan, byMonth }: { plan: NeedsPlan; byMonth: Map<string, Expens
         sub={budget === 0 ? 'Set a budget below' : left > 0 ? `about ${f(left / daysLeft)} a day` : left < 0 ? 'Past this month’s budget' : 'All used'}
       />
       <Stat icon={<CalendarDays className="h-4 w-4 text-violet-300" />} iconCls="bg-violet-400/15" label={`This week · Week ${week.n}`} value={f(weekSpent)} alt={u(weekSpent)} sub={weekLabel(week)} />
-      <Stat icon={<Wallet className="h-4 w-4 text-amber-300" />} iconCls="bg-amber-400/15" label={`Spent in ${yearKey}`} value={f(yearSpent)} alt={u(yearSpent)} sub={`${yearCount} ${yearCount === 1 ? 'item' : 'items'}`} />
+      <Stat icon={<Wallet className="h-4 w-4 text-amber-300" />} iconCls="bg-amber-400/15" label={`Spent in ${yearKey}`} value={f(yearSpent)} alt={u(yearSpent)} sub={`${yearCount} ${yearCount === 1 ? 'item' : 'items'} · ${yearSent} in Expenses`} />
     </div>
   )
 }
@@ -171,7 +191,7 @@ function Stat(p: { icon: ReactNode; iconCls: string; label: string; value: strin
 }
 
 /** Each month of the year against its budget. Pressing a month opens it below. */
-function YearChart({ plan, byMonth, year, onOpen }: { plan: NeedsPlan; byMonth: Map<string, Expense[]>; year: number; onOpen: (key: string) => void }) {
+function YearChart({ plan, byMonth, year, onOpen }: { plan: NeedsPlan; byMonth: Map<string, NeedItem[]>; year: number; onOpen: (key: string) => void }) {
   const f = useFmt()
   const [picked, setPicked] = useState<string | null>(null)
   const thisMonth = todayKey().slice(0, 7)
@@ -228,7 +248,7 @@ function YearChart({ plan, byMonth, year, onOpen }: { plan: NeedsPlan; byMonth: 
 }
 
 /** Where the year's money goes, in each category's own colour. */
-function Breakdown({ cats, byMonth, year, onEdit }: { cats: ExpenseCategory[]; byMonth: Map<string, Expense[]>; year: number; onEdit: () => void }) {
+function Breakdown({ cats: offered, allCats, byMonth, year, onEdit }: { cats: ExpenseCategory[]; allCats: ExpenseCategory[]; byMonth: Map<string, NeedItem[]>; year: number; onEdit: () => void }) {
   const f = useFmt()
   const u = useAlt()
   const totals = new Map<string, { n: number; count: number }>()
@@ -240,6 +260,9 @@ function Breakdown({ cats, byMonth, year, onEdit }: { cats: ExpenseCategory[]; b
     }
   }
   const all = [...totals.values()].reduce((n, t) => n + t.n, 0)
+  // Also what was added before a category was taken off the list.
+  const extra = [...totals.keys()].filter((id) => !offered.some((c) => c.id === id)).map((id) => allCats.find((c) => c.id === id) ?? NO_CATEGORY)
+  const cats = [...offered, ...extra]
   return (
     <>
       <div className="flex items-center justify-between gap-2">
@@ -280,7 +303,7 @@ function Breakdown({ cats, byMonth, year, onEdit }: { cats: ExpenseCategory[]; b
   )
 }
 
-function NeedYearTabs({ expenses }: { expenses: Map<string, Expense[]> }) {
+function NeedYearTabs({ expenses }: { expenses: Map<string, NeedItem[]> }) {
   const year = useStore((s) => s.year)
   const setYear = useStore((s) => s.setYear)
   const f = useFmt()
@@ -322,7 +345,7 @@ function NeedYearTabs({ expenses }: { expenses: Map<string, Expense[]> }) {
 }
 
 /** The year's totals, and the budget every month starts with. */
-function YearGlance({ plan, byMonth, year }: { plan: NeedsPlan; byMonth: Map<string, Expense[]>; year: number }) {
+function YearGlance({ plan, byMonth, year }: { plan: NeedsPlan; byMonth: Map<string, NeedItem[]>; year: number }) {
   const f = useFmt()
   const keys = Array.from({ length: 12 }, (_, m) => monthKey(year, m))
   const budget = keys.reduce((n, k) => n + budgetFor(plan, k), 0)
@@ -364,7 +387,7 @@ function Mini({ k, v, cls = 'text-white' }: { k: string; v: string; cls?: string
   )
 }
 
-function MonthRow({ monthKeyStr: key, plan, items, open, onToggle, cats }: { monthKeyStr: string; plan: NeedsPlan; items: Expense[]; open: boolean; onToggle: () => void; cats: ExpenseCategory[] }) {
+function MonthRow({ monthKeyStr: key, plan, items, open, onToggle, cats, sentIds }: { monthKeyStr: string; plan: NeedsPlan; items: NeedItem[]; open: boolean; onToggle: () => void; cats: ExpenseCategory[]; sentIds: Set<string> }) {
   const f = useFmt()
   const masked = useStore((s) => s.device.masked)
   const m = Number(key.slice(5))
@@ -380,15 +403,9 @@ function MonthRow({ monthKeyStr: key, plan, items, open, onToggle, cats }: { mon
   const shares = useMemo(() => {
     const t = new Map<string, number>()
     for (const e of items) t.set(e.category, (t.get(e.category) ?? 0) + e.amount)
-    return [...t].flatMap(([id, n]) => cats.filter((c) => c.id === id).map((c) => ({ c, n })))
+    return [...t].map(([id, n]) => ({ c: cats.find((c) => c.id === id) ?? NO_CATEGORY, n }))
   }, [items, cats])
-
-  // Spent in this month on things outside the categories here (still in Expenses).
-  const allExpenses = useStore((s) => s.expenses)
-  const outside = useMemo(() => {
-    const counted = new Set(plan.cats)
-    return allExpenses.reduce((n, e) => (e.date.startsWith(key) && !counted.has(e.category) ? n + e.amount : n), 0)
-  }, [allExpenses, plan.cats, key])
+  const sentItems = items.filter((e) => isSent(e, sentIds))
 
   return (
     <li id={`need-${key}`} className={`${card} scroll-mt-20 overflow-hidden transition ${isNow ? 'border-emerald-400/30' : ''}`}>
@@ -399,7 +416,7 @@ function MonthRow({ monthKeyStr: key, plan, items, open, onToggle, cats }: { mon
             {isNow && <span className="shrink-0 rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-200">This month</span>}
           </span>
           <span className="block truncate text-xs text-zinc-500">
-            {items.length ? `${items.length} ${items.length === 1 ? 'item' : 'items'}` : 'Nothing yet'} · {weeks.length} weeks
+            {items.length ? `${items.length} ${items.length === 1 ? 'item' : 'items'} · ${sentItems.length} in Expenses` : `Nothing yet · ${weeks.length} weeks`}
           </span>
         </span>
         {/* The bar: its own row on phones, the middle on bigger screens */}
@@ -450,13 +467,13 @@ function MonthRow({ monthKeyStr: key, plan, items, open, onToggle, cats }: { mon
             </div>
           )}
 
+          <SendBar ids={items.map((e) => e.id)} sentIds={sentItems.map((e) => e.id)} sentTotal={sum(sentItems)} total={spent} scope={MONTHS[m - 1]} />
+
           <div className={`mt-4 grid gap-2.5 sm:grid-cols-2 sm:gap-3 ${weeks.length === 6 ? 'xl:grid-cols-3' : 'xl:grid-cols-4'}`}>
             {weeks.map((w) => (
-              <WeekCard key={w.n} week={w} items={items.filter((e) => e.date >= w.start && e.date <= w.end)} cats={cats} />
+              <WeekCard key={w.n} week={w} items={items.filter((e) => e.date >= w.start && e.date <= w.end)} cats={cats} sentIds={sentIds} />
             ))}
           </div>
-
-          {outside > 0 && <p className="mt-3 text-xs leading-relaxed text-zinc-500">{f(outside)} more went to other categories this month. It’s in Expenses, but isn’t counted here.</p>}
         </div>
       )}
     </li>
@@ -483,12 +500,14 @@ function ReadOnly({ text, cls }: { text: string; cls: string }) {
 /** What's being dragged between weeks. */
 let dragged: string | null = null
 
-function WeekCard({ week, items, cats }: { week: NeedWeek; items: Expense[]; cats: ExpenseCategory[] }) {
+function WeekCard({ week, items, cats, sentIds }: { week: NeedWeek; items: NeedItem[]; cats: ExpenseCategory[]; sentIds: Set<string> }) {
   const f = useFmt()
   const today = todayKey()
   const isNow = today >= week.start && today <= week.end
   const [drop, setDrop] = useState<null | 'move' | 'copy'>(null)
   const total = sum(items)
+  const sentCount = items.filter((e) => isSent(e, sentIds)).length
+  const allSent = items.length > 0 && sentCount === items.length
 
   const isCopy = (e: DragEvent) => e.ctrlKey || e.altKey || e.metaKey
 
@@ -499,20 +518,18 @@ function WeekCard({ week, items, cats }: { week: NeedWeek; items: Expense[]; cat
     dragged = null
     if (!id) return
     const s = useStore.getState()
-    const item = s.expenses.find((x) => x.id === id)
+    const item = s.modes.find((m) => m.id === s.modeId)?.needs?.items.find((x) => x.id === id)
     if (!item) return
     const to = sameWeekdayIn(item.date, week)
     if (isCopy(e)) {
-      const copy = s.addExpense({ ...item, date: to })
-      return toast.undo(`Copied to Week ${week.n}.`, () => useStore.getState().removeExpense(copy))
+      // A copy starts out of Expenses, like anything new here.
+      const copy = s.addNeedItem({ ...item, date: to })
+      return toast.undo(`Copied to Week ${week.n}.`, () => useStore.getState().removeNeedItem(copy))
     }
     if (item.date >= week.start && item.date <= week.end) return
     const from = item.date
-    s.updateExpense(id, { ...item, date: to })
-    toast.undo(`Moved to Week ${week.n}.`, () => {
-      const now = useStore.getState().expenses.find((x) => x.id === id)
-      if (now) useStore.getState().updateExpense(id, { ...now, date: from })
-    })
+    s.updateNeedItem(id, { ...item, date: to })
+    toast.undo(`Moved to Week ${week.n}.`, () => useStore.getState().updateNeedItem(id, { ...item, date: from }))
   }
 
   return (
@@ -539,9 +556,22 @@ function WeekCard({ week, items, cats }: { week: NeedWeek; items: Expense[]; cat
         <p className="shrink-0 text-sm font-semibold tabular-nums text-zinc-100">{f(total)}</p>
       </header>
 
-      <ul className="mt-2.5 flex flex-1 flex-col gap-1.5">
+      {items.length > 0 && (
+        <div className="mt-2 flex items-center justify-between gap-2 border-t border-white/[0.06] pl-0.5 pr-2 pt-1.5">
+          <span className={`truncate text-[10px] font-medium uppercase tracking-wider ${sentCount ? 'text-emerald-300/90' : 'text-zinc-500'}`}>{sentCount ? `${sentCount} of ${items.length} in Expenses` : 'Send to Expenses'}</span>
+          <SendTick
+            size="sm"
+            on={allSent}
+            partly={sentCount > 0 && !allSent}
+            label={allSent ? `Take all of Week ${week.n} out of Expenses` : `Send all of Week ${week.n} to Expenses`}
+            onChange={() => flipSent(items.map((e) => e.id), !allSent, `Week ${week.n}`)}
+          />
+        </div>
+      )}
+
+      <ul className="mt-1.5 flex flex-1 flex-col gap-1.5">
         {items.map((e) => (
-          <NeedRow key={e.id} item={e} cat={cats.find((c) => c.id === e.category)} />
+          <NeedRow key={e.id} item={e} cat={cats.find((c) => c.id === e.category) ?? NO_CATEGORY} sent={isSent(e, sentIds)} />
         ))}
         {items.length === 0 && <li className="grid flex-1 place-items-center rounded-xl border border-dashed border-white/[0.08] px-2 py-4 text-center text-xs text-zinc-600">Nothing yet</li>}
       </ul>
@@ -559,10 +589,9 @@ function WeekCard({ week, items, cats }: { week: NeedWeek; items: Expense[]; cat
   )
 }
 
-function NeedRow({ item, cat }: { item: Expense; cat?: ExpenseCategory }) {
+function NeedRow({ item, cat, sent }: { item: NeedItem; cat: ExpenseCategory; sent: boolean }) {
   const f = useFmt()
   const u = useAlt()
-  if (!cat) return null
   const Icon = catIcon(cat)
   const col = catColor(cat)
   const d = fromKey(item.date)
@@ -572,12 +601,12 @@ function NeedRow({ item, cat }: { item: Expense; cat?: ExpenseCategory }) {
   function copyNext() {
     const to = addDays(item.date, 7)
     if (to > MAX_DATE) return
-    const id = s().addExpense({ ...item, date: to })
-    toast.undo(`Copied “${title}” to next week.`, () => useStore.getState().removeExpense(id))
+    const id = s().addNeedItem({ ...item, date: to })
+    toast.undo(`Copied “${title}” to next week.`, () => useStore.getState().removeNeedItem(id))
   }
   function remove() {
-    const gone = s().removeExpense(item.id)
-    if (gone) toast.undo(`Deleted “${title}”.`, () => useStore.getState().restoreExpense(gone))
+    const gone = s().removeNeedItem(item.id)
+    if (gone) toast.undo(gone.wasSent ? `Deleted “${title}” from Needs and Expenses.` : `Deleted “${title}”.`, gone.undo)
   }
 
   return (
@@ -590,8 +619,8 @@ function NeedRow({ item, cat }: { item: Expense; cat?: ExpenseCategory }) {
       }}
       onDragEnd={() => (dragged = null)}
       onClick={() => s().openModal({ type: 'need', editId: item.id })}
-      title={`${cat.label} · click to edit · drag to another week`}
-      className={`group relative flex cursor-grab items-center gap-2 rounded-xl border border-white/[0.07] py-1.5 pl-1.5 pr-2 transition hover:brightness-125 active:cursor-grabbing ${col.soft}`}
+      title={`${cat.label} · ${sent ? 'in Expenses' : 'not in Expenses'} · click to edit · drag to another week`}
+      className={`group relative flex cursor-grab items-center gap-2 rounded-xl border py-1.5 pl-1.5 pr-2 transition hover:brightness-125 active:cursor-grabbing ${sent ? 'border-emerald-400/40' : 'border-white/[0.07]'} ${col.soft}`}
     >
       <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-black/25 ${col.text}`}>
         <Icon className="h-4 w-4" />
@@ -615,6 +644,7 @@ function NeedRow({ item, cat }: { item: Expense; cat?: ExpenseCategory }) {
           <Trash2 className="h-3.5 w-3.5" />
         </RowBtn>
       </span>
+      <SendTick size="sm" on={sent} label={sent ? `Take “${title}” out of Expenses` : `Send “${title}” to Expenses`} onChange={() => flipSent([item.id], !sent, `“${title}”`)} />
     </li>
   )
 }
