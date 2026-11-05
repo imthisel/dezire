@@ -68,7 +68,7 @@ How it works: anyone who signs in with Google gets **7 days free** (no card). Th
 
 **Reviews** on the About page: add them in [`src/content/reviews.ts`](src/content/reviews.ts). The section only shows on the live site once there's at least one.
 
-**Prices** shown on the page are in [`src/lib/plans.ts`](src/lib/plans.ts). Keep them the same as in Lemon Squeezy. The crossed-out "$40" next to the yearly price should be a real regular price; change or remove `compareAt` if it isn't.
+**Prices** shown on the page are in [`src/lib/plans.ts`](src/lib/plans.ts). Keep them the same as in Lemon Squeezy. Both prices include tax (the tax-inclusive setting in Lemon Squeezy is on).
 
 The About page is what signed-out visitors see, and it's always at `/about`.
 

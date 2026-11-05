@@ -7,7 +7,7 @@
 - **Part 3** is what to change later if you change a price or a limit.
 - **Part 4** is troubleshooting.
 
-If you already did a step, check that it matches and move on.
+**Where you are now:** the Lemon Squeezy account and store name are done. Everything else is still to do, so start at Step 1.
 
 ---
 
@@ -15,7 +15,7 @@ If you already did a step, check that it matches and move on.
 
 ## Prices
 
-These are the prices set in the app (`src/lib/plans.ts`). Lemon Squeezy must charge exactly the same.
+These are the prices set in the app (`src/lib/plans.ts`). Lemon Squeezy must charge exactly the same. **Both prices include tax**, so customers pay exactly $15 or $20 at checkout.
 
 | | Free trial | 6 months | Yearly |
 |---|---|---|---|
@@ -27,8 +27,6 @@ These are the prices set in the app (`src/lib/plans.ts`). Lemon Squeezy must cha
 | **Wants modes** | 1 | 2 | **Unlimited** |
 | **Needs modes** | 1 | 2 | **Unlimited** |
 | **Total modes** | 2 | 4 | **Unlimited** |
-
-The Yearly card also shows ~~$40~~ and "Best value · 50% off". Only keep that if $40 is a real price you charge or have charged. If it isn't, remove it before you go live (Part 3).
 
 ## What people get
 
@@ -63,13 +61,15 @@ Each mode has its own plan. The calendar, expenses and goals are shared across a
 
 Lemon Squeezy is the merchant of record, so it handles sales tax and VAT for you. Its published fee is 5% + 50¢, plus 1.5% for sales outside the US, 1.5% for PayPal and 0.5% for subscriptions.
 
-The docs don't say outright that these add together, so treat these as estimates:
+The docs don't say outright that these add together, so treat these as estimates. They're **before tax**:
 
-| Sale | You keep on $20 Yearly | You keep on $15 for 6 months |
+| Sale | After fees on $20 Yearly | After fees on $15 for 6 months |
 |---|---|---|
 | US customer, card | about $18.40 | about $13.68 |
 | Non-US customer, card | about $18.10 | about $13.45 |
 | Non-US customer, PayPal | about $17.80 | about $13.23 |
+
+**Your prices include tax, so any tax comes out of these amounts.** How much depends on where the customer lives. For example, with 20% VAT, a $20 sale includes $3.33 of tax, leaving you about $14.77. A $15 sale includes $2.50, leaving you about $10.95. Where no tax applies, you keep the full amount in the table.
 
 **Payouts:** Lemon Squeezy pays out to a Philippine bank account or PayPal, always starting from US dollars.
 
@@ -121,12 +121,13 @@ Dizayr signs people in through its own address, so Google has to allow that addr
 
 **If people used an older address:** their accounts and synced data carry over, but they need to sign in again on `dizayr.com`. Anyone who installed the app from the old address should reinstall it from the new one.
 
-## Step 2: Create your Lemon Squeezy store
+## Step 2: Set up your Lemon Squeezy store
 
-1. Sign up at **https://app.lemonsqueezy.com/register**.
-2. For the store name, type **Dizayr**. You should get `https://dizayr.lemonsqueezy.com`. If that's taken, use the address it gives you everywhere this guide says `dizayr.lemonsqueezy.com`. Write it down as **Store address**.
-3. Make sure **Test mode** is **on** in the dashboard. Nothing real is charged while it's on.
-4. Go to **https://app.lemonsqueezy.com/settings/general** and find the tax-inclusive pricing setting. **Turn it on** and save. Customers then pay exactly the $20 or $15 your site shows. The tax comes out of your share. If you leave it off, some customers will see tax added at checkout.
+Your account and store name are already done.
+
+1. Find your store's address in the Lemon Squeezy dashboard. It should look like `https://dizayr.lemonsqueezy.com`. Write it down as **Store address**. If yours is different, use it everywhere this guide says `dizayr.lemonsqueezy.com`.
+2. Make sure **Test mode** is **on** in the dashboard. Nothing real is charged while it's on.
+3. Go to **https://app.lemonsqueezy.com/settings/general** and find the tax-inclusive pricing setting. **Turn it on** and save. This is required, because your $15 and $20 prices include tax. If it's off, some customers will see tax added at checkout.
 
 ## Step 3: Create one product with two variants
 
@@ -180,7 +181,7 @@ If you can't find them, leave those two values for now. Step 9 shows another way
 ## Step 5: Firebase rules and server key
 
 **5a. Publish the security rules.** These enforce the trial and paywall on the server, and they include the free time you give from `/admin`.
-1. In the Firebase console, go to **Build → Firestore Database → Rules**.
+1. In the Firebase console, go to **Build → Firestore Database → Rules**. **Don't use "Realtime Database"**: it's a different product, and these rules give `Line 1: Parse error` there.
 2. In VS Code, open `firestore.rules`, press **Ctrl+A**, then **Ctrl+C**.
 3. In the Firebase editor, press **Ctrl+A**, then **Ctrl+V**.
 4. Click **Publish**.
@@ -205,16 +206,18 @@ Save the 32 characters as **Webhook secret**.
 1. Go to **https://vercel.com**, open your project, then **Settings → Environment Variables**.
 2. Add each of these with **Production** and **Preview** ticked:
 
-| Key (copy exactly) | Value |
-|---|---|
-| `VITE_LS_CHECKOUT_ANNUAL` | Yearly checkout link |
-| `VITE_LS_CHECKOUT_SEMIANNUAL` | 6-month checkout link |
-| `VITE_LS_STORE_URL` | Store address, with no `/` at the end |
-| `LS_VARIANT_ANNUAL` | Yearly variant ID |
-| `LS_VARIANT_SEMIANNUAL` | 6-month variant ID |
-| `LEMONSQUEEZY_WEBHOOK_SECRET` | Webhook secret |
-| `FIREBASE_SERVICE_ACCOUNT` | The whole service account file |
-| `ADMIN_PASSWORD` | A password of 8+ characters for `https://dizayr.com/admin` |
+| Key (copy exactly) | Type | Value |
+|---|---|---|
+| `VITE_LS_CHECKOUT_ANNUAL` | **Config** | Yearly checkout link |
+| `VITE_LS_CHECKOUT_SEMIANNUAL` | **Config** | 6-month checkout link |
+| `VITE_LS_STORE_URL` | **Config** | Store address, with no `/` at the end |
+| `LS_VARIANT_ANNUAL` | Secret | Yearly variant ID |
+| `LS_VARIANT_SEMIANNUAL` | Secret | 6-month variant ID |
+| `LEMONSQUEEZY_WEBHOOK_SECRET` | Secret | Webhook secret |
+| `FIREBASE_SERVICE_ACCOUNT` | Secret | The whole service account file |
+| `ADMIN_PASSWORD` | Secret | A password of 8+ characters for `https://dizayr.com/admin` |
+
+   Vercel warns about the `VITE_` prefix on the first three. That's expected: these links are meant to be public, because customers open them to pay. Click **Change to Config**. Don't rename them, or checkout stops working.
 
    For `FIREBASE_SERVICE_ACCOUNT`: open the `.json` file in Notepad, press **Ctrl+A**, **Ctrl+C**, and paste it into the Value box. It starts with `{` and ends with `}`.
 
@@ -320,10 +323,6 @@ Use a **spare Google account** in a private window. Do these in order, because o
 2. `src/lib/plans.ts`: change `price`.
 3. `src/admin/data.ts`: change `PLAN_PRICE`, which the admin revenue figure uses.
 4. Push to GitHub.
-
-**Remove the crossed-out $40**
-1. `src/lib/plans.ts`: under `annual`, delete the `compareAt` and `badge` lines.
-2. Push to GitHub.
 
 **Change how many modes a plan includes**
 1. `src/billing.ts`: change the numbers in `modeLimit`.
