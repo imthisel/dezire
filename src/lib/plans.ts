@@ -7,7 +7,7 @@ export type PlanId = 'semiannual' | 'annual'
 export type Plan = {
   id: PlanId
   name: string
-  /** What's charged each time, in US dollars */
+  /** What's charged each time, in Philippine pesos, tax included */
   price: number
   /** Shown crossed out next to the price. Must be a real regular price you charge(d), or leave it out. */
   compareAt?: number
@@ -28,7 +28,7 @@ export const PLANS: Record<PlanId, Plan> = {
   annual: {
     id: 'annual',
     name: 'Yearly',
-    price: 20,
+    price: 1260,
     every: 'per year',
     months: 12,
     perks: ['Unlimited Wants and Needs modes'],
@@ -37,7 +37,7 @@ export const PLANS: Record<PlanId, Plan> = {
   semiannual: {
     id: 'semiannual',
     name: '6 months',
-    price: 15,
+    price: 950,
     every: 'every 6 months',
     months: 6,
     perks: ['2 Wants modes + 2 Needs modes'],
@@ -45,8 +45,11 @@ export const PLANS: Record<PlanId, Plan> = {
   },
 }
 
-/** "$1.67" a month */
-export const perMonth = (p: Plan) => `$${(p.price / p.months).toFixed(2)}`
+/** "₱1,260" */
+export const pesos = (n: number) => `₱${Math.round(n).toLocaleString('en-US')}`
+
+/** "₱105" a month */
+export const perMonth = (p: Plan) => pesos(p.price / p.months)
 
 /** Your Lemon Squeezy store's billing page, where subscribers update their card, switch plans or cancel. */
 export function billingUrl() {

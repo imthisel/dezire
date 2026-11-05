@@ -1,6 +1,6 @@
 import { Crown, ExternalLink, Sparkles } from 'lucide-react'
 import { openPlans, useAccess } from '../billing'
-import { PLANS, TRIAL_DAYS, billingUrl } from '../lib/plans'
+import { PLANS, TRIAL_DAYS, billingUrl, pesos } from '../lib/plans'
 import { Modal } from './Modal'
 import { PlanStatus, Pricing } from './About'
 
@@ -43,7 +43,7 @@ function usePremium() {
 }
 
 /** Why to upgrade, in a few words. Comes from the yearly plan, so it can't drift from the real price. */
-const UPGRADE_HINT = `${PLANS.annual.perks[0]} · $${PLANS.annual.price} a year`
+const UPGRADE_HINT = `${PLANS.annual.perks[0]} · ${pesos(PLANS.annual.price)} a year`
 
 /** Header: gold when there's something to get, quieter once you have it. Opens Plans & billing either way. */
 export function PremiumBadge() {

@@ -15,13 +15,13 @@
 
 ## Prices
 
-These are the prices set in the app (`src/lib/plans.ts`). Lemon Squeezy must charge exactly the same. **Both prices include tax**, so customers pay exactly $15 or $20 at checkout.
+These are the prices set in the app (`src/lib/plans.ts`). Lemon Squeezy must charge exactly the same. Your Lemon Squeezy store charges in **Philippine pesos**, and **both prices include tax**, so customers pay exactly ₱950 or ₱1,260 at checkout.
 
 | | Free trial | 6 months | Yearly |
 |---|---|---|---|
-| **Price** | Free | **$15 every 6 months** | **$20 per year** |
-| **Works out to** | | $2.50 a month | $1.67 a month |
-| **Over a full year** | | $30 | $20 |
+| **Price** | Free | **₱950 every 6 months** | **₱1,260 per year** |
+| **Works out to** | | about ₱158 a month | ₱105 a month |
+| **Over a full year** | | ₱1,900 | ₱1,260 |
 | **Length** | 7 days, once per Google account | Renews every 6 months | Renews every year |
 | **Card needed** | No | Yes (card or PayPal) | Yes (card or PayPal) |
 | **Wants modes** | 1 | 2 | **Unlimited** |
@@ -61,23 +61,23 @@ Each mode has its own plan. The calendar, expenses and goals are shared across a
 
 Lemon Squeezy is the merchant of record, so it handles sales tax and VAT for you. Its published fee is 5% + 50¢, plus 1.5% for sales outside the US, 1.5% for PayPal and 0.5% for subscriptions.
 
-The docs don't say outright that these add together, so treat these as estimates. They're **before tax**:
+The docs don't say outright that these add together, and the 50¢ is converted at about ₱63 to $1, so treat these as estimates. They're **before tax**:
 
-| Sale | After fees on $20 Yearly | After fees on $15 for 6 months |
+| Sale | After fees on ₱1,260 Yearly | After fees on ₱950 for 6 months |
 |---|---|---|
-| US customer, card | about $18.40 | about $13.68 |
-| Non-US customer, card | about $18.10 | about $13.45 |
-| Non-US customer, PayPal | about $17.80 | about $13.23 |
+| US customer, card | about ₱1,159 | about ₱866 |
+| Non-US customer, card (includes the Philippines) | about ₱1,140 | about ₱852 |
+| Non-US customer, PayPal | about ₱1,121 | about ₱838 |
 
-**Your prices include tax, so any tax comes out of these amounts.** How much depends on where the customer lives. For example, with 20% VAT, a $20 sale includes $3.33 of tax, leaving you about $14.77. A $15 sale includes $2.50, leaving you about $10.95. Where no tax applies, you keep the full amount in the table.
+**Your prices include tax, so any tax comes out of these amounts.** How much depends on where the customer lives. For example, with 20% VAT, a ₱1,260 sale includes ₱210 of tax, leaving you about ₱930. A ₱950 sale includes about ₱158, leaving you about ₱694. Where no tax applies, you keep the full amount in the table.
 
-**Payouts:** Lemon Squeezy pays out to a Philippine bank account or PayPal, always starting from US dollars.
+**Payouts:** Lemon Squeezy pays out to a Philippine bank account or PayPal. Its payouts are in US dollars and converted to your currency for a peso account.
 
 | | Philippine bank | PayPal |
 |---|---|---|
 | Fee per payout | 1% | 3%, capped at $30 |
 
-The bank is cheaper. Sales are held for 13 days, the minimum payout is $50, and money arrives 1–5 days after a payout is made.
+The bank is cheaper. Sales are held for 13 days, the minimum payout is $50 (about ₱3,150), and money arrives 1–5 days after a payout is made.
 
 ---
 
@@ -127,7 +127,7 @@ Your account and store name are already done.
 
 1. Find your store's address in the Lemon Squeezy dashboard. It should look like `https://dizayr.lemonsqueezy.com`. Write it down as **Store address**. If yours is different, use it everywhere this guide says `dizayr.lemonsqueezy.com`.
 2. Make sure **Test mode** is **on** in the dashboard. Nothing real is charged while it's on.
-3. Go to **https://app.lemonsqueezy.com/settings/general** and find the tax-inclusive pricing setting. **Turn it on** and save. This is required, because your $15 and $20 prices include tax. If it's off, some customers will see tax added at checkout.
+3. Go to **https://app.lemonsqueezy.com/settings/general** and find the tax-inclusive pricing setting. **Turn it on** and save. This is required, because your ₱950 and ₱1,260 prices include tax. If it's off, some customers will see tax added at checkout.
 
 ## Step 3: Create one product with two variants
 
@@ -140,13 +140,13 @@ Use **one product with two variants**, not two products. Lemon Squeezy doesn't l
 5. Click **Add variant** and enter:
    - **Name:** `Yearly` (spell it exactly like this)
    - **Description:** `Unlimited Wants and Needs modes. Billed once a year.`
-   - **Price:** `20` (USD)
+   - **Price:** `1260` (PHP)
    - **Repeat payment every:** `1` `year`
    - **Free trial:** off. The website already gives the 7 free days without a card.
 6. Click **Save and add another** and enter:
    - **Name:** `6 Months` (spell it exactly like this)
    - **Description:** `2 Wants modes and 2 Needs modes. Billed every 6 months.`
-   - **Price:** `15` (USD)
+   - **Price:** `950` (PHP)
    - **Repeat payment every:** `6` `month`
    - **Free trial:** off
 7. Click **Save and go back**.
@@ -169,7 +169,7 @@ Use **one product with two variants**, not two products. Lemon Squeezy doesn't l
 2. Pick the **Yearly** variant and copy the link. It looks like `https://dizayr.lemonsqueezy.com/checkout/buy/…`. This is your **Yearly checkout link**.
 3. Pick the **6 Months** variant and copy the link. This is your **6-month checkout link**.
 4. Copy them from the Share window only. An opened checkout turns into a single-use `?cart=` link in the address bar, and that won't work for others.
-5. **Check:** paste each link into a private window. The Yearly link must show **$20** and the other must show **$15** every 6 months. Close the window without paying.
+5. **Check:** paste each link into a private window. The Yearly link must show **₱1,260** per year and the other must show **₱950** every 6 months. Close the window without paying.
 
 **Variant IDs (a number like `612345`):**
 1. In **Products**, click the **⋯** next to the product, or open it and find **Variants**.
@@ -269,7 +269,7 @@ Use a **spare Google account** in a private window. Do these in order, because o
 
 **6-month plan**
 
-5. Click **Choose a plan → Buy 6 months now**. Checkout should open with the email filled in and show **$15**.
+5. Click **Choose a plan → Buy 6 months now**. Checkout should open with the email filled in and show **₱950**.
 6. Pay with test card **4242 4242 4242 4242**, any future date such as `12/30`, any CVC such as `123`, and any name and address.
 7. You should see **"Payment received! Activating your plan…"**, then **"You're all set"** within a few seconds. The trial bar disappears.
 8. In Firestore, open **subscriptions →** that account's UID. It should show `status: active`, `plan: semiannual`, and an `accessUntil` about 6 months away.

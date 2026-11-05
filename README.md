@@ -62,7 +62,7 @@ Dizayr installs as an app straight from the website (it's a Progressive Web App)
 
 ## Payments: 7-day free trial and plans (Lemon Squeezy)
 
-How it works: anyone who signs in with Google gets **7 days free** (no card). The trial start is saved once in Firestore (`subscriptions/{uid}`) and can't be restarted. After that, they pick **Yearly ($20)** or **6 months ($15)** in a Lemon Squeezy checkout. Lemon Squeezy tells the site about every subscription change through a webhook (`api/lemonsqueezy.ts`), which unlocks or locks the account. The Firestore rules enforce the same thing, so nobody can use the app past their trial without paying, even by editing the page.
+How it works: anyone who signs in with Google gets **7 days free** (no card). The trial start is saved once in Firestore (`subscriptions/{uid}`) and can't be restarted. After that, they pick **Yearly (₱1,260)** or **6 months (₱950)** in a Lemon Squeezy checkout. Lemon Squeezy tells the site about every subscription change through a webhook (`api/lemonsqueezy.ts`), which unlocks or locks the account. The Firestore rules enforce the same thing, so nobody can use the app past their trial without paying, even by editing the page.
 
 **Full step-by-step setup (Lemon Squeezy, Firebase rules and keys, Vercel settings, testing, going live): see [SETUP-PAYMENTS.md](SETUP-PAYMENTS.md).**
 

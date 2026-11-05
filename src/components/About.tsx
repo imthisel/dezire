@@ -6,7 +6,7 @@ import {
 import { signIn, signOut, useCloud } from '../cloud'
 import { forgetIntent, openCheckout, rememberIntent, useAccess } from '../billing'
 import { auth } from '../lib/firebase'
-import { PLANS, TRIAL_DAYS, billingUrl, perMonth, type Plan, type PlanId } from '../lib/plans'
+import { PLANS, TRIAL_DAYS, billingUrl, perMonth, pesos, type Plan, type PlanId } from '../lib/plans'
 import { EXAMPLE_REVIEWS, REVIEWS, type Review } from '../content/reviews'
 import { DownloadSection } from './AppInstall'
 
@@ -591,11 +591,11 @@ function PlanCard({ plan, featured, current, disabled }: { plan: Plan; featured:
       )}
       <p className="font-semibold text-zinc-200">{plan.name}</p>
       <div className="mt-4 flex items-end gap-2">
-        <span className="text-5xl font-extrabold tracking-tight text-white">${plan.price}</span>
+        <span className="text-5xl font-extrabold tracking-tight text-white">{pesos(plan.price)}</span>
         <span className="pb-1.5 text-zinc-400">{plan.every}</span>
       </div>
       <p className="mt-2 flex items-center gap-2 text-sm">
-        {plan.compareAt && <span className="text-zinc-500 line-through">${plan.compareAt}</span>}
+        {plan.compareAt && <span className="text-zinc-500 line-through">{pesos(plan.compareAt)}</span>}
         <span className={featured ? 'font-semibold text-emerald-300' : 'text-zinc-400'}>
           just {perMonth(plan)} a month
         </span>
@@ -647,7 +647,7 @@ function Faq() {
     ['Does it work on my phone?', 'Yes. Dizayr works in any browser on your phone, tablet or computer, and stays in sync. Add it to your home screen and it opens like an app, even offline.'],
     ['What are modes?', 'Separate versions of your plan. Add some to try a different future, each with its own items, net worth and setups, while your calendar, expenses and goals stay shared. Modes come in two sections, Wants and Needs, and you choose which one is the main one in each. The free trial includes 1 of each, the 6-month plan 2 of each, and the yearly plan is unlimited.'],
     ['Which currency does it use?', 'Plan in your own currency, and see a second one next to every amount if you like (for example pesos and US dollars).'],
-    ['How do I pay?', 'By card or PayPal, through Lemon Squeezy’s secure checkout. Prices are in US dollars; your bank converts them if needed.'],
+    ['How do I pay?', 'By card or PayPal, through Lemon Squeezy’s secure checkout. Prices are in Philippine pesos, tax included; your bank converts them if you pay in another currency.'],
   ]
   return (
     <section id="faq" className="scroll-mt-20 border-t border-white/[0.06] bg-white/[0.015] py-20 sm:py-28">
