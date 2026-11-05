@@ -336,8 +336,8 @@ interface State {
   /**
    * Modes: separate versions of the plan, each with its own months (goals, budgets, items, so its own net worth and
    * assets), its own setups and its own year notes. Everything else (calendar, expenses, goals, money plan…) is shared.
-   * The first is always the main plan (id 'main'). `months`, `layouts`, `setupNotes` and `yearNotes` above hold the mode in use;
-   * `modeData` holds the others.
+   * The first of each kind is its main one (for Wants, always id 'main'; see `setMainMode`). `months`, `layouts`, `setupNotes`
+   * and `yearNotes` above hold the mode in use; `modeData` holds the others.
    */
   modes: ModeInfo[]
   modeId: string
@@ -366,7 +366,9 @@ interface State {
   /** Replaces another mode's plan with a copy of the one in use, which stays open. Returns how to undo it. */
   copyModeOver: (id: string) => () => void
   renameMode: (id: string, name: string) => void
-  /** Deletes a mode and everything in it (not the main one). */
+  /** Makes a mode the main one of its kind, trading places with the one that was. */
+  setMainMode: (id: string) => void
+  /** Deletes a mode and everything in it (not the main Wants one, which everything falls back to). */
   removeMode: (id: string) => void
   setSetupNote: (monthKey: string, text: string) => void
   /** Marks or unmarks a property as a favorite in one setup. Returns whether it now is one. */
@@ -761,13 +763,15 @@ export const useStore = create<State>()(
         const s = get()
         if (id === s.modeId || !s.modes.some((m) => m.id === id)) return () => {}
         const before = { ...emptyMode(), ...s.modeData[id] }
+        const made = s.modes.find((m) => m.id === id)?.createdAt
         const needsBefore = s.modes.find((m) => m.id === id)?.needs
         const needsNow = s.modes.find((m) => m.id === s.modeId)?.needs
         const withNeeds = (list: ModeInfo[], needs: NeedsPlan | undefined) => (needs ? list.map((m) => (m.id === id ? { ...m, needs: structuredClone(needs) } : m)) : list)
         set({ modeData: { ...s.modeData, [id]: copyOfPlan(s) }, modes: withNeeds(s.modes, needsNow && unlinkedCopy(needsNow)) })
         return () =>
           set((now) => {
-            if (!now.modes.some((m) => m.id === id)) return {}
+            // Gone, or another mode has this id now that the main one changed.
+            if (now.modes.find((m) => m.id === id)?.createdAt !== made) return {}
             const modes = withNeeds(now.modes, needsBefore)
             // It may have been opened since, and then its plan is the one in use.
             return now.modeId === id ? { ...before, modes } : { modeData: { ...now.modeData, [id]: before }, modes }
@@ -871,9 +875,28 @@ export const useStore = create<State>()(
       },
       renameMode: (id, name) =>
         set((s) => ({ modes: s.modes.map((m) => (m.id === id ? { ...m, name: name.trim().slice(0, MAX_MODE_NAME) || m.name } : m)) })),
+      setMainMode: (id) =>
+        set((s) => {
+          const mode = s.modes.find((m) => m.id === id)
+          const main = s.modes.find((m) => modeKind(m) === modeKind(mode))
+          if (!mode || !main || main.id === id) return {}
+          // Trading places keeps the same modes open on a plan with a limit, since the first ones of each kind are.
+          if (main.id !== MAIN_MODE) return { modes: s.modes.map((m) => (m.id === id ? main : m.id === main.id ? mode : m)) }
+          // The main Wants mode is saved at the top of the plan under its fixed id, so the two trade ids as well.
+          const traded = (x: string) => (x === id ? MAIN_MODE : x === MAIN_MODE ? id : x)
+          return {
+            modes: s.modes.map((m) => (m.id === id ? { ...main, id } : m.id === MAIN_MODE ? { ...mode, id: MAIN_MODE } : m)),
+            modeId: traded(s.modeId),
+            modeData: Object.fromEntries(Object.entries(s.modeData).map(([k, v]) => [traded(k), v])),
+          }
+        }),
       removeMode: (id) => {
         if (id === MAIN_MODE) return
-        if (get().modeId === id) get().switchMode(MAIN_MODE)
+        const s = get()
+        if (s.modeId === id) {
+          const kind = modeKind(s.modes.find((m) => m.id === id))
+          s.switchMode(s.modes.find((m) => m.id !== id && modeKind(m) === kind)?.id ?? MAIN_MODE)
+        }
         set((s) => {
           const { [id]: _gone, ...rest } = s.modeData
           return { modes: s.modes.filter((m) => m.id !== id), modeData: rest }

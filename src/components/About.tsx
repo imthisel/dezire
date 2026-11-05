@@ -645,7 +645,7 @@ function Faq() {
     ['Can I cancel anytime?', 'Yes. Cancel from your billing page in a couple of clicks, and you keep access until the end of the time you paid for.'],
     ['Is my data private?', 'Yes. Your plan is tied to your Google account and only you can open it. We never sell or share it.'],
     ['Does it work on my phone?', 'Yes. Dizayr works in any browser on your phone, tablet or computer, and stays in sync. Add it to your home screen and it opens like an app, even offline.'],
-    ['What are modes?', 'Separate versions of your plan. Mode 1 is your main plan; add others to try a different future, each with its own items, net worth and setups, while your calendar, expenses and goals stay shared. Modes come in two sections, Wants and Needs. The free trial includes 1 of each, the 6-month plan 2 of each, and the yearly plan is unlimited.'],
+    ['What are modes?', 'Separate versions of your plan. Add some to try a different future, each with its own items, net worth and setups, while your calendar, expenses and goals stay shared. Modes come in two sections, Wants and Needs, and you choose which one is the main one in each. The free trial includes 1 of each, the 6-month plan 2 of each, and the yearly plan is unlimited.'],
     ['Which currency does it use?', 'Plan in your own currency, and see a second one next to every amount if you like (for example pesos and US dollars).'],
     ['How do I pay?', 'By card or PayPal, through Lemon Squeezy’s secure checkout. Prices are in US dollars; your bank converts them if needed.'],
   ]

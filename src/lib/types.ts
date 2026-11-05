@@ -68,12 +68,12 @@ export interface MonthData {
   notes?: string
 }
 
-/** One mode: a separate version of the plan. The one with id 'main' is the main plan. */
+/** One mode: a separate version of the plan. The first of each kind is its main one; the main Wants mode has id 'main'. */
 export interface ModeInfo {
   id: string
   name: string
   createdAt: number
-  /** Not set: a Wants mode (the long-term plan). The main mode always is one. */
+  /** Not set: a Wants mode (the long-term plan). The one with id 'main' always is one. */
   kind?: ModeKind
   /** Needs modes: the budgets */
   needs?: NeedsPlan

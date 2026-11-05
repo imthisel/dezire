@@ -44,11 +44,12 @@ const KINDS: { id: ModeKind; title: string; line: string; icon: typeof Copy; ico
   },
 ]
 const kindOf = (id: ModeKind) => KINDS.find((k) => k.id === id)!
+const mainLabel = (kind: ModeKind) => (kind === 'needs' ? 'Your main budget' : 'Your main plan')
 
 const NAME_INPUT =
   'h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm'
 
-/** The modes in order, with which ones the current plan can open (the first ones, up to its limit; the main one always). */
+/** The modes in order, with each kind's main one (its first) and which ones the current plan can open (the first ones, up to its limit). */
 function useModes() {
   const modes = useStore((s) => s.modes)
   const modeId = useStore((s) => s.modeId)
@@ -56,10 +57,11 @@ function useModes() {
   const used: Record<ModeKind, number> = { wants: 0, needs: 0 }
   const list = modes.map((m, i) => {
     const kind = modeKind(m)
-    return { ...m, index: i, kind, main: m.id === MAIN_MODE, locked: used[kind]++ >= limit }
+    return { ...m, index: i, kind, main: used[kind] === 0, locked: used[kind]++ >= limit }
   })
   const current = list.find((m) => m.id === modeId) ?? list[0]
-  return { list, current, limit, canAdd: (kind: ModeKind) => used[kind] < limit }
+  const mainId = list.find((m) => m.kind === current.kind && m.main)?.id ?? MAIN_MODE
+  return { list, current, mainId, limit, canAdd: (kind: ModeKind) => used[kind] < limit }
 }
 
 /** The way to more modes, said for where the person is: the free trial (1 of each) or the 6-month plan. */
@@ -132,7 +134,7 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
               <>
                 <span aria-hidden className="shrink-0 text-white/30">·</span>
                 <span className="min-w-0 flex-1 truncate text-left font-normal text-zinc-200">{current.name}</span>
-                {current.main && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label="Main plan" />}
+                {current.main && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label={mainLabel(current.kind)} />}
               </>
             ) : (
               count > 0 && <span className="ml-auto shrink-0 rounded-full bg-white/[0.08] px-1.5 text-[11px] font-semibold tabular-nums text-zinc-400">{count}</span>
@@ -175,7 +177,7 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
                       <span className={`mx-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${mc.dot} ${m.locked ? 'opacity-40' : ''}`} />
                       <span className="min-w-0 flex-1">
                         <span className={`block truncate text-sm font-medium ${m.locked ? 'text-zinc-500' : 'text-zinc-100'}`}>{m.name}</span>
-                        {m.main && <span className="block text-[11px] text-zinc-500">Your main plan</span>}
+                        {m.main && <span className="block text-[11px] text-zinc-500">{mainLabel(m.kind)}</span>}
                       </span>
                       {m.main && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label="Main" />}
                       {m.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-label="Needs the yearly plan" />}
@@ -210,20 +212,22 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
   )
 }
 
-/** Manage modes, section by section: rename, delete, and add one. `startAdding`: open on a new mode of this kind. */
+/** Manage modes, section by section: rename, delete, choose the main one, and add one. `startAdding`: open on a new mode of this kind. */
 export function ModesModal({ startAdding, onCopy, onClose }: { startAdding?: ModeKind; onCopy: () => void; onClose: () => void }) {
   const { list, current, limit, canAdd } = useModes()
   const [adding, setAdding] = useState<ModeKind | null>(startAdding && canAdd(startAdding) ? startAdding : null)
   const s = useStore.getState()
 
-  function remove(m: ModeInfo) {
+  function remove(m: ModeInfo & { main: boolean; kind: ModeKind }) {
     if (!confirm(`Delete the mode “${m.name}”? ${modeKind(m) === 'needs' ? 'Its items, budgets and categories are' : 'Its months, items, setups and year notes are'} deleted for good. Your other modes, calendar and expenses stay${modeKind(m) === 'needs' ? ', including anything already sent to Expenses' : ''}.`)) return
+    // The next one along takes over as the main one.
+    const next = m.main ? list.find((x) => x.kind === m.kind && !x.main) : undefined
     s.removeMode(m.id)
-    toast.info(`Deleted “${m.name}”.`)
+    toast.info(`Deleted “${m.name}”.${next ? ` “${next.name}” is now ${mainLabel(m.kind).toLowerCase()}.` : ''}`)
   }
 
   return (
-    <Modal title="Modes" subtitle="Wants and Needs each keep their own modes." onClose={onClose} width="max-w-lg">
+    <Modal title="Modes" subtitle="Wants and Needs each keep their own modes. The crown marks the main one." onClose={onClose} width="max-w-lg">
       <div className="space-y-6">
         {KINDS.map((k) => {
           const modes = list.filter((m) => m.kind === k.id)
@@ -346,6 +350,8 @@ function NewModeForm({ kind, onCancel, onDone }: { kind: ModeKind; onCancel: () 
 function ModeRow({ m, current, onCopy, onDelete }: { m: ModeInfo & { index: number; kind: ModeKind; main: boolean; locked: boolean }; current: boolean; onCopy: () => void; onDelete: () => void }) {
   const limit = useModeLimit()
   const [name, setName] = useState(m.name)
+  // Changing the main Wants mode gives this id another mode's name.
+  useEffect(() => setName(m.name), [m.name])
   const c = modeColor(m.index, m.kind)
   return (
     <li className={`flex items-center gap-2.5 rounded-xl border px-2.5 py-2 ${current ? `border-transparent ${c.soft} ring-1 ${c.ring}` : 'border-white/[0.07]'}`}>
@@ -366,7 +372,7 @@ function ModeRow({ m, current, onCopy, onDelete }: { m: ModeInfo & { index: numb
           <Pencil className="h-3 w-3 shrink-0 text-zinc-600" />
         </span>
         <span className="block px-1 text-[11px] text-zinc-500">
-          {[m.main && 'Your main plan', current && 'In use', m.locked && 'Locked on your plan'].filter(Boolean).join(' · ') || `${m.kind === 'needs' ? 'Needs' : 'Wants'} mode`}
+          {[m.main && mainLabel(m.kind), current && 'In use', m.locked && 'Locked on your plan'].filter(Boolean).join(' · ') || `${m.kind === 'needs' ? 'Needs' : 'Wants'} mode`}
         </span>
       </span>
       {current && (
@@ -382,7 +388,20 @@ function ModeRow({ m, current, onCopy, onDelete }: { m: ModeInfo & { index: numb
           Open
         </button>
       )}
-      {!m.main && (
+      {!m.main && !m.locked && (
+        <button
+          onClick={() => {
+            useStore.getState().setMainMode(m.id)
+            toast.success(`“${m.name}” is now ${mainLabel(m.kind).toLowerCase()}.`)
+          }}
+          title="Make this the main one"
+          aria-label={`Make ${m.name} the main ${m.kind === 'needs' ? 'Needs' : 'Wants'} mode`}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-500 transition hover:bg-amber-300/10 hover:text-amber-300"
+        >
+          <Crown className="h-4 w-4" />
+        </button>
+      )}
+      {m.id !== MAIN_MODE && (
         <button onClick={onDelete} title="Delete this mode" aria-label={`Delete ${m.name}`} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-500 transition hover:bg-red-500/10 hover:text-red-300">
           <Trash2 className="h-4 w-4" />
         </button>
@@ -513,7 +532,7 @@ export function CopyModeModal({ onClose }: { onClose: () => void }) {
         {others.map((m) => {
           const mc = modeColor(m.index, m.kind)
           return (
-            <CopyTarget key={m.id} on={to === m.id} onClick={() => setTo(m.id)} title={m.name} hint={m.main ? 'Your main plan · replaces what’s in it' : 'Replaces what’s in it'}>
+            <CopyTarget key={m.id} on={to === m.id} onClick={() => setTo(m.id)} title={m.name} hint={m.main ? `${mainLabel(m.kind)} · replaces what’s in it` : 'Replaces what’s in it'}>
               {m.main ? <Crown className="h-4 w-4 text-amber-300" /> : <span className={`h-2.5 w-2.5 rounded-full ${mc.dot}`} />}
             </CopyTarget>
           )
@@ -553,7 +572,7 @@ function CopyTarget({ on, onClick, title, hint, children }: { on: boolean; onCli
 
 /** Overview & Assets: which mode this is, when there's more than one (so it's always clear which plan you're editing). */
 export function ModeStrip() {
-  const { list, current } = useModes()
+  const { list, current, mainId } = useModes()
   if (list.length < 2) return null
   const c = modeColor(current.index, current.kind)
   return (
@@ -562,7 +581,7 @@ export function ModeStrip() {
       <p className="min-w-0 flex-1 truncate text-sm text-zinc-300">
         {current.main ? (
           <>
-            <span className="font-semibold text-white">{current.name}</span> · your main plan
+            <span className="font-semibold text-white">{current.name}</span> · {mainLabel(current.kind).toLowerCase()}
           </>
         ) : (
           <>
@@ -572,7 +591,7 @@ export function ModeStrip() {
         )}
       </p>
       {!current.main && (
-        <button onClick={() => useStore.getState().switchMode(MAIN_MODE)} className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium text-zinc-300 transition hover:bg-white/10 hover:text-white">
+        <button onClick={() => useStore.getState().switchMode(mainId)} className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium text-zinc-300 transition hover:bg-white/10 hover:text-white">
           Back to main
         </button>
       )}
@@ -581,18 +600,18 @@ export function ModeStrip() {
 }
 
 /**
- * If the mode in use is locked (the plan changed to one with fewer modes), go back to the main plan.
+ * If the mode in use is locked (the plan changed to one with fewer modes), go back to the main one of its kind.
  * A Needs mode has no assets of its own, so pages built around them send you to its budget.
  */
 export function useModeGuard() {
-  const { current } = useModes()
+  const { current, mainId } = useModes()
   const view = useStore((s) => s.view)
   useEffect(() => {
     if (current.kind === 'needs' && (view === 'assets' || view === 'favorites' || view === 'plan')) useStore.getState().setView('planner')
   }, [current.kind, view])
   useEffect(() => {
     if (!current.locked) return
-    useStore.getState().switchMode(MAIN_MODE)
-    toast.info(`Back to your main plan: “${current.name}” is kept safe and opens again with a bigger plan.`)
-  }, [current.locked, current.name])
+    useStore.getState().switchMode(mainId)
+    toast.info(`Back to ${mainLabel(current.kind).toLowerCase()}: “${current.name}” is kept safe and opens again with a bigger plan.`)
+  }, [current.locked, current.name, current.kind, mainId])
 }
