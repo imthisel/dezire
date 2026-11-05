@@ -26,7 +26,7 @@ export function ListsSection() {
       <Group title="Your plan" hint="Rename, recolour, reorder, add or delete. Nothing you’ve already planned gets lost.">
         <ActionRow id="list-kinds" icon={Tags} title="Kinds of items" hint="Property, vehicles, investments and more." value={kinds} onClick={() => openModal({ type: 'kinds' })} />
         <ActionRow id="list-areas" icon={Target} title="Goal areas" hint="What your yearly goals are grouped by." value={areas} onClick={() => openModal({ type: 'goalAreas' })} />
-        <ActionRow id="list-modes" icon={Layers} title="Modes" hint="Wants modes for big goals, Needs modes for everyday spending." value={modes} onClick={() => setModesWindow('list')} />
+        <ActionRow id="list-modes" icon={Layers} title="Modes" hint="Wants and Needs each keep their own modes." value={modes} onClick={() => setModesWindow('list')} />
       </Group>
       <Group title="Spending">
         <ActionRow id="list-cats" icon={Tags} title="Expense categories" hint="And the usual things in each." value={cats} onClick={() => setExpenseTab('categories')} />
@@ -38,7 +38,7 @@ export function ListsSection() {
 
       {expenseTab && <ExpenseSettings tab={expenseTab} onClose={() => setExpenseTab(null)} />}
       {editTasks && <TaskKinds onClose={() => setEditTasks(false)} />}
-      {modesWindow === 'list' && <ModesModal startAdding={false} onCopy={() => setModesWindow('copy')} onClose={() => setModesWindow(null)} />}
+      {modesWindow === 'list' && <ModesModal onCopy={() => setModesWindow('copy')} onClose={() => setModesWindow(null)} />}
       {modesWindow === 'copy' && <CopyModeModal onClose={() => setModesWindow(null)} />}
     </>
   )

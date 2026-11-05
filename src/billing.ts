@@ -253,12 +253,12 @@ export async function openCheckout(plan: PlanId, user: User) {
 }
 
 /**
- * How many modes the account can use: 2 on the 6-month plan and during the free trial, unlimited on the yearly plan
- * (and with lifetime access or a free membership). While access is still being checked, nothing is limited.
+ * How many modes the account can use in each section (Wants, Needs): 1 during the free trial, 2 on the 6-month plan,
+ * unlimited on the yearly plan (and with lifetime access or a free membership). While access is being checked, nothing is limited.
  */
 export function modeLimit(s: Pick<AccessStore, 'state' | 'plan'> = useAccess.getState()) {
   if (s.state === 'checking' || s.state === 'lifetime' || s.state === 'comp') return Infinity
   if (s.state === 'paid') return s.plan === 'semiannual' ? 2 : Infinity
-  return 2
+  return 1
 }
 export const useModeLimit = () => useAccess((s) => modeLimit(s))

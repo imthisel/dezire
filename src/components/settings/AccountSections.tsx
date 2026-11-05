@@ -110,8 +110,8 @@ export function PlanSection() {
       </div>
 
       <Group title="What’s included">
-        <Row id="plan-modes" title="Modes" hint="Wants modes for big goals, Needs modes for everyday spending.">
-          <span className="text-[13px] font-medium tabular-nums text-zinc-300">{limit === Infinity ? `${modes} · unlimited` : `${Math.min(modes, limit)} of ${limit}`}</span>
+        <Row id="plan-modes" title="Modes" hint="How many you can have in each of Wants and Needs.">
+          <span className="text-[13px] font-medium tabular-nums text-zinc-300">{limit === Infinity ? `${modes} · unlimited` : `${limit} + ${limit}`}</span>
         </Row>
         <ActionRow id="plan-billing" icon={CreditCard} title="Plans & billing" hint={subscribed ? 'Compare plans, or change your card or plan.' : 'Compare plans and prices.'} onClick={() => openPlans()} />
       </Group>

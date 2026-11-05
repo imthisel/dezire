@@ -33,7 +33,7 @@ export const PLANS: Record<PlanId, Plan> = {
     every: 'per year',
     months: 12,
     badge: '50% off',
-    perks: ['Unlimited modes'],
+    perks: ['Unlimited Wants and Needs modes'],
     checkoutUrl: import.meta.env.VITE_LS_CHECKOUT_ANNUAL ?? '',
   },
   semiannual: {
@@ -42,7 +42,7 @@ export const PLANS: Record<PlanId, Plan> = {
     price: 15,
     every: 'every 6 months',
     months: 6,
-    perks: ['2 modes (your main plan + 1 more)'],
+    perks: ['2 Wants modes + 2 Needs modes'],
     checkoutUrl: import.meta.env.VITE_LS_CHECKOUT_SEMIANNUAL ?? '',
   },
 }

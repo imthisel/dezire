@@ -22,7 +22,7 @@ export const SEARCH: { id: string; section: SettingsSection; title: string; word
   { id: 'export-import', section: 'layout', title: 'Export & Import buttons', words: 'hide header backup restore download upload' },
   { id: 'hide-reset', section: 'layout', title: 'Clear everything button', words: 'hide header reset delete' },
   { id: 'hide-currency', section: 'layout', title: 'Currency button', words: 'hide header exchange' },
-  { id: 'hide-modes', section: 'layout', title: 'Modes button', words: 'hide header switch' },
+  { id: 'hide-modes', section: 'layout', title: 'Wants and Needs buttons', words: 'hide header switch' },
   { id: 'privacy-button', section: 'layout', title: 'Hide amounts button', words: 'eye header privacy' },
   { id: 'nav', section: 'layout', title: 'Side menu & tab bar', words: 'hide pages favorites calendar expenses assets money plan navigation sidebar' },
   { id: 'sidebar', section: 'layout', title: 'Show the side menu', words: 'sidebar wide screens docked' },

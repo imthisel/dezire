@@ -20,35 +20,30 @@ const COLORS = [
 const NEEDS_COLOR = { dot: 'bg-emerald-400', text: 'text-emerald-200', soft: 'bg-emerald-500/15', ring: 'ring-emerald-400/40', strip: 'from-emerald-500/20 border-emerald-400/25' }
 export const modeColor = (index: number, kind: ModeKind = 'wants') => (kind === 'needs' ? NEEDS_COLOR : COLORS[index % COLORS.length])
 
-const KINDS: { id: ModeKind; title: string; line: string; points: string[]; icon: typeof Copy; on: string; iconCls: string }[] = [
+/** The two sections of modes. Each has its own button in the header. */
+const KINDS: { id: ModeKind; title: string; line: string; icon: typeof Copy; iconCls: string; on: string; form: string; create: string }[] = [
   {
     id: 'wants',
     title: 'Wants',
-    line: 'The life you’re building',
-    points: ['Big goals, month by month', 'Items, net worth and setups'],
+    line: 'The life you’re building: big goals, items, net worth and setups.',
     icon: Sparkles,
-    on: 'border-indigo-400/60 bg-indigo-500/15',
     iconCls: 'bg-gradient-to-br from-indigo-400 to-indigo-600',
+    on: 'border-indigo-400/50 bg-indigo-500/15 text-white',
+    form: 'border-indigo-400/25 bg-indigo-500/[0.06]',
+    create: 'bg-gradient-to-r from-indigo-500 to-indigo-400 text-white shadow-indigo-500/20',
   },
   {
     id: 'needs',
     title: 'Needs',
-    line: 'Everyday money',
-    points: ['Week by week, with a budget for each month', 'Groceries, transport, bills and more'],
+    line: 'Everyday money: week by week, with a budget for each month.',
     icon: ShoppingBasket,
-    on: 'border-emerald-400/60 bg-emerald-500/15',
     iconCls: 'bg-gradient-to-br from-emerald-400 to-teal-500',
+    on: 'border-emerald-400/50 bg-emerald-500/15 text-white',
+    form: 'border-emerald-400/25 bg-emerald-500/[0.06]',
+    create: 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-emerald-950 shadow-emerald-500/20',
   },
 ]
-
-/** A small label saying which kind of mode this is. */
-function KindChip({ kind }: { kind: ModeKind }) {
-  return kind === 'needs' ? (
-    <span className="shrink-0 rounded-full bg-emerald-400/15 px-1.5 py-px text-[10px] font-semibold text-emerald-200">Needs</span>
-  ) : (
-    <span className="shrink-0 rounded-full bg-white/[0.07] px-1.5 py-px text-[10px] font-semibold text-zinc-400">Wants</span>
-  )
-}
+const kindOf = (id: ModeKind) => KINDS.find((k) => k.id === id)!
 
 const NAME_INPUT =
   'h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm'
@@ -58,32 +53,44 @@ function useModes() {
   const modes = useStore((s) => s.modes)
   const modeId = useStore((s) => s.modeId)
   const limit = useModeLimit()
-  const list = modes.map((m, i) => ({ ...m, index: i, kind: modeKind(m), main: m.id === MAIN_MODE, locked: i >= limit }))
+  const used: Record<ModeKind, number> = { wants: 0, needs: 0 }
+  const list = modes.map((m, i) => {
+    const kind = modeKind(m)
+    return { ...m, index: i, kind, main: m.id === MAIN_MODE, locked: used[kind]++ >= limit }
+  })
   const current = list.find((m) => m.id === modeId) ?? list[0]
-  return { list, current, limit, canAdd: modes.length < limit }
+  return { list, current, limit, canAdd: (kind: ModeKind) => used[kind] < limit }
 }
 
-function open(m: { id: string; name: string; locked: boolean }) {
-  if (m.locked) {
-    openPlans()
-    return toast.info(`“${m.name}” is kept safe, but your plan includes 2 modes. Get Yearly for unlimited modes.`)
-  }
-  useStore.getState().switchMode(m.id)
+/** The way to more modes, said for where the person is: the free trial (1 of each) or the 6-month plan. */
+function askForMore(limit: number, kind: ModeKind, name?: string) {
+  const title = kindOf(kind).title
+  const held = name ? `“${name}” is kept safe. ` : ''
+  openPlans()
+  toast.info(limit === 1 ? `${held}Your free trial includes 1 ${title} mode. Pick a plan to have more.` : `${held}Your plan includes ${limit} ${title} modes. Go Yearly for unlimited.`)
 }
 
-/** Header: which mode is in use, and a menu to switch, add or manage modes. */
+/** Opens a mode. Crossing between Wants and Needs lands on that section's main page. */
+function open(m: { id: string; name: string; locked: boolean; kind: ModeKind }, limit: number) {
+  if (m.locked) return askForMore(limit, m.kind, m.name)
+  const s = useStore.getState()
+  const crossing = modeKind(s.modes.find((x) => x.id === s.modeId)) !== m.kind
+  s.switchMode(m.id)
+  if (crossing && s.view !== 'settings') s.setView('planner')
+}
+
+/** Header: a Wants button and a Needs button. Each opens a menu of that section's modes. */
 export function ModeSwitcher({ phone }: { phone: boolean }) {
-  const { list, current, canAdd } = useModes()
-  const [menu, setMenu] = useState(false)
-  const [manage, setManage] = useState<null | 'list' | 'new' | 'copy'>(null)
+  const { list, current, limit, canAdd } = useModes()
+  const [menu, setMenu] = useState<ModeKind | null>(null)
+  // A kind: Manage, opened on a new mode of that kind.
+  const [manage, setManage] = useState<null | 'list' | 'copy' | ModeKind>(null)
   const root = useRef<HTMLDivElement>(null)
-  const c = modeColor(current.index, current.kind)
-  const needs = current.kind === 'needs'
 
   useEffect(() => {
     if (!menu) return
-    const close = (e: MouseEvent) => !root.current?.contains(e.target as Node) && setMenu(false)
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(false)
+    const close = (e: MouseEvent) => !root.current?.contains(e.target as Node) && setMenu(null)
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(null)
     window.addEventListener('mousedown', close)
     window.addEventListener('keydown', esc)
     return () => {
@@ -92,87 +99,105 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
     }
   }, [menu])
 
-  return (
-    <div ref={root} className={`relative min-w-0 ${phone ? 'flex-1' : ''}`}>
-      <button
-        onClick={() => setMenu((o) => !o)}
-        aria-expanded={menu}
-        aria-haspopup="menu"
-        title="Modes: separate versions of your plan"
-        className={`flex w-full items-center gap-2 rounded-xl border pl-2.5 pr-2 text-sm font-medium transition ${phone ? 'h-10' : 'h-9 max-w-[13rem]'} ${needs ? 'bg-emerald-500/10' : 'bg-white/[0.03]'} ${
-          menu ? 'border-indigo-400/50 ring-2 ring-indigo-500/20' : needs ? 'border-emerald-400/40 hover:border-emerald-400/60' : 'border-white/10 hover:border-white/20'
-        }`}
-      >
-        {needs ? <ShoppingBasket className="h-4 w-4 shrink-0 text-emerald-300" /> : <Layers className={`h-4 w-4 shrink-0 ${c.text}`} />}
-        <span className="min-w-0 flex-1 truncate text-left text-zinc-200">{current.name}</span>
-        {needs && <KindChip kind="needs" />}
-        {current.main && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label="Main plan" />}
-        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform duration-300 ${menu ? 'rotate-180' : ''}`} />
-      </button>
+  const shown = menu ? kindOf(menu) : null
+  const modes = list.filter((m) => m.kind === menu)
+  const act = (then: () => void) => () => {
+    setMenu(null)
+    then()
+  }
+  const addNew = (kind: ModeKind) => act(() => (canAdd(kind) ? setManage(kind) : askForMore(limit, kind)))
 
-      {menu && (
-        <div role="menu" className="animate-menu absolute left-0 top-full z-50 mt-2 w-[19rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-white/10 bg-[#0e1016] shadow-2xl shadow-black/60 xl:left-auto xl:right-0">
-          <div className="border-b border-white/[0.06] px-4 py-3">
-            <p className="text-sm font-semibold text-white">Modes</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">Wants modes plan your big goals, with their own items, net worth and setups. Needs modes track everyday spending week by week. Calendar, expenses and goals are shared.</p>
+  return (
+    <div ref={root} className={`relative flex min-w-0 gap-1.5 ${phone ? 'flex-1' : ''}`}>
+      {KINDS.map((k) => {
+        const inUse = current.kind === k.id
+        const count = list.filter((m) => m.kind === k.id).length
+        const opened = menu === k.id
+        return (
+          <button
+            key={k.id}
+            onClick={() => setMenu(opened ? null : k.id)}
+            aria-expanded={opened}
+            aria-haspopup="menu"
+            aria-current={inUse ? 'true' : undefined}
+            aria-label={inUse ? `${k.title}, in “${current.name}”. Show ${k.title} modes.` : `${k.title}. Show ${k.title} modes.`}
+            title={`${k.title} modes`}
+            className={`flex min-w-0 items-center gap-1.5 rounded-xl border pl-2.5 pr-2 text-sm font-medium transition ${phone ? `h-10 ${inUse ? 'flex-[2]' : 'flex-1'}` : `h-9 ${inUse ? 'max-w-[14rem]' : 'shrink-0'}`} ${
+              inUse ? k.on : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
+            } ${opened ? 'ring-2 ring-white/15' : ''}`}
+          >
+            <k.icon className={`h-4 w-4 shrink-0 ${k.id === 'needs' ? 'text-emerald-300' : 'text-indigo-300'}`} />
+            <span className="shrink-0 font-semibold">{k.title}</span>
+            {inUse ? (
+              <>
+                <span aria-hidden className="shrink-0 text-white/30">·</span>
+                <span className="min-w-0 flex-1 truncate text-left font-normal text-zinc-200">{current.name}</span>
+                {current.main && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label="Main plan" />}
+              </>
+            ) : (
+              count > 0 && <span className="ml-auto shrink-0 rounded-full bg-white/[0.08] px-1.5 text-[11px] font-semibold tabular-nums text-zinc-400">{count}</span>
+            )}
+            <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform duration-300 ${opened ? 'rotate-180' : ''}`} />
+          </button>
+        )
+      })}
+
+      {shown && (
+        <div key={shown.id} role="menu" aria-label={`${shown.title} modes`} className="animate-menu absolute left-0 top-full z-50 mt-2 w-[20rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-white/10 bg-[#0e1016] shadow-2xl shadow-black/60 2xl:left-auto 2xl:right-0">
+          <div className="flex items-start gap-3 border-b border-white/[0.06] px-4 py-3">
+            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white ${shown.iconCls}`}>
+              <shown.icon className="h-4 w-4" strokeWidth={2.4} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-white">{shown.title} modes</span>
+              <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">{shown.line}</span>
+            </span>
           </div>
-          <ul className="max-h-72 overflow-y-auto p-1.5">
-            {list.map((m) => {
-              const mc = modeColor(m.index, m.kind)
-              const on = m.id === current.id
-              return (
-                <li key={m.id}>
-                  <button
-                    role="menuitemradio"
-                    aria-checked={on}
-                    onClick={() => {
-                      setMenu(false)
-                      open(m)
-                    }}
-                    className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition ${on ? `${mc.soft} ring-1 ${mc.ring}` : 'hover:bg-white/5'}`}
-                  >
-                    {m.kind === 'needs' ? <ShoppingBasket className={`h-3.5 w-3.5 shrink-0 text-emerald-300 ${m.locked ? 'opacity-40' : ''}`} /> : <span className={`mx-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${mc.dot} ${m.locked ? 'opacity-40' : ''}`} />}
-                    <span className="min-w-0 flex-1">
-                      <span className={`block truncate text-sm font-medium ${m.locked ? 'text-zinc-500' : 'text-zinc-100'}`}>{m.name}</span>
-                      {m.main && <span className="block text-[11px] text-zinc-500">Your main plan</span>}
-                    </span>
-                    <KindChip kind={m.kind} />
-                    {m.main && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label="Main" />}
-                    {m.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-label="Needs the yearly plan" />}
-                    {on && <Check className={`h-4 w-4 shrink-0 ${mc.text}`} />}
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+
+          {modes.length === 0 ? (
+            <div className="px-4 py-5 text-center">
+              <p className="text-sm font-medium text-zinc-200">No {shown.title} modes yet</p>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500">Make one to start. You can have as many separate budgets as your plan allows.</p>
+            </div>
+          ) : (
+            <ul className="max-h-72 overflow-y-auto p-1.5">
+              {modes.map((m) => {
+                const mc = modeColor(m.index, m.kind)
+                const on = m.id === current.id
+                return (
+                  <li key={m.id}>
+                    <button
+                      role="menuitemradio"
+                      aria-checked={on}
+                      onClick={act(() => open(m, limit))}
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition ${on ? `${mc.soft} ring-1 ${mc.ring}` : 'hover:bg-white/5'}`}
+                    >
+                      <span className={`mx-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${mc.dot} ${m.locked ? 'opacity-40' : ''}`} />
+                      <span className="min-w-0 flex-1">
+                        <span className={`block truncate text-sm font-medium ${m.locked ? 'text-zinc-500' : 'text-zinc-100'}`}>{m.name}</span>
+                        {m.main && <span className="block text-[11px] text-zinc-500">Your main plan</span>}
+                      </span>
+                      {m.main && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label="Main" />}
+                      {m.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-label="Needs the yearly plan" />}
+                      {on && <Check className={`h-4 w-4 shrink-0 ${mc.text}`} />}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+
           <div className="grid grid-cols-2 gap-1.5 border-t border-white/[0.06] p-2">
-            <button
-              onClick={() => {
-                setMenu(false)
-                setManage('copy')
-              }}
-              className="col-span-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white/10 text-xs font-medium text-zinc-200 transition hover:bg-white/5"
-            >
-              <Copy className="h-3.5 w-3.5" /> Copy this mode
+            {current.kind === shown.id && (
+              <button onClick={act(() => setManage('copy'))} className="col-span-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white/10 text-xs font-medium text-zinc-200 transition hover:bg-white/5">
+                <Copy className="h-3.5 w-3.5" /> Copy “<span className="max-w-[10rem] truncate">{current.name}</span>”
+              </button>
+            )}
+            <button onClick={addNew(shown.id)} className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold ${shown.create}`}>
+              {canAdd(shown.id) ? <Plus className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {canAdd(shown.id) ? `New ${shown.title} mode` : 'Unlock more'}
             </button>
-            <button
-              onClick={() => {
-                setMenu(false)
-                if (canAdd) setManage('new')
-                else openPlans()
-              }}
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-400 text-xs font-semibold text-white"
-            >
-              {canAdd ? <Plus className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
-              {canAdd ? 'New mode' : 'Unlimited modes'}
-            </button>
-            <button
-              onClick={() => {
-                setMenu(false)
-                setManage('list')
-              }}
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white/10 text-xs font-medium text-zinc-200 transition hover:bg-white/5"
-            >
+            <button onClick={act(() => setManage('list'))} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white/10 text-xs font-medium text-zinc-200 transition hover:bg-white/5">
               <Settings2 className="h-3.5 w-3.5" /> Manage
             </button>
           </div>
@@ -180,36 +205,16 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
       )}
 
       {manage === 'copy' && <CopyModeModal onClose={() => setManage(null)} />}
-      {(manage === 'list' || manage === 'new') && <ModesModal startAdding={manage === 'new'} onCopy={() => setManage('copy')} onClose={() => setManage(null)} />}
+      {manage && manage !== 'copy' && <ModesModal startAdding={manage === 'list' ? undefined : manage} onCopy={() => setManage('copy')} onClose={() => setManage(null)} />}
     </div>
   )
 }
 
-/** Manage modes: rename, delete, and add one (empty, or a copy of the one in use). */
-export function ModesModal({ startAdding, onCopy, onClose }: { startAdding: boolean; onCopy: () => void; onClose: () => void }) {
+/** Manage modes, section by section: rename, delete, and add one. `startAdding`: open on a new mode of this kind. */
+export function ModesModal({ startAdding, onCopy, onClose }: { startAdding?: ModeKind; onCopy: () => void; onClose: () => void }) {
   const { list, current, limit, canAdd } = useModes()
-  const [adding, setAdding] = useState(startAdding && canAdd)
-  const [name, setName] = useState('')
-  const [copy, setCopy] = useState(false)
-  const [kind, setKind] = useState<ModeKind>('wants')
+  const [adding, setAdding] = useState<ModeKind | null>(startAdding && canAdd(startAdding) ? startAdding : null)
   const s = useStore.getState()
-  // Only a mode of the same kind can be copied: a plan of items can't become budgets, or the other way round.
-  const canCopy = current.kind === kind
-  const copying = copy && canCopy
-
-  function create() {
-    const id = s.addMode(name || (kind === 'needs' ? 'Needs' : `Mode ${list.length + 1}`), copying, kind)
-    const made = useStore.getState().modes.find((m) => m.id === id)
-    if (kind === 'needs' && useStore.getState().view !== 'settings') useStore.getState().setView('planner')
-    toast.success(
-      copying
-        ? `Now in “${made?.name}”. It starts as a copy of “${current.name}”.`
-        : kind === 'needs'
-          ? `Now in “${made?.name}”. Set a monthly budget and start adding.`
-          : `Now in “${made?.name}”. It starts empty, separate from “${current.name}”.`,
-    )
-    onClose()
-  }
 
   function remove(m: ModeInfo) {
     if (!confirm(`Delete the mode “${m.name}”? ${modeKind(m) === 'needs' ? 'Its items, budgets and categories are' : 'Its months, items, setups and year notes are'} deleted for good. Your other modes, calendar and expenses stay${modeKind(m) === 'needs' ? ', including anything already sent to Expenses' : ''}.`)) return
@@ -218,106 +223,128 @@ export function ModesModal({ startAdding, onCopy, onClose }: { startAdding: bool
   }
 
   return (
-    <Modal title="Modes" subtitle="Plan your big goals, or budget your everyday spending. Mode 1 is your main plan." onClose={onClose} width="max-w-lg">
-      <ul className="space-y-1.5">
-        {list.map((m) => (
-          <ModeRow key={m.id} m={m} current={m.id === current.id} onCopy={onCopy} onDelete={() => remove(m)} />
-        ))}
-      </ul>
+    <Modal title="Modes" subtitle="Wants and Needs each keep their own modes." onClose={onClose} width="max-w-lg">
+      <div className="space-y-6">
+        {KINDS.map((k) => {
+          const modes = list.filter((m) => m.kind === k.id)
+          return (
+            <section key={k.id} aria-label={`${k.title} modes`}>
+              <div className="mb-2.5 flex items-center gap-2.5">
+                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white ${k.iconCls}`}>
+                  <k.icon className="h-4 w-4" strokeWidth={2.4} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-white">{k.title}</span>
+                  <span className="block text-xs text-zinc-500">{k.line}</span>
+                </span>
+                <span className="shrink-0 rounded-full bg-white/[0.07] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-zinc-400">{modes.length}</span>
+              </div>
+              <ul className="space-y-1.5">
+                {modes.map((m) => (
+                  <ModeRow key={m.id} m={m} current={m.id === current.id} onCopy={onCopy} onDelete={() => remove(m)} />
+                ))}
+              </ul>
+              {adding === k.id ? (
+                <NewModeForm kind={k.id} onCancel={() => setAdding(null)} onDone={onClose} />
+              ) : canAdd(k.id) ? (
+                <button onClick={() => setAdding(k.id)} className={`${modes.length ? 'mt-1.5' : ''} flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 py-2.5 text-sm font-medium text-zinc-300 transition hover:border-white/30 hover:text-white`}>
+                  <Plus className="h-4 w-4" /> New {k.title} mode
+                </button>
+              ) : (
+                <button onClick={() => askForMore(limit, k.id)} className="mt-1.5 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-amber-300/30 bg-amber-300/[0.05] py-2.5 text-sm font-medium text-amber-100 transition hover:border-amber-300/60 hover:bg-amber-300/10">
+                  <Sparkles className="h-4 w-4 text-amber-300" /> Unlock more {k.title} modes
+                </button>
+              )}
+            </section>
+          )
+        })}
+      </div>
 
-      <div className="mt-4 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-xs text-zinc-400">
+      <div className="mt-5 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-xs text-zinc-400">
         {limit === Infinity ? (
           <span>Unlimited modes on your plan.</span>
         ) : (
           <span className="flex flex-wrap items-center justify-between gap-2">
             <span>
-              {Math.min(list.length, limit)} of {limit} modes on your plan.
-              {list.length > limit && <span className="text-amber-200/80"> {list.length - limit} more kept safe (locked).</span>}
+              {limit === 1 ? '1 Wants and 1 Needs mode during your free trial.' : `${limit} Wants and ${limit} Needs modes on your plan.`}
+              {list.some((m) => m.locked) && <span className="text-amber-200/80"> {list.filter((m) => m.locked).length} more kept safe (locked).</span>}
             </span>
             <button onClick={() => openPlans()} className="inline-flex items-center gap-1 font-semibold text-indigo-200 hover:text-white">
-              <Sparkles className="h-3.5 w-3.5" /> Get Yearly for unlimited
+              <Sparkles className="h-3.5 w-3.5" /> {limit === 1 ? 'See plans' : 'Get Yearly for unlimited'}
             </button>
           </span>
         )}
       </div>
-
-      {canAdd &&
-        (adding ? (
-          <div className={`animate-fade mt-4 space-y-3 rounded-2xl border p-4 ${kind === 'needs' ? 'border-emerald-400/25 bg-emerald-500/[0.06]' : 'border-indigo-400/25 bg-indigo-500/[0.06]'}`}>
-            <p className="text-sm font-semibold text-white">What’s this mode for?</p>
-            <div role="radiogroup" aria-label="Kind of mode" className="grid gap-2 sm:grid-cols-2">
-              {KINDS.map((k) => {
-                const on = kind === k.id
-                return (
-                  <button
-                    key={k.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => setKind(k.id)}
-                    className={`relative flex flex-col gap-2 rounded-xl border p-3 text-left transition ${on ? k.on : 'border-white/10 hover:border-white/20'}`}
-                  >
-                    <span className="flex items-center gap-2.5">
-                      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white ${k.iconCls}`}>
-                        <k.icon className="h-4 w-4" strokeWidth={2.4} />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-white">{k.title}</span>
-                        <span className="block truncate text-[11px] text-zinc-400">{k.line}</span>
-                      </span>
-                    </span>
-                    <span className="block space-y-0.5 text-xs leading-snug text-zinc-400">
-                      {k.points.map((p) => (
-                        <span key={p} className="block">
-                          {p}
-                        </span>
-                      ))}
-                    </span>
-                    {on && <Check className="absolute right-2.5 top-2.5 h-4 w-4 text-white" />}
-                  </button>
-                )
-              })}
-            </div>
-            <input
-              autoFocus
-              value={name}
-              maxLength={MAX_MODE_NAME}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && create()}
-              aria-label="Mode name"
-              placeholder={kind === 'needs' ? 'e.g. Monthly needs, Student budget' : `e.g. Dream life, Safe plan, Mode ${list.length + 1}`}
-              className={NAME_INPUT}
-            />
-            {canCopy ? (
-              <div className="grid grid-cols-2 gap-2">
-                <StartOption on={!copy} onClick={() => setCopy(false)} icon={FilePlus2} title={kind === 'needs' ? 'Start fresh' : 'Start empty'} hint={kind === 'needs' ? 'Common categories, no budget' : 'A blank plan'} />
-                <StartOption on={copy} onClick={() => setCopy(true)} icon={Copy} title={`Copy “${current.name}”`} hint="Then change it freely" />
-              </div>
-            ) : (
-              kind === 'needs' && <p className="text-xs leading-relaxed text-zinc-400">Offers groceries, food, transport, bills and health, and you can change the list. What you add stays here, and only goes to Expenses when you tick it.</p>
-            )}
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setAdding(false)} className="h-10 rounded-xl px-4 text-sm font-medium text-zinc-400 hover:text-white">
-                Cancel
-              </button>
-              <button onClick={create} className={`h-10 rounded-xl px-5 text-sm font-semibold shadow-lg ${kind === 'needs' ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-emerald-950 shadow-emerald-500/20' : 'bg-gradient-to-r from-indigo-500 to-indigo-400 text-white shadow-indigo-500/20'}`}>
-                Create and open
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setAdding(true)}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 py-3 text-sm font-medium text-zinc-300 transition hover:border-white/30 hover:text-white"
-          >
-            <Plus className="h-4 w-4" /> New mode
-          </button>
-        ))}
     </Modal>
   )
 }
 
+/** A name for a new mode that isn't taken: "Needs", "Needs 2", "Mode 3". */
+function newModeName(kind: ModeKind, taken: string[]) {
+  const base = kind === 'needs' ? 'Needs' : 'Mode'
+  if (kind === 'needs' && !taken.includes(base)) return base
+  for (let n = 2; ; n++) if (!taken.includes(`${base} ${n}`)) return `${base} ${n}`
+}
+
+function NewModeForm({ kind, onCancel, onDone }: { kind: ModeKind; onCancel: () => void; onDone: () => void }) {
+  const { list, current } = useModes()
+  const [name, setName] = useState('')
+  const [copy, setCopy] = useState(false)
+  const k = kindOf(kind)
+  // Only a mode of the same kind can be copied: a plan of items can't become budgets, or the other way round.
+  const canCopy = current.kind === kind
+  const copying = copy && canCopy
+  const fallback = newModeName(kind, list.map((m) => m.name))
+
+  function create() {
+    const s = useStore.getState()
+    const id = s.addMode(name || fallback, copying, kind)
+    const made = useStore.getState().modes.find((m) => m.id === id)
+    if (current.kind !== kind && s.view !== 'settings') s.setView('planner')
+    toast.success(
+      copying
+        ? `Now in “${made?.name}”. It starts as a copy of “${current.name}”.`
+        : kind === 'needs'
+          ? `Now in “${made?.name}”. Set a monthly budget and start adding.`
+          : `Now in “${made?.name}”. It starts empty, separate from “${current.name}”.`,
+    )
+    onDone()
+  }
+
+  return (
+    <div className={`animate-fade mt-1.5 space-y-3 rounded-2xl border p-4 ${k.form}`}>
+      <input
+        autoFocus
+        value={name}
+        maxLength={MAX_MODE_NAME}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && create()}
+        aria-label={`New ${k.title} mode name`}
+        placeholder={kind === 'needs' ? 'e.g. Monthly needs, Student budget' : `e.g. Dream life, Safe plan, ${fallback}`}
+        className={NAME_INPUT}
+      />
+      {canCopy ? (
+        <div className="grid grid-cols-2 gap-2">
+          <StartOption on={!copy} onClick={() => setCopy(false)} icon={FilePlus2} title={kind === 'needs' ? 'Start fresh' : 'Start empty'} hint={kind === 'needs' ? 'Common categories, no budget' : 'A blank plan'} />
+          <StartOption on={copy} onClick={() => setCopy(true)} icon={Copy} title={`Copy “${current.name}”`} hint="Then change it freely" />
+        </div>
+      ) : (
+        kind === 'needs' && <p className="text-xs leading-relaxed text-zinc-400">Offers groceries, food, transport, bills and health, and you can change the list. What you add stays here, and only goes to Expenses when you tick it.</p>
+      )}
+      <div className="flex justify-end gap-2">
+        <button onClick={onCancel} className="h-10 rounded-xl px-4 text-sm font-medium text-zinc-400 hover:text-white">
+          Cancel
+        </button>
+        <button onClick={create} className={`h-10 rounded-xl px-5 text-sm font-semibold shadow-lg ${k.create}`}>
+          Create and open
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function ModeRow({ m, current, onCopy, onDelete }: { m: ModeInfo & { index: number; kind: ModeKind; main: boolean; locked: boolean }; current: boolean; onCopy: () => void; onDelete: () => void }) {
+  const limit = useModeLimit()
   const [name, setName] = useState(m.name)
   const c = modeColor(m.index, m.kind)
   return (
@@ -339,9 +366,7 @@ function ModeRow({ m, current, onCopy, onDelete }: { m: ModeInfo & { index: numb
           <Pencil className="h-3 w-3 shrink-0 text-zinc-600" />
         </span>
         <span className="block px-1 text-[11px] text-zinc-500">
-          {m.main ? 'Mode 1 · your main plan · Wants' : `Mode ${m.index + 1} · ${m.kind === 'needs' ? 'Needs' : 'Wants'}`}
-          {current && ' · in use'}
-          {m.locked && ' · locked on your plan'}
+          {[m.main && 'Your main plan', current && 'In use', m.locked && 'Locked on your plan'].filter(Boolean).join(' · ') || `${m.kind === 'needs' ? 'Needs' : 'Wants'} mode`}
         </span>
       </span>
       {current && (
@@ -351,7 +376,7 @@ function ModeRow({ m, current, onCopy, onDelete }: { m: ModeInfo & { index: numb
       )}
       {!current && (
         <button
-          onClick={() => open(m)}
+          onClick={() => open(m, limit)}
           className="h-8 shrink-0 rounded-lg border border-white/10 px-2.5 text-xs font-medium text-zinc-200 transition hover:bg-white/5"
         >
           Open
@@ -394,7 +419,8 @@ const NEW_MODE = 'new'
 
 /** Copy the mode in use: into a new mode, or over one you already have. */
 export function CopyModeModal({ onClose }: { onClose: () => void }) {
-  const { list, current, canAdd } = useModes()
+  const { list, current, limit, canAdd: canAddTo } = useModes()
+  const canAdd = canAddTo(current.kind)
   // A plan of items and a set of budgets are different things: only a mode of the same kind can be copied over.
   const others = list.filter((m) => m.id !== current.id && !m.locked && m.kind === current.kind)
   const suggested = copyName(current.name, list.map((m) => m.name))
@@ -459,7 +485,7 @@ export function CopyModeModal({ onClose }: { onClose: () => void }) {
           </CopyTarget>
         ) : (
           <button
-            onClick={() => openPlans()}
+            onClick={() => askForMore(limit, current.kind)}
             className="flex w-full items-center gap-2.5 rounded-xl border border-dashed border-white/15 px-2.5 py-2 text-left transition hover:border-white/30"
           >
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/[0.04]">
@@ -467,7 +493,7 @@ export function CopyModeModal({ onClose }: { onClose: () => void }) {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-medium text-zinc-200">A new mode</span>
-              <span className="block text-[11px] text-zinc-500">Get Yearly for unlimited modes</span>
+              <span className="block text-[11px] text-zinc-500">{limit === 1 ? 'Pick a plan to have more modes' : 'Get Yearly for unlimited modes'}</span>
             </span>
           </button>
         )}
@@ -567,6 +593,6 @@ export function useModeGuard() {
   useEffect(() => {
     if (!current.locked) return
     useStore.getState().switchMode(MAIN_MODE)
-    toast.info(`Back to your main plan: “${current.name}” is kept safe and opens again with the yearly plan.`)
+    toast.info(`Back to your main plan: “${current.name}” is kept safe and opens again with a bigger plan.`)
   }, [current.locked, current.name])
 }

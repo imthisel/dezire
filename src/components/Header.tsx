@@ -101,15 +101,15 @@ export function Header() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <div className="hidden items-center gap-2 xl:flex">{tools(false)}</div>
+          <div className="hidden items-center gap-2 2xl:flex">{tools(false)}</div>
           <PremiumBadge />
           <SaveIndicator />
           <AccountMenu />
         </div>
       </div>
 
-      {/* Tablets and small laptops: the tools don't fit beside the logo, so they get their own row */}
-      {(anyTool || !prefs.hideModes) && <div className="mt-4 hidden items-center justify-end gap-2 sm:flex xl:hidden">{tools(false)}</div>}
+      {/* Tablets and laptops: the tools don't fit beside the logo, so they get their own row */}
+      {(anyTool || !prefs.hideModes) && <div className="mt-4 hidden flex-wrap items-center justify-end gap-2 sm:flex 2xl:hidden">{tools(false)}</div>}
       {anyTool && <div className="mt-4 flex items-center gap-2 sm:hidden">{tools(true)}</div>}
       {/* Phones: the mode in use, on its own row so the name has room */}
       {!prefs.hideModes && (

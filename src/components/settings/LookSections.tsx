@@ -102,7 +102,7 @@ export function LayoutSection() {
         <ToggleRow id="export-import" title="Export & Import buttons" hint="Download or restore a backup. Also in Data & backup." on={!prefs.hideBackup} onChange={(on) => s.setPrefs({ hideBackup: !on })} />
         <ToggleRow id="hide-reset" title="Clear everything button" hint="Hide it to avoid pressing it by accident. Also in Data & backup." on={!prefs.hideReset} onChange={(on) => s.setPrefs({ hideReset: !on })} />
         <ToggleRow id="hide-currency" title="Currency button" hint="The rate and the show / hide switch. Also in Money." on={!prefs.hideCurrency} onChange={(on) => s.setPrefs({ hideCurrency: !on })} />
-        <ToggleRow id="hide-modes" title="Modes button" hint="Switch between versions of your plan. Also in Your lists." on={!prefs.hideModes} onChange={(on) => s.setPrefs({ hideModes: !on })} />
+        <ToggleRow id="hide-modes" title="Wants and Needs buttons" hint="Switch between your Wants and Needs modes. Also in Your lists." on={!prefs.hideModes} onChange={(on) => s.setPrefs({ hideModes: !on })} />
         <ToggleRow id="privacy-button" title="Hide amounts button" hint="One tap to hide your money when someone’s looking." on={prefs.privacyButton} onChange={(privacyButton) => s.setPrefs({ privacyButton })} />
       </Group>
 

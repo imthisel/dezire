@@ -532,6 +532,8 @@ function ReviewCard({ r, hidden }: { r: Review; hidden: boolean }) {
 // ---- Pricing ----
 
 export function Pricing({ signin, compact = false }: { signin?: SignIn; compact?: boolean }) {
+  // The plans are also shown inside the app, where the About page isn't there to reveal them.
+  useReveal()
   const access = useAccess()
   const user = useCloud((s) => s.user)
   const order: PlanId[] = ['semiannual', 'annual']
@@ -547,7 +549,7 @@ export function Pricing({ signin, compact = false }: { signin?: SignIn; compact?
         <>
           {!user && signin && (
             <div data-reveal className="reveal mt-10 flex flex-col items-center gap-3 text-center">
-              <p className="text-zinc-400">Rather try it first? Use everything free for {TRIAL_DAYS} days. No card, no commitment.</p>
+              <p className="text-zinc-400">Rather try it first? Use every feature free for {TRIAL_DAYS} days, with one Wants mode and one Needs mode. No card, no commitment.</p>
               <GoogleButton signin={signin} label={`Try it free for ${TRIAL_DAYS} days`} />
             </div>
           )}
@@ -637,13 +639,13 @@ function PlanCard({ plan, featured, current, disabled }: { plan: Plan; featured:
 
 function Faq() {
   const qs: [string, string][] = [
-    ['How does the free trial work?', `Sign in with Google and everything is unlocked for ${TRIAL_DAYS} days. No card, nothing to cancel. When the trial ends, pick a plan to keep going.`],
+    ['How does the free trial work?', `Sign in with Google and every feature is unlocked for ${TRIAL_DAYS} days, with one Wants mode and one Needs mode. No card, nothing to cancel. When the trial ends, pick a plan to keep going.`],
     ['Can I pay right away, without the free trial?', 'Yes. Pick a plan under Pricing, sign in with Google, and you go straight to the secure checkout. Your plan starts the day you pay. Already on the trial? You can buy whenever you like; the plan starts that day.'],
     ['What happens to my plan if I don’t subscribe?', 'Nothing is deleted. Everything you planned stays saved in your account, and it’s all there the moment you choose a plan.'],
     ['Can I cancel anytime?', 'Yes. Cancel from your billing page in a couple of clicks, and you keep access until the end of the time you paid for.'],
     ['Is my data private?', 'Yes. Your plan is tied to your Google account and only you can open it. We never sell or share it.'],
     ['Does it work on my phone?', 'Yes. Dizayr works in any browser on your phone, tablet or computer, and stays in sync. Add it to your home screen and it opens like an app, even offline.'],
-    ['What are modes?', 'Separate versions of your plan. Mode 1 is your main plan; add others to try a different future, each with its own items, net worth and setups, while your calendar, expenses and goals stay shared. The 6-month plan includes 2 modes; the yearly plan has unlimited modes.'],
+    ['What are modes?', 'Separate versions of your plan. Mode 1 is your main plan; add others to try a different future, each with its own items, net worth and setups, while your calendar, expenses and goals stay shared. Modes come in two sections, Wants and Needs. The free trial includes 1 of each, the 6-month plan 2 of each, and the yearly plan is unlimited.'],
     ['Which currency does it use?', 'Plan in your own currency, and see a second one next to every amount if you like (for example pesos and US dollars).'],
     ['How do I pay?', 'By card or PayPal, through Lemon Squeezy’s secure checkout. Prices are in US dollars; your bank converts them if needed.'],
   ]
