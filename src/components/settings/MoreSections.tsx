@@ -77,13 +77,14 @@ export function HelpSection() {
 
   function resetSettings() {
     const s = useStore.getState()
-    const before = { prefs: s.prefs, device: s.device, hiddenCharts: s.hiddenCharts, phoneCols: s.phoneCols, openAllMonths: s.openAllMonths, sidebar: s.sidebar, assetFavorite: s.assetFavorite, dashMode: s.dashMode }
+    const before = { prefs: s.prefs, device: s.device, hiddenCharts: s.hiddenCharts, phoneCols: s.phoneCols, needsCols: s.needsCols, openAllMonths: s.openAllMonths, sidebar: s.sidebar, assetFavorite: s.assetFavorite, dashMode: s.dashMode }
     useStore.setState({
       prefs: DEFAULT_PREFS,
       // When the last backup was made is a fact, not a setting.
       device: { ...DEFAULT_DEVICE, lastBackup: s.device.lastBackup },
       hiddenCharts: [],
       phoneCols: 1,
+      needsCols: 3,
       openAllMonths: false,
       sidebar: true,
       assetFavorite: null,

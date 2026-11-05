@@ -6,6 +6,7 @@ import { touchDragging } from './touchdrag'
 
 /*
  * Phones: pinch with two fingers to switch the month and item grids between 1, 2 and 3 columns.
+ * A Needs page keeps its own setting (`needsCols`), and can also be zoomed on bigger screens: see NeedsPage.
  * Grids mark themselves with `data-zoom-grid`; each card / tile with `data-zoom-item`, an `id` that stays the same
  * between its card and tile form, and `zoomName(...)` so the browser can morph one into the other.
  */
@@ -26,6 +27,10 @@ export const PHONE_GRID: Record<PhoneCols, string> = {
 
 /** Props that let a card and its tile morph into each other while zooming (names only apply during the switch). */
 export const zoomName = (name: string) => ({ 'data-zoom-item': '', style: { '--vt': `z-${name}` } as CSSProperties })
+
+/** Is a Needs page what's on screen? It zooms by its own setting. */
+const onNeedsPage = (s: ReturnType<typeof useStore.getState>) => inNeedsMode(s) && s.view === 'planner'
+const colsNow = (s: ReturnType<typeof useStore.getState>) => (onNeedsPage(s) ? s.needsCols : s.phoneCols)
 
 // ---- The little "1 · 2 · 3" indicator shown while pinching ----
 
@@ -48,12 +53,13 @@ export const useZoomHud = () =>
 export let openOnZoom: string | null = null
 
 /**
- * Switches the phone grids to `cols` columns. Cards glide to their new places, and `anchor` stays where it is on screen.
+ * Switches the grids on screen to `cols` columns. Cards glide to their new places, and `anchor` stays where it is on screen.
  * `before` runs right before the layout changes (after the old look has been captured).
  */
 export function zoomTo(cols: PhoneCols, opts: { anchor?: Element | null; open?: string; before?: () => void } = {}) {
-  const { phoneCols, setPhoneCols } = useStore.getState()
-  if (phoneCols === cols) return opts.before?.()
+  const state = useStore.getState()
+  if (colsNow(state) === cols) return opts.before?.()
+  const setCols = onNeedsPage(state) ? state.setNeedsCols : state.setPhoneCols
   const id = opts.anchor?.id
   const top = opts.anchor?.getBoundingClientRect().top
   if (opts.open) openOnZoom = opts.open
@@ -61,7 +67,7 @@ export function zoomTo(cols: PhoneCols, opts: { anchor?: Element | null; open?: 
 
   const update = () => {
     opts.before?.()
-    flushSync(() => setPhoneCols(cols))
+    flushSync(() => setCols(cols))
     const el = id ? document.getElementById(id) : null
     if (el && top !== undefined) {
       // Keep it on screen (and clear of the header area) at about the same height.
@@ -103,7 +109,7 @@ export function usePinchZoom() {
     const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
     const allowed = () => {
       const s = useStore.getState()
-      return window.matchMedia('(max-width: 639px)').matches && !s.modal && s.view !== 'plan' && !inNeedsMode(s)
+      return window.matchMedia('(max-width: 639px)').matches && !s.modal && s.view !== 'plan' && (!inNeedsMode(s) || s.view === 'planner')
     }
     const visible = (el: Element) => {
       const r = el.getBoundingClientRect()
@@ -129,7 +135,7 @@ export function usePinchZoom() {
         el.style.transformOrigin = `${mx - r.left}px ${my - r.top}px`
         el.style.willChange = 'transform'
       }
-      const cols = useStore.getState().phoneCols
+      const cols = colsNow(useStore.getState())
       g = { d0: Math.max(dist(e.touches), 1), cols, target: cols, grids, anchor, raf: 0 }
       setHud({ active: true, target: cols })
     }

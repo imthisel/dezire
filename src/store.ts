@@ -294,6 +294,9 @@ interface State {
   /** Phones: how many columns the month and item grids show (pinch to change; remembered) */
   phoneCols: PhoneCols
   setPhoneCols: (cols: PhoneCols) => void
+  /** Columns of months on a Needs page, on every screen size: 3 is zoomed all the way out, 1 all the way in. */
+  needsCols: PhoneCols
+  setNeedsCols: (cols: PhoneCols) => void
   setView: (v: View) => void
   assetCat: AssetCat
   assetPeriod: AssetPeriod
@@ -573,6 +576,8 @@ export const useStore = create<State>()(
       setDevice: (patch) => set((s) => ({ device: parseDevice({ ...s.device, ...patch }) })),
       phoneCols: 1,
       setPhoneCols: (phoneCols) => set({ phoneCols }),
+      needsCols: 3,
+      setNeedsCols: (needsCols) => set({ needsCols }),
 
       setView: (view) => set((s) => ({ view, prevView: view === 'settings' && s.view !== 'settings' ? s.view : s.prevView })),
       assetCat: 'all',
@@ -1452,6 +1457,7 @@ export const useStore = create<State>()(
         prefs: s.prefs,
         device: s.device,
         phoneCols: s.phoneCols,
+        needsCols: s.needsCols,
         assetCat: s.assetCat,
         assetPeriod: s.assetPeriod,
         assetFavorite: s.assetFavorite,

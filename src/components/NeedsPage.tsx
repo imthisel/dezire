@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
-import { AlertTriangle, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Copy, Plus, Settings2, ShoppingBasket, Trash2, Wallet } from 'lucide-react'
-import { useAlt, useCurrentNeeds, useFmt, useStore } from '../store'
+import { Fragment, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { AlertTriangle, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Copy, Plus, Settings2, ShoppingBasket, Trash2, Wallet, X, ZoomIn, ZoomOut } from 'lucide-react'
+import { useAlt, useCurrentNeeds, useFmt, useStore, type PhoneCols } from '../store'
+import { useIsPhone } from '../lib/useMedia'
+import { zoomName, zoomTo } from '../zoom'
 import { useExpenseCats } from '../expenseHooks'
 import { MASK, plain } from '../lib/money'
 import { MAX_DATE, NO_CATEGORY, WEEKDAYS, addDays, catColor, catIcon, daysInMonth, fromKey, todayKey } from '../lib/expenses'
@@ -113,12 +115,7 @@ export function NeedsPage() {
       <section className="space-y-4">
         <NeedYearTabs expenses={byMonth} />
         <YearGlance plan={plan} byMonth={byMonth} year={year} />
-        <ul className="space-y-2.5">
-          {Array.from({ length: 12 }, (_, m) => {
-            const key = monthKey(year, m)
-            return <MonthRow key={key} monthKeyStr={key} plan={plan} items={byMonth.get(key) ?? []} open={months.open.includes(key)} onToggle={() => months.toggle(key)} cats={allCats} sentIds={sentIds} />
-          })}
-        </ul>
+        <MonthGrid year={year} plan={plan} byMonth={byMonth} open={months.open} onToggle={months.toggle} cats={allCats} sentIds={sentIds} />
       </section>
 
       {picking && <NeedsPicker onClose={() => setPicking(false)} />}
@@ -387,16 +384,192 @@ function Mini({ k, v, cls = 'text-white' }: { k: string; v: string; cls?: string
   )
 }
 
-function MonthRow({ monthKeyStr: key, plan, items, open, onToggle, cats, sentIds }: { monthKeyStr: string; plan: NeedsPlan; items: NeedItem[]; open: boolean; onToggle: () => void; cats: ExpenseCategory[]; sentIds: Set<string> }) {
+const COL_CLS: Record<PhoneCols, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3' }
+/** Left to right is zoomed out to zoomed in. */
+const ZOOM_STEPS: PhoneCols[] = [3, 2, 1]
+const colsLabel = (n: number) => `${n} column${n > 1 ? 's' : ''}`
+
+/** The months, in as many columns as they're zoomed to. A month that's pressed opens across the full width, under its row. */
+function MonthGrid({ year, plan, byMonth, open, onToggle, cats, sentIds }: { year: number; plan: NeedsPlan; byMonth: Map<string, NeedItem[]>; open: string[]; onToggle: (key: string) => void; cats: ExpenseCategory[]; sentIds: Set<string> }) {
+  const cols = useStore((s) => s.needsCols)
+  const grid = useRef<HTMLDivElement>(null)
+  const control = useRef<HTMLDivElement>(null)
+  const zoom = (to: number) => to >= 1 && to <= 3 && zoomTo(to as PhoneCols, { anchor: control.current })
+
+  // A trackpad pinch (or Ctrl + scroll) over the months zooms them.
+  useEffect(() => {
+    const el = grid.current
+    if (!el) return
+    let pushed = 0
+    let until = 0
+    const wheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return
+      e.preventDefault()
+      if (Date.now() < until) return
+      pushed += e.deltaY
+      if (Math.abs(pushed) < 40) return
+      const now = useStore.getState().needsCols
+      const to = now + (pushed > 0 ? 1 : -1)
+      pushed = 0
+      until = Date.now() + 350
+      if (to >= 1 && to <= 3) zoomTo(to as PhoneCols)
+    }
+    el.addEventListener('wheel', wheel, { passive: false })
+    return () => el.removeEventListener('wheel', wheel)
+  }, [])
+
+  const keys = Array.from({ length: 12 }, (_, m) => monthKey(year, m))
+  const rows = Array.from({ length: Math.ceil(12 / cols) }, (_, r) => keys.slice(r * cols, (r + 1) * cols))
+
+  return (
+    <div className="space-y-2.5">
+      <div ref={control} id="need-zoom" className="flex items-center justify-between gap-3">
+        <p className="min-w-0 text-sm text-zinc-400">
+          <span className="hidden font-medium text-zinc-200 sm:inline">{colsLabel(cols)}</span>
+          <span className="hidden text-zinc-500 sm:inline"> · pinch or Ctrl + scroll over the months to zoom</span>
+          <span className="text-zinc-500 sm:hidden">Pinch to zoom</span>
+        </p>
+        <div className="flex shrink-0 items-center gap-1">
+          <ZoomBtn label="Zoom out" disabled={cols === 3} onClick={() => zoom(cols + 1)}>
+            <ZoomOut className="h-4 w-4" />
+          </ZoomBtn>
+          <div role="radiogroup" aria-label="Columns of months" className="flex rounded-xl border border-white/10 bg-black/30 p-0.5">
+            {ZOOM_STEPS.map((n) => (
+              <button key={n} role="radio" aria-checked={cols === n} aria-label={colsLabel(n)} title={colsLabel(n)} onClick={() => zoom(n)} className={`grid h-8 w-9 place-items-center rounded-[10px] transition ${cols === n ? 'bg-emerald-500/20 ring-1 ring-emerald-400/50' : 'hover:bg-white/5'}`}>
+                <span className="flex h-3.5 w-4 gap-[2px]">
+                  {Array.from({ length: n }, (_, i) => (
+                    <span key={i} className={`flex-1 rounded-[2px] ${cols === n ? 'bg-emerald-300' : 'bg-zinc-500'}`} />
+                  ))}
+                </span>
+              </button>
+            ))}
+          </div>
+          <ZoomBtn label="Zoom in" disabled={cols === 1} onClick={() => zoom(cols - 1)}>
+            <ZoomIn className="h-4 w-4" />
+          </ZoomBtn>
+        </div>
+      </div>
+
+      <div ref={grid} data-zoom-grid className="space-y-2 sm:space-y-2.5">
+        {rows.map((row) => (
+          <Fragment key={row[0]}>
+            <ul className={`grid gap-2 sm:gap-2.5 ${COL_CLS[cols]}`}>
+              {row.map((key) => (
+                <MonthTile key={key} monthKeyStr={key} cols={cols} plan={plan} items={byMonth.get(key) ?? []} open={open.includes(key)} onToggle={() => onToggle(key)} sentIds={sentIds} />
+              ))}
+            </ul>
+            {row
+              .filter((key) => open.includes(key))
+              .map((key) => (
+                <MonthPanel key={key} monthKeyStr={key} cols={cols} plan={plan} items={byMonth.get(key) ?? []} onClose={() => onToggle(key)} cats={cats} sentIds={sentIds} />
+              ))}
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ZoomBtn({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick} className="grid h-9 w-9 place-items-center rounded-xl text-zinc-400 transition hover:bg-white/5 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-zinc-400">
+      {children}
+    </button>
+  )
+}
+
+/** A month, closed: one wide row when zoomed in, a tile when zoomed out. */
+function MonthTile({ monthKeyStr: key, cols, plan, items, open, onToggle, sentIds }: { monthKeyStr: string; cols: PhoneCols; plan: NeedsPlan; items: NeedItem[]; open: boolean; onToggle: () => void; sentIds: Set<string> }) {
   const f = useFmt()
-  const masked = useStore((s) => s.device.masked)
+  const phone = useIsPhone()
   const m = Number(key.slice(5))
   const isNow = todayKey().slice(0, 7) === key
   const spent = sum(items)
   const budget = budgetFor(plan, key)
-  const own = plan.monthBudgets[key] ?? null
   const left = budget - spent
   const pct = budget > 0 ? spent / budget : 0
+  const over = budget > 0 && spent > budget
+  const weeks = useMemo(() => weeksOfMonth(key).length, [key])
+  const sentCount = items.filter((e) => isSent(e, sentIds)).length
+  const detail = items.length ? `${items.length} ${items.length === 1 ? 'item' : 'items'} · ${sentCount} in Expenses` : `Nothing yet · ${weeks} weeks`
+  const bar = (
+    <span className="block h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+      <span className={`block h-full rounded-full transition-all duration-500 ${barCls(pct)}`} style={{ width: `${Math.min(100, pct * 100)}%` }} />
+    </span>
+  )
+  const leftText = budget > 0 ? (over ? `over by ${f(-left, cols > 1)}` : `${f(left, cols > 1)} left`) : 'No budget'
+  const label = `${MONTHS[m - 1]}: ${f(spent)} spent, ${budget > 0 ? (over ? `over by ${f(-left)}` : `${f(left)} left`) : 'no budget'}. ${open ? 'Close' : 'Open'} this month.`
+  const zoomed = zoomName(`need-${key}`)
+
+  if (cols === 1)
+    return (
+      <li className="min-w-0">
+        <button
+          id={`need-${key}`}
+          {...zoomed}
+          onClick={onToggle}
+          aria-expanded={open}
+          className={`${card} grid w-full scroll-mt-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-left transition hover:bg-white/[0.04] sm:grid-cols-[11rem_minmax(0,1fr)_auto_auto] sm:gap-x-5 sm:px-5 ${isNow ? 'border-emerald-400/30' : ''} ${open ? 'border-emerald-400/50' : ''}`}
+        >
+          <span className="min-w-0">
+            <span className="flex items-center gap-2">
+              <span className="truncate text-base font-bold tracking-tight text-white sm:text-lg">{MONTHS[m - 1]}</span>
+              {isNow && <span className="shrink-0 rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-200">This month</span>}
+            </span>
+            <span className="block truncate text-xs text-zinc-500">{detail}</span>
+          </span>
+          <span className="col-span-2 row-start-2 block min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">{bar}</span>
+          <span className="min-w-0 text-right">
+            <span className="block text-sm font-semibold tabular-nums text-white sm:text-base">{f(spent)}</span>
+            <span className={`flex items-center justify-end gap-1 text-xs tabular-nums ${over ? 'text-rose-300' : 'text-zinc-500'}`}>
+              {over && <AlertTriangle className="h-3 w-3" />}
+              {leftText}
+            </span>
+          </span>
+          <ChevronDown className={`hidden h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-300 sm:block ${open ? 'rotate-180' : ''}`} />
+        </button>
+      </li>
+    )
+
+  // The smallest tile (three across a phone) keeps only what fits.
+  const tiny = phone && cols === 3
+  return (
+    <li className="min-w-0">
+      <button
+        id={`need-${key}`}
+        {...zoomed}
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-label={label}
+        className={`${card} block h-full w-full min-w-0 scroll-mt-20 text-left transition hover:bg-white/[0.04] ${tiny ? 'p-2.5' : 'p-3.5 sm:p-4'} ${open ? 'border-emerald-400/60 bg-emerald-500/[0.07] ring-1 ring-emerald-400/40' : isNow ? 'border-emerald-400/30' : ''}`}
+      >
+        <span className="flex items-center gap-2">
+          <span className={`min-w-0 truncate font-bold tracking-tight text-white ${tiny ? 'text-sm' : 'text-base sm:text-lg'}`}>{tiny ? MONTHS_SHORT[m - 1] : MONTHS[m - 1]}</span>
+          {isNow && !phone && <span className="shrink-0 whitespace-nowrap rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-200">This month</span>}
+          {isNow && phone && <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />}
+          {!tiny && <ChevronDown className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />}
+        </span>
+        <span className={`block truncate font-semibold tabular-nums text-white ${tiny ? 'mt-1 text-[13px]' : 'mt-2 text-lg sm:text-xl'}`}>{f(spent, tiny)}</span>
+        <span className={`mt-0.5 flex items-center gap-1 tabular-nums ${tiny ? 'text-[10px]' : 'text-xs'} ${over ? 'text-rose-300' : 'text-zinc-500'}`}>
+          {over && !tiny && <AlertTriangle className="h-3 w-3 shrink-0" />}
+          <span className="truncate">{leftText}</span>
+        </span>
+        <span className={`block ${tiny ? 'mt-1.5' : 'mt-2.5'}`}>{bar}</span>
+        {!tiny && <span className="mt-2 block truncate text-xs text-zinc-500">{detail}</span>}
+      </button>
+    </li>
+  )
+}
+
+/** A month, opened: its budget, where the money went, and its weeks. Takes the full width at every zoom. */
+function MonthPanel({ monthKeyStr: key, cols, plan, items, onClose, cats, sentIds }: { monthKeyStr: string; cols: PhoneCols; plan: NeedsPlan; items: NeedItem[]; onClose: () => void; cats: ExpenseCategory[]; sentIds: Set<string> }) {
+  const f = useFmt()
+  const masked = useStore((s) => s.device.masked)
+  const m = Number(key.slice(5))
+  const spent = sum(items)
+  const budget = budgetFor(plan, key)
+  const own = plan.monthBudgets[key] ?? null
+  const left = budget - spent
   const over = budget > 0 && spent > budget
   const weeks = useMemo(() => weeksOfMonth(key), [key])
 
@@ -408,75 +581,55 @@ function MonthRow({ monthKeyStr: key, plan, items, open, onToggle, cats, sentIds
   const sentItems = items.filter((e) => isSent(e, sentIds))
 
   return (
-    <li id={`need-${key}`} className={`${card} scroll-mt-20 overflow-hidden transition ${isNow ? 'border-emerald-400/30' : ''}`}>
-      <button onClick={onToggle} aria-expanded={open} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-left transition hover:bg-white/[0.025] sm:grid-cols-[11rem_minmax(0,1fr)_auto_auto] sm:gap-x-5 sm:px-5">
-        <span className="min-w-0">
-          <span className="flex items-center gap-2">
-            <span className="truncate text-base font-bold tracking-tight text-white sm:text-lg">{MONTHS[m - 1]}</span>
-            {isNow && <span className="shrink-0 rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-200">This month</span>}
-          </span>
-          <span className="block truncate text-xs text-zinc-500">
-            {items.length ? `${items.length} ${items.length === 1 ? 'item' : 'items'} · ${sentItems.length} in Expenses` : `Nothing yet · ${weeks.length} weeks`}
-          </span>
-        </span>
-        {/* The bar: its own row on phones, the middle on bigger screens */}
-        <span className="col-span-2 row-start-2 block min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
-          <span className="block h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
-            <span className={`block h-full rounded-full transition-all duration-500 ${barCls(pct)}`} style={{ width: `${Math.min(100, pct * 100)}%` }} />
-          </span>
-        </span>
-        <span className="min-w-0 text-right">
-          <span className="block text-sm font-semibold tabular-nums text-white sm:text-base">{f(spent)}</span>
-          <span className={`flex items-center justify-end gap-1 text-xs tabular-nums ${over ? 'text-rose-300' : 'text-zinc-500'}`}>
-            {over && <AlertTriangle className="h-3 w-3" />}
-            {budget > 0 ? (over ? `over by ${f(-left)}` : `${f(left)} left`) : 'No budget'}
-          </span>
-        </span>
-        <ChevronDown className={`hidden h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-300 sm:block ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && (
-        <div className="animate-fade border-t border-white/[0.06] p-3 sm:p-5">
-          <div className="grid grid-cols-3 gap-2 sm:max-w-xl">
-            <Field label="Budget">
-              <MoneyInput value={own} nullable onChange={(v) => useStore.getState().setNeedMonthBudget(key, v)} ariaLabel={`${MONTHS[m - 1]} budget`} placeholder={plan.monthly > 0 ? (masked ? MASK : plain(plan.monthly)) : '0'} />
-            </Field>
-            <Field label="Spent">
-              <ReadOnly text={f(spent)} cls="border-white/[0.06] bg-white/[0.03] text-zinc-100" />
-            </Field>
-            <Field label={over ? 'Over' : 'Left'}>
-              <ReadOnly text={budget > 0 ? f(Math.abs(left)) : '—'} cls={over ? 'border-rose-400/30 bg-rose-500/10 text-rose-200' : 'border-emerald-400/20 bg-emerald-500/[0.07] text-emerald-200'} />
-            </Field>
-          </div>
-
-          {shares.length > 0 && (
-            <div className="mt-3">
-              <div className="flex h-2 gap-0.5 overflow-hidden rounded-full" aria-hidden>
-                {shares.map(({ c, n }) => (
-                  <span key={c.id} className={catColor(c).bar} style={{ width: `${(n / spent) * 100}%` }} />
-                ))}
-              </div>
-              <ul className="mt-2 flex flex-wrap gap-x-3.5 gap-y-1">
-                {shares.map(({ c, n }) => (
-                  <li key={c.id} className="flex items-center gap-1.5 text-xs text-zinc-400">
-                    <span className={`h-2 w-2 rounded-full ${catColor(c).bar}`} />
-                    {c.label} <span className="font-medium tabular-nums text-zinc-200">{f(n, true)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <SendBar ids={items.map((e) => e.id)} sentIds={sentItems.map((e) => e.id)} sentTotal={sum(sentItems)} total={spent} scope={MONTHS[m - 1]} />
-
-          <div className={`mt-4 grid gap-2.5 sm:grid-cols-2 sm:gap-3 ${weeks.length === 6 ? 'xl:grid-cols-3' : 'xl:grid-cols-4'}`}>
-            {weeks.map((w) => (
-              <WeekCard key={w.n} week={w} items={items.filter((e) => e.date >= w.start && e.date <= w.end)} cats={cats} sentIds={sentIds} />
-            ))}
-          </div>
+    <section aria-label={`${MONTHS[m - 1]} ${key.slice(0, 4)}`} className={`${card} animate-fade border-emerald-400/30 p-3 sm:p-5`}>
+      {cols > 1 && (
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="truncate text-lg font-bold tracking-tight text-white sm:text-xl">
+            {MONTHS[m - 1]} <span className="font-medium text-zinc-500">{key.slice(0, 4)}</span>
+          </h3>
+          <button type="button" onClick={onClose} aria-label={`Close ${MONTHS[m - 1]}`} title={`Close ${MONTHS[m - 1]}`} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-zinc-400 transition hover:bg-white/5 hover:text-white">
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
-    </li>
+      <div className="grid grid-cols-3 gap-2 sm:max-w-xl">
+        <Field label="Budget">
+          <MoneyInput value={own} nullable onChange={(v) => useStore.getState().setNeedMonthBudget(key, v)} ariaLabel={`${MONTHS[m - 1]} budget`} placeholder={plan.monthly > 0 ? (masked ? MASK : plain(plan.monthly)) : '0'} />
+        </Field>
+        <Field label="Spent">
+          <ReadOnly text={f(spent)} cls="border-white/[0.06] bg-white/[0.03] text-zinc-100" />
+        </Field>
+        <Field label={over ? 'Over' : 'Left'}>
+          <ReadOnly text={budget > 0 ? f(Math.abs(left)) : '—'} cls={over ? 'border-rose-400/30 bg-rose-500/10 text-rose-200' : 'border-emerald-400/20 bg-emerald-500/[0.07] text-emerald-200'} />
+        </Field>
+      </div>
+
+      {shares.length > 0 && (
+        <div className="mt-3">
+          <div className="flex h-2 gap-0.5 overflow-hidden rounded-full" aria-hidden>
+            {shares.map(({ c, n }) => (
+              <span key={c.id} className={catColor(c).bar} style={{ width: `${(n / spent) * 100}%` }} />
+            ))}
+          </div>
+          <ul className="mt-2 flex flex-wrap gap-x-3.5 gap-y-1">
+            {shares.map(({ c, n }) => (
+              <li key={c.id} className="flex items-center gap-1.5 text-xs text-zinc-400">
+                <span className={`h-2 w-2 rounded-full ${catColor(c).bar}`} />
+                {c.label} <span className="font-medium tabular-nums text-zinc-200">{f(n, true)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <SendBar ids={items.map((e) => e.id)} sentIds={sentItems.map((e) => e.id)} sentTotal={sum(sentItems)} total={spent} scope={MONTHS[m - 1]} />
+
+      <div className={`mt-4 grid gap-2.5 sm:grid-cols-2 sm:gap-3 ${weeks.length === 6 ? 'xl:grid-cols-3' : 'xl:grid-cols-4'}`}>
+        {weeks.map((w) => (
+          <WeekCard key={w.n} week={w} items={items.filter((e) => e.date >= w.start && e.date <= w.end)} cats={cats} sentIds={sentIds} />
+        ))}
+      </div>
+    </section>
   )
 }
 
