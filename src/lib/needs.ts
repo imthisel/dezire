@@ -47,21 +47,21 @@ export function importable(expenses: Expense[], plan: NeedsPlan, modes: ModeInfo
 /** A month's budget: its own when set, otherwise the usual one. */
 export const budgetFor = (plan: NeedsPlan, key: string) => plan.monthBudgets[key] ?? plan.monthly
 
-/** One week of a month. Weeks always run Sunday to Saturday, cut off at the month's edges so every day is in exactly one. */
+/**
+ * One week of a month. Every month has exactly four: the 1st–7th, 8th–14th and 15th–21st, then the 22nd to the month's
+ * last day (so the days a fifth week would have get folded into Week 4).
+ */
 export type NeedWeek = { n: number; start: string; end: string }
 
 export function weeksOfMonth(key: string): NeedWeek[] {
   const [y, m] = key.split('-').map(Number)
-  const last = `${key}-${String(daysInMonth(y, m - 1)).padStart(2, '0')}`
-  const out: NeedWeek[] = []
-  let start = `${key}-01`
-  while (start <= last) {
-    const saturday = addDays(start, 6 - fromKey(start).getDay())
-    const end = saturday < last ? saturday : last
-    out.push({ n: out.length + 1, start, end })
-    start = addDays(end, 1)
-  }
-  return out
+  const day = (d: number) => `${key}-${String(d).padStart(2, '0')}`
+  return [
+    { n: 1, start: day(1), end: day(7) },
+    { n: 2, start: day(8), end: day(14) },
+    { n: 3, start: day(15), end: day(21) },
+    { n: 4, start: day(22), end: day(daysInMonth(y, m - 1)) },
+  ]
 }
 
 /** The week a day falls in. */
@@ -74,7 +74,7 @@ export function daysOfWeek(w: Pick<NeedWeek, 'start' | 'end'>) {
   return out
 }
 
-/** "Nov 1 – 7", "Nov 29 – 30", or "May 1" for a one-day week. */
+/** "Nov 1 – 7", "Nov 22 – 30". */
 export function weekLabel(w: Pick<NeedWeek, 'start' | 'end'>) {
   const a = fromKey(w.start)
   const b = fromKey(w.end)
@@ -82,7 +82,7 @@ export function weekLabel(w: Pick<NeedWeek, 'start' | 'end'>) {
   return w.start === w.end ? `${month} ${a.getDate()}` : `${month} ${a.getDate()} – ${b.getDate()}`
 }
 
-/** Moving to another week keeps the weekday where it can; a cut-off week uses its nearest day. */
+/** Moving to another week keeps the weekday (every week has at least seven days, so it's always there). */
 export function sameWeekdayIn(day: string, w: Pick<NeedWeek, 'start' | 'end'>) {
   const weekday = fromKey(day).getDay()
   const days = daysOfWeek(w)

@@ -82,7 +82,7 @@ export function NeedsPage() {
             <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-emerald-200">Needs</span>
           </h2>
           <p className="mt-0.5 truncate text-sm text-zinc-500">
-            <span className="text-zinc-300">{modeName}</span> · week by week, Sunday to Saturday
+            <span className="text-zinc-300">{modeName}</span> · four weeks a month
           </p>
         </div>
         <button onClick={() => addTo(weekOfDay(today))} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-4 text-sm font-semibold text-emerald-950 shadow-lg shadow-emerald-500/20 transition hover:brightness-110">
@@ -489,9 +489,8 @@ function MonthTile({ monthKeyStr: key, cols, plan, items, open, onToggle, sentId
   const left = budget - spent
   const pct = budget > 0 ? spent / budget : 0
   const over = budget > 0 && spent > budget
-  const weeks = useMemo(() => weeksOfMonth(key).length, [key])
   const sentCount = items.filter((e) => isSent(e, sentIds)).length
-  const detail = items.length ? `${items.length} ${items.length === 1 ? 'item' : 'items'} · ${sentCount} in Expenses` : `Nothing yet · ${weeks} weeks`
+  const detail = items.length ? `${items.length} ${items.length === 1 ? 'item' : 'items'} · ${sentCount} in Expenses` : 'Nothing yet · 4 weeks'
   const bar = (
     <span className="block h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
       <span className={`block h-full rounded-full transition-all duration-500 ${barCls(pct)}`} style={{ width: `${Math.min(100, pct * 100)}%` }} />
@@ -624,7 +623,7 @@ function MonthPanel({ monthKeyStr: key, cols, plan, items, onClose, cats, sentId
 
       <SendBar ids={items.map((e) => e.id)} sentIds={sentItems.map((e) => e.id)} sentTotal={sum(sentItems)} total={spent} scope={MONTHS[m - 1]} />
 
-      <div className={`mt-4 grid gap-2.5 sm:grid-cols-2 sm:gap-3 ${weeks.length === 6 ? 'xl:grid-cols-3' : 'xl:grid-cols-4'}`}>
+      <div className={`mt-4 grid gap-2.5 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4`}>
         {weeks.map((w) => (
           <WeekCard key={w.n} week={w} items={items.filter((e) => e.date >= w.start && e.date <= w.end)} cats={cats} sentIds={sentIds} />
         ))}
