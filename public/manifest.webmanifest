@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Dizayr · Plan the life you really want",
+  "name": "Dizayr",
   "short_name": "Dizayr",
-  "description": "Goals, budgets, net worth, assets and your calendar, month by month, from today to 2040.",
+  "description": "A month-by-month plan for money, net worth, assets, goals and time.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -38,7 +38,7 @@ export default function AdminApp() {
   const expires = useSession((s) => s.expires)
 
   useEffect(() => {
-    document.title = 'Admin · Dizayr'
+    document.title = 'Dizayr Admin'
     const meta = document.createElement('meta')
     meta.name = 'robots'
     meta.content = 'noindex, nofollow'
