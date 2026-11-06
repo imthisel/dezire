@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 import { startApp } from './appUpdate'
+import { startHistory } from './history'
 
 /** The admin page (/admin) is its own small app, downloaded only by whoever opens it. */
 const isAdmin = /^\/admin(\/|$)/.test(location.pathname)
@@ -10,6 +11,9 @@ const AdminApp = lazy(() => import('./admin/AdminApp'))
 
 // Installing as an app, and offering updates whenever a new version is pushed.
 if (!isAdmin) startApp()
+
+// Ctrl+Z / Ctrl+Shift+Z for any change to your plan.
+if (!isAdmin) startHistory()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

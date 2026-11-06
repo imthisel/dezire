@@ -22,9 +22,11 @@ export function Header() {
   const anyTool = !prefs.hideCurrency || !prefs.hideBackup || !prefs.hideReset || prefs.privacyButton
 
   function reset() {
-    if (confirm('Delete ALL money goals, budgets, items, expenses, yearly goals, money plans, tasks, year and setup notes and your birthday from 2026–2040? This cannot be undone.')) {
-      useStore.getState().resetAll()
-      toast.info('Everything was cleared.')
+    if (confirm('Delete ALL money goals, budgets, items, expenses, yearly goals, money plans, tasks, year and setup notes and your birthday from 2026–2040? You can undo this right after.')) {
+      const s = useStore.getState()
+      const before = { ...s }
+      s.resetAll()
+      toast.undo('Everything was cleared.', () => useStore.setState(before))
     }
   }
 

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Result } from './lib/types'
+import { latestStep, undoStep } from './history'
 
 /** `action`: a button on the toast, e.g. Undo. `leaving`: on its way out (sliding away for a moment before it's gone). */
 export type Toast = { id: number; kind: 'error' | 'success' | 'info' | 'warning'; message: string; action?: { label: string; run: () => void }; leaving?: boolean }
@@ -25,8 +26,14 @@ export const toast = {
   success: (m: string) => push('success', m),
   info: (m: string) => push('info', m),
   warning: (m: string) => push('warning', m),
-  /** Info with an Undo button, shown a little longer. */
-  undo: (m: string, run: () => void) => push('info', m, 6000, { label: 'Undo', run }),
+  /**
+   * Info with an Undo button, shown a little longer. While the change is still the latest, the button undoes it the
+   * same way Ctrl+Z does (so Ctrl+Shift+Z can bring it back); after other changes, `run` puts back just this one.
+   */
+  undo: (m: string, run: () => void) => {
+    const step = latestStep()
+    push('info', m, 6000, { label: 'Undo', run: () => undoStep(step) || run() })
+  },
   /** Info with a button of its own, shown long enough to read and press. */
   action: (m: string, label: string, run: () => void) => push('info', m, 10000, { label, run }),
   /** Error, success, or (when it went over a month's limit) a warning. */

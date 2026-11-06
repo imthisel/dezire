@@ -8,6 +8,7 @@ import type { Expense } from './lib/types'
 import { toast } from './toast'
 import { stopAccess, watchAccess } from './billing'
 import { leaveSettings } from './settingsNav'
+import { clearHistory, quietly } from './history'
 
 export type SaveStatus = 'saved' | 'saving' | 'offline' | 'error'
 
@@ -110,7 +111,9 @@ async function connect(user: User) {
   const apply = (data: unknown) => {
     applyingRemote = true
     try {
-      useStore.getState().importData(data)
+      // Another device's version replaces what's here: undoing past it would quietly throw its changes away.
+      quietly(() => useStore.getState().importData(data))
+      clearHistory()
     } finally {
       applyingRemote = false
     }
@@ -218,8 +221,11 @@ export async function signOut() {
   stopSync = null
   await fbSignOut(auth)
   leaveSettings()
-  useStore.getState().resetAll()
-  useStore.setState({ prefs: DEFAULT_PREFS })
+  quietly(() => {
+    useStore.getState().resetAll()
+    useStore.setState({ prefs: DEFAULT_PREFS })
+  })
+  clearHistory() // the next person here can't undo their way into this account
 }
 
 export function retryLoad() {
