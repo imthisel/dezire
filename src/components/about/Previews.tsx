@@ -63,12 +63,12 @@ export function MonthOverview() {
         </div>
         <div className="text-right">
           <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">Net worth</p>
-          <p className="text-sm font-semibold tabular-nums text-gold-200">{peso(486_200_000)}</p>
+          <p className="text-sm font-semibold tabular-nums text-brand-200">{peso(486_200_000)}</p>
         </div>
       </div>
 
       <div className="mt-3.5 grid grid-cols-3 gap-2">
-        <Stat label="Goal to make" value={peso(goal)} cls="border-gold-300/25 bg-gold-300/[0.07] text-gold-100" />
+        <Stat label="Goal to make" value={peso(goal)} cls="border-brand-300/25 bg-brand-300/[0.07] text-brand-100" />
         <Stat label="Budget" value={peso(budget)} />
         <Stat label="Spent" value={peso(spent)} cls="border-white/[0.06] bg-white/[0.03] text-zinc-300" />
       </div>
@@ -81,7 +81,7 @@ export function MonthOverview() {
           <span className="font-medium tabular-nums text-zinc-200">{peso(left)} left</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
-          <div className="bar-grow h-full rounded-full bg-gradient-to-r from-gold-400 to-gold-200" style={{ width: `${pct * 100}%` }} />
+          <div className="bar-grow h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-200" style={{ width: `${pct * 100}%` }} />
         </div>
       </div>
 
@@ -150,8 +150,8 @@ export function GoalsFloat() {
       <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">2028 goals</p>
       {goals.map(([g, done]) => (
         <p key={g} className="mt-2 flex items-center gap-2 text-[12px]">
-          <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full ${done ? 'bg-gold-300' : 'border border-gold-300/60'}`}>
-            {done && <Check className="h-2.5 w-2.5 text-[#14110b]" strokeWidth={4} />}
+          <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full ${done ? 'bg-brand-500' : 'border border-brand-300/60'}`}>
+            {done && <Check className="h-2.5 w-2.5 text-white" strokeWidth={4} />}
           </span>
           <span className={done ? 'text-zinc-400 line-through decoration-zinc-600' : 'text-zinc-100'}>{g}</span>
         </p>
@@ -176,7 +176,7 @@ export function NetWorthFloat() {
         </span>
       </p>
       <svg viewBox={`0 0 ${w} ${h}`} className="mt-2 h-10 w-full overflow-visible" aria-hidden>
-        <path d={line} fill="none" stroke="var(--color-gold-300)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="draw-line" />
+        <path d={line} fill="none" stroke="var(--color-brand-300)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="draw-line" />
       </svg>
     </div>
   )
@@ -195,13 +195,13 @@ export function WishListPreview() {
   return (
     <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-3.5">
       <p className="mb-2.5 flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-wider text-zinc-400">
-        <Lock className="h-3 w-3 text-gold-300" /> Only you can see this
+        <Lock className="h-3 w-3 text-brand-300" /> Only you can see this
       </p>
       <ul className="space-y-1.5">
         {rows.map((r) => (
           <li key={r.t} className="flex items-center gap-2.5 rounded-lg bg-white/[0.03] px-2.5 py-2 text-[13px]">
-            <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full ${r.done ? 'bg-gold-300' : 'border border-white/25'}`}>
-              {r.done && <Check className="h-2.5 w-2.5 text-[#14110b]" strokeWidth={4} />}
+            <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full ${r.done ? 'bg-brand-500' : 'border border-white/25'}`}>
+              {r.done && <Check className="h-2.5 w-2.5 text-white" strokeWidth={4} />}
             </span>
             <span className={`min-w-0 flex-1 truncate ${r.done ? 'text-zinc-400 line-through decoration-zinc-600' : 'text-zinc-100'}`}>{r.t}</span>
             <span className="shrink-0 text-[10.5px] text-zinc-400">{r.tag}</span>
@@ -234,7 +234,7 @@ export function BoardPreview() {
             <span className={`grid h-7 w-7 place-items-center rounded-lg ring-1 ring-inset ${TINT[x.kind]}`}>
               <x.icon className="h-3.5 w-3.5" />
             </span>
-            <Star className="h-3 w-3 fill-gold-300 text-gold-300" />
+            <Star className="h-3 w-3 fill-brand-300 text-brand-300" />
           </div>
           <div className="min-w-0">
             <p className="truncate text-[11.5px] font-semibold text-white">{x.t}</p>
@@ -262,7 +262,7 @@ export function ListsPreview() {
         {tabs.map((t, i) => (
           <span
             key={t}
-            className={`shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-medium ${i === 0 ? 'bg-gold-300/15 text-gold-100 ring-1 ring-inset ring-gold-300/30' : 'text-zinc-400'}`}
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-medium ${i === 0 ? 'bg-brand-300/15 text-brand-100 ring-1 ring-inset ring-brand-300/30' : 'text-zinc-400'}`}
           >
             {t}
           </span>
@@ -310,7 +310,7 @@ export function GoalsPreview() {
                 cy="22"
                 r={r}
                 fill="none"
-                stroke="var(--color-gold-300)"
+                stroke="var(--color-brand-300)"
                 strokeWidth="3.5"
                 strokeLinecap="round"
                 strokeDasharray={c}
@@ -338,15 +338,15 @@ export function CostPreview() {
         <p className="text-[10px] uppercase tracking-wider text-zinc-400">3 dreams</p>
         <p className="mt-0.5 text-[13px] font-semibold tabular-nums text-white">₱40.9M</p>
       </div>
-      <span className="text-gold-300" aria-hidden>→</span>
+      <span className="text-brand-300" aria-hidden>→</span>
       <div className="min-w-0 flex-1">
         <p className="text-[10px] uppercase tracking-wider text-zinc-400">by June 2028</p>
         <p className="mt-0.5 text-[13px] font-semibold tabular-nums text-white">19 months</p>
       </div>
-      <span className="text-gold-300" aria-hidden>→</span>
-      <div className="min-w-0 flex-1 rounded-xl bg-gold-300/10 py-1.5 ring-1 ring-inset ring-gold-300/25">
-        <p className="text-[10px] uppercase tracking-wider text-gold-200">a month</p>
-        <p className="mt-0.5 text-[13px] font-semibold tabular-nums text-gold-100">₱2.15M</p>
+      <span className="text-brand-300" aria-hidden>→</span>
+      <div className="min-w-0 flex-1 rounded-xl bg-brand-300/10 py-1.5 ring-1 ring-inset ring-brand-300/25">
+        <p className="text-[10px] uppercase tracking-wider text-brand-200">a month</p>
+        <p className="mt-0.5 text-[13px] font-semibold tabular-nums text-brand-100">₱2.15M</p>
       </div>
     </div>
   )

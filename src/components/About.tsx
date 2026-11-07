@@ -109,7 +109,7 @@ export function About() {
 
   return (
     <div className="about relative min-h-screen overflow-x-clip bg-[#07080c] text-zinc-100 antialiased">
-      <a href="#main" className="sr-only z-50 rounded-lg bg-ivory px-4 py-2 font-medium text-[#14110b] focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+      <a href="#main" className="sr-only z-50 rounded-lg bg-brand-600 px-4 py-2 font-medium text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
         Skip to content
       </a>
       <Glow />
@@ -154,28 +154,30 @@ type SignIn = ReturnType<typeof useSignIn>
 function Glow() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[1100px]">
-      <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgb(220_192_137/0.13),transparent_70%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(40%_35%_at_85%_30%,rgb(220_192_137/0.05),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgb(58_109_240/0.13),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(40%_35%_at_85%_30%,rgb(58_109_240/0.05),transparent_70%)]" />
     </div>
   )
 }
 
 function Logo({ size = 'h-9 w-9' }: { size?: string }) {
   return (
-    <span className={`grid ${size} shrink-0 place-items-center rounded-xl border border-gold-300/30 bg-gradient-to-b from-[#1d1912] to-[#0e0d0a] shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]`}>
-      <Target className="h-1/2 w-1/2 text-gold-200" strokeWidth={2.25} />
+    <span className={`grid ${size} shrink-0 place-items-center rounded-xl border border-brand-300/30 bg-gradient-to-b from-[#111a30] to-[#0a0f1c] shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]`}>
+      <Target className="h-1/2 w-1/2 text-brand-200" strokeWidth={2.25} />
     </span>
   )
 }
 
 const primaryBtn =
-  'group inline-flex items-center justify-center gap-3 rounded-full bg-ivory font-semibold text-[#14110b] shadow-[0_12px_40px_-12px_rgb(220_192_137/0.55)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_18px_50px_-12px_rgb(220_192_137/0.7)] active:translate-y-0 disabled:opacity-60'
+  'group inline-flex items-center justify-center gap-3 rounded-full bg-brand-600 font-semibold text-white shadow-[0_12px_40px_-12px_rgb(58_109_240/0.55)] transition duration-300 hover:-translate-y-0.5 hover:bg-brand-500 hover:shadow-[0_18px_50px_-12px_rgb(58_109_240/0.7)] active:translate-y-0 disabled:opacity-60'
 
 function GoogleButton({ signin, label = 'Start building your vision', big = false }: { signin: SignIn; label?: string; big?: boolean }) {
   return (
     <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:items-start">
       <button onClick={signin.go} disabled={signin.busy} className={`${primaryBtn} w-full sm:w-auto ${big ? 'h-14 px-7 text-base' : 'h-12 px-6 text-[15px]'}`}>
-        {signin.busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleIcon />}
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-white">
+          {signin.busy ? <Loader2 className="h-4 w-4 animate-spin text-brand-600" /> : <GoogleIcon />}
+        </span>
         {label}
         <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
       </button>
@@ -220,7 +222,7 @@ function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
             <button
               onClick={signin.go}
               disabled={signin.busy}
-              className="inline-flex h-10 items-center gap-2 rounded-full bg-ivory px-4 text-sm font-semibold text-[#14110b] transition hover:bg-white disabled:opacity-60"
+              className="inline-flex h-10 items-center gap-2 rounded-full bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-60"
             >
               {signin.busy && <Loader2 className="h-4 w-4 animate-spin" />} Try it free
             </button>
@@ -240,12 +242,12 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
     <section
       ref={ref}
       id="top"
-      className="relative mx-auto grid max-w-6xl items-center gap-16 px-5 pb-24 pt-14 sm:px-8 sm:pt-28 lg:grid-cols-[1.08fr_1fr] lg:gap-12 lg:pb-36 lg:pt-44"
+      className="relative mx-auto grid max-w-6xl items-center gap-16 px-5 pb-24 pt-14 sm:px-8 sm:pt-20 lg:grid-cols-[1.08fr_1fr] lg:gap-14 lg:pb-32 lg:pt-20"
     >
       <div className="text-center lg:text-left">
-        <p className="hero-in text-xs font-semibold uppercase tracking-[0.24em] text-gold-300">A private space for the life you want</p>
-        <h1 className="hero-in mt-6 font-display text-[3.4rem] leading-[0.95] tracking-[-0.015em] text-white sm:text-7xl lg:text-[5.6rem]" style={{ ['--d' as string]: '80ms' }}>
-          Your future starts with a <em className="text-gold-200">vision.</em>
+        <p className="hero-in text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">A private space for the life you want</p>
+        <h1 className="hero-in mt-6 font-display font-semibold tracking-[-0.035em] text-[2.9rem] leading-[1] text-white sm:text-[4rem] lg:text-[4.6rem]" style={{ ['--d' as string]: '80ms' }}>
+          Your future starts with a <span className="text-brand-300">vision.</span>
         </h1>
         <p className="hero-in mx-auto mt-7 max-w-lg text-lg leading-relaxed text-zinc-300 lg:mx-0" style={{ ['--d' as string]: '180ms' }}>
           Build a visual version of the life you want. Give every dream a price and a date, then work toward it, one month at a time.
@@ -259,28 +261,26 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
         {!signedIn && (
           <p className="hero-in mt-6 text-sm text-zinc-400" style={{ ['--d' as string]: '380ms' }}>
             {TRIAL_DAYS} days free · No card needed ·{' '}
-            <a href="#pricing" className="text-gold-200 underline decoration-gold-300/40 underline-offset-4 transition hover:text-gold-100">
+            <a href="#pricing" className="text-brand-200 underline decoration-brand-300/40 underline-offset-4 transition hover:text-brand-100">
               or plans from {perMonth(PLANS.annual)}/month
             </a>
           </p>
         )}
+
+        {/* Where this year stands: goals ticked off, net worth on track */}
+        <div className="hero-in mt-12 flex justify-center gap-4 lg:justify-start" style={{ ['--d' as string]: '460ms' }} aria-hidden>
+          <GoalsFloat />
+          <div className="hidden sm:block">
+            <NetWorthFloat />
+          </div>
+        </div>
       </div>
 
       {/* The app, drawn: one month of the life you're planning */}
       <div className="hero-in relative mx-auto w-full max-w-[440px] lg:mr-0" style={{ ['--d' as string]: '220ms' }} aria-hidden>
-        <div className="absolute -inset-10 rounded-full bg-[radial-gradient(closest-side,rgb(220_192_137/0.12),transparent)]" />
+        <div className="absolute -inset-10 rounded-full bg-[radial-gradient(closest-side,rgb(58_109_240/0.12),transparent)]" />
         <div className="parallax-a relative">
           <MonthOverview />
-        </div>
-        <div className="parallax-b absolute -right-3 -top-[8.25rem] hidden sm:block lg:-right-10">
-          <div className="float-slower">
-            <GoalsFloat />
-          </div>
-        </div>
-        <div className="parallax-b absolute -bottom-24 -left-3 hidden sm:block lg:-left-20">
-          <div className="float-slow">
-            <NetWorthFloat />
-          </div>
         </div>
       </div>
     </section>
@@ -299,15 +299,15 @@ function Problem() {
     <section aria-labelledby="problem-title" className="border-t border-white/[0.06] px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="reveal max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-300">The quiet problem</p>
-          <h2 id="problem-title" className="mt-5 font-display text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">The quiet problem</p>
+          <h2 id="problem-title" className="mt-5 font-display font-semibold tracking-[-0.035em] text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
             Most dreams never make it out of your head.
           </h2>
         </div>
         <div className="mt-14 grid gap-px overflow-hidden rounded-[28px] border border-white/[0.07] bg-white/[0.07] md:grid-cols-3">
           {points.map((p, i) => (
             <div key={p.k} data-reveal className="reveal bg-[#07080c] p-7 sm:p-9" style={{ transitionDelay: `${i * 90}ms` }}>
-              <p className="font-display text-3xl italic text-gold-200">{p.k}.</p>
+              <p className="text-2xl font-semibold tracking-tight text-brand-300">{p.k}.</p>
               <p className="mt-3 text-[17px] leading-relaxed text-zinc-300">{p.text}</p>
             </div>
           ))}
@@ -326,21 +326,21 @@ function Verse() {
   const words = 'Write the vision, and make it plain upon tables, that he may run that readeth it.'.split(' ')
   return (
     <section aria-label="Habakkuk 2:2" className="relative overflow-hidden border-y border-white/[0.06] px-5 py-32 sm:px-8 sm:py-44">
-      <div aria-hidden className="absolute inset-0 bg-[radial-gradient(50%_60%_at_50%_50%,rgb(220_192_137/0.07),transparent_75%)]" />
+      <div aria-hidden className="absolute inset-0 bg-[radial-gradient(50%_60%_at_50%_50%,rgb(58_109_240/0.07),transparent_75%)]" />
       <figure data-reveal className="relative mx-auto max-w-4xl text-center">
-        <blockquote className="font-display text-[2.1rem] leading-[1.18] text-ivory sm:text-5xl lg:text-[3.6rem]">
+        <blockquote className="font-verse text-[2.1rem] leading-[1.18] text-white sm:text-5xl lg:text-[3.6rem]">
           <p>
-            <span aria-hidden className="text-gold-300">“</span>
+            <span aria-hidden className="text-brand-300">“</span>
             {words.map((w, i) => (
               <span key={i} className="verse-word" style={{ transitionDelay: `${150 + i * 55}ms` }}>
                 {w}
                 {i < words.length - 1 && ' '}
               </span>
             ))}
-            <span aria-hidden className="text-gold-300">”</span>
+            <span aria-hidden className="text-brand-300">”</span>
           </p>
         </blockquote>
-        <figcaption className="mt-10 text-xs font-semibold uppercase tracking-[0.3em] text-gold-300">Habakkuk 2:2 · KJV</figcaption>
+        <figcaption className="mt-10 text-xs font-semibold uppercase tracking-[0.3em] text-brand-300">Habakkuk 2:2 · KJV</figcaption>
         <p className="mx-auto mt-10 max-w-md text-[17px] leading-relaxed text-zinc-300">
           Write it down. Make it plain. Then run with it.
           <br />
@@ -388,7 +388,7 @@ function Tile({ title, text, children, className = '', href, cta }: { title: str
         <h3 className="text-xl font-semibold tracking-tight text-white">{title}</h3>
         <p className="mt-2 leading-relaxed text-zinc-400">{text}</p>
         {href && (
-          <a href={href} className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-gold-200 transition hover:text-gold-100">
+          <a href={href} className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-200 transition hover:text-brand-100">
             {cta} <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
           </a>
         )}
@@ -407,9 +407,9 @@ function Realistic() {
     <section id="realistic" aria-labelledby="realistic-title" className="scroll-mt-20 border-y border-white/[0.06] bg-white/[0.012] px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="reveal mx-auto max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-300">Realistic</p>
-          <h2 id="realistic-title" className="mt-5 font-display text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
-            Dreams have prices. <em className="text-gold-200">Now you’ll know yours.</em>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">Realistic</p>
+          <h2 id="realistic-title" className="mt-5 font-display font-semibold tracking-[-0.035em] text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
+            Dreams have prices. <span className="text-brand-300">Now you’ll know yours.</span>
           </h2>
           <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-zinc-300">
             Choose what you want and when you want it. Dizayr adds it all up and shows what each month has to bring in. A dream becomes a
@@ -436,23 +436,23 @@ function PrayAct() {
     <section id="how" aria-labelledby="how-title" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-24 sm:px-8 sm:py-36">
       <div className="grid gap-12 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
         <div data-reveal className="reveal">
-          <h2 id="how-title" className="font-display text-[3.2rem] leading-[0.98] text-white sm:text-7xl">
+          <h2 id="how-title" className="font-display font-semibold tracking-[-0.035em] text-[3.2rem] leading-[0.98] text-white sm:text-7xl">
             Pray for it.
             <br />
-            <em className="text-gold-200">Act on it.</em>
+            <span className="text-brand-300">Act on it.</span>
           </h2>
           <p className="mt-8 max-w-md text-lg leading-relaxed text-zinc-300">
             A vision is only the first step. Everything after it is action. Faith and work were always meant to go together: write down what
             you’re believing for, then show up for it, month after month.
           </p>
-          <p className="mt-8 border-l border-gold-300/40 pl-4 text-zinc-400">
-            <span className="font-display text-xl italic text-zinc-200">“Faith without works is dead.”</span>
-            <span className="mt-1 block text-xs uppercase tracking-[0.2em] text-gold-300">James 2:26</span>
+          <p className="mt-8 border-l border-brand-300/40 pl-4 text-zinc-400">
+            <span className="font-verse text-xl italic text-zinc-200">“Faith without works is dead.”</span>
+            <span className="mt-1 block text-xs uppercase tracking-[0.2em] text-brand-300">James 2:26</span>
           </p>
         </div>
 
         <ol className="relative space-y-4">
-          <span aria-hidden className="absolute bottom-10 left-[2.15rem] top-10 w-px bg-gradient-to-b from-gold-300/50 via-gold-300/20 to-transparent" />
+          <span aria-hidden className="absolute bottom-10 left-[2.15rem] top-10 w-px bg-gradient-to-b from-brand-300/50 via-brand-300/20 to-transparent" />
           {steps.map((s, i) => (
             <li
               key={s.n}
@@ -460,7 +460,7 @@ function PrayAct() {
               className="reveal relative flex gap-5 rounded-[24px] border border-white/[0.07] bg-[#0b0c10] p-5 sm:p-6"
               style={{ transitionDelay: `${i * 110}ms` }}
             >
-              <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-gold-300/40 bg-[#14120d] text-sm font-semibold tabular-nums text-gold-200">
+              <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-brand-300/40 bg-[#0d1428] text-sm font-semibold tabular-nums text-brand-200">
                 {s.n}
               </span>
               <span>
@@ -488,10 +488,10 @@ function Privacy() {
     <section aria-labelledby="privacy-title" className="border-t border-white/[0.06] px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto grid max-w-6xl items-start gap-12 lg:grid-cols-[1fr_1.3fr] lg:gap-20">
         <div data-reveal className="reveal">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl border border-gold-300/30 bg-gold-300/[0.06]">
-            <Lock className="h-5 w-5 text-gold-200" />
+          <span className="grid h-12 w-12 place-items-center rounded-2xl border border-brand-300/30 bg-brand-300/[0.06]">
+            <Lock className="h-5 w-5 text-brand-200" />
           </span>
-          <h2 id="privacy-title" className="mt-6 font-display text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
+          <h2 id="privacy-title" className="mt-6 font-display font-semibold tracking-[-0.035em] text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
             Your dreams are yours.
           </h2>
           <p className="mt-6 max-w-md text-lg leading-relaxed text-zinc-300">
@@ -501,7 +501,7 @@ function Privacy() {
         <ul className="grid gap-4 sm:grid-cols-2">
           {points.map((p, i) => (
             <li key={p.title} data-reveal className="reveal rounded-[24px] border border-white/[0.07] bg-[#0b0c10] p-6" style={{ transitionDelay: `${i * 70}ms` }}>
-              <p.icon className="h-5 w-5 text-gold-300" />
+              <p.icon className="h-5 w-5 text-brand-300" />
               <h3 className="mt-4 font-semibold text-white">{p.title}</h3>
               <p className="mt-1.5 text-[15px] leading-relaxed text-zinc-400">{p.text}</p>
             </li>
@@ -560,7 +560,7 @@ function ReviewCard({ r, hidden }: { r: Review; hidden: boolean }) {
       <Quote className="absolute right-5 top-5 h-8 w-8 text-white/[0.05]" />
       <div className="flex gap-0.5" role="img" aria-label={`${stars} out of 5 stars`}>
         {Array.from({ length: 5 }, (_, i) => (
-          <Star key={i} className={`h-4 w-4 ${i < stars ? 'fill-gold-300 text-gold-300' : 'text-zinc-700'}`} />
+          <Star key={i} className={`h-4 w-4 ${i < stars ? 'fill-brand-300 text-brand-300' : 'text-zinc-700'}`} />
         ))}
       </div>
       <blockquote className="mt-4 leading-relaxed text-zinc-200">“{r.text}”</blockquote>
@@ -568,7 +568,7 @@ function ReviewCard({ r, hidden }: { r: Review; hidden: boolean }) {
         {r.photo ? (
           <img src={r.photo} alt="" className="h-10 w-10 rounded-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
         ) : (
-          <span className="grid h-10 w-10 place-items-center rounded-full border border-gold-300/30 bg-gold-300/10 font-semibold text-gold-100">
+          <span className="grid h-10 w-10 place-items-center rounded-full border border-brand-300/30 bg-brand-300/10 font-semibold text-brand-100">
             {r.name.charAt(0).toUpperCase()}
           </span>
         )}
@@ -584,7 +584,7 @@ function ReviewCard({ r, hidden }: { r: Review; hidden: boolean }) {
 // ---- Pricing ----
 
 /**
- * The plans. On the About page (and the trial-ended page) they wear the gold of the page; inside the app (`compact`, from the
+ * The plans. On the About page (and the trial-ended page) they wear the page's blue; inside the app (`compact`, from the
  * plans window) they keep the app's own accent colour, which people can change in Settings.
  */
 export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; compact?: boolean; tone?: 'brand' | 'app' }) {
@@ -638,13 +638,13 @@ function PlanCard({ plan, featured, current, disabled, brand }: { plan: Plan; fe
   const look = brand
     ? {
         card: featured
-          ? 'border border-gold-300/40 bg-gradient-to-b from-gold-300/[0.09] via-[#0b0c10] to-[#0b0c10] shadow-[0_30px_80px_-30px_rgb(220_192_137/0.35)]'
+          ? 'border border-brand-300/40 bg-gradient-to-b from-brand-300/[0.09] via-[#0b0c10] to-[#0b0c10] shadow-[0_30px_80px_-30px_rgb(58_109_240/0.35)]'
           : 'border border-white/[0.08] bg-[#0b0c10]',
-        badge: 'bg-gold-200 text-[#14110b]',
-        save: 'font-semibold text-gold-200',
-        check: featured ? 'text-gold-300' : 'text-zinc-500',
+        badge: 'bg-brand-600 text-white',
+        save: 'font-semibold text-brand-200',
+        check: featured ? 'text-brand-300' : 'text-zinc-500',
         button: featured
-          ? 'bg-ivory text-[#14110b] hover:bg-white disabled:opacity-60'
+          ? 'bg-brand-600 text-white hover:bg-brand-500 disabled:opacity-60'
           : 'border border-white/15 text-white hover:bg-white/5 disabled:opacity-50',
         radius: 'rounded-[28px]',
         btnRadius: 'rounded-full',
@@ -764,12 +764,12 @@ function Question({ id, q, a }: { id: string; q: string; a: string }) {
 function FinalCta({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
   return (
     <section aria-labelledby="final-title" className="relative overflow-hidden border-t border-white/[0.06] px-5 py-28 sm:px-8 sm:py-40">
-      <div aria-hidden className="absolute inset-0 bg-[radial-gradient(55%_60%_at_50%_100%,rgb(220_192_137/0.12),transparent_75%)]" />
+      <div aria-hidden className="absolute inset-0 bg-[radial-gradient(55%_60%_at_50%_100%,rgb(58_109_240/0.12),transparent_75%)]" />
       <div data-reveal className="reveal relative mx-auto max-w-3xl text-center">
-        <h2 id="final-title" className="font-display text-[3.2rem] leading-[0.98] text-white sm:text-7xl">
+        <h2 id="final-title" className="font-display font-semibold tracking-[-0.035em] text-[3.2rem] leading-[0.98] text-white sm:text-7xl">
           Don’t just dream it.
           <br />
-          <em className="text-gold-200">Build it.</em>
+          <span className="text-brand-300">Build it.</span>
         </h2>
         <p className="mx-auto mt-7 max-w-lg text-lg leading-relaxed text-zinc-300">
           Your future starts with a vision. Write yours down today, and take the first step toward it.
@@ -780,7 +780,7 @@ function FinalCta({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           {!signedIn && (
             <>
               {' · '}
-              <a href="#pricing" className="text-gold-200 underline decoration-gold-300/40 underline-offset-4 hover:text-gold-100">
+              <a href="#pricing" className="text-brand-200 underline decoration-brand-300/40 underline-offset-4 hover:text-brand-100">
                 or buy a plan now
               </a>
             </>
@@ -794,8 +794,8 @@ function FinalCta({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
 function SectionHead({ id, eyebrow, title, sub }: { id?: string; eyebrow: string; title: string; sub?: string }) {
   return (
     <div data-reveal className="reveal mx-auto max-w-2xl text-center">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-300">{eyebrow}</p>
-      <h2 id={id} className="mt-5 font-display text-[2.5rem] leading-[1.04] text-white sm:text-[3.4rem]">
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">{eyebrow}</p>
+      <h2 id={id} className="mt-5 font-display font-semibold tracking-[-0.035em] text-[2.5rem] leading-[1.04] text-white sm:text-[3.4rem]">
         {title}
       </h2>
       {sub && <p className="mt-5 text-lg text-zinc-300">{sub}</p>}
@@ -814,7 +814,7 @@ export function TrialEnded() {
       <Glow />
       <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
         <Logo size="h-12 w-12" />
-        <h1 className="mt-7 font-display text-5xl leading-[1.02] text-white sm:text-6xl">Your free trial has ended.</h1>
+        <h1 className="mt-7 font-display font-semibold tracking-[-0.035em] text-5xl leading-[1.02] text-white sm:text-6xl">Your free trial has ended.</h1>
         <p className="mx-auto mt-5 max-w-xl text-lg text-zinc-300">Everything you planned is saved and waiting. Choose a plan to keep building the life you want.</p>
         {activating && (
           <p className="animate-fade mx-auto mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200">

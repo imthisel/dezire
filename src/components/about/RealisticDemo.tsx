@@ -89,10 +89,10 @@ export function RealisticDemo() {
                     onClick={() => toggle(d.id)}
                     aria-pressed={on}
                     className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition duration-300 ${
-                      on ? 'border-gold-300/40 bg-gold-300/[0.07]' : 'border-white/[0.07] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]'
+                      on ? 'border-brand-300/40 bg-brand-300/[0.07]' : 'border-white/[0.07] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]'
                     }`}
                   >
-                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl transition ${on ? 'bg-gold-300/15 text-gold-200' : 'bg-white/[0.05] text-zinc-400'}`}>
+                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl transition ${on ? 'bg-brand-300/15 text-brand-200' : 'bg-white/[0.05] text-zinc-400'}`}>
                       <d.icon className="h-4 w-4" />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -103,7 +103,7 @@ export function RealisticDemo() {
                     </span>
                     <span
                       aria-hidden
-                      className={`grid h-5 w-5 shrink-0 place-items-center rounded-full transition ${on ? 'bg-gold-300 text-[#14110b]' : 'border border-white/20 text-transparent'}`}
+                      className={`grid h-5 w-5 shrink-0 place-items-center rounded-full transition ${on ? 'bg-brand-500 text-white' : 'border border-white/20 text-transparent'}`}
                     >
                       <Check className="h-3 w-3" strokeWidth={3.5} />
                     </span>
@@ -141,10 +141,10 @@ export function RealisticDemo() {
       </div>
 
       {/* The number, and the plan */}
-      <div className="relative flex flex-col justify-between gap-8 border-t border-white/[0.07] bg-gradient-to-b from-gold-300/[0.06] to-transparent p-5 sm:p-8 lg:border-l lg:border-t-0">
+      <div className="relative flex flex-col justify-between gap-8 border-t border-white/[0.07] bg-gradient-to-b from-brand-300/[0.06] to-transparent p-5 sm:p-8 lg:border-l lg:border-t-0">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Your dream, as a number</p>
-          <p className="mt-2 font-display text-5xl tabular-nums leading-none text-white sm:text-6xl" aria-hidden>
+          <p className="mt-2 font-display text-5xl font-semibold tracking-[-0.03em] tabular-nums leading-none text-white sm:text-6xl" aria-hidden>
             {peso(shownTotal)}
           </p>
           <p className="mt-2 text-sm text-zinc-400">
@@ -152,10 +152,10 @@ export function RealisticDemo() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-gold-300/25 bg-black/30 p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-200">Your number, as a plan</p>
+        <div className="rounded-2xl border border-brand-300/25 bg-black/30 p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200">Your number, as a plan</p>
           <p className="mt-2 text-sm text-zinc-300">Each month, set aside</p>
-          <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-gold-100 sm:text-4xl" aria-hidden>
+          <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-brand-100 sm:text-4xl" aria-hidden>
             {peso(shownMonthly)}
           </p>
           <p className="mt-2 text-sm tabular-nums text-zinc-400">

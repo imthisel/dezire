@@ -143,14 +143,14 @@ export function DownloadSection() {
     <section id="download" aria-labelledby="download-title" className="scroll-mt-20 border-y border-white/[0.06] bg-white/[0.012] py-24 sm:py-32">
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
         <div data-reveal className="reveal mx-auto max-w-2xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-300">Get the app</p>
-          <h2 id="download-title" className="mt-5 font-display text-[2.5rem] leading-[1.04] text-white sm:text-[3.4rem]">Take your vision everywhere.</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">Get the app</p>
+          <h2 id="download-title" className="mt-5 font-display font-semibold tracking-[-0.035em] text-[2.5rem] leading-[1.04] text-white sm:text-[3.4rem]">Take your vision everywhere.</h2>
           <p className="mt-5 text-lg text-zinc-300">Install Dizayr on your phone or computer in a few seconds. Nothing to download from an app store, and it’s included with your account.</p>
         </div>
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {tiles.map((t, i) => (
             <div key={t.title} data-reveal className="reveal rounded-[24px] border border-white/[0.07] bg-[#0b0c10] p-6" style={{ transitionDelay: `${i * 70}ms` }}>
-              <t.icon className="h-5 w-5 text-gold-300" />
+              <t.icon className="h-5 w-5 text-brand-300" />
               <h3 className="mt-4 font-semibold text-white">{t.title}</h3>
               <p className="mt-1.5 text-[15px] leading-relaxed text-zinc-400">{t.text}</p>
             </div>
@@ -164,7 +164,7 @@ export function DownloadSection() {
           ) : (
             <button
               onClick={() => void installApp()}
-              className="group inline-flex h-12 items-center gap-2.5 rounded-full border border-white/15 px-6 text-[15px] font-semibold text-white transition hover:border-gold-300/40 hover:bg-gold-300/[0.06]"
+              className="group inline-flex h-12 items-center gap-2.5 rounded-full border border-white/15 px-6 text-[15px] font-semibold text-white transition hover:border-brand-300/40 hover:bg-brand-300/[0.06]"
             >
               <Download className="h-4 w-4 transition group-hover:translate-y-0.5" /> Download the app
             </button>

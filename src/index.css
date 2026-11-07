@@ -2,17 +2,19 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  /* About page: headlines and the verse */
-  --font-display: "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
+  /* About page: Geist for everything, a quiet serif only for the verse */
+  --font-display: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-verse: "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
 
-  /* About page: the one warm accent (champagne gold) on the deep base */
-  --color-gold-50: #fbf7ee;
-  --color-gold-100: #f5ecd8;
-  --color-gold-200: #ecdab3;
-  --color-gold-300: #dcc089;
-  --color-gold-400: #c9a45f;
-  --color-gold-500: #a8843f;
-  --color-ivory: #f6f2ea;
+  /* About page: the one accent (a deep, clear blue) on the dark base */
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #dbe7ff;
+  --color-brand-200: #bcd3ff;
+  --color-brand-300: #8fb6ff;
+  --color-brand-400: #5b8cff;
+  --color-brand-500: #3a6df0;
+  --color-brand-600: #2a55d6;
+  --color-brand-700: #2244ab;
 
   --animate-pop: pop 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2);
   --animate-fade: fade 0.18s ease-out;
@@ -307,13 +309,14 @@ html.zooming [data-zoom-item] {
 .about button:focus-visible,
 .about input:focus-visible,
 .about [tabindex]:focus-visible {
-  outline: 2px solid var(--color-gold-300);
+  outline: 2px solid var(--color-brand-400);
   outline-offset: 3px;
 }
-.about ::selection { background: rgb(220 192 137 / 0.3); }
+.about { font-family: var(--font-display); font-feature-settings: "ss01"; }
+.about ::selection { background: rgb(58 109 240 / 0.35); }
 
 /* About page: the "by when" slider */
-.about input[type="range"] { accent-color: var(--color-gold-300); }
+.about input[type="range"] { accent-color: var(--color-brand-500); }
 
 @media (prefers-reduced-motion: reduce) {
   .hero-in { animation: none !important; }
