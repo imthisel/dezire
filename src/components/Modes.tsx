@@ -163,29 +163,9 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
             </div>
           ) : (
             <ul className="max-h-72 overflow-y-auto p-1.5">
-              {modes.map((m) => {
-                const mc = modeColor(m.index, m.kind)
-                const on = m.id === current.id
-                return (
-                  <li key={m.id}>
-                    <button
-                      role="menuitemradio"
-                      aria-checked={on}
-                      onClick={act(() => open(m, limit))}
-                      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition ${on ? `${mc.soft} ring-1 ${mc.ring}` : 'hover:bg-white/5'}`}
-                    >
-                      <span className={`mx-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${mc.dot} ${m.locked ? 'opacity-40' : ''}`} />
-                      <span className="min-w-0 flex-1">
-                        <span className={`block truncate text-sm font-medium ${m.locked ? 'text-zinc-500' : 'text-zinc-100'}`}>{m.name}</span>
-                        {m.main && <span className="block text-[11px] text-zinc-500">{mainLabel(m.kind)}</span>}
-                      </span>
-                      {m.main && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label="Main" />}
-                      {m.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-label="Needs the yearly plan" />}
-                      {on && <Check className={`h-4 w-4 shrink-0 ${mc.text}`} />}
-                    </button>
-                  </li>
-                )
-              })}
+              {modes.map((m) => (
+                <MenuModeRow key={m.id} m={m} on={m.id === current.id} onOpen={act(() => open(m, limit))} />
+              ))}
             </ul>
           )}
 
@@ -209,6 +189,89 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
       {manage === 'copy' && <CopyModeModal onClose={() => setManage(null)} />}
       {manage && manage !== 'copy' && <ModesModal startAdding={manage === 'list' ? undefined : manage} onCopy={() => setManage('copy')} onClose={() => setManage(null)} />}
     </div>
+  )
+}
+
+/**
+ * One mode in the header menu. Click to open it; hovering shows a pencil that turns the name into a field,
+ * so a mode can be renamed right there (Enter or clicking away saves, Escape cancels).
+ */
+function MenuModeRow({ m, on, onOpen }: { m: ModeInfo & { index: number; kind: ModeKind; main: boolean; locked: boolean }; on: boolean; onOpen: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(m.name)
+  // Set on Escape, so the blur that follows (the field going away) doesn't save the name anyway.
+  const cancelled = useRef(false)
+  const mc = modeColor(m.index, m.kind)
+
+  function startEditing() {
+    cancelled.current = false
+    setName(m.name)
+    setEditing(true)
+  }
+  function save() {
+    if (!cancelled.current) useStore.getState().renameMode(m.id, name)
+    setEditing(false)
+  }
+
+  return (
+    <li className={`group flex items-center rounded-xl transition ${on ? `${mc.soft} ring-1 ${mc.ring}` : 'hover:bg-white/5'}`}>
+      {editing ? (
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-1.5">
+          <span className={`mx-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${mc.dot}`} />
+          <input
+            autoFocus
+            value={name}
+            maxLength={MAX_MODE_NAME}
+            onFocus={(e) => e.target.select()}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={save}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+              if (e.key === 'Escape') {
+                // Cancel the rename only: keep the menu open.
+                e.stopPropagation()
+                cancelled.current = true
+                setEditing(false)
+              }
+            }}
+            aria-label={`Rename ${m.name}`}
+            className="h-8 min-w-0 flex-1 rounded-lg border border-white/15 bg-black/40 px-2 text-sm font-medium text-white outline-none focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20"
+          />
+          <button
+            type="button"
+            // Saves through the input's blur; mousedown keeps it from closing first.
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={save}
+            aria-label="Save name"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-300 transition hover:bg-white/10 hover:text-white"
+          >
+            <Check className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <>
+          <button role="menuitemradio" aria-checked={on} onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pl-2.5 text-left">
+            <span className={`mx-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${mc.dot} ${m.locked ? 'opacity-40' : ''}`} />
+            <span className="min-w-0 flex-1">
+              <span className={`block truncate text-sm font-medium ${m.locked ? 'text-zinc-500' : 'text-zinc-100'}`}>{m.name}</span>
+              {m.main && <span className="block text-[11px] text-zinc-500">{mainLabel(m.kind)}</span>}
+            </span>
+            {m.main && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label="Main" />}
+            {m.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-label="Needs the yearly plan" />}
+            {on && <Check className={`h-4 w-4 shrink-0 ${mc.text}`} />}
+          </button>
+          <button
+            type="button"
+            onClick={startEditing}
+            title="Rename"
+            aria-label={`Rename ${m.name}`}
+            className="mx-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-400 opacity-0 transition hover:bg-white/10 hover:text-white focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        </>
+      )}
+    </li>
   )
 }
 
