@@ -307,7 +307,8 @@ html.zooming [data-zoom-item] {
 /* About page: a clear ring on whatever the keyboard is on */
 .about a:focus-visible,
 .about button:focus-visible,
-.about input:focus-visible,
+.about select:focus-visible,
+.about input:not([data-plain]):focus-visible,
 .about [tabindex]:focus-visible {
   outline: 2px solid var(--color-brand-400);
   outline-offset: 3px;

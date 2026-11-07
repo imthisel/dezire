@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import {
-  ArrowRight, BadgeCheck, Check, ChevronDown, Cloud, Download, EyeOff, KeyRound, Loader2, Lock, LogOut, Quote, ShieldCheck, Star, Target,
+  ArrowRight, BadgeCheck, Check, ChevronDown, Download, EyeOff, KeyRound, Loader2, Lock, LogOut, Quote, ShieldCheck, Star, Target,
 } from 'lucide-react'
 import { signIn, signOut, useCloud } from '../cloud'
 import { forgetIntent, openCheckout, rememberIntent, useAccess } from '../billing'
@@ -8,7 +8,9 @@ import { auth } from '../lib/firebase'
 import { PLANS, TRIAL_DAYS, billingUrl, perMonth, pesos, type Plan, type PlanId } from '../lib/plans'
 import { EXAMPLE_REVIEWS, REVIEWS, type Review } from '../content/reviews'
 import { DownloadSection } from './AppInstall'
-import { BoardPreview, CostPreview, GoalsFloat, GoalsPreview, ListsPreview, MonthOverview, NetWorthFloat, WishListPreview } from './about/Previews'
+import { BoardPreview, GoalsFloat, GoalsPreview, MonthOverview, NetWorthFloat, WishListPreview } from './about/Previews'
+import { TryOverview } from './about/TryOverview'
+import { TryExpenses } from './about/TryExpenses'
 import { RealisticDemo } from './about/RealisticDemo'
 
 // ---- Actions ----
@@ -118,6 +120,8 @@ export function About() {
       <main id="main">
         <Hero signedIn={!!user} signin={signin} />
         <Problem />
+        <TryIt />
+        <TryItExpenses />
         <Verse />
         <Features />
         <Realistic />
@@ -206,8 +210,10 @@ function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           <Logo />
           <span className="text-lg font-semibold tracking-tight text-white">Dizayr</span>
         </a>
-        <nav aria-label="Main" className="hidden items-center gap-8 text-sm text-zinc-400 md:flex">
-          <a href="#features" className="transition hover:text-white">What you can do</a>
+        <nav aria-label="Main" className="hidden items-center gap-7 text-sm text-zinc-400 lg:flex">
+          <a href="#try" className="transition hover:text-white">Try it</a>
+          <a href="#try-expenses" className="transition hover:text-white">Expenses</a>
+          <a href="#how" className="transition hover:text-white">How it works</a>
           <a href="#realistic" className="transition hover:text-white">Realistic</a>
           <a href="#pricing" className="transition hover:text-white">Pricing</a>
           <a href="#faq" className="transition hover:text-white">FAQ</a>
@@ -242,7 +248,7 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
     <section
       ref={ref}
       id="top"
-      className="relative mx-auto grid max-w-6xl items-center gap-16 px-5 pb-24 pt-14 sm:px-8 sm:pt-20 lg:grid-cols-[1.08fr_1fr] lg:gap-14 lg:pb-32 lg:pt-20"
+      className="relative mx-auto grid max-w-6xl items-center gap-14 px-5 pb-24 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.08fr_1fr] lg:items-start lg:gap-14 lg:pb-28 lg:pt-12"
     >
       <div className="text-center lg:text-left">
         <p className="hero-in text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">A private space for the life you want</p>
@@ -254,8 +260,8 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
         </p>
         <div className="hero-in mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start" style={{ ['--d' as string]: '280ms' }}>
           {signedIn ? <OpenApp big /> : <GoogleButton signin={signin} big />}
-          <a href="#how" className="inline-flex h-14 items-center gap-2 rounded-full px-5 text-[15px] font-medium text-zinc-300 transition hover:text-white">
-            See how it works <ChevronDown className="h-4 w-4" />
+          <a href="#try" className="inline-flex h-14 items-center gap-2 rounded-full px-5 text-[15px] font-medium text-zinc-300 transition hover:text-white">
+            Try it live <ChevronDown className="h-4 w-4" />
           </a>
         </div>
         {!signedIn && (
@@ -320,6 +326,44 @@ function Problem() {
   )
 }
 
+// ---- Try it ----
+
+function TryIt() {
+  return (
+    <section id="try" aria-labelledby="try-title" className="scroll-mt-16 border-t border-white/[0.06] bg-white/[0.012] px-5 py-24 sm:px-8 sm:py-28">
+      <div className="mx-auto max-w-6xl">
+        <SectionHead
+          id="try-title"
+          eyebrow="Try it, right here"
+          title="Plan three months. Watch it all add up."
+          sub="Set a goal, a budget, a net worth to reach. Add what you want. Every total, warning and chart updates as you type."
+        />
+        <div className="mt-12">
+          <TryOverview />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function TryItExpenses() {
+  return (
+    <section id="try-expenses" aria-labelledby="try-expenses-title" className="scroll-mt-16 border-t border-white/[0.06] px-5 py-24 sm:px-8 sm:py-28">
+      <div className="mx-auto max-w-6xl">
+        <SectionHead
+          id="try-expenses-title"
+          eyebrow="Expenses"
+          title="See exactly where your money goes."
+          sub="Log a few things you spent. Your budget, daily average and where it went update in an instant. Tap a category to see just those."
+        />
+        <div className="mt-12">
+          <TryExpenses />
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ---- The verse ----
 
 function Verse() {
@@ -357,21 +401,15 @@ function Features() {
   return (
     <section id="features" aria-labelledby="features-title" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-24 sm:px-8 sm:py-32">
       <SectionHead id="features-title" eyebrow="What you can do" title="Everything you want, finally in one place." />
-      <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-6">
-        <Tile className="lg:col-span-3" title="A private place for everything you want." text="Big or small, write it all down, without explaining it to anyone.">
+      <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Tile title="A private place for everything you want." text="Big or small, write it all down, without explaining it to anyone.">
           <WishListPreview />
         </Tile>
-        <Tile className="lg:col-span-3" title="See your life on one board." text="Star what matters most and see it all together: your vision, laid out year by year.">
+        <Tile title="See your life on one board." text="Star what matters most and see it all together: your vision, laid out year by year.">
           <BoardPreview />
         </Tile>
-        <Tile className="lg:col-span-2" title="Lists for the things you’ll own." text="Cars, property, travel, watches, or your own kinds, each with its price and its value over time.">
-          <ListsPreview />
-        </Tile>
-        <Tile className="lg:col-span-2" title="Watch every goal move." text="Yearly goals for mind, body, status and who you’re becoming. Tick them off as you go.">
+        <Tile className="md:col-span-2 lg:col-span-1" title="Watch every goal move." text="Yearly goals for mind, body, status and who you’re becoming. Tick them off as you go.">
           <GoalsPreview />
-        </Tile>
-        <Tile className="md:col-span-2 lg:col-span-2" title="Know what it really costs." text="Every dream added up, with what each month has to bring in." href="#realistic" cta="Try Realistic">
-          <CostPreview />
         </Tile>
       </div>
     </section>
@@ -482,7 +520,6 @@ function Privacy() {
     { icon: KeyRound, title: 'Only you can open it', text: 'Your space is tied to your Google account. No one else sees what you write.' },
     { icon: EyeOff, title: 'Never sold, never shared', text: 'Your dreams aren’t data for advertisers. We don’t sell or share them.' },
     { icon: Download, title: 'Yours to keep', text: 'Export a full backup whenever you like.' },
-    { icon: Cloud, title: 'With you everywhere', text: 'Synced across your devices, and it still works offline.' },
   ]
   return (
     <section aria-labelledby="privacy-title" className="border-t border-white/[0.06] px-5 py-24 sm:px-8 sm:py-32">
@@ -498,7 +535,7 @@ function Privacy() {
             Some of what you want, you haven’t told anyone yet. Dizayr is a private space, so you can be honest about all of it.
           </p>
         </div>
-        <ul className="grid gap-4 sm:grid-cols-2">
+        <ul className="grid gap-4">
           {points.map((p, i) => (
             <li key={p.title} data-reveal className="reveal rounded-[24px] border border-white/[0.07] bg-[#0b0c10] p-6" style={{ transitionDelay: `${i * 70}ms` }}>
               <p.icon className="h-5 w-5 text-brand-300" />
