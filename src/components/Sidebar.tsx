@@ -1,5 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { CalendarCheck, CalendarDays, Download, Flag, Gem, GripVertical, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Star, Target, X } from 'lucide-react'
+import { CalendarCheck, CalendarDays, Download, Flag, Gem, GripVertical, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
+import { modeKind } from '../lib/needs'
+import { CopyModeModal, ModesModal } from './Modes'
+import type { ModeInfo, ModeKind } from '../lib/types'
 import { inNeedsMode, useFmt, useKinds, useStore } from '../store'
 import { SOURCE_KIND, kindColor, kindIcon } from '../lib/meta'
 import { useMedia } from '../lib/useMedia'
@@ -63,9 +66,18 @@ export function Sidebar() {
     return () => window.removeEventListener('keydown', esc)
   }, [drawer, docked])
 
-  function addPlan() {
-    goTo('plan-add')
-  }
+  // Which mode each section opens: the one in use, else the last one used of that kind, else its main one.
+  const modes = useStore((s) => s.modes)
+  const modeId = useStore((s) => s.modeId)
+  const inUse = modes.find((m) => m.id === modeId)
+  if (inUse) lastMode[modeKind(inUse)] = inUse.id
+  const wantsName = modeFor('wants', modes)?.name
+  const needsName = modeFor('needs', modes)?.name
+  const inWants = !needsMode
+  const [modal, setModal] = useState<null | 'needs' | 'copy'>(null)
+
+  /** A Wants page: from a Needs mode, step back into Wants first. */
+  const wants = (id: string) => enterKind('wants') && goTo(id)
 
   return (
     <>
@@ -103,23 +115,106 @@ export function Sidebar() {
         </div>
 
         <nav className="scrollbar-none flex-1 space-y-6 overflow-y-auto px-3 pb-6 pt-2">
-          {needsMode ? (
-            <Group label="Needs">
-              <Link icon={ShoppingBasket} label="Everyday budget" on={active === 'overview' || active === 'years' || active === 'goals'} onClick={() => goTo('overview')} iconCls="text-emerald-300" />
-            </Group>
-          ) : <Group label="Planner">
-            <Link icon={LayoutDashboard} label="Overview" on={active === 'overview'} onClick={() => goTo('overview')} />
-            <Link icon={CalendarDays} label="Months" on={active === 'years'} onClick={() => goTo('years')} />
-            <Link icon={Flag} label="Yearly goals" on={active === 'goals'} onClick={() => goTo('goals')} />
+          <KindSection kind="wants" on={!needsMode} mode={wantsName}>
+            <Link icon={LayoutDashboard} label="Overview" on={inWants && active === 'overview'} onClick={() => wants('overview')} />
+            <Link icon={CalendarDays} label="Months" on={inWants && active === 'years'} onClick={() => wants('years')} />
+            <Link icon={Flag} label="Yearly goals" on={inWants && active === 'goals'} onClick={() => wants('goals')} />
             {!hiddenNav.includes('favorites') && <Link
               icon={Star}
               label="Favorites"
-              on={active === 'favorites'}
-              onClick={() => goTo('favorites')}
+              on={inWants && active === 'favorites'}
+              onClick={() => wants('favorites')}
               badge={favorites || undefined}
               iconCls="text-amber-300"
             />}
-          </Group>}
+
+            {!hiddenNav.includes('assets') && <SubGroup label="What you own">
+            <Link
+              icon={Gem}
+              label="Assets"
+              on={inWants && active === 'assets' && assetCat === 'all'}
+              onClick={() => wants('assets')}
+              badge={assetCounts.reduce((a, b) => a + b, 0) || undefined}
+            />
+            <ul className="ml-[1.4rem] mt-1 space-y-0.5 border-l border-white/[0.07] pl-2">
+              {kinds.map((k, i) => {
+                const Icon = kindIcon(k)
+                const on = inWants && active === 'assets' && assetCat === k.id
+                return (
+                  <li key={k.id}>
+                    <button
+                      onClick={() => wants(`assets-${k.id}`)}
+                      aria-current={on ? 'page' : undefined}
+                      className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition ${
+                        on ? 'bg-white/[0.07] text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      <Icon className={`h-3.5 w-3.5 shrink-0 ${on ? kindColor(k).text : ''}`} />
+                      <span className="min-w-0 flex-1 truncate">{k.label}</span>
+                      {k.id === assetFavorite && <Star className="h-3 w-3 shrink-0 fill-amber-300 text-amber-300" aria-label="Assets opens here" />}
+                      {assetCounts[i] > 0 && <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">{assetCounts[i]}</span>}
+                    </button>
+                  </li>
+                )
+              })}
+              <li>
+                <button
+                  onClick={() => {
+                    useStore.getState().setDrawer(false)
+                    useStore.getState().openModal({ type: 'kinds' })
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-zinc-600 transition hover:bg-white/5 hover:text-zinc-200"
+                >
+                  <Settings2 className="h-3.5 w-3.5 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">Edit kinds</span>
+                </button>
+              </li>
+            </ul>
+            </SubGroup>}
+
+            {!hiddenNav.includes('plan') && <SubGroup label="Making the money">
+            <Link icon={Rocket} label="Money plan" on={inWants && active === 'plan'} onClick={() => wants('plan')} badge={sources.length || undefined} />
+            {sources.length > 0 && (
+              <ul className="ml-[1.4rem] mt-1 space-y-0.5 border-l border-white/[0.07] pl-2">
+                {sources.map((s, i) => (
+                  <SourceLink key={s.id} source={s} index={i} dragId={dragSource} setDragId={setDragSource} />
+                ))}
+              </ul>
+            )}
+            <button
+              onClick={() => wants('plan-add')}
+              className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
+            >
+              <Plus className="h-4 w-4" /> Add a way to earn
+            </button>
+            </SubGroup>}
+          </KindSection>
+
+          <KindSection kind="needs" on={needsMode} mode={needsName}>
+            {needsName ? (
+              <Link
+                icon={ShoppingBasket}
+                label="Everyday budget"
+                on={needsMode && (active === 'overview' || active === 'years' || active === 'goals')}
+                onClick={() => enterKind('needs') && goTo('overview')}
+                iconCls="text-emerald-300"
+              />
+            ) : (
+              <button
+                onClick={() => {
+                  useStore.getState().setDrawer(false)
+                  setModal('needs')
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-zinc-400 transition hover:bg-white/5 hover:text-zinc-200"
+              >
+                <Plus className="h-4 w-4 text-emerald-300" />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">Set up a budget</span>
+                  <span className="block text-[11px] text-zinc-500">Everyday money, week by week</span>
+                </span>
+              </button>
+            )}
+          </KindSection>
 
           {!hiddenNav.includes('calendar') && <Group label="Time">
             <Link
@@ -171,67 +266,6 @@ export function Sidebar() {
             </button>
           </Group>}
 
-          {!needsMode && !hiddenNav.includes('assets') && <Group label="What you own">
-            <Link
-              icon={Gem}
-              label="Assets"
-              on={active === 'assets' && assetCat === 'all'}
-              onClick={() => goTo('assets')}
-              badge={assetCounts.reduce((a, b) => a + b, 0) || undefined}
-            />
-            <ul className="ml-[1.4rem] mt-1 space-y-0.5 border-l border-white/[0.07] pl-2">
-              {kinds.map((k, i) => {
-                const Icon = kindIcon(k)
-                const on = active === 'assets' && assetCat === k.id
-                return (
-                  <li key={k.id}>
-                    <button
-                      onClick={() => goTo(`assets-${k.id}`)}
-                      aria-current={on ? 'page' : undefined}
-                      className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition ${
-                        on ? 'bg-white/[0.07] text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                      }`}
-                    >
-                      <Icon className={`h-3.5 w-3.5 shrink-0 ${on ? kindColor(k).text : ''}`} />
-                      <span className="min-w-0 flex-1 truncate">{k.label}</span>
-                      {k.id === assetFavorite && <Star className="h-3 w-3 shrink-0 fill-amber-300 text-amber-300" aria-label="Assets opens here" />}
-                      {assetCounts[i] > 0 && <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">{assetCounts[i]}</span>}
-                    </button>
-                  </li>
-                )
-              })}
-              <li>
-                <button
-                  onClick={() => {
-                    useStore.getState().setDrawer(false)
-                    useStore.getState().openModal({ type: 'kinds' })
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-zinc-600 transition hover:bg-white/5 hover:text-zinc-200"
-                >
-                  <Settings2 className="h-3.5 w-3.5 shrink-0" />
-                  <span className="min-w-0 flex-1 truncate">Edit kinds</span>
-                </button>
-              </li>
-            </ul>
-          </Group>}
-
-          {!needsMode && !hiddenNav.includes('plan') && <Group label="Making the money">
-            <Link icon={Rocket} label="Money plan" on={active === 'plan'} onClick={() => goTo('plan')} badge={sources.length || undefined} />
-            {sources.length > 0 && (
-              <ul className="ml-[1.4rem] mt-1 space-y-0.5 border-l border-white/[0.07] pl-2">
-                {sources.map((s, i) => (
-                  <SourceLink key={s.id} source={s} index={i} dragId={dragSource} setDragId={setDragSource} />
-                ))}
-              </ul>
-            )}
-            <button
-              onClick={addPlan}
-              className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
-            >
-              <Plus className="h-4 w-4" /> Add a way to earn
-            </button>
-          </Group>}
-
           <Group label="You">
             <Link icon={Settings} label="Settings" on={active === 'settings'} onClick={() => openSettings()} />
           </Group>
@@ -259,7 +293,62 @@ export function Sidebar() {
           </p>
         )}
       </aside>
+
+      {modal === 'needs' && <ModesModal startAdding="needs" onCopy={() => setModal('copy')} onClose={() => setModal(null)} />}
+      {modal === 'copy' && <CopyModeModal onClose={() => setModal(null)} />}
     </>
+  )
+}
+
+/** The last mode used of each kind, so going back to Wants or Needs lands where you were. */
+const lastMode: Partial<Record<ModeKind, string>> = {}
+
+function modeFor(kind: ModeKind, modes: ModeInfo[]) {
+  return modes.find((m) => m.id === lastMode[kind] && modeKind(m) === kind) ?? modes.find((m) => modeKind(m) === kind)
+}
+
+/** Switches to a mode of this kind if one isn't in use. False when there is none of that kind yet. */
+function enterKind(kind: ModeKind) {
+  const s = useStore.getState()
+  if (modeKind(s.modes.find((m) => m.id === s.modeId)) === kind) return true
+  const to = modeFor(kind, s.modes)
+  if (!to) return false
+  s.switchMode(to.id)
+  return true
+}
+
+const KIND_LOOK: Record<ModeKind, { title: string; icon: typeof Flag; chip: string; box: string }> = {
+  wants: { title: 'Wants', icon: Sparkles, chip: 'bg-gradient-to-br from-indigo-400 to-indigo-600', box: 'border-indigo-400/20 bg-indigo-500/[0.04]' },
+  needs: { title: 'Needs', icon: ShoppingBasket, chip: 'bg-gradient-to-br from-emerald-400 to-teal-500', box: 'border-emerald-400/20 bg-emerald-500/[0.04]' },
+}
+
+/** Wants or Needs: its own block, tinted when it's the one in use, with the mode it opens on the right. */
+function KindSection({ kind, on, mode, children }: { kind: ModeKind; on: boolean; mode?: string; children: ReactNode }) {
+  const k = KIND_LOOK[kind]
+  return (
+    <section aria-label={k.title} className={`rounded-2xl border p-1.5 transition-colors ${on ? k.box : 'border-white/[0.06]'}`}>
+      <div className="flex items-center gap-2 px-1.5 pb-2 pt-1">
+        <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg text-white ${k.chip} ${on ? '' : 'opacity-70'}`}>
+          <k.icon className="h-3.5 w-3.5" strokeWidth={2.4} />
+        </span>
+        <span className={`text-[13px] font-semibold ${on ? 'text-white' : 'text-zinc-300'}`}>{k.title}</span>
+        {mode && (
+          <span title={on ? `In use: ${mode}` : `Opens ${mode}`} className="ml-auto min-w-0 truncate text-[11px] text-zinc-500">
+            {mode}
+          </span>
+        )}
+      </div>
+      <div className="space-y-0.5">{children}</div>
+    </section>
+  )
+}
+
+function SubGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="pt-3">
+      <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-600">{label}</p>
+      <div className="space-y-0.5">{children}</div>
+    </div>
   )
 }
 
@@ -286,7 +375,7 @@ function SourceLink({ source: s, index, dragId, setDragId }: { source: IncomeSou
       )}
       <button
         {...sort.handle('li')}
-        onClick={() => goTo(`source-${s.id}`)}
+        onClick={() => enterKind('wants') && goTo(`source-${s.id}`)}
         title="Click to open · hold and drag to reorder"
         className={`group flex w-full cursor-grab items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-zinc-400 transition hover:bg-white/5 hover:text-white active:cursor-grabbing ${
           sort.dragging ? 'opacity-40' : ''
