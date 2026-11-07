@@ -1,55 +1,69 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Plus, Target, X } from 'lucide-react'
-import { DEFAULT_EXPENSE_CATS, catColor, catIcon } from '../../lib/expenses'
+import { MapPin, Plus, StickyNote, Target, X } from 'lucide-react'
+import { DEFAULT_EXPENSE_CATS, catColor, catIcon, toKey } from '../../lib/expenses'
+import type { ExpenseCategory } from '../../lib/types'
 import { MoneyField, Toolbar, money, moneyShort } from './TryOverview'
+import { DemoExpenseModal, type NewExpense } from './DemoDialogs'
 
 /*
- * A playable copy of Expenses on the About page: one month (March 2027) to log spending in, with the same overview, budget,
+ * A playable copy of Expenses on the About page: this month, with the same "Add expense" window, overview, budget,
  * chart by day and "where it went" breakdown as the app. It lives only in this page's memory: nothing is saved anywhere.
  */
 
-const YEAR = 2027
-const MONTH = 2 // March
-const DAYS = 31
-const MONTH_NAME = 'March'
+// This month, so "Today" and "Yesterday" mean what they do in the app.
+const NOW = new Date()
+const YEAR = NOW.getFullYear()
+const MONTH = NOW.getMonth()
+const TODAY = NOW.getDate()
+const DAYS = new Date(YEAR, MONTH + 1, 0).getDate()
+const MONTH_NAME = NOW.toLocaleDateString('en-US', { month: 'long' })
+const MONTH_SHORT = NOW.toLocaleDateString('en-US', { month: 'short' })
 const WEEKDAYS = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays']
+const keyOf = (day: number) => toKey(new Date(YEAR, MONTH, day))
+const dayOf = (key: string) => Number(key.slice(8, 10))
 
-type Exp = { id: string; day: number; amount: number; name: string; category: string }
+type Exp = NewExpense & { id: string }
 
 let lastId = 0
-const exp = (day: number, amount: number, name: string, category: string): Exp => ({ id: `try-e${++lastId}`, day, amount, name, category })
+const withId = (e: NewExpense): Exp => ({ ...e, id: `try-e${++lastId}` })
+/** An example expense, spread over the days of the month that have passed so far (day 1–31 is squeezed into 1–today). */
+const exp = (day: number, amount: number, name: string, category: string, place = ''): Exp =>
+  withId({ date: keyOf(Math.max(1, Math.ceil((day / 31) * TODAY))), amount, name, category, place, notes: '' })
 
 function example(): Exp[] {
   return [
-    exp(1, 20_000, 'Tithe', 'other'),
+    exp(1, 20_000, 'Tithe', 'other', 'Church'),
     exp(1, 35_000, 'Rent', 'bills'),
-    exp(2, 6_200, 'Groceries', 'groceries'),
-    exp(3, 280, 'Coffee', 'food'),
-    exp(5, 3_500, 'Gym', 'health'),
-    exp(6, 1_850, 'Lunch', 'food'),
+    exp(2, 6_200, 'Groceries', 'groceries', 'S&R'),
+    exp(3, 280, 'Coffee', 'food', 'Starbucks'),
+    exp(5, 3_500, 'Gym', 'health', 'Anytime Fitness'),
+    exp(6, 1_850, 'Lunch', 'food', 'Mendokoro Ramenba'),
     exp(8, 420, 'Grab / Taxi', 'transport'),
-    exp(9, 8_400, 'Electricity', 'bills'),
-    exp(12, 549, 'Subscriptions', 'fun'),
-    exp(13, 5_600, 'Dinner', 'food'),
-    exp(15, 3_200, 'Fuel', 'transport'),
-    exp(16, 7_990, 'Shoes', 'shopping'),
-    exp(20, 5_400, 'Groceries', 'groceries'),
+    exp(9, 8_400, 'Electricity', 'bills', 'Meralco'),
+    exp(12, 549, 'Subscriptions', 'fun', 'Netflix'),
+    exp(13, 5_600, 'Dinner', 'food', 'Manam'),
+    exp(15, 3_200, 'Fuel', 'transport', 'Shell'),
+    exp(16, 7_990, 'Shoes', 'shopping', 'Nike Park'),
+    exp(20, 5_400, 'Groceries', 'groceries', 'S&R'),
     exp(21, 2_300, 'Night out', 'fun'),
   ]
 }
 
 const sum = (list: Exp[]) => list.reduce((s, e) => s + e.amount, 0)
-const catOf = (id: string) => DEFAULT_EXPENSE_CATS.find((c) => c.id === id) ?? DEFAULT_EXPENSE_CATS[DEFAULT_EXPENSE_CATS.length - 1]
-const weekday = (day: number) => new Date(YEAR, MONTH, day).getDay()
+/** A category, or a stand-in for an expense that has none (the category is optional, as in the app). */
+const NO_CAT: ExpenseCategory = { id: '', label: 'No category', icon: 'other', color: 'slate', items: [] }
+const catOf = (id: string) => DEFAULT_EXPENSE_CATS.find((c) => c.id === id) ?? NO_CAT
+const weekday = (key: string) => new Date(YEAR, MONTH, dayOf(key)).getDay()
 const dayLabel = (day: number) => new Date(YEAR, MONTH, day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
 export function TryExpenses() {
   const [list, setList] = useState<Exp[]>(example)
   const [budget, setBudget] = useState(120_000)
   const [filter, setFilter] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
 
   const total = sum(list)
-  const avg = total / DAYS
+  const avg = total / TODAY
   const biggest = list.reduce<Exp | null>((b, e) => (!b || e.amount > b.amount ? e : b), null)
   const byCat = useMemo(() => {
     const m = new Map<string, number>()
@@ -58,13 +72,13 @@ export function TryExpenses() {
   }, [list])
   const byDay = useMemo(() => {
     const d = new Array<number>(DAYS).fill(0)
-    for (const e of list) d[e.day - 1] += e.amount
+    for (const e of list) d[dayOf(e.date) - 1] += e.amount
     return d
   }, [list])
   const byWeekday = new Array<number>(7).fill(0)
-  for (const e of list) byWeekday[weekday(e.day)] += e.amount
+  for (const e of list) byWeekday[weekday(e.date)] += e.amount
   const topDay = byWeekday.indexOf(Math.max(...byWeekday))
-  const shown = (filter ? list.filter((e) => e.category === filter) : list).slice().sort((a, b) => b.day - a.day || b.amount - a.amount)
+  const shown = (filter ? list.filter((e) => e.category === filter) : list).slice().sort((a, b) => b.date.localeCompare(a.date) || b.amount - a.amount)
 
   return (
     <div>
@@ -113,7 +127,7 @@ export function TryExpenses() {
           </div>
         </div>
         <div className="grid min-w-0 grid-cols-2 gap-2.5 self-start sm:grid-cols-3 lg:grid-cols-3">
-          <Stat k="Daily average" v={money(avg)} sub={`over ${DAYS} days`} />
+          <Stat k="Daily average" v={money(avg)} sub={`over ${TODAY} day${TODAY > 1 ? "s" : ""} so far`} />
           <Stat k="Expenses" v={String(list.length)} sub={list.length ? `${moneyShort(total / list.length)} each on average` : 'None logged'} />
           <Stat k="Biggest" v={biggest ? money(biggest.amount) : '—'} sub={biggest ? biggest.name || catOf(biggest.category).label : '—'} className="col-span-2 sm:col-span-1" />
         </div>
@@ -141,7 +155,22 @@ export function TryExpenses() {
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.15fr]">
         {/* Log and list */}
         <div className="flex min-w-0 flex-col gap-4">
-          <AddExpense onAdd={(e) => setList((l) => [...l, e])} />
+          <button
+            onClick={() => setAdding(true)}
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-brand-600 text-sm font-semibold text-white shadow-lg shadow-brand-600/20 transition hover:bg-brand-500"
+          >
+            <Plus className="h-4 w-4" /> Add expense
+          </button>
+          {adding && (
+            <DemoExpenseModal
+              today={keyOf(TODAY)}
+              min={keyOf(1)}
+              max={keyOf(TODAY)}
+              past={list}
+              onAdd={(e) => setList((l) => [...l, withId(e)])}
+              onClose={() => setAdding(false)}
+            />
+          )}
           <section className="rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-4 sm:p-5">
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-semibold text-white">
@@ -165,8 +194,14 @@ export function TryExpenses() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-white">{e.name || c.label}</span>
-                      <span className="block truncate text-xs text-zinc-400">
-                        {dayLabel(e.day)} · {c.label}
+                      <span className="flex items-center gap-1 truncate text-xs text-zinc-400">
+                        <span className="truncate">{dayLabel(dayOf(e.date))} · {c.label}</span>
+                        {e.place && (
+                          <span className="inline-flex min-w-0 items-center gap-0.5 truncate">
+                            · <MapPin className="h-3 w-3 shrink-0" /> <span className="truncate">{e.place}</span>
+                          </span>
+                        )}
+                        {e.notes && <StickyNote aria-label={`Note: ${e.notes}`}className="h-3 w-3 shrink-0 text-amber-200/80" />}
                       </span>
                     </span>
                     <span className="shrink-0 text-sm font-semibold tabular-nums text-white">{money(e.amount)}</span>
@@ -180,7 +215,7 @@ export function TryExpenses() {
                   </li>
                 )
               })}
-              {!shown.length && <li className="py-8 text-center text-sm text-zinc-500">No expenses yet. Add one above.</li>}
+              {!shown.length && <li className="py-8 text-center text-sm text-zinc-500">No expenses yet. Tap Add expense.</li>}
             </ul>
           </section>
         </div>
@@ -249,85 +284,16 @@ function ByDay({ byDay }: { byDay: number[] }) {
           <span
             key={i}
             title={`${dayLabel(i + 1)}: ${money(v)}`}
-            className={`flex-1 rounded-t-[3px] transition-all duration-500 ${v ? 'bg-brand-400 hover:bg-brand-300' : 'bg-white/[0.06]'}`}
+            className={`flex-1 rounded-t-[3px] transition-all duration-500 ${v ? 'bg-brand-400 hover:bg-brand-300' : i < TODAY ? 'bg-white/[0.06]' : 'bg-white/[0.025]'}`}
             style={{ height: v ? `${Math.max(4, (v / max) * 100)}%` : '3px' }}
           />
         ))}
       </div>
       <div className="mt-2 flex justify-between text-[11px] text-zinc-400">
-        <span>Mar 1</span>
-        <span>Mar 15</span>
-        <span>Mar 31</span>
+        <span>{MONTH_SHORT} 1</span>
+        <span>{MONTH_SHORT} 15</span>
+        <span>{MONTH_SHORT} {DAYS}</span>
       </div>
     </section>
-  )
-}
-
-const fieldCls =
-  'h-10 w-full min-w-0 rounded-xl border border-white/10 bg-[#0d0e12] px-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-brand-400/70'
-
-function AddExpense({ onAdd }: { onAdd: (e: Exp) => void }) {
-  const [amount, setAmount] = useState(0)
-  const [name, setName] = useState('')
-  const [category, setCategory] = useState('food')
-  const [day, setDay] = useState(22)
-  const cat = catOf(category)
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        if (amount <= 0) return
-        onAdd(exp(day, amount, name.trim().slice(0, 60), category))
-        setAmount(0)
-        setName('')
-      }}
-      className="rounded-[24px] border border-brand-400/25 bg-brand-500/[0.05] p-4 sm:p-5"
-    >
-      <h3 className="font-semibold text-white">Log an expense</h3>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <div className="col-span-2 sm:col-span-1">
-          <MoneyField value={amount} onChange={(v) => setAmount(v ?? 0)} label="Amount" placeholder="Amount" />
-        </div>
-        <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Category" className={`${fieldCls} h-9 rounded-lg text-[13px]`}>
-          {DEFAULT_EXPENSE_CATS.map((c) => (
-            <option key={c.id} value={c.id}>{c.label}</option>
-          ))}
-        </select>
-        <select value={day} onChange={(e) => setDay(Number(e.target.value))} aria-label="Day" className={`${fieldCls} col-span-2 h-9 rounded-lg text-[13px] sm:col-span-1`}>
-          {Array.from({ length: DAYS }, (_, i) => (
-            <option key={i} value={i + 1}>{dayLabel(i + 1)}</option>
-          ))}
-        </select>
-        <input
-          data-plain
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={60}
-          placeholder="What was it? (optional)"
-          aria-label="What it was"
-          className={`${fieldCls} col-span-2 h-9 rounded-lg text-[13px] sm:col-span-1`}
-        />
-      </div>
-      <div className="mt-2.5 flex flex-wrap gap-1.5">
-        {cat.items.slice(0, 5).map((it) => (
-          <button
-            type="button"
-            key={it}
-            onClick={() => setName(it)}
-            aria-pressed={name === it}
-            className={`rounded-full px-2.5 py-1 text-xs transition ${name === it ? 'bg-brand-500/25 text-white ring-1 ring-inset ring-brand-400/40' : 'bg-white/[0.05] text-zinc-300 hover:text-white'}`}
-          >
-            {it}
-          </button>
-        ))}
-      </div>
-      <button
-        type="submit"
-        disabled={amount <= 0}
-        className="mt-3 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-brand-600 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-40"
-      >
-        <Plus className="h-4 w-4" /> Add expense
-      </button>
-    </form>
   )
 }

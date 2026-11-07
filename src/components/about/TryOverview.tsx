@@ -1,9 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import {
-  AlertTriangle, Car, Eraser, Gem, Home, Minus, Plane, Plus, RotateCcw, StickyNote, Target, TrendingDown, TrendingUp, X, type LucideIcon,
-} from 'lucide-react'
+import { AlertTriangle, Eraser, Plus, RotateCcw, StickyNote, Target, X } from 'lucide-react'
 import { overLimitIds, valueAfter } from '../../lib/calc'
+import { DEFAULT_KINDS, TREND, kindColor, kindIcon } from '../../lib/meta'
 import type { Item, MonthData, Trend } from '../../lib/types'
+import { DemoItemModal } from './DemoDialogs'
 
 /*
  * A playable copy of the Overview on the About page: January to March, with the same maths as the app
@@ -31,20 +31,7 @@ export function moneyShort(n: number) {
 
 // ---- Kinds and trends (as in the app) ----
 
-const KINDS: { id: string; label: string; icon: LucideIcon; tint: string }[] = [
-  { id: 'vehicle', label: 'Vehicle', icon: Car, tint: 'bg-cyan-400/10 text-cyan-200 ring-cyan-300/15' },
-  { id: 'property', label: 'Land / Property', icon: Home, tint: 'bg-teal-400/10 text-teal-200 ring-teal-300/15' },
-  { id: 'investment', label: 'Investments', icon: TrendingUp, tint: 'bg-lime-400/10 text-lime-200 ring-lime-300/15' },
-  { id: 'status', label: 'Status & Other', icon: Gem, tint: 'bg-fuchsia-400/10 text-fuchsia-200 ring-fuchsia-300/15' },
-  { id: 'travel', label: 'Travel', icon: Plane, tint: 'bg-orange-400/10 text-orange-200 ring-orange-300/15' },
-]
-const kindOf = (id: string) => KINDS.find((k) => k.id === id) ?? KINDS[3]
-
-const TRENDS: Record<Trend, { label: string; icon: LucideIcon; cls: string }> = {
-  appreciating: { label: 'Appreciating', icon: TrendingUp, cls: 'text-emerald-300' },
-  depreciating: { label: 'Depreciating', icon: TrendingDown, cls: 'text-rose-300' },
-  stable: { label: 'Stable', icon: Minus, cls: 'text-sky-300' },
-}
+const kindOf = (id: string) => DEFAULT_KINDS.find((k) => k.id === id) ?? DEFAULT_KINDS[3]
 
 // ---- The example, and a blank start ----
 
@@ -288,22 +275,21 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
         </p>
       )}
 
-      {adding ? (
-        <AddItem
-          month={name}
-          onCancel={() => setAdding(false)}
-          onAdd={(it) => {
-            update(i, { items: [...m.items, it] })
-            setAdding(false)
-          }}
+      <button
+        onClick={() => setAdding(true)}
+        className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 text-sm font-medium text-zinc-300 transition hover:border-brand-400/50 hover:bg-brand-500/[0.06] hover:text-white"
+      >
+        <Plus className="h-4 w-4" /> Add an item
+      </button>
+      {adding && (
+        <DemoItemModal
+          month={`${name} ${YEAR}`}
+          budget={m.budget}
+          spent={c.spent}
+          available={c.available}
+          onClose={() => setAdding(false)}
+          onAdd={(it) => update(i, { items: [...m.items, { ...it, id: `try-${++lastId}`, createdAt: Date.now() }] })}
         />
-      ) : (
-        <button
-          onClick={() => setAdding(true)}
-          className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 text-sm font-medium text-zinc-300 transition hover:border-brand-400/50 hover:bg-brand-500/[0.06] hover:text-white"
-        >
-          <Plus className="h-4 w-4" /> Add something you want
-        </button>
       )}
     </article>
   )
@@ -329,15 +315,20 @@ function Total({ k, v, cls }: { k: string; v: string; cls: string }) {
 
 function SimItem({ it, over, onRemove }: { it: Item; over: boolean; onRemove: () => void }) {
   const k = kindOf(it.category)
-  const t = TRENDS[it.trend]
+  const KindIcon = kindIcon(k)
+  const kc = kindColor(k)
+  const t = TREND[it.trend]
   return (
     <li className={`group/item flex items-center gap-2.5 rounded-xl border p-2 transition ${over ? 'border-rose-500/40 bg-rose-500/[0.08]' : 'border-white/[0.06] bg-white/[0.025]'}`}>
-      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ring-1 ring-inset ${k.tint}`}>
-        <k.icon className="h-4 w-4" />
+      <span title={k.label} className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${kc.soft} ${kc.text}`}>
+        <KindIcon className="h-4 w-4" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[12.5px] font-semibold text-white">{it.name}</span>
-        <span className={`flex items-center gap-1 truncate text-[10.5px] ${t.cls}`}>
+        <span className="flex items-center gap-1.5">
+          <span className="truncate text-[12.5px] font-semibold text-white">{it.name}</span>
+          {(it.notes?.trim() || it.links?.length) && <StickyNote aria-label="Has notes" className="h-3 w-3 shrink-0 text-amber-200/80" />}
+        </span>
+        <span title={it.notes?.trim() || undefined} className={`flex items-center gap-1 truncate text-[10.5px] ${t.text}`}>
           <t.icon className="h-3 w-3 shrink-0" /> {t.label}
           {it.trend !== 'stable' && it.rate > 0 && ` · ${it.rate}%/yr`}
         </span>
@@ -351,73 +342,6 @@ function SimItem({ it, over, onRemove }: { it: Item; over: boolean; onRemove: ()
         <X className="h-3.5 w-3.5" />
       </button>
     </li>
-  )
-}
-
-const selectCls = 'h-9 w-full min-w-0 rounded-lg border border-white/10 bg-[#0d0e12] px-2 text-[13px] text-white outline-none focus-visible:border-brand-400/70'
-
-function AddItem({ month, onAdd, onCancel }: { month: string; onAdd: (it: Item) => void; onCancel: () => void }) {
-  const [name, setName] = useState('')
-  const [price, setPrice] = useState(0)
-  const [category, setCategory] = useState('vehicle')
-  const [trend, setTrend] = useState<Trend>('depreciating')
-  const [rate, setRate] = useState(10)
-  const ok = name.trim().length > 0 && price > 0
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        if (ok) onAdd(newItem(name.trim().slice(0, 60), category, trend, price, rate))
-      }}
-      className="animate-fade mt-3 space-y-2 rounded-xl border border-brand-400/25 bg-brand-500/[0.05] p-3"
-    >
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-200">Add to {month}</p>
-      <input
-        data-plain
-        autoFocus
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        maxLength={60}
-        placeholder="e.g. Porsche 911 GT3 RS"
-        aria-label="What you want"
-        className="h-9 w-full rounded-lg border border-white/10 bg-black/25 px-2.5 text-[13px] text-white outline-none placeholder:text-zinc-600 focus:border-brand-400/70"
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <MoneyField value={price} onChange={(v) => setPrice(v ?? 0)} label="Price" placeholder="Price" />
-        <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Kind" className={selectCls}>
-          {KINDS.map((k) => (
-            <option key={k.id} value={k.id}>{k.label}</option>
-          ))}
-        </select>
-        <select value={trend} onChange={(e) => setTrend(e.target.value as Trend)} aria-label="Its value over time" className={selectCls}>
-          {(Object.keys(TRENDS) as Trend[]).map((t) => (
-            <option key={t} value={t}>{TRENDS[t].label}</option>
-          ))}
-        </select>
-        <label className={`flex h-9 items-center rounded-lg border border-white/10 bg-black/25 px-2 text-[13px] ${trend === 'stable' ? 'opacity-40' : ''}`}>
-          <input
-            data-plain
-            type="number"
-            min={0}
-            max={100}
-            value={trend === 'stable' ? 0 : rate}
-            disabled={trend === 'stable'}
-            onChange={(e) => setRate(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
-            aria-label="Percent a year"
-            className="w-full min-w-0 bg-transparent font-semibold tabular-nums text-white outline-none"
-          />
-          <span className="shrink-0 text-zinc-500">%/yr</span>
-        </label>
-      </div>
-      <div className="flex gap-2 pt-1">
-        <button type="button" onClick={onCancel} className="h-9 flex-1 rounded-lg border border-white/10 text-sm text-zinc-300 transition hover:text-white">
-          Cancel
-        </button>
-        <button type="submit" disabled={!ok} className="h-9 flex-1 rounded-lg bg-brand-600 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-40">
-          Add
-        </button>
-      </div>
-    </form>
   )
 }
 
