@@ -134,44 +134,42 @@ function Step({ n, icon, children }: { n: number; icon: ReactNode; children: Rea
 export function DownloadSection() {
   const installed = useApp((s) => s.installed)
   const tiles = [
-    { icon: Smartphone, title: 'On your phone', text: 'An icon on your home screen that opens straight into your plan, full screen.', cls: 'text-sky-300 bg-sky-400/10' },
-    { icon: Monitor, title: 'On your computer', text: 'Its own window and a place in your apps, Start menu or Dock. No browser tabs.', cls: 'text-indigo-300 bg-indigo-400/10' },
-    { icon: CloudOff, title: 'Offline, still saved', text: 'Plan on a plane or a weak signal. Your edits are kept and sync the moment you’re back.', cls: 'text-amber-300 bg-amber-400/10' },
-    { icon: RefreshCcw, title: 'Always in sync', text: 'Same account, same plan as the website, on every device. Updates arrive by themselves.', cls: 'text-emerald-300 bg-emerald-400/10' },
+    { icon: Smartphone, title: 'On your phone', text: 'An icon on your home screen that opens straight into your plan, full screen.' },
+    { icon: Monitor, title: 'On your computer', text: 'Its own window and a place in your apps, Start menu or Dock. No browser tabs.' },
+    { icon: CloudOff, title: 'Offline, still saved', text: 'Plan on a plane or a weak signal. Your edits are kept and sync the moment you’re back.' },
+    { icon: RefreshCcw, title: 'Always in sync', text: 'Same account, same plan as the website, on every device. Updates arrive by themselves.' },
   ]
   return (
-    <section id="download" className="scroll-mt-20 border-y border-white/[0.06] bg-white/[0.015] py-20 sm:py-28">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+    <section id="download" aria-labelledby="download-title" className="scroll-mt-20 border-y border-white/[0.06] bg-white/[0.012] py-24 sm:py-32">
+      <div className="mx-auto max-w-6xl px-5 sm:px-8">
         <div data-reveal className="reveal mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-300">Get the app</p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-[2.6rem] sm:leading-tight">Take your plan everywhere.</h2>
-          <p className="mt-4 text-lg text-zinc-400">Install Dizayr on your phone or computer in a few seconds. Nothing to download from an app store, and it’s included with your account.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-300">Get the app</p>
+          <h2 id="download-title" className="mt-5 font-display text-[2.5rem] leading-[1.04] text-white sm:text-[3.4rem]">Take your vision everywhere.</h2>
+          <p className="mt-5 text-lg text-zinc-300">Install Dizayr on your phone or computer in a few seconds. Nothing to download from an app store, and it’s included with your account.</p>
         </div>
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {tiles.map((t, i) => (
-            <div key={t.title} data-reveal className="reveal rounded-3xl border border-white/[0.07] bg-[#0c0e14] p-6" style={{ transitionDelay: `${i * 70}ms` }}>
-              <span className={`grid h-11 w-11 place-items-center rounded-xl ${t.cls}`}>
-                <t.icon className="h-5 w-5" />
-              </span>
+            <div key={t.title} data-reveal className="reveal rounded-[24px] border border-white/[0.07] bg-[#0b0c10] p-6" style={{ transitionDelay: `${i * 70}ms` }}>
+              <t.icon className="h-5 w-5 text-gold-300" />
               <h3 className="mt-4 font-semibold text-white">{t.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-400">{t.text}</p>
+              <p className="mt-1.5 text-[15px] leading-relaxed text-zinc-400">{t.text}</p>
             </div>
           ))}
         </div>
         <div data-reveal className="reveal mt-10 flex flex-col items-center gap-3">
           {installed ? (
-            <p className="inline-flex items-center gap-2 rounded-2xl bg-emerald-400/10 px-5 py-3 text-sm font-medium text-emerald-200">
+            <p className="inline-flex items-center gap-2 rounded-full bg-emerald-400/10 px-5 py-3 text-sm font-medium text-emerald-200">
               <Check className="h-4 w-4" /> You’re using the Dizayr app
             </p>
           ) : (
             <button
               onClick={() => void installApp()}
-              className="group inline-flex h-14 items-center gap-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-indigo-400 px-7 text-base font-semibold text-white shadow-xl shadow-indigo-500/25 transition hover:-translate-y-0.5 hover:brightness-110"
+              className="group inline-flex h-12 items-center gap-2.5 rounded-full border border-white/15 px-6 text-[15px] font-semibold text-white transition hover:border-gold-300/40 hover:bg-gold-300/[0.06]"
             >
-              <Download className="h-5 w-5 transition group-hover:translate-y-0.5" /> Download the app
+              <Download className="h-4 w-4 transition group-hover:translate-y-0.5" /> Download the app
             </button>
           )}
-          <p className="text-sm text-zinc-500">iPhone, iPad, Android, Windows, Mac and Chromebook</p>
+          <p className="text-sm text-zinc-400">iPhone, iPad, Android, Windows, Mac and Chromebook</p>
         </div>
       </div>
     </section>

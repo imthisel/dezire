@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import {
-  ArrowRight, BadgeCheck, CalendarCheck, Car, Check, ChevronDown, CircleDollarSign, Crown, Flag, Gem, Home, Layers, LineChart, Loader2, Lock,
-  LogOut, Plane, Quote, Receipt, Rocket, ShieldCheck, Smartphone, Sparkles, Star, Target, TrendingDown, TrendingUp, X,
+  ArrowRight, BadgeCheck, Check, ChevronDown, Cloud, Download, EyeOff, KeyRound, Loader2, Lock, LogOut, Quote, ShieldCheck, Star, Target,
 } from 'lucide-react'
 import { signIn, signOut, useCloud } from '../cloud'
 import { forgetIntent, openCheckout, rememberIntent, useAccess } from '../billing'
@@ -9,6 +8,8 @@ import { auth } from '../lib/firebase'
 import { PLANS, TRIAL_DAYS, billingUrl, perMonth, pesos, type Plan, type PlanId } from '../lib/plans'
 import { EXAMPLE_REVIEWS, REVIEWS, type Review } from '../content/reviews'
 import { DownloadSection } from './AppInstall'
+import { BoardPreview, CostPreview, GoalsFloat, GoalsPreview, ListsPreview, MonthOverview, NetWorthFloat, WishListPreview } from './about/Previews'
+import { RealisticDemo } from './about/RealisticDemo'
 
 // ---- Actions ----
 
@@ -67,25 +68,61 @@ function useReveal() {
   }, [])
 }
 
+/** Feeds the page's scroll position to `.parallax-*` inside `ref` (nothing moves for reduced motion). */
+function useParallax(ref: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const el = ref.current
+    if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.hasAttribute('data-calm')) return
+    let raf = 0
+    const on = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => el.style.setProperty('--py', String(Math.min(window.scrollY, 1000))))
+    }
+    on()
+    window.addEventListener('scroll', on, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', on)
+      cancelAnimationFrame(raf)
+    }
+  }, [ref])
+}
+
+/** The tab title while this page is open (the app's own title comes back after). */
+function useTitle(title: string) {
+  useEffect(() => {
+    const before = document.title
+    document.title = title
+    return () => {
+      document.title = before === title ? 'Dizayr' : before
+    }
+  }, [title])
+}
+
 // ---- The page ----
 
-/** The About page: what Dizayr is, why it works, what people say, and what it costs. Shown before signing in. */
+/** The About page: what Dizayr is, why it matters, what it does, and what it costs. Shown before signing in. */
 export function About() {
   const user = useCloud((s) => s.user)
   const signin = useSignIn()
   useReveal()
+  useTitle('Dizayr · Your future starts with a vision')
 
   return (
-    <div className="relative min-h-screen overflow-x-clip bg-[#07080c] text-zinc-100 antialiased">
+    <div className="about relative min-h-screen overflow-x-clip bg-[#07080c] text-zinc-100 antialiased">
+      <a href="#main" className="sr-only z-50 rounded-lg bg-ivory px-4 py-2 font-medium text-[#14110b] focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+        Skip to content
+      </a>
       <Glow />
       <Nav signedIn={!!user} signin={signin} />
 
-      <main>
+      <main id="main">
         <Hero signedIn={!!user} signin={signin} />
-        <Manifesto />
-        <BeforeAfter />
-        <HowItWorks />
+        <Problem />
+        <Verse />
         <Features />
+        <Realistic />
+        <PrayAct />
+        <Privacy />
         <DownloadSection />
         <Reviews />
         <Pricing signin={signin} />
@@ -93,17 +130,18 @@ export function About() {
         <FinalCta signedIn={!!user} signin={signin} />
       </main>
 
-      <footer className="border-t border-white/[0.06] px-4 py-10 text-center text-xs text-zinc-500 sm:px-6">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <span className="flex items-center gap-2">
-            <Logo size="h-6 w-6" /> <span className="font-semibold text-zinc-300">Dizayr</span> · © {new Date().getFullYear()}
+      <footer className="border-t border-white/[0.06] px-5 py-10 text-sm text-zinc-400 sm:px-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 sm:flex-row">
+          <span className="flex items-center gap-2.5">
+            <Logo size="h-7 w-7" /> <span className="font-semibold text-zinc-200">Dizayr</span>
+            <span className="text-zinc-500">© {new Date().getFullYear()}</span>
           </span>
-          <span className="flex flex-wrap justify-center gap-x-5 gap-y-1">
-            <a href="#pricing" className="hover:text-zinc-300">Pricing</a>
-            <a href="#faq" className="hover:text-zinc-300">Questions</a>
+          <nav aria-label="Footer" className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+            <a href="#realistic" className="transition hover:text-white">Realistic</a>
+            <a href="#pricing" className="transition hover:text-white">Pricing</a>
+            <a href="#faq" className="transition hover:text-white">Questions</a>
             <span>Payments by Lemon Squeezy</span>
-            <span>Your data is private to you</span>
-          </span>
+          </nav>
         </div>
       </footer>
     </div>
@@ -112,74 +150,79 @@ export function About() {
 
 type SignIn = ReturnType<typeof useSignIn>
 
+/** One warm light at the top of the page, nothing else. */
 function Glow() {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[900px] overflow-hidden">
-      <div className="absolute -top-56 left-1/2 h-[620px] w-[1100px] -translate-x-1/2 rounded-full bg-indigo-600/25 blur-[140px]" />
-      <div className="absolute top-40 -right-40 h-[420px] w-[520px] rounded-full bg-emerald-500/10 blur-[120px]" />
-      <div className="absolute top-72 -left-40 h-[380px] w-[480px] rounded-full bg-fuchsia-500/10 blur-[120px]" />
+    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[1100px]">
+      <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgb(220_192_137/0.13),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(40%_35%_at_85%_30%,rgb(220_192_137/0.05),transparent_70%)]" />
     </div>
   )
 }
 
 function Logo({ size = 'h-9 w-9' }: { size?: string }) {
   return (
-    <span className={`grid ${size} shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-400 to-emerald-400 shadow-lg shadow-indigo-500/25`}>
-      <Target className="h-1/2 w-1/2 text-white" strokeWidth={2.5} />
+    <span className={`grid ${size} shrink-0 place-items-center rounded-xl border border-gold-300/30 bg-gradient-to-b from-[#1d1912] to-[#0e0d0a] shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]`}>
+      <Target className="h-1/2 w-1/2 text-gold-200" strokeWidth={2.25} />
     </span>
   )
 }
 
-function GoogleButton({ signin, label = 'Start your 7-day free trial', big = false }: { signin: SignIn; label?: string; big?: boolean }) {
+const primaryBtn =
+  'group inline-flex items-center justify-center gap-3 rounded-full bg-ivory font-semibold text-[#14110b] shadow-[0_12px_40px_-12px_rgb(220_192_137/0.55)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_18px_50px_-12px_rgb(220_192_137/0.7)] active:translate-y-0 disabled:opacity-60'
+
+function GoogleButton({ signin, label = 'Start building your vision', big = false }: { signin: SignIn; label?: string; big?: boolean }) {
   return (
-    <div className="flex flex-col items-center gap-2 sm:items-start">
-      <button
-        onClick={signin.go}
-        disabled={signin.busy}
-        className={`group inline-flex items-center justify-center gap-3 rounded-2xl bg-white font-semibold text-zinc-900 shadow-xl shadow-indigo-500/20 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-indigo-500/30 active:translate-y-0 disabled:opacity-60 ${
-          big ? 'h-14 px-7 text-base' : 'h-12 px-6 text-[15px]'
-        }`}
-      >
+    <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:items-start">
+      <button onClick={signin.go} disabled={signin.busy} className={`${primaryBtn} w-full sm:w-auto ${big ? 'h-14 px-7 text-base' : 'h-12 px-6 text-[15px]'}`}>
         {signin.busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleIcon />}
         {label}
         <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
       </button>
-      {signin.error && <p className="animate-fade text-sm text-red-300">{signin.error}</p>}
+      {signin.error && (
+        <p role="alert" className="animate-fade text-sm text-rose-300">
+          {signin.error}
+        </p>
+      )}
     </div>
+  )
+}
+
+function OpenApp({ big = false }: { big?: boolean }) {
+  return (
+    <a href="/" className={`${primaryBtn} ${big ? 'h-14 px-7 text-base' : 'h-10 px-4 text-sm'}`}>
+      Open your plan <ArrowRight className="h-4 w-4" />
+    </a>
   )
 }
 
 function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
   return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#07080c]/70 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <a href="#top" className="flex items-center gap-2.5">
+    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#07080c]/75 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
+        <a href="#top" className="flex items-center gap-2.5" aria-label="Dizayr, back to top">
           <Logo />
-          <span className="text-lg font-bold tracking-tight text-white">Dizayr</span>
+          <span className="text-lg font-semibold tracking-tight text-white">Dizayr</span>
         </a>
-        <nav className="hidden items-center gap-7 text-sm text-zinc-400 md:flex">
-          <a href="#how" className="transition hover:text-white">How it works</a>
-          <a href="#features" className="transition hover:text-white">Features</a>
-          {reviewsToShow().length > 0 && <a href="#reviews" className="transition hover:text-white">Reviews</a>}
+        <nav aria-label="Main" className="hidden items-center gap-8 text-sm text-zinc-400 md:flex">
+          <a href="#features" className="transition hover:text-white">What you can do</a>
+          <a href="#realistic" className="transition hover:text-white">Realistic</a>
           <a href="#pricing" className="transition hover:text-white">Pricing</a>
-          <a href="#download" className="transition hover:text-white">Download</a>
           <a href="#faq" className="transition hover:text-white">FAQ</a>
         </nav>
         {signedIn ? (
-          <a href="/" className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100">
-            Open the app <ArrowRight className="h-4 w-4" />
-          </a>
+          <OpenApp />
         ) : (
-          <div className="flex items-center gap-2">
-            <button onClick={signin.go} className="hidden h-10 rounded-xl px-3 text-sm font-medium text-zinc-300 transition hover:text-white sm:block">
+          <div className="flex items-center gap-1">
+            <button onClick={signin.go} className="hidden h-10 rounded-full px-4 text-sm font-medium text-zinc-300 transition hover:text-white sm:block">
               Sign in
             </button>
             <button
               onClick={signin.go}
               disabled={signin.busy}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-400 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110 disabled:opacity-60"
+              className="inline-flex h-10 items-center gap-2 rounded-full bg-ivory px-4 text-sm font-semibold text-[#14110b] transition hover:bg-white disabled:opacity-60"
             >
-              {signin.busy && <Loader2 className="h-4 w-4 animate-spin" />} Try free
+              {signin.busy && <Loader2 className="h-4 w-4 animate-spin" />} Try it free
             </button>
           </div>
         )}
@@ -191,225 +234,239 @@ function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
 // ---- Hero ----
 
 function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
+  const ref = useRef<HTMLElement>(null)
+  useParallax(ref)
   return (
-    <section id="top" className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 pb-20 pt-14 sm:px-6 sm:pt-20 lg:grid-cols-[1.05fr_1fr] lg:gap-10 lg:pb-28">
+    <section
+      ref={ref}
+      id="top"
+      className="relative mx-auto grid max-w-6xl items-center gap-16 px-5 pb-24 pt-14 sm:px-8 sm:pt-28 lg:grid-cols-[1.08fr_1fr] lg:gap-12 lg:pb-36 lg:pt-44"
+    >
       <div className="text-center lg:text-left">
-        <p className="animate-rise inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-zinc-300">
-          <Sparkles className="h-3.5 w-3.5 text-amber-300" /> Your life plan, from today to 2040
-        </p>
-        <h1 className="animate-rise mt-6 text-[2.6rem] font-extrabold leading-[1.05] tracking-tight text-white sm:text-6xl">
-          Only you know what you{' '}
-          <span className="bg-gradient-to-r from-indigo-300 via-fuchsia-300 to-emerald-300 bg-clip-text text-transparent">really want.</span>
+        <p className="hero-in text-xs font-semibold uppercase tracking-[0.24em] text-gold-300">A private space for the life you want</p>
+        <h1 className="hero-in mt-6 font-display text-[3.4rem] leading-[0.95] tracking-[-0.015em] text-white sm:text-7xl lg:text-[5.6rem]" style={{ ['--d' as string]: '80ms' }}>
+          Your future starts with a <em className="text-gold-200">vision.</em>
         </h1>
-        <p className="animate-rise mx-auto mt-6 max-w-xl text-lg leading-relaxed text-zinc-400 lg:mx-0">
-          Dizayr turns it into a plan. Put the house, the car, the trips and the person you’re becoming into real months with real
-          numbers, then watch your net worth climb toward them.
+        <p className="hero-in mx-auto mt-7 max-w-lg text-lg leading-relaxed text-zinc-300 lg:mx-0" style={{ ['--d' as string]: '180ms' }}>
+          Build a visual version of the life you want. Give every dream a price and a date, then work toward it, one month at a time.
         </p>
-        <div className="animate-rise mt-9 flex flex-col items-center gap-4 sm:flex-row sm:justify-center lg:justify-start">
-          {signedIn ? (
-            <a href="/" className="inline-flex h-14 items-center gap-2 rounded-2xl bg-white px-7 text-base font-semibold text-zinc-900 shadow-xl shadow-indigo-500/20">
-              Open your plan <ArrowRight className="h-4 w-4" />
-            </a>
-          ) : (
-            <GoogleButton signin={signin} big />
-          )}
-          <a href="#how" className="inline-flex h-14 items-center gap-2 rounded-2xl px-5 text-sm font-medium text-zinc-300 transition hover:text-white">
+        <div className="hero-in mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start" style={{ ['--d' as string]: '280ms' }}>
+          {signedIn ? <OpenApp big /> : <GoogleButton signin={signin} big />}
+          <a href="#how" className="inline-flex h-14 items-center gap-2 rounded-full px-5 text-[15px] font-medium text-zinc-300 transition hover:text-white">
             See how it works <ChevronDown className="h-4 w-4" />
           </a>
         </div>
         {!signedIn && (
-          <a
-            href="#pricing"
-            className="animate-rise mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-200 underline-offset-4 transition hover:text-white hover:underline"
-          >
-            Know you want it? Skip the trial: plans from {perMonth(PLANS.annual)}/month <ArrowRight className="h-3.5 w-3.5" />
+          <p className="hero-in mt-6 text-sm text-zinc-400" style={{ ['--d' as string]: '380ms' }}>
+            {TRIAL_DAYS} days free · No card needed ·{' '}
+            <a href="#pricing" className="text-gold-200 underline decoration-gold-300/40 underline-offset-4 transition hover:text-gold-100">
+              or plans from {perMonth(PLANS.annual)}/month
+            </a>
+          </p>
+        )}
+      </div>
+
+      {/* The app, drawn: one month of the life you're planning */}
+      <div className="hero-in relative mx-auto w-full max-w-[440px] lg:mr-0" style={{ ['--d' as string]: '220ms' }} aria-hidden>
+        <div className="absolute -inset-10 rounded-full bg-[radial-gradient(closest-side,rgb(220_192_137/0.12),transparent)]" />
+        <div className="parallax-a relative">
+          <MonthOverview />
+        </div>
+        <div className="parallax-b absolute -right-3 -top-[8.25rem] hidden sm:block lg:-right-10">
+          <div className="float-slower">
+            <GoalsFloat />
+          </div>
+        </div>
+        <div className="parallax-b absolute -bottom-24 -left-3 hidden sm:block lg:-left-20">
+          <div className="float-slow">
+            <NetWorthFloat />
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ---- The problem ----
+
+function Problem() {
+  const points = [
+    { k: 'Unwritten', text: 'If it only lives in your head, it’s easy to quietly let it go.' },
+    { k: 'Unpriced', text: '“Someday” has no number, so it never gets a plan.' },
+    { k: 'Untracked', text: 'Nothing measures it, so you never know if you’re getting closer.' },
+  ]
+  return (
+    <section aria-labelledby="problem-title" className="border-t border-white/[0.06] px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl">
+        <div data-reveal className="reveal max-w-3xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-300">The quiet problem</p>
+          <h2 id="problem-title" className="mt-5 font-display text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
+            Most dreams never make it out of your head.
+          </h2>
+        </div>
+        <div className="mt-14 grid gap-px overflow-hidden rounded-[28px] border border-white/[0.07] bg-white/[0.07] md:grid-cols-3">
+          {points.map((p, i) => (
+            <div key={p.k} data-reveal className="reveal bg-[#07080c] p-7 sm:p-9" style={{ transitionDelay: `${i * 90}ms` }}>
+              <p className="font-display text-3xl italic text-gold-200">{p.k}.</p>
+              <p className="mt-3 text-[17px] leading-relaxed text-zinc-300">{p.text}</p>
+            </div>
+          ))}
+        </div>
+        <p data-reveal className="reveal mt-12 max-w-2xl text-xl leading-relaxed text-zinc-300">
+          Wanting it was never the problem. <span className="text-white">Seeing it clearly is.</span> That’s where Dizayr starts.
+        </p>
+      </div>
+    </section>
+  )
+}
+
+// ---- The verse ----
+
+function Verse() {
+  const words = 'Write the vision, and make it plain upon tables, that he may run that readeth it.'.split(' ')
+  return (
+    <section aria-label="Habakkuk 2:2" className="relative overflow-hidden border-y border-white/[0.06] px-5 py-32 sm:px-8 sm:py-44">
+      <div aria-hidden className="absolute inset-0 bg-[radial-gradient(50%_60%_at_50%_50%,rgb(220_192_137/0.07),transparent_75%)]" />
+      <figure data-reveal className="relative mx-auto max-w-4xl text-center">
+        <blockquote className="font-display text-[2.1rem] leading-[1.18] text-ivory sm:text-5xl lg:text-[3.6rem]">
+          <p>
+            <span aria-hidden className="text-gold-300">“</span>
+            {words.map((w, i) => (
+              <span key={i} className="verse-word" style={{ transitionDelay: `${150 + i * 55}ms` }}>
+                {w}
+                {i < words.length - 1 && ' '}
+              </span>
+            ))}
+            <span aria-hidden className="text-gold-300">”</span>
+          </p>
+        </blockquote>
+        <figcaption className="mt-10 text-xs font-semibold uppercase tracking-[0.3em] text-gold-300">Habakkuk 2:2 · KJV</figcaption>
+        <p className="mx-auto mt-10 max-w-md text-[17px] leading-relaxed text-zinc-300">
+          Write it down. Make it plain. Then run with it.
+          <br />
+          That’s what Dizayr is for.
+        </p>
+      </figure>
+    </section>
+  )
+}
+
+// ---- What you can do ----
+
+function Features() {
+  return (
+    <section id="features" aria-labelledby="features-title" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-24 sm:px-8 sm:py-32">
+      <SectionHead id="features-title" eyebrow="What you can do" title="Everything you want, finally in one place." />
+      <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+        <Tile className="lg:col-span-3" title="A private place for everything you want." text="Big or small, write it all down, without explaining it to anyone.">
+          <WishListPreview />
+        </Tile>
+        <Tile className="lg:col-span-3" title="See your life on one board." text="Star what matters most and see it all together: your vision, laid out year by year.">
+          <BoardPreview />
+        </Tile>
+        <Tile className="lg:col-span-2" title="Lists for the things you’ll own." text="Cars, property, travel, watches, or your own kinds, each with its price and its value over time.">
+          <ListsPreview />
+        </Tile>
+        <Tile className="lg:col-span-2" title="Watch every goal move." text="Yearly goals for mind, body, status and who you’re becoming. Tick them off as you go.">
+          <GoalsPreview />
+        </Tile>
+        <Tile className="md:col-span-2 lg:col-span-2" title="Know what it really costs." text="Every dream added up, with what each month has to bring in." href="#realistic" cta="Try Realistic">
+          <CostPreview />
+        </Tile>
+      </div>
+    </section>
+  )
+}
+
+function Tile({ title, text, children, className = '', href, cta }: { title: string; text: string; children: ReactNode; className?: string; href?: string; cta?: string }) {
+  return (
+    <article
+      data-reveal
+      className={`reveal group flex flex-col justify-between gap-8 rounded-[28px] border border-white/[0.07] bg-[#0b0c10] p-6 transition-colors duration-500 hover:border-white/[0.14] sm:p-7 ${className}`}
+    >
+      <div>
+        <h3 className="text-xl font-semibold tracking-tight text-white">{title}</h3>
+        <p className="mt-2 leading-relaxed text-zinc-400">{text}</p>
+        {href && (
+          <a href={href} className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-gold-200 transition hover:text-gold-100">
+            {cta} <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
           </a>
         )}
-        <ul className="animate-rise mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-zinc-500 lg:justify-start">
-          {[`${TRIAL_DAYS} days free`, 'No card needed', 'One tap with Google'].map((t) => (
-            <li key={t} className="flex items-center gap-1.5">
-              <Check className="h-4 w-4 text-emerald-400" strokeWidth={3} /> {t}
-            </li>
-          ))}
-        </ul>
       </div>
-      <AppPreview />
-    </section>
+      <div aria-hidden className="transition duration-500 group-hover:-translate-y-1">
+        {children}
+      </div>
+    </article>
   )
 }
 
-/** A small picture of the app (drawn, not a screenshot): net worth climbing, a month with a car in it, goals ticked off. */
-function AppPreview() {
-  const points = [8, 10, 9, 14, 17, 16, 22, 27, 31, 36, 44, 52, 61, 72, 86]
-  const w = 440
-  const h = 170
-  const max = 90
-  const xy = points.map((p, i) => [(i / (points.length - 1)) * w, h - (p / max) * h] as const)
-  const line = xy.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+// ---- Realistic ----
+
+function Realistic() {
   return (
-    <div className="animate-rise relative mx-auto w-full max-w-[520px]" aria-hidden>
-      <div className="absolute -inset-6 rounded-[2.5rem] bg-gradient-to-br from-indigo-500/20 via-transparent to-emerald-500/20 blur-2xl" />
-      <div className="relative rounded-3xl border border-white/10 bg-[#0c0e14]/90 p-5 shadow-2xl shadow-black/60 backdrop-blur">
-        <div>
-          <p className="text-xs font-medium text-zinc-500">Net worth by December 2040</p>
-          <p className="mt-1 flex flex-wrap items-center gap-2.5 text-3xl font-bold tabular-nums text-white">
-            ₱86,400,000
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2.5 py-1 text-xs font-semibold text-emerald-300">
-              <TrendingUp className="h-3.5 w-3.5" /> on track
-            </span>
+    <section id="realistic" aria-labelledby="realistic-title" className="scroll-mt-20 border-y border-white/[0.06] bg-white/[0.012] px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl">
+        <div data-reveal className="reveal mx-auto max-w-3xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-300">Realistic</p>
+          <h2 id="realistic-title" className="mt-5 font-display text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
+            Dreams have prices. <em className="text-gold-200">Now you’ll know yours.</em>
+          </h2>
+          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-zinc-300">
+            Choose what you want and when you want it. Dizayr adds it all up and shows what each month has to bring in. A dream becomes a
+            number, and a number becomes a plan.
           </p>
         </div>
-        <svg viewBox={`0 0 ${w} ${h}`} className="mt-4 h-40 w-full overflow-visible">
-          <defs>
-            <linearGradient id="nw" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#818cf8" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="#818cf8" stopOpacity="0" />
-            </linearGradient>
-            <linearGradient id="nwl" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0%" stopColor="#818cf8" />
-              <stop offset="100%" stopColor="#34d399" />
-            </linearGradient>
-          </defs>
-          <path d={`${line} L${w},${h} L0,${h} Z`} fill="url(#nw)" />
-          <path d={line} fill="none" stroke="url(#nwl)" strokeWidth="3" strokeLinecap="round" className="draw-line" />
-          <circle cx={xy[xy.length - 1][0]} cy={xy[xy.length - 1][1]} r="5" fill="#34d399" className="animate-pulse" />
-        </svg>
-        <div className="mt-2 flex justify-between text-[10px] font-medium uppercase tracking-wider text-zinc-600">
-          <span>2026</span>
-          <span>2030</span>
-          <span>2035</span>
-          <span>2040</span>
-        </div>
-      </div>
-
-      {/* A month, floating */}
-      <div className="float-slow absolute -bottom-10 -left-4 w-64 rounded-2xl border border-white/10 bg-[#11131b]/95 p-3.5 shadow-2xl shadow-black/60 backdrop-blur sm:-left-10">
-        <div className="flex items-baseline justify-between">
-          <p className="font-semibold text-white">June 2028</p>
-          <p className="text-[11px] text-emerald-300">₱180,000 left</p>
-        </div>
-        <div className="mt-2.5 flex items-center gap-2.5 rounded-xl border border-red-500/30 bg-red-500/10 p-2">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-red-500/20 text-red-300">
-            <Car className="h-4 w-4" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13px] font-semibold text-white">Toyota Fortuner</span>
-            <span className="flex items-center gap-1 text-[10.5px] text-red-300">
-              <TrendingDown className="h-3 w-3" /> Depreciating · 12%/yr
-            </span>
-          </span>
-          <span className="text-[13px] font-bold tabular-nums text-white">₱2.2M</span>
-        </div>
-      </div>
-
-      {/* Goals, floating */}
-      <div className="float-slower absolute -right-2 -top-8 w-52 rounded-2xl border border-white/10 bg-[#11131b]/95 p-3 shadow-2xl shadow-black/60 backdrop-blur sm:-right-8">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">2027 goals</p>
-        {['Run a half marathon', 'Save ₱500K emergency fund', 'Launch my side business'].map((g, i) => (
-          <p key={g} className="mt-1.5 flex items-center gap-2 text-[12.5px] text-zinc-200">
-            <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full ${i < 2 ? 'bg-emerald-400' : 'border-2 border-fuchsia-400'}`}>
-              {i < 2 && <Check className="h-2.5 w-2.5 text-black" strokeWidth={4} />}
-            </span>
-            <span className={i < 2 ? 'text-zinc-400 line-through decoration-zinc-600' : ''}>{g}</span>
-          </p>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ---- Why ----
-
-function Manifesto() {
-  const points: { k: string; title: string; text: string; cls: string }[] = [
-    {
-      k: '01',
-      title: 'Only you know what you really want.',
-      text: 'Not your parents, not your feed, not anyone else. Dizayr doesn’t tell you what to want. It helps you write it down and make it real.',
-      cls: 'from-indigo-300 to-violet-300',
-    },
-    {
-      k: '02',
-      title: 'Know yourself more. Be specific.',
-      text: '“A nice car someday” becomes “a ₱2.2M Fortuner in June 2028”. Specific goals get done; vague ones stay wishes.',
-      cls: 'from-fuchsia-300 to-pink-300',
-    },
-    {
-      k: '03',
-      title: 'Dream big.',
-      text: 'Plan fifteen years ahead. When every dream has a price and a month, big stops being scary and starts being next.',
-      cls: 'from-emerald-300 to-teal-300',
-    },
-  ]
-  return (
-    <section className="relative border-y border-white/[0.06] bg-white/[0.015] py-20 sm:py-28">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 md:grid-cols-3 md:gap-8">
-        {points.map((p) => (
-          <div key={p.k} data-reveal className="reveal">
-            <p className={`bg-gradient-to-r bg-clip-text text-sm font-bold tracking-[0.2em] text-transparent ${p.cls}`}>{p.k}</p>
-            <h2 className="mt-3 text-2xl font-bold leading-tight tracking-tight text-white sm:text-[1.7rem]">{p.title}</h2>
-            <p className="mt-3 leading-relaxed text-zinc-400">{p.text}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function BeforeAfter() {
-  const without = ['“Someday” goals with no date or price', 'Money disappears and you’re not sure where', 'No idea if you’re actually on track', 'Big dreams feel out of reach, so you stop dreaming']
-  const withIt = ['Every dream placed in a real month, with a real price', 'Every peso you spend, seen and sorted', 'Your net worth, month by month, all the way to 2040', 'Big dreams broken into steps you can start this month']
-  return (
-    <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
-      <SectionHead eyebrow="Why most goals never happen" title="Wanting it isn’t the problem. Not seeing the path is." />
-      <div className="mt-12 grid gap-5 md:grid-cols-2">
-        <div data-reveal className="reveal rounded-3xl border border-white/[0.07] bg-white/[0.02] p-7">
-          <p className="text-sm font-semibold uppercase tracking-wider text-zinc-500">Without a plan</p>
-          <ul className="mt-5 space-y-3.5">
-            {without.map((t) => (
-              <li key={t} className="flex gap-3 text-zinc-400">
-                <X className="mt-0.5 h-5 w-5 shrink-0 text-zinc-600" /> {t}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div data-reveal className="reveal relative overflow-hidden rounded-3xl border border-indigo-400/30 bg-gradient-to-br from-indigo-500/15 via-indigo-500/[0.06] to-emerald-500/10 p-7">
-          <p className="text-sm font-semibold uppercase tracking-wider text-indigo-200">With Dizayr</p>
-          <ul className="mt-5 space-y-3.5">
-            {withIt.map((t) => (
-              <li key={t} className="flex gap-3 text-zinc-100">
-                <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-400">
-                  <Check className="h-3 w-3 text-black" strokeWidth={4} />
-                </span>
-                {t}
-              </li>
-            ))}
-          </ul>
+        <div data-reveal className="reveal mt-14">
+          <RealisticDemo />
         </div>
       </div>
     </section>
   )
 }
 
-function HowItWorks() {
+// ---- Pray for it. Act on it. ----
+
+function PrayAct() {
   const steps = [
-    { icon: Sparkles, title: 'Dream it', text: 'Add what you want, a house, a car, a trip, an investment, to the month you want it. Big or small, it all counts.', cls: 'text-amber-300 bg-amber-400/10' },
-    { icon: CircleDollarSign, title: 'Price it', text: 'Set what you’ll make and spend each month. Dizayr checks every dream fits, and warns you when one doesn’t.', cls: 'text-indigo-300 bg-indigo-400/10' },
-    { icon: Rocket, title: 'Live it', text: 'Log what you spend, plan your days, tick off your goals, and watch your net worth climb toward the life you chose.', cls: 'text-emerald-300 bg-emerald-400/10' },
+    { n: '01', title: 'Envision', text: 'Write it down and see it: the home, the car, the trip, the person you’re becoming.' },
+    { n: '02', title: 'Plan', text: 'Give every dream a price and a month. Dizayr does the math and tells you when something doesn’t fit.' },
+    { n: '03', title: 'Act', text: 'Track what you earn and spend, tick off your goals, and watch your net worth rise toward it.' },
   ]
   return (
-    <section id="how" className="scroll-mt-20 border-y border-white/[0.06] bg-white/[0.015] py-20 sm:py-28">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <SectionHead eyebrow="How it works" title="From “I want” to “I did”, in three steps." />
-        <ol className="mt-14 grid gap-5 md:grid-cols-3">
+    <section id="how" aria-labelledby="how-title" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-24 sm:px-8 sm:py-36">
+      <div className="grid gap-12 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
+        <div data-reveal className="reveal">
+          <h2 id="how-title" className="font-display text-[3.2rem] leading-[0.98] text-white sm:text-7xl">
+            Pray for it.
+            <br />
+            <em className="text-gold-200">Act on it.</em>
+          </h2>
+          <p className="mt-8 max-w-md text-lg leading-relaxed text-zinc-300">
+            A vision is only the first step. Everything after it is action. Faith and work were always meant to go together: write down what
+            you’re believing for, then show up for it, month after month.
+          </p>
+          <p className="mt-8 border-l border-gold-300/40 pl-4 text-zinc-400">
+            <span className="font-display text-xl italic text-zinc-200">“Faith without works is dead.”</span>
+            <span className="mt-1 block text-xs uppercase tracking-[0.2em] text-gold-300">James 2:26</span>
+          </p>
+        </div>
+
+        <ol className="relative space-y-4">
+          <span aria-hidden className="absolute bottom-10 left-[2.15rem] top-10 w-px bg-gradient-to-b from-gold-300/50 via-gold-300/20 to-transparent" />
           {steps.map((s, i) => (
-            <li key={s.title} data-reveal className="reveal relative rounded-3xl border border-white/[0.07] bg-[#0c0e14] p-7" style={{ transitionDelay: `${i * 90}ms` }}>
-              <span className="absolute right-6 top-5 text-5xl font-black text-white/[0.04]">{i + 1}</span>
-              <span className={`grid h-12 w-12 place-items-center rounded-2xl ${s.cls}`}>
-                <s.icon className="h-6 w-6" />
+            <li
+              key={s.n}
+              data-reveal
+              className="reveal relative flex gap-5 rounded-[24px] border border-white/[0.07] bg-[#0b0c10] p-5 sm:p-6"
+              style={{ transitionDelay: `${i * 110}ms` }}
+            >
+              <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-gold-300/40 bg-[#14120d] text-sm font-semibold tabular-nums text-gold-200">
+                {s.n}
               </span>
-              <h3 className="mt-5 text-xl font-bold text-white">{s.title}</h3>
-              <p className="mt-2 leading-relaxed text-zinc-400">{s.text}</p>
+              <span>
+                <span className="block text-xl font-semibold tracking-tight text-white">{s.title}</span>
+                <span className="mt-1.5 block leading-relaxed text-zinc-400">{s.text}</span>
+              </span>
             </li>
           ))}
         </ol>
@@ -418,43 +475,38 @@ function HowItWorks() {
   )
 }
 
-function Features() {
-  const list: { icon: typeof Home; title: string; text: string; cls: string }[] = [
-    { icon: LineChart, title: 'A money plan for every month', text: 'Goals, budgets and what you actually earned, from 2026 to 2040, with running totals that update as you type.', cls: 'text-indigo-300 bg-indigo-400/10' },
-    { icon: TrendingUp, title: 'Net worth you can watch grow', text: 'Property that gains value, cars that lose it: each asset ages on its own rate, so your future net worth is real.', cls: 'text-emerald-300 bg-emerald-400/10' },
-    { icon: Gem, title: 'Everything you own, in one place', text: 'Property, vehicles, investments, travel, your own kinds. See what you paid, what it’s worth, and where each car is kept.', cls: 'text-fuchsia-300 bg-fuchsia-400/10' },
-    { icon: Flag, title: 'Yearly goals for your whole life', text: 'Mind, body, status, identity, or your own areas. Tick them off, and carry the unfinished ones into next year.', cls: 'text-pink-300 bg-pink-400/10' },
-    { icon: Receipt, title: 'Know where your money goes', text: 'Log spending in seconds. Categories, places and charts show your week, month and year at a glance.', cls: 'text-rose-300 bg-rose-400/10' },
-    { icon: Rocket, title: 'A plan to make the money', text: 'Business, job, freelance or online: set the goal, do the math per sale, and follow your own step-by-step plan.', cls: 'text-amber-300 bg-amber-400/10' },
-    { icon: CalendarCheck, title: 'Your days, organized', text: 'A full calendar for time you set aside, plus tasks with deadlines and routines. Color-coded, drag to plan.', cls: 'text-sky-300 bg-sky-400/10' },
-    { icon: Layers, title: 'Modes: more than one future', text: 'Plan a dream life and a safe one side by side. Each mode has its own items, net worth and setups.', cls: 'text-teal-300 bg-teal-400/10' },
+// ---- Privacy ----
+
+function Privacy() {
+  const points = [
+    { icon: KeyRound, title: 'Only you can open it', text: 'Your space is tied to your Google account. No one else sees what you write.' },
+    { icon: EyeOff, title: 'Never sold, never shared', text: 'Your dreams aren’t data for advertisers. We don’t sell or share them.' },
+    { icon: Download, title: 'Yours to keep', text: 'Export a full backup whenever you like.' },
+    { icon: Cloud, title: 'With you everywhere', text: 'Synced across your devices, and it still works offline.' },
   ]
   return (
-    <section id="features" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28">
-      <SectionHead eyebrow="Everything in one place" title="One app for the life you’re building." sub="Money, things, goals and time. Usually that’s five apps and a spreadsheet. In Dizayr it’s one plan." />
-      <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {list.map((f, i) => (
-          <div
-            key={f.title}
-            data-reveal
-            className="reveal group rounded-3xl border border-white/[0.07] bg-white/[0.02] p-6 transition hover:-translate-y-1 hover:border-white/15 hover:bg-white/[0.035]"
-            style={{ transitionDelay: `${(i % 4) * 70}ms` }}
-          >
-            <span className={`grid h-11 w-11 place-items-center rounded-xl ${f.cls}`}>
-              <f.icon className="h-5 w-5" />
-            </span>
-            <h3 className="mt-4 font-semibold text-white">{f.title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-400">{f.text}</p>
-          </div>
-        ))}
-      </div>
-      <div data-reveal className="reveal mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-zinc-500">
-        <span className="flex items-center gap-2"><Home className="h-4 w-4 text-teal-300" /> Property</span>
-        <span className="flex items-center gap-2"><Car className="h-4 w-4 text-cyan-300" /> Vehicles</span>
-        <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-lime-300" /> Investments</span>
-        <span className="flex items-center gap-2"><Plane className="h-4 w-4 text-orange-300" /> Travel</span>
-        <span className="flex items-center gap-2"><Crown className="h-4 w-4 text-amber-300" /> Status</span>
-        <span className="flex items-center gap-2"><Smartphone className="h-4 w-4 text-sky-300" /> Works offline</span>
+    <section aria-labelledby="privacy-title" className="border-t border-white/[0.06] px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto grid max-w-6xl items-start gap-12 lg:grid-cols-[1fr_1.3fr] lg:gap-20">
+        <div data-reveal className="reveal">
+          <span className="grid h-12 w-12 place-items-center rounded-2xl border border-gold-300/30 bg-gold-300/[0.06]">
+            <Lock className="h-5 w-5 text-gold-200" />
+          </span>
+          <h2 id="privacy-title" className="mt-6 font-display text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
+            Your dreams are yours.
+          </h2>
+          <p className="mt-6 max-w-md text-lg leading-relaxed text-zinc-300">
+            Some of what you want, you haven’t told anyone yet. Dizayr is a private space, so you can be honest about all of it.
+          </p>
+        </div>
+        <ul className="grid gap-4 sm:grid-cols-2">
+          {points.map((p, i) => (
+            <li key={p.title} data-reveal className="reveal rounded-[24px] border border-white/[0.07] bg-[#0b0c10] p-6" style={{ transitionDelay: `${i * 70}ms` }}>
+              <p.icon className="h-5 w-5 text-gold-300" />
+              <h3 className="mt-4 font-semibold text-white">{p.title}</h3>
+              <p className="mt-1.5 text-[15px] leading-relaxed text-zinc-400">{p.text}</p>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   )
@@ -471,9 +523,9 @@ function Reviews() {
   // Two rows sliding opposite ways once there are enough reviews to fill both.
   const rows = list.length >= 6 ? [list.filter((_, i) => i % 2 === 0), list.filter((_, i) => i % 2 === 1)] : [list]
   return (
-    <section id="reviews" className="scroll-mt-20 border-y border-white/[0.06] bg-white/[0.015] py-20 sm:py-28">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <SectionHead eyebrow="Reviews" title="People who stopped wishing and started planning." />
+    <section id="reviews" aria-labelledby="reviews-title" className="scroll-mt-20 border-b border-white/[0.06] py-24 sm:py-32">
+      <div className="mx-auto max-w-6xl px-5 sm:px-8">
+        <SectionHead id="reviews-title" eyebrow="In their words" title="From people who stopped wishing and started planning." />
       </div>
       <div className="marquee-mask mt-14 space-y-5">
         {rows.map((row, r) => (
@@ -504,11 +556,11 @@ function Marquee({ items, reverse }: { items: Review[]; reverse?: boolean }) {
 function ReviewCard({ r, hidden }: { r: Review; hidden: boolean }) {
   const stars = r.stars ?? 5
   return (
-    <figure aria-hidden={hidden || undefined} className="relative w-[320px] shrink-0 rounded-3xl border border-white/[0.08] bg-[#0c0e14] p-6 sm:w-[380px]">
+    <figure aria-hidden={hidden || undefined} className="relative w-[320px] shrink-0 rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-6 sm:w-[380px]">
       <Quote className="absolute right-5 top-5 h-8 w-8 text-white/[0.05]" />
-      <div className="flex gap-0.5" aria-label={`${stars} out of 5 stars`}>
+      <div className="flex gap-0.5" role="img" aria-label={`${stars} out of 5 stars`}>
         {Array.from({ length: 5 }, (_, i) => (
-          <Star key={i} className={`h-4 w-4 ${i < stars ? 'fill-amber-300 text-amber-300' : 'text-zinc-700'}`} />
+          <Star key={i} className={`h-4 w-4 ${i < stars ? 'fill-gold-300 text-gold-300' : 'text-zinc-700'}`} />
         ))}
       </div>
       <blockquote className="mt-4 leading-relaxed text-zinc-200">“{r.text}”</blockquote>
@@ -516,13 +568,13 @@ function ReviewCard({ r, hidden }: { r: Review; hidden: boolean }) {
         {r.photo ? (
           <img src={r.photo} alt="" className="h-10 w-10 rounded-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
         ) : (
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-emerald-500 font-semibold text-white">
+          <span className="grid h-10 w-10 place-items-center rounded-full border border-gold-300/30 bg-gold-300/10 font-semibold text-gold-100">
             {r.name.charAt(0).toUpperCase()}
           </span>
         )}
         <span className="min-w-0">
           <span className="block truncate font-semibold text-white">{r.name}</span>
-          {r.role && <span className="block truncate text-sm text-zinc-500">{r.role}</span>}
+          {r.role && <span className="block truncate text-sm text-zinc-400">{r.role}</span>}
         </span>
       </figcaption>
     </figure>
@@ -531,79 +583,105 @@ function ReviewCard({ r, hidden }: { r: Review; hidden: boolean }) {
 
 // ---- Pricing ----
 
-export function Pricing({ signin, compact = false }: { signin?: SignIn; compact?: boolean }) {
+/**
+ * The plans. On the About page (and the trial-ended page) they wear the gold of the page; inside the app (`compact`, from the
+ * plans window) they keep the app's own accent colour, which people can change in Settings.
+ */
+export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; compact?: boolean; tone?: 'brand' | 'app' }) {
   // The plans are also shown inside the app, where the About page isn't there to reveal them.
   useReveal()
   const access = useAccess()
   const user = useCloud((s) => s.user)
+  const brand = (tone ?? (compact ? 'app' : 'brand')) === 'brand'
   const order: PlanId[] = ['semiannual', 'annual']
   const onPlan = access.state === 'paid' || access.state === 'comp' || access.state === 'lifetime'
   const body = (
     <>
       <div className="mx-auto grid max-w-3xl gap-5 md:grid-cols-2">
         {order.map((id) => (
-          <PlanCard key={id} plan={PLANS[id]} featured={id === 'annual'} current={onPlan && access.plan === id} disabled={onPlan} />
+          <PlanCard key={id} plan={PLANS[id]} featured={id === 'annual'} current={onPlan && access.plan === id} disabled={onPlan} brand={brand} />
         ))}
       </div>
-      {!compact && (
-        <>
-          {!user && signin && (
-            <div data-reveal className="reveal mt-10 flex flex-col items-center gap-3 text-center">
-              <p className="text-zinc-400">Rather try it first? Use every feature free for {TRIAL_DAYS} days, with one Wants mode and one Needs mode. No card, no commitment.</p>
-              <GoogleButton signin={signin} label={`Try it free for ${TRIAL_DAYS} days`} />
-            </div>
-          )}
-        </>
+      {!compact && !user && signin && (
+        <div data-reveal className="reveal mt-12 flex flex-col items-center gap-4 text-center">
+          <p className="max-w-lg text-zinc-300">
+            Rather try it first? Use every feature free for {TRIAL_DAYS} days, with one Wants mode and one Needs mode. No card, no commitment.
+          </p>
+          <GoogleButton signin={signin} label={`Try it free for ${TRIAL_DAYS} days`} />
+        </div>
       )}
-      <ul className="mx-auto mt-8 flex max-w-3xl flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-zinc-500">
-        <li className="flex items-center gap-1.5"><Lock className="h-4 w-4 text-zinc-400" /> Secure checkout by Lemon Squeezy</li>
-        <li className="flex items-center gap-1.5"><BadgeCheck className="h-4 w-4 text-zinc-400" /> Cancel anytime</li>
-        <li className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-zinc-400" /> Your data stays private</li>
+      <ul className="mx-auto mt-10 flex max-w-3xl flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-zinc-400">
+        <li className="flex items-center gap-1.5"><Lock className="h-4 w-4" /> Secure checkout by Lemon Squeezy</li>
+        <li className="flex items-center gap-1.5"><BadgeCheck className="h-4 w-4" /> Cancel anytime</li>
+        <li className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" /> Your data stays private</li>
       </ul>
     </>
   )
   if (compact) return body
   return (
-    <section id="pricing" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28">
-      <SectionHead eyebrow="Pricing" title="Less than a coffee a month, for the rest of your plan." sub="One plan, everything included. Every feature, every device, every year to 2040." />
+    <section id="pricing" aria-labelledby="pricing-title" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-24 sm:px-8 sm:py-32">
+      <SectionHead
+        id="pricing-title"
+        eyebrow="Pricing"
+        title="Less than a coffee a month, for the life you’re building."
+        sub="One plan, everything included. Every feature, every device, every year to 2040."
+      />
       <div className="mt-14">{body}</div>
     </section>
   )
 }
 
-function PlanCard({ plan, featured, current, disabled }: { plan: Plan; featured: boolean; current: boolean; disabled: boolean }) {
+function PlanCard({ plan, featured, current, disabled, brand }: { plan: Plan; featured: boolean; current: boolean; disabled: boolean; brand: boolean }) {
   const [busy, setBusy] = useState(false)
   const signedIn = useCloud((s) => !!s.user)
   const included = [...plan.perks, 'Every other feature included', 'Plans from 2026 to 2040', 'All your devices, synced', 'Works offline']
-  return (
-    <div
-      data-reveal
-      className={`reveal relative flex flex-col rounded-3xl p-7 ${featured ? 'order-first md:order-last' : ''} ${
-        featured
+  const look = brand
+    ? {
+        card: featured
+          ? 'border border-gold-300/40 bg-gradient-to-b from-gold-300/[0.09] via-[#0b0c10] to-[#0b0c10] shadow-[0_30px_80px_-30px_rgb(220_192_137/0.35)]'
+          : 'border border-white/[0.08] bg-[#0b0c10]',
+        badge: 'bg-gold-200 text-[#14110b]',
+        save: 'font-semibold text-gold-200',
+        check: featured ? 'text-gold-300' : 'text-zinc-500',
+        button: featured
+          ? 'bg-ivory text-[#14110b] hover:bg-white disabled:opacity-60'
+          : 'border border-white/15 text-white hover:bg-white/5 disabled:opacity-50',
+        radius: 'rounded-[28px]',
+        btnRadius: 'rounded-full',
+      }
+    : {
+        card: featured
           ? 'border-2 border-indigo-400/60 bg-gradient-to-b from-indigo-500/15 via-[#0c0e14] to-[#0c0e14] shadow-2xl shadow-indigo-500/15'
-          : 'border border-white/[0.08] bg-[#0c0e14]'
-      }`}
-    >
+          : 'border border-white/[0.08] bg-[#0c0e14]',
+        badge: 'bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white shadow-lg',
+        save: 'font-semibold text-emerald-300',
+        check: featured ? 'text-indigo-300' : 'text-zinc-500',
+        button: featured
+          ? 'bg-gradient-to-r from-indigo-500 to-indigo-400 text-white shadow-lg shadow-indigo-500/30 hover:brightness-110 disabled:opacity-60'
+          : 'border border-white/15 text-white hover:bg-white/5 disabled:opacity-50',
+        radius: 'rounded-3xl',
+        btnRadius: 'rounded-2xl',
+      }
+  return (
+    <div data-reveal className={`reveal relative flex flex-col p-7 ${look.radius} ${featured ? 'order-first md:order-last' : ''} ${look.card}`}>
       {featured && (
-        <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-lg">
+        <span className={`absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3.5 py-1 text-xs font-bold uppercase tracking-wider ${look.badge}`}>
           Best value{plan.badge ? ` · ${plan.badge}` : ''}
         </span>
       )}
       <p className="font-semibold text-zinc-200">{plan.name}</p>
       <div className="mt-4 flex items-end gap-2">
-        <span className="text-5xl font-extrabold tracking-tight text-white">{pesos(plan.price)}</span>
+        <span className="text-5xl font-semibold tracking-tight text-white">{pesos(plan.price)}</span>
         <span className="pb-1.5 text-zinc-400">{plan.every}</span>
       </div>
       <p className="mt-2 flex items-center gap-2 text-sm">
         {plan.compareAt && <span className="text-zinc-500 line-through">{pesos(plan.compareAt)}</span>}
-        <span className={featured ? 'font-semibold text-emerald-300' : 'text-zinc-400'}>
-          just {perMonth(plan)} a month
-        </span>
+        <span className={featured ? look.save : 'text-zinc-400'}>just {perMonth(plan)} a month</span>
       </p>
       <ul className="mt-6 flex-1 space-y-2.5 text-sm">
         {included.map((t) => (
           <li key={t} className={`flex items-center gap-2.5 ${plan.perks.includes(t) ? 'font-semibold text-white' : 'text-zinc-300'}`}>
-            <Check className={`h-4 w-4 shrink-0 ${featured ? 'text-indigo-300' : 'text-zinc-500'}`} strokeWidth={3} /> {t}
+            <Check className={`h-4 w-4 shrink-0 ${look.check}`} strokeWidth={3} /> {t}
           </li>
         ))}
       </ul>
@@ -617,19 +695,13 @@ function PlanCard({ plan, featured, current, disabled }: { plan: Plan; featured:
           }
         }}
         disabled={busy || disabled}
-        className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold transition disabled:cursor-default ${
-          featured
-            ? 'bg-gradient-to-r from-indigo-500 to-indigo-400 text-white shadow-lg shadow-indigo-500/30 hover:brightness-110 disabled:opacity-60'
-            : 'border border-white/15 text-white hover:bg-white/5 disabled:opacity-50'
-        }`}
+        className={`mt-7 inline-flex h-12 items-center justify-center gap-2 text-[15px] font-semibold transition disabled:cursor-default ${look.btnRadius} ${look.button}`}
       >
         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
         {current ? 'Your plan' : `Buy ${plan.name} now`}
       </button>
       {!disabled && (
-        <p className="mt-2.5 text-center text-xs text-zinc-500">
-          {signedIn ? 'Starts today · secure checkout' : 'Skip the trial · sign in, then straight to checkout'}
-        </p>
+        <p className="mt-2.5 text-center text-xs text-zinc-400">{signedIn ? 'Starts today · secure checkout' : 'Skip the trial · sign in, then straight to checkout'}</p>
       )}
     </div>
   )
@@ -650,12 +722,12 @@ function Faq() {
     ['How do I pay?', 'By card or PayPal, through Lemon Squeezy’s secure checkout. Prices are in Philippine pesos, tax included; your bank converts them if you pay in another currency.'],
   ]
   return (
-    <section id="faq" className="scroll-mt-20 border-t border-white/[0.06] bg-white/[0.015] py-20 sm:py-28">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6">
-        <SectionHead eyebrow="Questions" title="Everything you might be wondering." />
-        <div className="mt-12 divide-y divide-white/[0.07] rounded-3xl border border-white/[0.07] bg-[#0c0e14]">
-          {qs.map(([q, a]) => (
-            <Question key={q} q={q} a={a} />
+    <section id="faq" aria-labelledby="faq-title" className="scroll-mt-20 border-t border-white/[0.06] py-24 sm:py-32">
+      <div className="mx-auto max-w-3xl px-5 sm:px-8">
+        <SectionHead id="faq-title" eyebrow="Questions" title="Everything you might be wondering." />
+        <div className="mt-12 divide-y divide-white/[0.07] rounded-[28px] border border-white/[0.07] bg-[#0b0c10]">
+          {qs.map(([q, a], i) => (
+            <Question key={q} id={`faq-${i}`} q={q} a={a} />
           ))}
         </div>
       </div>
@@ -663,15 +735,22 @@ function Faq() {
   )
 }
 
-function Question({ q, a }: { q: string; a: string }) {
+function Question({ id, q, a }: { id: string; q: string; a: string }) {
   const [open, setOpen] = useState(false)
   return (
     <div>
-      <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left">
-        <span className="font-medium text-white">{q}</span>
-        <ChevronDown className={`h-5 w-5 shrink-0 text-zinc-500 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
-      </button>
-      <div className={`grid transition-all duration-300 ease-out ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+      <h3>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls={id}
+          className="flex w-full items-center justify-between gap-4 rounded-[28px] px-6 py-5 text-left"
+        >
+          <span className="font-medium text-white">{q}</span>
+          <ChevronDown className={`h-5 w-5 shrink-0 text-zinc-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
+        </button>
+      </h3>
+      <div id={id} className={`grid transition-all duration-300 ease-out ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
         <p className="min-h-0 overflow-hidden px-6 text-zinc-400">
           <span className="block pb-5 leading-relaxed">{a}</span>
         </p>
@@ -680,31 +759,28 @@ function Question({ q, a }: { q: string; a: string }) {
   )
 }
 
+// ---- The end ----
+
 function FinalCta({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
   return (
-    <section className="relative overflow-hidden px-4 py-24 sm:px-6 sm:py-32">
-      <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-600/15 to-transparent" />
+    <section aria-labelledby="final-title" className="relative overflow-hidden border-t border-white/[0.06] px-5 py-28 sm:px-8 sm:py-40">
+      <div aria-hidden className="absolute inset-0 bg-[radial-gradient(55%_60%_at_50%_100%,rgb(220_192_137/0.12),transparent_75%)]" />
       <div data-reveal className="reveal relative mx-auto max-w-3xl text-center">
-        <h2 className="text-4xl font-extrabold tracking-tight text-white sm:text-6xl">
-          Dream big.{' '}
-          <span className="bg-gradient-to-r from-indigo-300 via-fuchsia-300 to-emerald-300 bg-clip-text text-transparent">Start today.</span>
+        <h2 id="final-title" className="font-display text-[3.2rem] leading-[0.98] text-white sm:text-7xl">
+          Don’t just dream it.
+          <br />
+          <em className="text-gold-200">Build it.</em>
         </h2>
-        <p className="mx-auto mt-5 max-w-xl text-lg text-zinc-400">The life you want won’t plan itself. Give it a month, a price and a plan. It takes a minute to start.</p>
-        <div className="mt-9 flex justify-center">
-          {signedIn ? (
-            <a href="/" className="inline-flex h-14 items-center gap-2 rounded-2xl bg-white px-7 text-base font-semibold text-zinc-900">
-              Open your plan <ArrowRight className="h-4 w-4" />
-            </a>
-          ) : (
-            <GoogleButton signin={signin} big />
-          )}
-        </div>
-        <p className="mt-4 text-sm text-zinc-500">
+        <p className="mx-auto mt-7 max-w-lg text-lg leading-relaxed text-zinc-300">
+          Your future starts with a vision. Write yours down today, and take the first step toward it.
+        </p>
+        <div className="mt-10 flex justify-center">{signedIn ? <OpenApp big /> : <GoogleButton signin={signin} big />}</div>
+        <p className="mt-5 text-sm text-zinc-400">
           {TRIAL_DAYS} days free · no card needed · cancel anytime
           {!signedIn && (
             <>
               {' · '}
-              <a href="#pricing" className="text-indigo-200 underline-offset-4 hover:text-white hover:underline">
+              <a href="#pricing" className="text-gold-200 underline decoration-gold-300/40 underline-offset-4 hover:text-gold-100">
                 or buy a plan now
               </a>
             </>
@@ -715,12 +791,14 @@ function FinalCta({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
   )
 }
 
-function SectionHead({ eyebrow, title, sub }: { eyebrow: string; title: string; sub?: string }) {
+function SectionHead({ id, eyebrow, title, sub }: { id?: string; eyebrow: string; title: string; sub?: string }) {
   return (
     <div data-reveal className="reveal mx-auto max-w-2xl text-center">
-      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-300">{eyebrow}</p>
-      <h2 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-[2.6rem] sm:leading-tight">{title}</h2>
-      {sub && <p className="mt-4 text-lg text-zinc-400">{sub}</p>}
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-300">{eyebrow}</p>
+      <h2 id={id} className="mt-5 font-display text-[2.5rem] leading-[1.04] text-white sm:text-[3.4rem]">
+        {title}
+      </h2>
+      {sub && <p className="mt-5 text-lg text-zinc-300">{sub}</p>}
     </div>
   )
 }
@@ -732,32 +810,30 @@ export function TrialEnded() {
   const user = useCloud((s) => s.user)
   const activating = useAccess((s) => s.activating)
   return (
-    <div className="relative min-h-screen overflow-x-clip bg-[#07080c] px-4 pb-16 pt-12 text-zinc-100 antialiased sm:px-6 sm:pt-20">
+    <div className="about relative min-h-screen overflow-x-clip bg-[#07080c] px-5 pb-16 pt-12 text-zinc-100 antialiased sm:px-8 sm:pt-20">
       <Glow />
-      <div className="relative mx-auto max-w-3xl text-center">
+      <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
         <Logo size="h-12 w-12" />
-        <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-white sm:text-5xl">Your free trial has ended.</h1>
-        <p className="mx-auto mt-4 max-w-xl text-lg text-zinc-400">
-          Everything you planned is saved and waiting. Choose a plan to keep building the life you want.
-        </p>
+        <h1 className="mt-7 font-display text-5xl leading-[1.02] text-white sm:text-6xl">Your free trial has ended.</h1>
+        <p className="mx-auto mt-5 max-w-xl text-lg text-zinc-300">Everything you planned is saved and waiting. Choose a plan to keep building the life you want.</p>
         {activating && (
           <p className="animate-fade mx-auto mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200">
             <Loader2 className="h-4 w-4 animate-spin" /> Payment received, unlocking your plan…
           </p>
         )}
       </div>
-      <div className="relative mt-12">
-        <Pricing compact />
+      <div className="relative mt-14">
+        <Pricing compact tone="brand" />
       </div>
-      <div className="relative mt-10 flex flex-col items-center gap-2 text-sm text-zinc-500">
+      <div className="relative mt-10 flex flex-col items-center gap-2 text-sm text-zinc-400">
         <p>Signed in as {user?.email}</p>
         <div className="flex gap-4">
           {billingUrl() && (
-            <a href={billingUrl()} target="_blank" rel="noreferrer" className="text-zinc-400 underline-offset-4 hover:text-white hover:underline">
+            <a href={billingUrl()} target="_blank" rel="noreferrer" className="text-zinc-300 underline-offset-4 hover:text-white hover:underline">
               Already paid? Check your billing
             </a>
           )}
-          <button onClick={() => void signOut()} className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-white">
+          <button onClick={() => void signOut()} className="inline-flex items-center gap-1.5 text-zinc-300 hover:text-white">
             <LogOut className="h-3.5 w-3.5" /> Sign out
           </button>
         </div>
