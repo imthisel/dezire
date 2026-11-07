@@ -248,7 +248,7 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
     <section
       ref={ref}
       id="top"
-      className="relative mx-auto grid max-w-6xl items-center gap-14 px-5 pb-24 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.08fr_1fr] lg:items-start lg:gap-14 lg:pb-28 lg:pt-12"
+      className="relative mx-auto grid max-w-6xl items-center gap-14 px-5 pb-16 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.08fr_1fr] lg:items-start lg:gap-14 lg:pb-24 lg:pt-12"
     >
       <div className="text-center lg:text-left">
         <p className="hero-in text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">A private space for the life you want</p>
@@ -302,7 +302,7 @@ function Problem() {
     { k: 'Untracked', text: 'Nothing measures it, so you never know if you’re getting closer.' },
   ]
   return (
-    <section aria-labelledby="problem-title" className="border-t border-white/[0.06] px-5 py-24 sm:px-8 sm:py-32">
+    <section aria-labelledby="problem-title" className="border-t border-white/[0.06] px-5 sm:px-8 sec">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="reveal max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">The quiet problem</p>
@@ -310,7 +310,7 @@ function Problem() {
             Most dreams never make it out of your head.
           </h2>
         </div>
-        <div className="mt-14 grid gap-px overflow-hidden rounded-[28px] border border-white/[0.07] bg-white/[0.07] md:grid-cols-3">
+        <div className="mt-10 sm:mt-12 grid gap-px overflow-hidden rounded-[28px] border border-white/[0.07] bg-white/[0.07] md:grid-cols-3">
           {points.map((p, i) => (
             <div key={p.k} data-reveal className="reveal bg-[#07080c] p-7 sm:p-9" style={{ transitionDelay: `${i * 90}ms` }}>
               <p className="text-2xl font-semibold tracking-tight text-brand-300">{p.k}.</p>
@@ -330,7 +330,7 @@ function Problem() {
 
 function TryIt() {
   return (
-    <section id="try" aria-labelledby="try-title" className="scroll-mt-16 border-t border-white/[0.06] bg-white/[0.012] px-5 py-24 sm:px-8 sm:py-28">
+    <section id="try" aria-labelledby="try-title" className="border-t border-white/[0.06] bg-white/[0.012] px-5 sm:px-8 sec">
       <div className="mx-auto max-w-6xl">
         <SectionHead
           id="try-title"
@@ -338,7 +338,7 @@ function TryIt() {
           title="Plan three months. Watch it all add up."
           sub="Set a goal, a budget, a net worth to reach. Add what you want. Every total, warning and chart updates as you type."
         />
-        <div className="mt-12">
+        <div className="mt-10">
           <TryOverview />
         </div>
       </div>
@@ -348,7 +348,7 @@ function TryIt() {
 
 function TryItExpenses() {
   return (
-    <section id="try-expenses" aria-labelledby="try-expenses-title" className="scroll-mt-16 border-t border-white/[0.06] px-5 py-24 sm:px-8 sm:py-28">
+    <section id="try-expenses" aria-labelledby="try-expenses-title" className="border-t border-white/[0.06] px-5 sm:px-8 sec">
       <div className="mx-auto max-w-6xl">
         <SectionHead
           id="try-expenses-title"
@@ -356,7 +356,7 @@ function TryItExpenses() {
           title="See exactly where your money goes."
           sub="Log a few things you spent. Your budget, daily average and where it went update in an instant. Tap a category to see just those."
         />
-        <div className="mt-12">
+        <div className="mt-10">
           <TryExpenses />
         </div>
       </div>
@@ -369,7 +369,7 @@ function TryItExpenses() {
 function Verse() {
   const words = 'Write the vision, and make it plain upon tables, that he may run that readeth it.'.split(' ')
   return (
-    <section aria-label="Habakkuk 2:2" className="relative overflow-hidden border-y border-white/[0.06] px-5 py-32 sm:px-8 sm:py-44">
+    <section aria-label="Habakkuk 2:2" className="relative overflow-hidden border-y border-white/[0.06] px-5 py-20 sm:px-8 sm:py-28">
       <div aria-hidden className="absolute inset-0 bg-[radial-gradient(50%_60%_at_50%_50%,rgb(58_109_240/0.07),transparent_75%)]" />
       <figure data-reveal className="relative mx-auto max-w-4xl text-center">
         <blockquote className="font-verse text-[2.1rem] leading-[1.18] text-white sm:text-5xl lg:text-[3.6rem]">
@@ -399,9 +399,9 @@ function Verse() {
 
 function Features() {
   return (
-    <section id="features" aria-labelledby="features-title" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-24 sm:px-8 sm:py-32">
+    <section id="features" aria-labelledby="features-title" className="mx-auto max-w-6xl px-5 sm:px-8 sec">
       <SectionHead id="features-title" eyebrow="What you can do" title="Everything you want, finally in one place." />
-      <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-10 sm:mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Tile title="A private place for everything you want." text="Big or small, write it all down, without explaining it to anyone.">
           <WishListPreview />
         </Tile>
@@ -442,7 +442,7 @@ function Tile({ title, text, children, className = '', href, cta }: { title: str
 
 function Realistic() {
   return (
-    <section id="realistic" aria-labelledby="realistic-title" className="scroll-mt-20 border-y border-white/[0.06] bg-white/[0.012] px-5 py-24 sm:px-8 sm:py-32">
+    <section id="realistic" aria-labelledby="realistic-title" className="border-y border-white/[0.06] bg-white/[0.012] px-5 sm:px-8 sec">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="reveal mx-auto max-w-3xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">Realistic</p>
@@ -454,7 +454,7 @@ function Realistic() {
             number, and a number becomes a plan.
           </p>
         </div>
-        <div data-reveal className="reveal mt-14">
+        <div data-reveal className="reveal mt-10 sm:mt-12">
           <RealisticDemo />
         </div>
       </div>
@@ -471,7 +471,7 @@ function PrayAct() {
     { n: '03', title: 'Act', text: 'Track what you earn and spend, tick off your goals, and watch your net worth rise toward it.' },
   ]
   return (
-    <section id="how" aria-labelledby="how-title" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-24 sm:px-8 sm:py-36">
+    <section id="how" aria-labelledby="how-title" className="mx-auto max-w-6xl px-5 sm:px-8 sec">
       <div className="grid gap-12 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
         <div data-reveal className="reveal">
           <h2 id="how-title" className="font-display font-semibold tracking-[-0.035em] text-[3.2rem] leading-[0.98] text-white sm:text-7xl">
@@ -522,7 +522,7 @@ function Privacy() {
     { icon: Download, title: 'Yours to keep', text: 'Export a full backup whenever you like.' },
   ]
   return (
-    <section aria-labelledby="privacy-title" className="border-t border-white/[0.06] px-5 py-24 sm:px-8 sm:py-32">
+    <section aria-labelledby="privacy-title" className="border-t border-white/[0.06] px-5 sm:px-8 sec">
       <div className="mx-auto grid max-w-6xl items-start gap-12 lg:grid-cols-[1fr_1.3fr] lg:gap-20">
         <div data-reveal className="reveal">
           <span className="grid h-12 w-12 place-items-center rounded-2xl border border-brand-300/30 bg-brand-300/[0.06]">
@@ -560,11 +560,11 @@ function Reviews() {
   // Two rows sliding opposite ways once there are enough reviews to fill both.
   const rows = list.length >= 6 ? [list.filter((_, i) => i % 2 === 0), list.filter((_, i) => i % 2 === 1)] : [list]
   return (
-    <section id="reviews" aria-labelledby="reviews-title" className="scroll-mt-20 border-b border-white/[0.06] py-24 sm:py-32">
+    <section id="reviews" aria-labelledby="reviews-title" className="border-b border-white/[0.06] sec">
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
         <SectionHead id="reviews-title" eyebrow="In their words" title="From people who stopped wishing and started planning." />
       </div>
-      <div className="marquee-mask mt-14 space-y-5">
+      <div className="marquee-mask mt-10 sm:mt-12 space-y-5">
         {rows.map((row, r) => (
           <Marquee key={r} items={row} reverse={r === 1} />
         ))}
@@ -656,14 +656,14 @@ export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; co
   )
   if (compact) return body
   return (
-    <section id="pricing" aria-labelledby="pricing-title" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-24 sm:px-8 sm:py-32">
+    <section id="pricing" aria-labelledby="pricing-title" className="mx-auto max-w-6xl px-5 sm:px-8 sec">
       <SectionHead
         id="pricing-title"
         eyebrow="Pricing"
         title="Less than a coffee a month, for the life you’re building."
         sub="One plan, everything included. Every feature, every device, every year to 2040."
       />
-      <div className="mt-14">{body}</div>
+      <div className="mt-10 sm:mt-12">{body}</div>
     </section>
   )
 }
@@ -759,7 +759,7 @@ function Faq() {
     ['How do I pay?', 'By card or PayPal, through Lemon Squeezy’s secure checkout. Prices are in Philippine pesos, tax included; your bank converts them if you pay in another currency.'],
   ]
   return (
-    <section id="faq" aria-labelledby="faq-title" className="scroll-mt-20 border-t border-white/[0.06] py-24 sm:py-32">
+    <section id="faq" aria-labelledby="faq-title" className="border-t border-white/[0.06] sec">
       <div className="mx-auto max-w-3xl px-5 sm:px-8">
         <SectionHead id="faq-title" eyebrow="Questions" title="Everything you might be wondering." />
         <div className="mt-12 divide-y divide-white/[0.07] rounded-[28px] border border-white/[0.07] bg-[#0b0c10]">
@@ -800,7 +800,7 @@ function Question({ id, q, a }: { id: string; q: string; a: string }) {
 
 function FinalCta({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
   return (
-    <section aria-labelledby="final-title" className="relative overflow-hidden border-t border-white/[0.06] px-5 py-28 sm:px-8 sm:py-40">
+    <section aria-labelledby="final-title" className="relative overflow-hidden border-t border-white/[0.06] px-5 py-20 sm:px-8 sm:py-28">
       <div aria-hidden className="absolute inset-0 bg-[radial-gradient(55%_60%_at_50%_100%,rgb(58_109_240/0.12),transparent_75%)]" />
       <div data-reveal className="reveal relative mx-auto max-w-3xl text-center">
         <h2 id="final-title" className="font-display font-semibold tracking-[-0.035em] text-[3.2rem] leading-[0.98] text-white sm:text-7xl">

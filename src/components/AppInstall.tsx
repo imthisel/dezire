@@ -140,7 +140,7 @@ export function DownloadSection() {
     { icon: RefreshCcw, title: 'Always in sync', text: 'Same account, same plan as the website, on every device. Updates arrive by themselves.' },
   ]
   return (
-    <section id="download" aria-labelledby="download-title" className="scroll-mt-20 border-y border-white/[0.06] bg-white/[0.012] py-24 sm:py-32">
+    <section id="download" aria-labelledby="download-title" className="border-y border-white/[0.06] bg-white/[0.012] sec">
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
         <div data-reveal className="reveal mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">Get the app</p>

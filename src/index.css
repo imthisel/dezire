@@ -456,3 +456,20 @@ html[data-noglow] [class~="blur-[120px]"] { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .bar-grow, [data-shown] .ring-draw { animation: none !important; }
 }
+
+/*
+ * About page sections: one rhythm of space above and below each, a little roomier on wider screens.
+ * Jumping to a section from the menu lands its heading 2rem under the 4rem sticky bar, instead of leaving
+ * the whole top padding as an empty gap (the negative margin pulls that padding up behind the bar).
+ */
+.about .sec {
+  --pad: 4rem;
+  padding-block: var(--pad);
+  scroll-margin-top: calc(4rem + 2rem - var(--pad));
+}
+@media (min-width: 640px) {
+  .about .sec { --pad: 5rem; }
+}
+@media (min-width: 1024px) {
+  .about .sec { --pad: 6rem; }
+}
