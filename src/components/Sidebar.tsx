@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { CalendarCheck, CalendarDays, Download, Flag, Gem, GripVertical, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
+import { CalendarCheck, CalendarDays, ChevronDown, Download, Flag, Gem, GripVertical, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
 import { modeKind } from '../lib/needs'
 import { CopyModeModal, ModesModal } from './Modes'
 import type { ModeInfo, ModeKind } from '../lib/types'
@@ -323,23 +323,85 @@ const KIND_LOOK: Record<ModeKind, { title: string; icon: typeof Flag; chip: stri
   needs: { title: 'Needs', icon: ShoppingBasket, chip: 'bg-gradient-to-br from-emerald-400 to-teal-500', box: 'border-emerald-400/20 bg-emerald-500/[0.04]' },
 }
 
-/** Wants or Needs: its own block, tinted when it's the one in use, with the mode it opens on the right. */
+/** Which of Wants / Needs are folded open, remembered on this device. Unset: only the one in use is open. */
+const OPEN_KEY = 'dz-sidebar-open'
+function readOpen(): Partial<Record<ModeKind, boolean>> {
+  try {
+    return JSON.parse(localStorage.getItem(OPEN_KEY) ?? '{}') ?? {}
+  } catch {
+    return {}
+  }
+}
+function saveOpen(kind: ModeKind, open: boolean) {
+  try {
+    localStorage.setItem(OPEN_KEY, JSON.stringify({ ...readOpen(), [kind]: open }))
+  } catch {
+    // Private mode or storage full: it just won't be remembered.
+  }
+}
+
+/**
+ * Wants or Needs: a block that folds open and shut from its header, so the sidebar stays tidy.
+ * Tinted when it's the one in use, with the mode it opens on the right. Switching into a kind opens its block.
+ */
 function KindSection({ kind, on, mode, children }: { kind: ModeKind; on: boolean; mode?: string; children: ReactNode }) {
   const k = KIND_LOOK[kind]
+  const [open, setOpen] = useState(() => readOpen()[kind] ?? on)
+  const body = useId()
+
+  // Moving into this kind (from the header's mode menu, or a link here) opens it, so where you are is always showing.
+  useEffect(() => {
+    if (on) setOpen(true)
+  }, [on])
+
+  function toggle() {
+    setOpen((o) => {
+      saveOpen(kind, !o)
+      return !o
+    })
+  }
+
   return (
-    <section aria-label={k.title} className={`rounded-2xl border p-1.5 transition-colors ${on ? k.box : 'border-white/[0.06]'}`}>
-      <div className="flex items-center gap-2 px-1.5 pb-2 pt-1">
-        <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg text-white ${k.chip} ${on ? '' : 'opacity-70'}`}>
-          <k.icon className="h-3.5 w-3.5" strokeWidth={2.4} />
-        </span>
-        <span className={`text-[13px] font-semibold ${on ? 'text-white' : 'text-zinc-300'}`}>{k.title}</span>
-        {mode && (
-          <span title={on ? `In use: ${mode}` : `Opens ${mode}`} className="ml-auto min-w-0 truncate text-[11px] text-zinc-500">
-            {mode}
+    <section aria-label={k.title} className={`rounded-2xl border transition-colors duration-200 ${on ? k.box : 'border-white/[0.06] hover:border-white/[0.1]'}`}>
+      <h3>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-controls={body}
+          title={open ? `Fold ${k.title} away` : `Show ${k.title}`}
+          className="group/head flex w-full items-center gap-2.5 rounded-[15px] px-3 py-2.5 text-left outline-none transition hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+        >
+          <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white shadow-sm transition ${k.chip} ${on ? '' : 'opacity-60 group-hover/head:opacity-90'}`}>
+            <k.icon className="h-3.5 w-3.5" strokeWidth={2.4} />
           </span>
-        )}
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-1.5">
+              <span className={`text-[13px] font-semibold ${on ? 'text-white' : 'text-zinc-300 group-hover/head:text-white'}`}>{k.title}</span>
+              {on && <span aria-label="In use" title="In use" className={`h-1.5 w-1.5 rounded-full ${kind === 'needs' ? 'bg-emerald-400' : 'bg-indigo-400'}`} />}
+            </span>
+            {mode && (
+              <span title={on ? `In use: ${mode}` : `Opens ${mode}`} className="block truncate text-[11px] leading-tight text-zinc-500">
+                {mode}
+              </span>
+            )}
+          </span>
+          <ChevronDown
+            aria-hidden
+            className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-300 ease-out group-hover/head:text-zinc-300 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </h3>
+      {/* Folds by animating its height (grid rows 0fr ↔ 1fr), and can't be tabbed into while shut. */}
+      <div
+        id={body}
+        inert={!open}
+        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="space-y-0.5 px-1.5 pb-1.5">{children}</div>
+        </div>
       </div>
-      <div className="space-y-0.5">{children}</div>
     </section>
   )
 }
