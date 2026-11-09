@@ -200,7 +200,12 @@ export function Sidebar() {
           </KindSection>
 
           {/* Its own section: making the money serves the whole plan, not one Wants page. (It opens in Wants, where the page lives.) */}
-          {!hiddenNav.includes('plan') && <Group label="Making the money">
+          {!hiddenNav.includes('plan') && <KindSection
+            kind="plan"
+            on={inWants && active === 'plan'}
+            mode={sources.length ? `${sources.length} ${sources.length === 1 ? 'way' : 'ways'} to earn` : 'Making the money'}
+            defaultOpen
+          >
             <Link icon={Rocket} label="Money plan" on={inWants && active === 'plan'} onClick={() => wants('plan')} badge={sources.length || undefined} />
             {sources.length > 0 && (
               <ul className="ml-[1.4rem] mt-1 space-y-0.5 border-l border-white/[0.07] pl-2">
@@ -215,7 +220,7 @@ export function Sidebar() {
             >
               <Plus className="h-4 w-4" /> Add a way to earn
             </button>
-          </Group>}
+          </KindSection>}
 
           {!hiddenNav.includes('calendar') && <Group label="Time">
             <Link
@@ -318,21 +323,25 @@ function enterKind(kind: ModeKind) {
   return true
 }
 
-const KIND_LOOK: Record<ModeKind, { title: string; icon: typeof Flag; chip: string; box: string }> = {
-  wants: { title: 'Wants', icon: Sparkles, chip: 'bg-gradient-to-br from-indigo-400 to-indigo-600', box: 'border-indigo-400/20 bg-indigo-500/[0.04]' },
-  needs: { title: 'Needs', icon: ShoppingBasket, chip: 'bg-gradient-to-br from-emerald-400 to-teal-500', box: 'border-emerald-400/20 bg-emerald-500/[0.04]' },
+/** The sidebar's fold-open blocks: Wants and Needs, plus the Money plan, which serves both. */
+type FoldKind = ModeKind | 'plan'
+
+const KIND_LOOK: Record<FoldKind, { title: string; icon: typeof Flag; chip: string; box: string; dot: string }> = {
+  wants: { title: 'Wants', icon: Sparkles, chip: 'bg-gradient-to-br from-indigo-400 to-indigo-600', box: 'border-indigo-400/20 bg-indigo-500/[0.04]', dot: 'bg-indigo-400' },
+  needs: { title: 'Needs', icon: ShoppingBasket, chip: 'bg-gradient-to-br from-emerald-400 to-teal-500', box: 'border-emerald-400/20 bg-emerald-500/[0.04]', dot: 'bg-emerald-400' },
+  plan: { title: 'Money plan', icon: Rocket, chip: 'bg-gradient-to-br from-amber-400 to-orange-500', box: 'border-amber-400/20 bg-amber-500/[0.04]', dot: 'bg-amber-400' },
 }
 
-/** Which of Wants / Needs are folded open, remembered on this device. Unset: only the one in use is open. */
+/** Which blocks are folded open, remembered on this device. Unset: only the one in use is open (or its default). */
 const OPEN_KEY = 'dz-sidebar-open'
-function readOpen(): Partial<Record<ModeKind, boolean>> {
+function readOpen(): Partial<Record<FoldKind, boolean>> {
   try {
     return JSON.parse(localStorage.getItem(OPEN_KEY) ?? '{}') ?? {}
   } catch {
     return {}
   }
 }
-function saveOpen(kind: ModeKind, open: boolean) {
+function saveOpen(kind: FoldKind, open: boolean) {
   try {
     localStorage.setItem(OPEN_KEY, JSON.stringify({ ...readOpen(), [kind]: open }))
   } catch {
@@ -341,12 +350,12 @@ function saveOpen(kind: ModeKind, open: boolean) {
 }
 
 /**
- * Wants or Needs: a block that folds open and shut from its header, so the sidebar stays tidy.
- * Tinted when it's the one in use, with the mode it opens on the right. Switching into a kind opens its block.
+ * Wants, Needs or the Money plan: a block that folds open and shut from its header, so the sidebar stays tidy.
+ * Tinted when it's the one in use, with a short line under the title. Moving into a block opens it.
  */
-function KindSection({ kind, on, mode, children }: { kind: ModeKind; on: boolean; mode?: string; children: ReactNode }) {
+function KindSection({ kind, on, mode, defaultOpen = false, children }: { kind: FoldKind; on: boolean; mode?: string; defaultOpen?: boolean; children: ReactNode }) {
   const k = KIND_LOOK[kind]
-  const [open, setOpen] = useState(() => readOpen()[kind] ?? on)
+  const [open, setOpen] = useState(() => readOpen()[kind] ?? (on || defaultOpen))
   const body = useId()
 
   // Moving into this kind (from the header's mode menu, or a link here) opens it, so where you are is always showing.
@@ -378,10 +387,10 @@ function KindSection({ kind, on, mode, children }: { kind: ModeKind; on: boolean
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5">
               <span className={`text-[13px] font-semibold ${on ? 'text-white' : 'text-zinc-300 group-hover/head:text-white'}`}>{k.title}</span>
-              {on && <span aria-label="In use" title="In use" className={`h-1.5 w-1.5 rounded-full ${kind === 'needs' ? 'bg-emerald-400' : 'bg-indigo-400'}`} />}
+              {on && <span aria-label="In use" title="In use" className={`h-1.5 w-1.5 rounded-full ${k.dot}`} />}
             </span>
             {mode && (
-              <span title={on ? `In use: ${mode}` : `Opens ${mode}`} className="block truncate text-[11px] leading-tight text-zinc-500">
+              <span title={kind === 'plan' ? mode : on ? `In use: ${mode}` : `Opens ${mode}`} className="block truncate text-[11px] leading-tight text-zinc-500">
                 {mode}
               </span>
             )}
