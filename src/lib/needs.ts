@@ -1,4 +1,4 @@
-import type { Expense, ExpenseCategory, ModeInfo, ModeKind, NeedItem, NeedsPlan } from './types'
+import type { Expense, ExpenseCategory, ModeInfo, ModeKind, MonthData, NeedItem, NeedsPlan } from './types'
 import { addDays, daysInMonth, fromKey, parseExpenses } from './expenses'
 import { MONTHS_SHORT } from './time'
 
@@ -34,8 +34,29 @@ function parseNeedItems(list: unknown): NeedItem[] {
 /** The same plan for another mode: its items start out of Expenses, so one expense never has two items. */
 export const unlinkedCopy = (plan: NeedsPlan): NeedsPlan => ({ ...structuredClone(plan), items: plan.items.map(({ expenseId: _link, ...i }) => i) })
 
-/** Is this item in Expenses? `ids`: the id of every expense. */
-export const isSent = (item: NeedItem, ids: Set<string>) => !!item.expenseId && ids.has(item.expenseId)
+/** Is this item (a Needs item, or a Wants item marked spent) in Expenses? `ids`: the id of every expense. */
+export const isSent = (item: { expenseId?: string }, ids: Set<string>) => !!item.expenseId && ids.has(item.expenseId)
+
+/** Months with every item's link to Expenses dropped: for copies, so a copy never claims the original's expense. */
+export function unlinkedMonths(months: Record<string, MonthData>): Record<string, MonthData> {
+  const out: Record<string, MonthData> = {}
+  for (const [k, m] of Object.entries(months)) out[k] = { ...m, items: m.items.map(({ expenseId: _link, ...i }) => i) }
+  return out
+}
+
+/**
+ * The day a Wants item is recorded as spent: today, unless its month is already over (then that month's last day,
+ * so it lands in the month it was planned for). The date can be changed in Expenses afterwards.
+ */
+export function spentDay(monthKey: string, today: string) {
+  if (monthKey >= today.slice(0, 7)) return today
+  const [y, m] = monthKey.split('-').map(Number)
+  const last = new Date(y, m, 0).getDate()
+  return `${monthKey}-${String(last).padStart(2, '0')}`
+}
+
+/** The expense category a Wants purchase goes in: one named like “Wants”, “Want” or “Wishlist” if there is one, else none. */
+export const wantsCategory = (cats: ExpenseCategory[]) => cats.find((c) => /^(wants?|wish ?list|dreams?)$/i.test(c.label.trim()))?.id ?? ''
 
 /** Expenses that could be brought into a plan: in its categories, and not already an item in any Needs mode. */
 export function importable(expenses: Expense[], plan: NeedsPlan, modes: ModeInfo[]) {

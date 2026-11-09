@@ -10,6 +10,10 @@ import { selection, usePicking, useSelected } from '../selection'
 import { ItemLinks } from './ItemLinks'
 import { NotYet } from './Kept'
 import { RunningCostsSummary } from './RunningCosts'
+import { SendTick } from './NeedsBridge'
+import { flipSpent, useSpentExpense } from './Spent'
+import { fromKey } from '../lib/expenses'
+import { MONTHS_SHORT } from '../lib/time'
 import { toast } from '../toast'
 
 interface Props {
@@ -53,6 +57,16 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
   const keptAt = isVehicle && item.propertyId ? index.byId.get(item.propertyId) : undefined
   const home = keptAt?.item.category === 'property' ? keptAt : undefined
   const edit = () => s().openModal({ type: 'item', key: monthKey, editId: item.id })
+  // Marked as already spent on: it's in Expenses, and stays here with a mark.
+  const spentAs = useSpentExpense(item.expenseId)
+  const spent = !!spentAs
+  const spentOn = spentAs ? (() => { const d = fromKey(spentAs.date); return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}` })() : ''
+  const toggleSpent = () => flipSpent([item.id], !spent, `“${item.name}”`)
+
+  function remove() {
+    const undo = s().removeItems([item.id])
+    toast.undo(spent ? `Deleted “${item.name}” from this month and from Expenses.` : `Deleted “${item.name}”.`, undo)
+  }
 
   function toggleFav() {
     const now = s().toggleFavorite(monthKey, item.id)
@@ -82,7 +96,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
     { icon: Pencil, label: 'Edit', run: edit },
     {
       icon: Trash2, label: 'Delete', danger: true,
-      run: () => { s().removeItem(monthKey, item.id); toast.info(`Deleted “${item.name}”.`) },
+      run: remove,
     },
   ]
 
@@ -175,7 +189,18 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
           <Check className={`h-3.5 w-3.5 transition-transform duration-150 ${selected ? 'scale-100' : 'scale-50'}`} strokeWidth={3.25} />
         </span>
       ) : (
-        <GripVertical className="hidden h-4 w-4 shrink-0 text-zinc-600 transition group-hover:text-zinc-400 sm:block" />
+        <>
+          <GripVertical className="hidden h-4 w-4 shrink-0 text-zinc-600 transition group-hover:text-zinc-400 sm:block" />
+          {/* The same tick as a Needs item: on = already spent on, and in Expenses */}
+          <span onDragStart={(e) => e.preventDefault()} className="-ml-1 sm:-ml-1.5">
+            <SendTick
+              size="sm"
+              on={spent}
+              label={spent ? `“${item.name}” is spent (in Expenses). Untick to take it out.` : `Mark “${item.name}” as spent and add it to Expenses`}
+              onChange={toggleSpent}
+            />
+          </span>
+        </>
       )}
       <span className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-lg ${t.iconBg} ${t.text}`}>
         <KindIcon className="h-4 w-4" />
@@ -212,6 +237,14 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
           )}
         </p>
         <p className={`flex items-center gap-1 truncate text-[11px] ${t.text}`}>
+          {spent && (
+            <span
+              title={`Spent ${spentOn} · it's in Expenses`}
+              className="mr-0.5 inline-flex shrink-0 items-center gap-0.5 rounded-full bg-emerald-400/15 px-1.5 py-px text-[10px] font-semibold text-emerald-200 ring-1 ring-inset ring-emerald-400/30"
+            >
+              <Check className="h-2.5 w-2.5" strokeWidth={3.5} /> Spent · {spentOn}
+            </span>
+          )}
           <t.icon className="h-3 w-3 shrink-0" />
           {t.label}
           {item.trend !== 'stable' && item.rate > 0 && <span className="opacity-80">· {item.rate}%/yr</span>}

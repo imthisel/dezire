@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
-import { ArrowRightLeft, Copy, ListChecks, Star, Trash2, X } from 'lucide-react'
+import { ArrowRightLeft, Copy, ListChecks, Receipt, Star, Trash2, X } from 'lucide-react'
 import { useFmt, useItemIndex, useStore } from '../store'
 import { selection, usePicking, useSelection } from '../selection'
 import { toast } from '../toast'
+import { flipSpent } from './Spent'
 
 /** Shows how many month items are picked (see selection.ts), and lets go of them. On touch screens, what to do with them too. */
 export function SelectionBar() {
@@ -15,6 +16,15 @@ export function SelectionBar() {
   const f = useFmt()
   // Deleted items drop out
   const items = [...picked].flatMap((id) => index.byId.get(id) ?? [])
+  // All of them already spent? Then the action takes them back out; otherwise it marks the rest.
+  const allSpent = useStore((s) => {
+    const ids = new Set(s.expenses.map((e) => e.id))
+    return items.length > 0 && items.every((p) => !!p.item.expenseId && ids.has(p.item.expenseId))
+  })
+  function spend() {
+    flipSpent(items.map((p) => p.item.id), !allSpent)
+    selection.clear()
+  }
 
   useEffect(() => {
     if (!picked.size && !picking) return
@@ -68,10 +78,11 @@ export function SelectionBar() {
               Done
             </button>
           </div>
-          <div className="grid grid-cols-4 gap-1 border-t border-white/[0.07] pt-1.5">
+          <div className="grid grid-cols-5 gap-1 border-t border-white/[0.07] pt-1.5">
             <BarAction icon={ArrowRightLeft} label="Move" disabled={none} onClick={() => send(false)} />
             <BarAction icon={Copy} label="Copy" disabled={none} onClick={() => send(true)} />
             <BarAction icon={Star} label={allFav ? 'Unfavorite' : 'Favorite'} disabled={none} onClick={favorite} />
+            <BarAction icon={Receipt} label={allSpent ? 'Not spent' : 'Spent'} disabled={none} onClick={spend} />
             <BarAction icon={Trash2} label="Delete" danger disabled={none} onClick={remove} />
           </div>
         </div>
@@ -90,6 +101,13 @@ export function SelectionBar() {
         </p>
         <p className="truncate text-xs text-zinc-400">Drag any of them onto another month · hold Ctrl to copy</p>
       </div>
+      <button
+        onClick={spend}
+        title={allSpent ? 'Take them out of Expenses (no longer spent)' : 'Mark them spent and add them to Expenses'}
+        className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-emerald-400/35 bg-emerald-400/10 px-3 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-400/20"
+      >
+        <Receipt className="h-3.5 w-3.5" /> {allSpent ? 'Not spent' : 'Mark spent'}
+      </button>
       <button
         onClick={selection.clear}
         className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-zinc-400 transition hover:bg-white/10 hover:text-white"

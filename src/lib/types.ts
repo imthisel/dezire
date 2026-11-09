@@ -40,6 +40,11 @@ export interface Item {
   propertyId?: string
   /** Vehicles only, optional: what it costs to run each year (an estimate) */
   running?: RunningCosts
+  /**
+   * Marked as already spent on: the expense that records it in Expenses. The item stays in its month either way.
+   * Like a Needs item, it counts as spent only while that expense still exists (deleting it in Expenses unmarks it).
+   */
+  expenseId?: string
 }
 
 /** A vehicle's yearly running costs, as estimated by the user. Amounts are in the main currency. */

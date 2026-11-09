@@ -15,7 +15,7 @@ import {
   todayKey, uniq,
 } from './lib/expenses'
 import { parseLinks } from './lib/links'
-import { isSent, modeKind, parseNeeds, starterNeeds, unlinkedCopy } from './lib/needs'
+import { isSent, modeKind, parseNeeds, spentDay, starterNeeds, unlinkedCopy, unlinkedMonths, wantsCategory } from './lib/needs'
 import { DEFAULT_DEVICE, DEFAULT_PREFS, live, parseDevice, parsePrefs, type DevicePrefs, type Prefs } from './lib/prefs'
 import { DEFAULT_TASK_KINDS, MAX_TASK_KIND_NAME, TASK_COLORS, UNKNOWN_TASK_KIND, cleanTask, guessTaskIcon, parseTaskKinds, parseTasks, type TaskInput } from './lib/tasks'
 
@@ -390,6 +390,11 @@ interface State {
   copyToClipboard: (key: string, id: string, mode: 'copy' | 'cut') => void
   pasteInto: (key: string) => Result
   clearClipboard: () => void
+  /**
+   * Marks Wants items (in the mode in use) as already spent on, or not. Marking adds a linked expense to Expenses;
+   * unmarking removes it. The items stay in their months either way. Returns how many changed and how to undo it.
+   */
+  setItemsSpent: (ids: string[], on: boolean) => { count: number; undo: () => void }
 
   addGoal: (year: number, area: GoalArea, text: string) => void
   updateGoal: (year: number, id: string, patch: Partial<Pick<Goal, 'text' | 'area' | 'done'>>) => void
@@ -486,7 +491,8 @@ export const MAX_MODE_NAME = 32
 const mainMode = (): ModeInfo => ({ id: MAIN_MODE, name: 'Main', createdAt: 0 })
 const emptyMode = (): ModeData => ({ months: {}, layouts: {}, setupNotes: {}, setupFavorites: {}, yearNotes: {} })
 /** A separate copy of the plan in use, so changing one never touches the other. */
-const copyOfPlan = (s: ModeData): ModeData => ({ months: structuredClone(s.months), layouts: structuredClone(s.layouts), setupNotes: { ...s.setupNotes }, setupFavorites: structuredClone(s.setupFavorites), yearNotes: { ...s.yearNotes } })
+// A copy never keeps the links to Expenses: those purchases belong to the original.
+const copyOfPlan = (s: ModeData): ModeData => ({ months: unlinkedMonths(structuredClone(s.months)), layouts: structuredClone(s.layouts), setupNotes: { ...s.setupNotes }, setupFavorites: structuredClone(s.setupFavorites), yearNotes: { ...s.yearNotes } })
 
 /**
  * Saves to this browser a moment after the last change instead of on every one. The whole state is written each time,
@@ -943,10 +949,15 @@ export const useStore = create<State>()(
         }),
 
       updateItem: (key, id, data) => {
-        const { months } = get()
+        const { months, expenses } = get()
         const m = months[key] ?? emptyMonth()
+        // Marked spent: its expense keeps the same name and amount.
+        const link = m.items.find((i) => i.id === id)?.expenseId
         set({
           months: { ...months, [key]: { ...m, items: m.items.map((i) => (i.id === id ? { ...i, ...data } : i)) } },
+          ...(link && expenses.some((e) => e.id === link)
+            ? { expenses: expenses.map((e) => (e.id === link ? { ...e, name: data.name.trim().slice(0, MAX_ITEM_NAME), amount: Math.max(0, data.price) } : e)) }
+            : {}),
         })
         return warned(key, data.price, months, id)
       },
@@ -970,6 +981,7 @@ export const useStore = create<State>()(
           const m = s.months[key]
           if (!m) return {}
           const clipboard = s.clipboard?.mode === 'cut' && s.clipboard.item.id === id ? null : s.clipboard
+          const link = m.items.find((i) => i.id === id)?.expenseId
           const months = { ...s.months, [key]: { ...m, items: m.items.filter((i) => i.id !== id) } }
           // Vehicles kept at a deleted property are no longer kept anywhere.
           for (const [k, mo] of Object.entries(months)) {
@@ -977,7 +989,7 @@ export const useStore = create<State>()(
               months[k] = { ...mo, items: mo.items.map((i) => (i.propertyId === id ? { ...i, propertyId: undefined } : i)) }
             }
           }
-          return { months, clipboard }
+          return { months, clipboard, ...(link ? { expenses: s.expenses.filter((e) => e.id !== link) } : {}) }
         }),
 
       transferItem: (fromKey, id, toKey, mode, at) => {
@@ -989,7 +1001,7 @@ export const useStore = create<State>()(
         const next = { ...months }
         if (mode === 'move') next[fromKey] = { ...src, items: src.items.filter((i) => i.id !== id) }
         const dest = next[toKey] ?? emptyMonth()
-        const moved = mode === 'move' ? item : { ...item, id: uid(), createdAt: Date.now() }
+        const moved = mode === 'move' ? item : { ...unlinked(item), id: uid(), createdAt: Date.now() }
         const items = [...dest.items]
         const ti = at ? items.findIndex((i) => i.id === at.id) : -1
         if (ti < 0) items.push(moved)
@@ -1014,7 +1026,7 @@ export const useStore = create<State>()(
         const next = { ...months }
         if (mode === 'move') for (const { key } of picked) next[key] = { ...next[key], items: next[key].items.filter((i) => !want.has(i.id)) }
         const dest = next[toKey] ?? emptyMonth()
-        const moved = picked.map(({ item }) => (mode === 'move' ? item : { ...item, id: uid(), createdAt: Date.now() }))
+        const moved = picked.map(({ item }) => (mode === 'move' ? item : { ...unlinked(item), id: uid(), createdAt: Date.now() }))
         const items = [...dest.items]
         const ti = at ? items.findIndex((i) => i.id === at.id) : -1
         if (ti < 0) items.push(...moved)
@@ -1031,6 +1043,9 @@ export const useStore = create<State>()(
         const { months: before, modeId } = get()
         // Their months, and the months of any vehicles kept at a deleted property.
         const touched = Object.keys(before).filter((k) => before[k].items.some((i) => want.has(i.id) || (i.propertyId && want.has(i.propertyId))))
+        // Ones marked spent take their expense with them, as a Needs item does (and undo brings it back).
+        const links = new Set(touched.flatMap((k) => before[k].items.filter((i) => want.has(i.id) && i.expenseId).map((i) => i.expenseId!)))
+        const gone = get().expenses.filter((e) => links.has(e.id))
         set((s) => {
           const months = { ...s.months }
           for (const k of touched) {
@@ -1039,7 +1054,11 @@ export const useStore = create<State>()(
               items: months[k].items.filter((i) => !want.has(i.id)).map((i) => (i.propertyId && want.has(i.propertyId) ? { ...i, propertyId: undefined } : i)),
             }
           }
-          return { months, clipboard: s.clipboard?.mode === 'cut' && want.has(s.clipboard.item.id) ? null : s.clipboard }
+          return {
+            months,
+            clipboard: s.clipboard?.mode === 'cut' && want.has(s.clipboard.item.id) ? null : s.clipboard,
+            ...(gone.length ? { expenses: s.expenses.filter((e) => !links.has(e.id)) } : {}),
+          }
         })
         return () =>
           set((s) => {
@@ -1058,7 +1077,9 @@ export const useStore = create<State>()(
               const added = [...now.values()].filter((i) => !had.some((h) => h.id === i.id))
               months[k] = { ...(s.months[k] ?? before[k]), items: [...back, ...added] }
             }
-            return { months }
+            const here = new Set(s.expenses.map((e) => e.id))
+            const restored = gone.filter((e) => !here.has(e.id))
+            return { months, ...(restored.length ? { expenses: [...s.expenses, ...restored] } : {}) }
           })
       },
 
@@ -1077,7 +1098,7 @@ export const useStore = create<State>()(
           return r
         }
         const dest = months[toKey] ?? emptyMonth()
-        const copy = { ...clipboard.item, id: uid(), createdAt: Date.now() }
+        const copy = { ...unlinked(clipboard.item), id: uid(), createdAt: Date.now() }
         set({
           months: { ...months, [toKey]: { ...dest, items: [...dest.items, copy] } },
           clipboard: clipboard.mode === 'cut' ? null : clipboard,
@@ -1086,6 +1107,47 @@ export const useStore = create<State>()(
       },
 
       clearClipboard: () => set({ clipboard: null }),
+
+      setItemsSpent: (ids, on) => {
+        const s = get()
+        const inExpenses = new Set(s.expenses.map((e) => e.id))
+        const want = new Set(ids)
+        const changing = Object.entries(s.months).flatMap(([key, m]) => m.items.filter((i) => want.has(i.id) && isSent(i, inExpenses) !== on).map((item) => ({ key, item })))
+        const changed = changing.map((c) => c.item.id)
+        if (changing.length) {
+          const links = new Map(changing.map((c) => [c.item.id, shortId()]))
+          const gone = new Set(changing.map((c) => c.item.expenseId))
+          const category = wantsCategory(s.expenseCats)
+          const today = todayKey()
+          const made: Expense[] = changing.map(({ key, item }) => ({
+            id: links.get(item.id)!,
+            date: spentDay(key, today),
+            amount: Math.max(0, item.price),
+            name: item.name.trim().slice(0, MAX_ITEM_NAME),
+            category,
+            place: '',
+            notes: '',
+            createdAt: Date.now(),
+          }))
+          set((now) => {
+            const months = { ...now.months }
+            for (const key of new Set(changing.map((c) => c.key))) {
+              const m = months[key]
+              if (!m) continue
+              months[key] = {
+                ...m,
+                items: m.items.map((i) => {
+                  if (!links.has(i.id)) return i
+                  const { expenseId: _old, ...rest } = i
+                  return on ? { ...rest, expenseId: links.get(i.id) } : rest
+                }),
+              }
+            }
+            return { months, expenses: on ? [...now.expenses, ...made] : now.expenses.filter((e) => !gone.has(e.id)) }
+          })
+        }
+        return { count: changed.length, undo: () => void get().setItemsSpent(changed, !on) }
+      },
 
       addGoal: (year, area, text) =>
         set((s) => {
@@ -1233,7 +1295,13 @@ export const useStore = create<State>()(
         set((s) => {
           const clean = cleanExpense(data)
           // An item sent here from Needs stays the same as its expense.
-          return { expenses: s.expenses.map((e) => (e.id === id ? { ...e, ...clean } : e)), modes: mapNeedItems(s.modes, (i) => (i.expenseId === id ? { ...i, ...clean } : i)) }
+          // A Wants item marked spent follows its name and amount (its price becomes what was really paid).
+          const want = (i: Item) => (i.expenseId === id ? { ...i, name: clean.name || i.name, price: clean.amount } : i)
+          return {
+            expenses: s.expenses.map((e) => (e.id === id ? { ...e, ...clean } : e)),
+            modes: mapNeedItems(s.modes, (i) => (i.expenseId === id ? { ...i, ...clean } : i)),
+            ...mapWantItems(s, want),
+          }
         }),
       removeExpense: (id) => {
         const e = get().expenses.find((x) => x.id === id)
@@ -1561,6 +1629,35 @@ const changeNeeds = (s: Pick<State, 'modes' | 'modeId' | 'expenseCats'>, change:
 /** The items of the Needs mode in use. */
 const currentItems = (s: Pick<State, 'modes' | 'modeId'>) => s.modes.find((m) => m.id === s.modeId)?.needs?.items ?? []
 
+/** An item without its link to Expenses (a copy of something marked spent starts unmarked). */
+const unlinked = ({ expenseId: _link, ...i }: Item): Item => i
+
+/** Changes Wants items everywhere: the months in use and every other Wants mode's months. Empty when nothing changed. */
+function mapWantItems(s: Pick<State, 'months' | 'modeData'>, change: (i: Item) => Item): Partial<Pick<State, 'months' | 'modeData'>> {
+  const mapMonths = (months: Record<string, MonthData>) => {
+    let any = false
+    const out: Record<string, MonthData> = {}
+    for (const [k, m] of Object.entries(months)) {
+      const items = m.items.map(change)
+      if (items.some((x, n) => x !== m.items[n])) {
+        any = true
+        out[k] = { ...m, items }
+      } else out[k] = m
+    }
+    return any ? out : null
+  }
+  const result: Partial<Pick<State, 'months' | 'modeData'>> = {}
+  const months = mapMonths(s.months)
+  if (months) result.months = months
+  let data: Record<string, ModeData> | null = null
+  for (const [id, d] of Object.entries(s.modeData)) {
+    const m = d?.months && mapMonths(d.months)
+    if (m) (data ??= { ...s.modeData })[id] = { ...d, months: m }
+  }
+  if (data) result.modeData = data
+  return result
+}
+
 /** Changes items in every Needs mode. `modes` itself comes back when nothing changed, so nothing saves for no reason. */
 function mapNeedItems(modes: ModeInfo[], change: (i: NeedItem) => NeedItem) {
   let any = false
@@ -1655,6 +1752,7 @@ function parseMonths(raw: unknown, kinds: ItemKind[]): Record<string, MonthData>
             ...(parseLinks(i.links).length ? { links: parseLinks(i.links) } : {}),
             ...(typeof i.propertyId === 'string' && i.propertyId ? { propertyId: i.propertyId } : {}),
             ...(cleanRunning(i.running) ? { running: cleanRunning(i.running)! } : {}),
+            ...(typeof i.expenseId === 'string' && i.expenseId ? { expenseId: i.expenseId } : {}),
           }))
         : [],
       ...(typeof m.notes === 'string' && m.notes.trim() ? { notes: m.notes } : {}),

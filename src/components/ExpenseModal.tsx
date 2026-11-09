@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { CalendarDays, ChevronDown, History, MapPin, NotebookPen, Plus, Settings2, Star, Tag, Trash2, X } from 'lucide-react'
+import { CalendarDays, ChevronDown, History, Link2, MapPin, NotebookPen, Plus, Settings2, Star, Tag, Trash2, X } from 'lucide-react'
 import { useFmt, useStore } from '../store'
 import { useCatOf, useExpenseCats, useHistory } from '../expenseHooks'
 import { MAX_ITEM_NAME, MAX_PLACE_NAME, addDays, catColor, catIcon, dayLabel, fromKey, longDate, todayKey } from '../lib/expenses'
@@ -9,6 +9,7 @@ import { Modal } from './Modal'
 import { MoneyInput } from './MoneyInput'
 import { ExpenseSettings, type SettingsTab } from './ExpenseSettings'
 import { toast } from '../toast'
+import { useLinkSources } from './Spent'
 
 const field =
   'h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm'
@@ -33,6 +34,8 @@ export function ExpenseModal({ editId, date: startDate }: { editId?: string; dat
 
   const ok = (amount ?? 0) > 0
   const today = todayKey()
+  // Came from a Wants item marked spent, or a ticked Needs item: the two stay the same.
+  const from = useLinkSources().get(editId ?? '')
 
   function save(again: boolean) {
     if (!ok) {
@@ -65,7 +68,8 @@ export function ExpenseModal({ editId, date: startDate }: { editId?: string; dat
     if (!editing) return
     const gone = useStore.getState().removeExpense(editing.id)
     close()
-    if (gone) toast.undo(`Deleted ${f(gone.amount)}${gone.name ? ` · ${gone.name}` : ''}.`, () => useStore.getState().restoreExpense(gone))
+    const kept = !from ? '' : from.kind === 'needs' ? ` Still in ${from.mode}, unticked.` : ` Still planned in ${from.mode}, no longer marked spent.`
+    if (gone) toast.undo(`Deleted ${f(gone.amount)}${gone.name ? ` · ${gone.name}` : ''}.${kept}`, () => useStore.getState().restoreExpense(gone))
   }
 
   // Spending per day, as dots on the calendar.
@@ -121,6 +125,16 @@ export function ExpenseModal({ editId, date: startDate }: { editId?: string; dat
           onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && save(false)}
         >
           <div className="min-w-0 space-y-5">
+            {from && (
+              <p className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-xs leading-relaxed ${from.kind === 'wants' ? 'border-indigo-400/25 bg-indigo-500/[0.07] text-indigo-100/90' : 'border-emerald-400/25 bg-emerald-500/[0.07] text-emerald-100/90'}`}>
+                <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {from.kind === 'wants'
+                    ? <>Marked spent in <b className="font-semibold">{from.mode}</b>. A new amount or name changes that item too.</>
+                    : <>Ticked in <b className="font-semibold">{from.mode}</b>. Changes here show there too.</>}
+                </span>
+              </p>
+            )}
             {/* How much */}
             <Section label="How much" required>
               <div ref={amountBox}>

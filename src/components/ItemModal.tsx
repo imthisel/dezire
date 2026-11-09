@@ -1,5 +1,5 @@
 import { useCallback, useState, type ReactNode } from 'react'
-import { AlertTriangle, Car, Check, ChevronDown, Home, Link2, Settings2, StickyNote } from 'lucide-react'
+import { AlertTriangle, Car, Check, ChevronDown, Home, Link2, Receipt, Settings2, StickyNote } from 'lucide-react'
 import { fitCheck, useFmt, useItemIndex, useKindOf, useKinds, useStore, useAlt } from '../store'
 import { TREND, kindColor, kindIcon } from '../lib/meta'
 import { labelOfKey } from '../lib/time'
@@ -11,6 +11,7 @@ import { Modal } from './Modal'
 import { KindsModal } from './KindsModal'
 import { MoneyInput } from './MoneyInput'
 import { toast } from '../toast'
+import { useSpentExpense } from './Spent'
 import { RunningCostsField, draftOf, runningOf, type RunningDraft } from './RunningCosts'
 import { cleanRunning, lastFuelPrice, rememberFuelPrice } from '../lib/running'
 
@@ -40,6 +41,9 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
   const [notesOpen, setNotesOpen] = useState(!!editing?.notes || !!editing?.links?.length)
   // Vehicles: what it costs to run each year (optional)
   const [running, setRunning] = useState<RunningDraft>(() => draftOf(editing?.running, lastFuelPrice()))
+  // Already spent on: goes to Expenses too, and stays in this month with a mark (like a Needs item's tick).
+  const wasSpent = !!useSpentExpense(editing?.expenseId)
+  const [isSpent, setSpent] = useState(wasSpent)
   const index = useItemIndex()
   // Only keep a link to a property that still exists.
   // Property: which vehicles are kept here (ticked in this window, saved with it).
@@ -99,7 +103,10 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
     // A property keeps the vehicles ticked below; anything that's no longer a property keeps none.
     const pid = editId ?? (r.ok ? r.id : undefined)
     if (pid && (category === 'property' || editing?.category === 'property')) s.setVehiclesAt(pid, category === 'property' ? [...kept] : [])
-    toast.result(r, `${editId ? 'Updated' : 'Added'} “${data.name}” in ${labelOfKey(monthKey)}.`)
+    const flip = pid && r.ok && isSpent !== (editId ? wasSpent : false)
+    if (flip) s.setItemsSpent([pid], isSpent)
+    const how = !flip ? '' : isSpent ? ', marked spent and added to Expenses' : ', no longer marked spent'
+    toast.result(r, `${editId ? 'Updated' : 'Added'} “${data.name}” in ${labelOfKey(monthKey)}${how}.`)
     if (r.ok) close()
   }
 
@@ -392,6 +399,29 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
             </div>
           )}
         </section>
+
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isSpent}
+          onClick={() => setSpent((v) => !v)}
+          className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${isSpent ? 'border-emerald-400/60 bg-emerald-500/15 ring-1 ring-emerald-400/30' : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]'}`}
+        >
+          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl transition ${isSpent ? 'bg-emerald-400/25 text-emerald-200' : 'bg-white/[0.06] text-zinc-400'}`}>
+            <Receipt className="h-[18px] w-[18px]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-white">Already spent</span>
+            <span className="block text-xs leading-relaxed text-zinc-400">
+              {isSpent ? 'Goes to Expenses too. It stays in this month, marked spent.' : 'Off: still a plan. It won’t touch Expenses.'}
+            </span>
+          </span>
+          <span className={`relative h-6 w-10 shrink-0 rounded-full transition ${isSpent ? 'bg-emerald-400' : 'bg-white/15'}`}>
+            <span className={`absolute top-0.5 grid h-5 w-5 place-items-center rounded-full bg-white shadow transition-all ${isSpent ? 'left-[18px] text-emerald-600' : 'left-0.5 text-transparent'}`}>
+              <Check className="h-3 w-3" strokeWidth={3.5} />
+            </span>
+          </span>
+        </button>
 
         {!!price && budgetWarning && (
           <div role="alert" className="animate-fade flex gap-3 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">

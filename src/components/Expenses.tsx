@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   ArrowDownRight, ArrowUpRight, CalendarRange, ChevronLeft, ChevronRight, Download, Lightbulb, MapPin, NotebookPen, Plus, Receipt, Search, Settings2,
-  Target, Trash2, X,
+  ShoppingBasket, Sparkles, Target, Trash2, X,
 } from 'lucide-react'
 import { useFmt, useStore } from '../store'
 import { useCatOf } from '../expenseHooks'
@@ -15,6 +15,7 @@ import { card } from './Dashboard'
 import { ChartToggle, useChartHidden } from './ChartToggle'
 import { ExpenseSettings, type SettingsTab } from './ExpenseSettings'
 import { toast } from '../toast'
+import { useLinkSources, type LinkSource } from './Spent'
 
 const KINDS: { id: PeriodKind; label: string }[] = [
   { id: 'week', label: 'Week' },
@@ -612,9 +613,14 @@ function List({ period, list, filters, setFilters, f }: { period: Period; list: 
     toast.success(`Downloaded ${shown.length} expense${shown.length === 1 ? '' : 's'}.`)
   }
 
+  const sources = useLinkSources()
+
   function remove(e: Expense) {
+    const from = sources.get(e.id)
     const gone = useStore.getState().removeExpense(e.id)
-    if (gone) toast.undo(`Deleted ${f(gone.amount)}${gone.name ? ` · ${gone.name}` : ''}.`, () => useStore.getState().restoreExpense(gone))
+    // From a mode: the item itself stays there, just no longer ticked / marked spent.
+    const kept = !from ? '' : from.kind === 'needs' ? ` Still in ${from.mode}, unticked.` : ` Still planned in ${from.mode}, no longer marked spent.`
+    if (gone) toast.undo(`Deleted ${f(gone.amount)}${gone.name ? ` · ${gone.name}` : ''}.${kept}`, () => useStore.getState().restoreExpense(gone))
   }
 
   return (
@@ -684,7 +690,7 @@ function List({ period, list, filters, setFilters, f }: { period: Period; list: 
                 </div>
                 <ul className="space-y-1">
                   {items.map((e) => (
-                    <Row key={e.id} e={e} onRemove={() => remove(e)} />
+                    <Row key={e.id} e={e} from={sources.get(e.id)} onRemove={() => remove(e)} />
                   ))}
                 </ul>
               </div>
@@ -696,7 +702,7 @@ function List({ period, list, filters, setFilters, f }: { period: Period; list: 
   )
 }
 
-function Row({ e, onRemove }: { e: Expense; onRemove: () => void }) {
+function Row({ e, from, onRemove }: { e: Expense; from?: LinkSource; onRemove: () => void }) {
   const f = useFmt()
   const c = useCatOf()(e.category)
   const col = catColor(c)
@@ -717,6 +723,7 @@ function Row({ e, onRemove }: { e: Expense; onRemove: () => void }) {
           <span className="flex items-center gap-1.5">
             <span className={`truncate text-sm font-medium ${e.name || e.category ? 'text-zinc-100' : 'text-zinc-400'}`}>{title}</span>
             {e.notes && <NotebookPen className="h-3 w-3 shrink-0 text-zinc-500" aria-label="Has a note" />}
+            {from && <FromBadge from={from} />}
           </span>
           {meta.length > 0 && (
             <span className="flex items-center gap-1 truncate text-xs text-zinc-500">
@@ -751,6 +758,23 @@ function FilterChip({ onClear, children }: { onClear: () => void; children: Reac
       <button onClick={onClear} aria-label="Remove filter" className="grid h-5 w-5 place-items-center rounded-full transition hover:bg-white/10">
         <X className="h-3 w-3" />
       </button>
+    </span>
+  )
+}
+
+/** Where an expense came from: a Wants item marked spent, or a ticked Needs item. Editing either side keeps both the same. */
+function FromBadge({ from }: { from: LinkSource }) {
+  const wants = from.kind === 'wants'
+  const Icon = wants ? Sparkles : ShoppingBasket
+  return (
+    <span
+      title={wants ? `Marked spent in ${from.mode}. It's still planned there.` : `Ticked in ${from.mode}. Changes here show there too.`}
+      className={`inline-flex min-w-0 shrink items-center gap-1 rounded-full px-1.5 py-px text-[10px] font-semibold ring-1 ring-inset ${
+        wants ? 'bg-indigo-500/10 text-indigo-200 ring-indigo-400/25' : 'bg-emerald-500/10 text-emerald-200 ring-emerald-400/25'
+      }`}
+    >
+      <Icon className="h-2.5 w-2.5 shrink-0" />
+      <span className="truncate">{wants ? 'Wants' : 'Needs'} · {from.mode}</span>
     </span>
   )
 }

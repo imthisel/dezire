@@ -1,5 +1,5 @@
 import { useEffect, useState, type DragEvent, type ReactNode } from 'react'
-import { AlertTriangle, Cake, ChevronDown, CheckCheck, ClipboardPaste, ListChecks, Plus, StickyNote, Target, X } from 'lucide-react'
+import { AlertTriangle, Cake, ChevronDown, CheckCheck, ClipboardPaste, ListChecks, Plus, Receipt, StickyNote, Target, X } from 'lucide-react'
 import { fitText } from '../lib/money'
 import { ageIn, turnsLabel, useBirthday } from './Birthday'
 import { useFmt, usePlan, useStore, useAlt } from '../store'
@@ -7,6 +7,7 @@ import { MONTHS, currentIndex } from '../lib/time'
 import { overLimitIds } from '../lib/calc'
 import { MoneyInput } from './MoneyInput'
 import { ItemRow } from './ItemRow'
+import { useSpentOf } from './Spent'
 import { drag } from '../dnd'
 import { selection, usePicking, useSelection } from '../selection'
 import { toast } from '../toast'
@@ -42,6 +43,7 @@ export function MonthCard({ index }: { index: number }) {
   const u = useAlt()
   const month = useStore((s) => s.months[c.key])
   const items = month?.items ?? EMPTY
+  const spentOf = useSpentOf(items)
   const over = overLimitIds(month, c.available)
   const clipboard = useStore((s) => s.clipboard)
   const { setMonthField, setMonthNotes, openModal, pasteInto, transferItem, transferItems } = useStore.getState()
@@ -320,6 +322,7 @@ export function MonthCard({ index }: { index: number }) {
         <p className={`mt-2.5 flex items-center gap-1.5 text-xs ${over.size ? 'text-red-300' : 'text-zinc-400'}`}>
           {over.size > 0 && <AlertTriangle className="h-3.5 w-3.5" />}
           {items.length} item{items.length > 1 ? 's' : ''}
+          {spentOf.count > 0 && <span className="text-emerald-300/90"> · {spentOf.count === items.length ? 'all' : spentOf.count} spent</span>}
           {over.size > 0 && ` · ${over.size} over the limit`}
         </p>
       )}
@@ -334,6 +337,18 @@ export function MonthCard({ index }: { index: number }) {
       </div>
 
       {items.length > 0 && <MonthPicker ids={items.map((i) => i.id)} />}
+
+      {/* What's already been bought: still planned here, and counted in Expenses */}
+      {spentOf.count > 0 && (
+        <p className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-400/20 bg-emerald-500/[0.06] px-2.5 py-1.5 text-xs text-emerald-100/90">
+          <Receipt className="h-3.5 w-3.5 shrink-0 text-emerald-300" />
+          <span className="min-w-0 flex-1 truncate">
+            {spentOf.count === items.length ? 'All of it is spent' : `${spentOf.count} of ${items.length} spent`}
+            <span className="text-emerald-200/60"> · in Expenses</span>
+          </span>
+          <span className="shrink-0 font-semibold tabular-nums">{f(spentOf.sum)}</span>
+        </p>
+      )}
 
       {/* Items */}
       <ul className="mt-3 flex flex-1 flex-col gap-1.5">
