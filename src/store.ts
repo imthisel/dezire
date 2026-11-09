@@ -17,6 +17,7 @@ import {
 import { parseLinks } from './lib/links'
 import { isSent, modeKind, parseNeeds, spentDay, starterNeeds, unlinkedCopy, unlinkedMonths, wantsCategory } from './lib/needs'
 import { DEFAULT_DEVICE, DEFAULT_PREFS, live, parseDevice, parsePrefs, type DevicePrefs, type Prefs } from './lib/prefs'
+import { DEFAULT_SCHOOL, parseSchool, type School } from './lib/school'
 import { DEFAULT_TASK_KINDS, MAX_TASK_KIND_NAME, TASK_COLORS, UNKNOWN_TASK_KIND, cleanTask, guessTaskIcon, parseTaskKinds, parseTasks, type TaskInput } from './lib/tasks'
 
 export type Clip = { mode: 'copy' | 'cut'; fromKey: string; item: Item }
@@ -34,9 +35,11 @@ export type ModalState =
   | { type: 'need'; editId?: string; date?: string }
   /** Add (no `editId`) or edit a task. The rest is what a new one starts with (e.g. the time dragged out on the calendar). */
   | { type: 'task'; editId?: string; entry?: TaskType; date?: string; start?: number | null; duration?: number; kind?: string; title?: string }
+  /** Add (no `editId`) or edit a School task. `column` / `due` / `subject`: what a new one starts with. */
+  | { type: 'school'; editId?: string; column?: string; due?: string; subject?: string }
   | null
 export type PhoneCols = 1 | 2 | 3
-export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses' | 'calendar' | 'settings'
+export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses' | 'calendar' | 'school' | 'settings'
 /** Assets page: which kind of item, and which years */
 export type AssetCat = 'all' | Category
 /** `month` (0–11) is used by the 'month' mode: one of the year's setups (see `setupMonths`). */
@@ -460,6 +463,11 @@ interface State {
   moveTaskKind: (id: string, to: number) => void
   /** Deletes a kind. Its tasks move to `moveTo` (or the first kind left). The last kind can't be deleted. */
   removeTaskKind: (id: string, moveTo?: string) => Result
+
+  /** School: subjects, deadlines and a board of what's to do and done */
+  school: School
+  /** Changes School with one of the helpers in lib/school (they return a new School). */
+  changeSchool: (change: (s: School) => School) => void
 
   importData: (data: unknown) => Result
   resetAll: () => void
@@ -1369,6 +1377,13 @@ export const useStore = create<State>()(
         return used
       },
 
+      school: DEFAULT_SCHOOL,
+      changeSchool: (change) =>
+        set((s) => {
+          const school = change(s.school)
+          return school === s.school ? {} : { school }
+        }),
+
       tasks: [],
       taskKinds: DEFAULT_TASK_KINDS,
       addTask: (data) => {
@@ -1454,6 +1469,7 @@ export const useStore = create<State>()(
             setupFavorites?: unknown
             tasks?: unknown
             taskKinds?: unknown
+            school?: unknown
             modes?: unknown
             prefs?: unknown
           }
@@ -1486,6 +1502,7 @@ export const useStore = create<State>()(
             places: d.places === undefined ? cur.places : parsePlaces(d.places),
             tasks: d.tasks === undefined ? cur.tasks : parseTasks(d.tasks),
             taskKinds: d.taskKinds === undefined ? cur.taskKinds : (parseTaskKinds(d.taskKinds) ?? DEFAULT_TASK_KINDS),
+            school: d.school === undefined ? cur.school : parseSchool(d.school),
           }
           // Modes: the main plan is saved at the top (as before modes existed), the others in `modes`.
           const curAll = allModes(cur)
@@ -1512,7 +1529,7 @@ export const useStore = create<State>()(
         }
       },
 
-      resetAll: () => set({ modes: [mainMode()], modeId: MAIN_MODE, modeData: {}, tasks: [], taskKinds: DEFAULT_TASK_KINDS, layouts: {}, setupNotes: {}, setupFavorites: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
+      resetAll: () => set({ modes: [mainMode()], modeId: MAIN_MODE, modeData: {}, tasks: [], taskKinds: DEFAULT_TASK_KINDS, school: DEFAULT_SCHOOL, layouts: {}, setupNotes: {}, setupFavorites: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
       name: 'dizayr-goal-planner-v1',
@@ -1538,6 +1555,7 @@ export const useStore = create<State>()(
         modeData: s.modeData,
         tasks: s.tasks,
         taskKinds: s.taskKinds,
+        school: s.school,
         year: s.year,
         dashMode: s.dashMode,
         // Settings has its own address, so a reload finds it again from there.
@@ -1590,6 +1608,7 @@ export const useStore = create<State>()(
           ...p,
           prefs: parsePrefs(p.prefs),
           device: parseDevice(p.device),
+          school: parseSchool(p.school),
           ...(p.modes ? { modes: p.modes.map((m) => (m.needs ? { ...m, needs: parseNeeds(m.needs) } : m)) } : {}),
         }
       },

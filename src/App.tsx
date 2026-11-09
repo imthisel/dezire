@@ -11,7 +11,9 @@ import { NeedItemModal } from './components/NeedItemModal'
 import { ExpenseModal } from './components/ExpenseModal'
 import { Assets } from './components/Assets'
 import { Schedule } from './components/Schedule'
+import { School } from './components/School'
 import { TaskModal } from './components/TaskModal'
+import { SchoolTaskModal } from './components/SchoolTaskModal'
 import { ItemModal } from './components/ItemModal'
 import { MoveDialog } from './components/MoveDialog'
 import { GoalModal } from './components/GoalModal'
@@ -101,6 +103,7 @@ function page(view: View, needs: boolean) {
   if (view === 'favorites') return <Favorites />
   if (view === 'assets') return <Assets />
   if (view === 'calendar') return <Schedule />
+  if (view === 'school') return <School />
   if (view === 'settings') return <Settings />
   if (needs) return <NeedsPage />
   return (
@@ -150,6 +153,7 @@ function Modals() {
       {modal.type === 'expense' && <ExpenseModal key={modal.editId ?? `new-${modal.date ?? ''}`} editId={modal.editId} date={modal.date} />}
       {modal.type === 'need' && <NeedItemModal key={modal.editId ?? `new-${modal.date ?? ''}`} editId={modal.editId} date={modal.date} />}
       {modal.type === 'task' && <TaskModal key={modal.editId ?? `new-${modal.date ?? ''}-${modal.start ?? ''}`} {...modal} />}
+      {modal.type === 'school' && <SchoolTaskModal key={modal.editId ?? `new-${modal.column ?? ''}-${modal.due ?? ''}`} {...modal} />}
       {modal.type === 'kinds' && <KindsModal onClose={close} />}
       {modal.type === 'goalAreas' && <GoalAreasModal onClose={close} openId={modal.openId} add={modal.add} />}
       {modal.type === 'goal' && (

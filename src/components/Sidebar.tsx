@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
-import { CalendarCheck, CalendarDays, ChevronDown, Download, Flag, Gem, GripVertical, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
+import { CalendarCheck, CalendarDays, ChevronDown, Download, Flag, Gem, GraduationCap, GripVertical, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
 import { modeKind } from '../lib/needs'
 import { CopyModeModal, ModesModal } from './Modes'
 import type { ModeInfo, ModeKind } from '../lib/types'
@@ -10,6 +10,7 @@ import { goHome, goTo, useActiveSection } from '../nav'
 import { openSettings } from '../settingsNav'
 import { todayKey } from '../lib/expenses'
 import { happensOn, isDoneOn, isEvent } from '../lib/tasks'
+import { daysBetween } from '../lib/school'
 import { useSortable } from '../sortable'
 import { installApp, useApp } from '../appUpdate'
 import { PremiumCard } from './Plans'
@@ -50,6 +51,21 @@ export function Sidebar() {
   // Tasks still to do today, shown next to Calendar.
   const today = todayKey()
   const dueToday = useStore((s) => s.tasks.filter((t) => !isEvent(t) && happensOn(t, today) && !isDoneOn(t, today)).length)
+  // School: tasks that are late, else due in the next three days (a "late,soon" string, so it only redraws on a real change).
+  const [schoolLate, schoolSoon] = useStore((s) => {
+    const open = new Set(s.school.columns.filter((c) => c.role === 'open').map((c) => c.id))
+    let late = 0
+    let soon = 0
+    for (const t of s.school.tasks) {
+      if (!open.has(t.column)) continue
+      const d = daysBetween(today, t.due)
+      if (d < 0) late++
+      else if (d <= 3) soon++
+    }
+    return `${late},${soon}`
+  })
+    .split(',')
+    .map(Number)
   const shown = docked ? sidebar : drawer
   const appInstalled = useApp((s) => s.installed)
   const hiddenNav = useStore((s) => s.prefs.hiddenNav)
@@ -248,6 +264,26 @@ export function Sidebar() {
               className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
             >
               <Plus className="h-4 w-4" /> Add a task
+            </button>
+          </Group>}
+
+          {!hiddenNav.includes('school') && <Group label="School">
+            <Link
+              icon={GraduationCap}
+              label="School"
+              on={active === 'school'}
+              onClick={() => goTo('school')}
+              note={schoolLate > 0 ? `${schoolLate} late` : schoolSoon > 0 ? `${schoolSoon} due soon` : undefined}
+              noteTitle={schoolLate > 0 ? 'School tasks past their due date' : 'School tasks due in the next 3 days'}
+            />
+            <button
+              onClick={() => {
+                useStore.getState().setDrawer(false)
+                useStore.getState().openModal({ type: 'school' })
+              }}
+              className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
+            >
+              <Plus className="h-4 w-4" /> Add a school task
             </button>
           </Group>}
 

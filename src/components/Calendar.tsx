@@ -4,7 +4,7 @@ import { MAX_DATE, MIN_DATE, WEEKDAYS, addDays, clampDate, daysInMonth, fromKey,
 import { MONTHS, MONTHS_SHORT } from '../lib/time'
 
 interface Props {
-  /** Picked day, "YYYY-MM-DD" */
+  /** Picked day, "YYYY-MM-DD" ('' = none picked yet: opens on this month) */
   value: string
   onChange: (day: string) => void
   /** Days to mark with a dot (e.g. days with spending), with an optional caption for each */
@@ -21,7 +21,7 @@ const pad = (n: number) => String(n).padStart(2, '0')
  */
 export function Calendar({ value, onChange, marks, min = MIN_DATE, max = MAX_DATE }: Props) {
   const [view, setView] = useState(() => {
-    const d = fromKey(value)
+    const d = fromKey(value || todayKey())
     return { y: d.getFullYear(), m: d.getMonth() }
   })
   const [dir, setDir] = useState<1 | -1>(1)
@@ -35,6 +35,7 @@ export function Calendar({ value, onChange, marks, min = MIN_DATE, max = MAX_DAT
 
   // Follow the picked day when it changes from outside (e.g. "Yesterday" button).
   useEffect(() => {
+    if (!value) return
     const d = fromKey(value)
     setView((v) => (v.y === d.getFullYear() && v.m === d.getMonth() ? v : { y: d.getFullYear(), m: d.getMonth() }))
   }, [value])
@@ -71,9 +72,10 @@ export function Calendar({ value, onChange, marks, min = MIN_DATE, max = MAX_DAT
   function onKey(e: KeyboardEvent<HTMLDivElement>) {
     const moves: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }
     let to: string | null = null
-    if (e.key in moves) to = addDays(value, moves[e.key])
-    else if (e.key === 'PageUp') to = toKey(new Date(fromKey(value).getFullYear(), fromKey(value).getMonth() - 1, Math.min(fromKey(value).getDate(), 28), 12))
-    else if (e.key === 'PageDown') to = toKey(new Date(fromKey(value).getFullYear(), fromKey(value).getMonth() + 1, Math.min(fromKey(value).getDate(), 28), 12))
+    const at = fromKey(value || today)
+    if (e.key in moves) to = addDays(value || today, moves[e.key])
+    else if (e.key === 'PageUp') to = toKey(new Date(at.getFullYear(), at.getMonth() - 1, Math.min(at.getDate(), 28), 12))
+    else if (e.key === 'PageDown') to = toKey(new Date(at.getFullYear(), at.getMonth() + 1, Math.min(at.getDate(), 28), 12))
     else if (e.key === 'Home') to = today
     if (!to) return
     e.preventDefault()
@@ -224,7 +226,7 @@ export function Calendar({ value, onChange, marks, min = MIN_DATE, max = MAX_DAT
                   role="gridcell"
                   aria-selected={on}
                   aria-label={`${longDate(k)}${isToday ? ', today' : ''}${mark ? `, ${mark}` : ''}`}
-                  tabIndex={on ? 0 : -1}
+                  tabIndex={on || (!value && isToday) ? 0 : -1}
                   disabled={off}
                   onClick={() => {
                     if (!inMonth) setDir(k > value ? 1 : -1)

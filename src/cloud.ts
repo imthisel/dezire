@@ -29,10 +29,10 @@ const SAVE_DELAY = 800
 /** The part of the app's state that belongs to the account. */
 export const snapshot = () => {
   const s = useStore.getState()
-  const { kinds, goals, goalAreas, sources, birthday, currency, expenses, expenseCats, places, tasks, taskKinds, prefs } = s
+  const { kinds, goals, goalAreas, sources, birthday, currency, expenses, expenseCats, places, tasks, taskKinds, school, prefs } = s
   const saved = savedModes(s)
   const modes = saved.modes.map((m) => (m.needs ? { ...m, needs: { ...m.needs, items: m.needs.items.map((i) => ({ ...compact(i), ...(i.expenseId ? { expenseId: i.expenseId } : {}) })) } } : m))
-  return { ...saved, modes, kinds, goals, goalAreas, sources, birthday, currency, expenses: expenses.map(compact), expenseCats, places, tasks, taskKinds, prefs }
+  return { ...saved, modes, kinds, goals, goalAreas, sources, birthday, currency, expenses: expenses.map(compact), expenseCats, places, tasks, taskKinds, school, prefs }
 }
 
 /** An expense without its empty fields, to keep the saved document small (they come back as '' when loaded). */
@@ -156,7 +156,7 @@ async function connect(user: User) {
   let offlineEdits = false
   const unsubStore = useStore.subscribe((s, prev) => {
     if (applyingRemote) return
-    if (s.months === prev.months && s.kinds === prev.kinds && s.goals === prev.goals && s.goalAreas === prev.goalAreas && s.sources === prev.sources && s.birthday === prev.birthday && s.yearNotes === prev.yearNotes && s.currency === prev.currency && s.expenses === prev.expenses && s.expenseCats === prev.expenseCats && s.places === prev.places && s.layouts === prev.layouts && s.setupNotes === prev.setupNotes && s.setupFavorites === prev.setupFavorites && s.modes === prev.modes && s.modeData === prev.modeData && s.tasks === prev.tasks && s.taskKinds === prev.taskKinds && s.prefs === prev.prefs) return
+    if (s.months === prev.months && s.kinds === prev.kinds && s.goals === prev.goals && s.goalAreas === prev.goalAreas && s.sources === prev.sources && s.birthday === prev.birthday && s.yearNotes === prev.yearNotes && s.currency === prev.currency && s.expenses === prev.expenses && s.expenseCats === prev.expenseCats && s.places === prev.places && s.layouts === prev.layouts && s.setupNotes === prev.setupNotes && s.setupFavorites === prev.setupFavorites && s.modes === prev.modes && s.modeData === prev.modeData && s.tasks === prev.tasks && s.taskKinds === prev.taskKinds && s.school === prev.school && s.prefs === prev.prefs) return
     pending = true
     if (!navigator.onLine) offlineEdits = true
     useCloud.setState({ status: navigator.onLine ? 'saving' : 'offline' })

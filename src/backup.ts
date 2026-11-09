@@ -21,8 +21,8 @@ function download(name: string, text: string, type: string) {
 /** Downloads everything in the account as one file that Restore can read back. */
 export function downloadBackup() {
   const s = useStore.getState()
-  const { kinds, currency, goals, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, prefs } = s
-  const data = { app: 'dizayr', version: 5, exportedAt: new Date().toISOString(), currency, kinds, goals, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, prefs, ...savedModes(s) }
+  const { kinds, currency, goals, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, school, prefs } = s
+  const data = { app: 'dizayr', version: 5, exportedAt: new Date().toISOString(), currency, kinds, goals, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, school, prefs, ...savedModes(s) }
   download(`dizayr-backup-${today()}.json`, JSON.stringify(data, null, 2), 'application/json')
   s.setDevice({ lastBackup: Date.now() })
   toast.success('Backup downloaded.')
@@ -64,7 +64,7 @@ function keepForUndo() {
   const kept = {
     months: s.months, kinds: s.kinds, goals: s.goals, goalAreas: s.goalAreas, sources: s.sources, birthday: s.birthday, yearNotes: s.yearNotes, currency: s.currency,
     expenses: s.expenses, expenseCats: s.expenseCats, places: s.places, layouts: s.layouts, setupNotes: s.setupNotes, setupFavorites: s.setupFavorites,
-    modes: s.modes, modeId: s.modeId, modeData: s.modeData, tasks: s.tasks, taskKinds: s.taskKinds, prefs: s.prefs,
+    modes: s.modes, modeId: s.modeId, modeData: s.modeData, tasks: s.tasks, taskKinds: s.taskKinds, school: s.school, prefs: s.prefs,
   }
   return () => useStore.setState(kept)
 }
@@ -79,7 +79,7 @@ export function restoreBackup(data: unknown) {
 
 // ---- Clearing ----
 
-export type ClearPart = 'plan' | 'expenses' | 'calendar' | 'goals' | 'sources' | 'everything'
+export type ClearPart = 'plan' | 'expenses' | 'calendar' | 'school' | 'goals' | 'sources' | 'everything'
 
 /** Clears part of the account, or all of it. It can be undone right after. */
 export function clearData(parts: ClearPart[]) {
@@ -97,6 +97,8 @@ export function clearData(parts: ClearPart[]) {
         : {}),
       ...(parts.includes('expenses') ? { expenses: [] } : {}),
       ...(parts.includes('calendar') ? { tasks: [] } : {}),
+      // Keeps the columns and subjects: only the tasks go.
+      ...(parts.includes('school') ? { school: { ...s.school, tasks: [] } } : {}),
       ...(parts.includes('goals') ? { goals: {} } : {}),
       ...(parts.includes('sources') ? { sources: [] } : {}),
     })

@@ -31,6 +31,7 @@ const VIEW_NAMES: Record<View, string> = {
   assets: 'Assets',
   expenses: 'Expenses',
   calendar: 'Calendar',
+  school: 'School',
   settings: 'Overview',
 }
 

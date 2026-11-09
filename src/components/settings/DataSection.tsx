@@ -147,6 +147,7 @@ function ClearModal({ items, expenses, tasks, goals, sources, onClose }: { items
   const needsMode = useStore(inNeedsMode)
   const [picked, setPicked] = useState<ClearPart[]>([])
   const [typed, setTyped] = useState('')
+  const schoolTasks = useStore((s) => s.school.tasks.length)
   const everything = picked.includes('everything')
   const ready = picked.length > 0 && (!everything || typed.trim().toUpperCase() === CONFIRM_WORD)
 
@@ -156,6 +157,7 @@ function ClearModal({ items, expenses, tasks, goals, sources, onClose }: { items
       : { id: 'plan', title: `The plan in “${modeName}”`, hint: `${plural(items, 'item')}, goals to make, budgets, setups and year notes` },
     { id: 'expenses', title: 'Expenses', hint: plural(expenses, 'expense') },
     { id: 'calendar', title: 'Calendar & tasks', hint: plural(tasks, 'entry').replace('entrys', 'entries') },
+    { id: 'school', title: 'School tasks', hint: `${plural(schoolTasks, 'task')} · your columns and subjects stay` },
     { id: 'goals', title: 'Yearly goals', hint: plural(goals, 'goal') },
     { id: 'sources', title: 'Money plans', hint: plural(sources, 'plan') },
     { id: 'everything', title: 'Everything', hint: 'All of the above in every mode, your lists and your birthday' },
