@@ -171,23 +171,6 @@ export function Sidebar() {
               </li>
             </ul>
             </SubGroup>}
-
-            {!hiddenNav.includes('plan') && <SubGroup label="Making the money">
-            <Link icon={Rocket} label="Money plan" on={inWants && active === 'plan'} onClick={() => wants('plan')} badge={sources.length || undefined} />
-            {sources.length > 0 && (
-              <ul className="ml-[1.4rem] mt-1 space-y-0.5 border-l border-white/[0.07] pl-2">
-                {sources.map((s, i) => (
-                  <SourceLink key={s.id} source={s} index={i} dragId={dragSource} setDragId={setDragSource} />
-                ))}
-              </ul>
-            )}
-            <button
-              onClick={() => wants('plan-add')}
-              className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
-            >
-              <Plus className="h-4 w-4" /> Add a way to earn
-            </button>
-            </SubGroup>}
           </KindSection>
 
           <KindSection kind="needs" on={needsMode} mode={needsName}>
@@ -215,6 +198,24 @@ export function Sidebar() {
               </button>
             )}
           </KindSection>
+
+          {/* Its own section: making the money serves the whole plan, not one Wants page. (It opens in Wants, where the page lives.) */}
+          {!hiddenNav.includes('plan') && <Group label="Making the money">
+            <Link icon={Rocket} label="Money plan" on={inWants && active === 'plan'} onClick={() => wants('plan')} badge={sources.length || undefined} />
+            {sources.length > 0 && (
+              <ul className="ml-[1.4rem] mt-1 space-y-0.5 border-l border-white/[0.07] pl-2">
+                {sources.map((s, i) => (
+                  <SourceLink key={s.id} source={s} index={i} dragId={dragSource} setDragId={setDragSource} />
+                ))}
+              </ul>
+            )}
+            <button
+              onClick={() => wants('plan-add')}
+              className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
+            >
+              <Plus className="h-4 w-4" /> Add a way to earn
+            </button>
+          </Group>}
 
           {!hiddenNav.includes('calendar') && <Group label="Time">
             <Link
