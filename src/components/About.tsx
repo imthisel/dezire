@@ -107,7 +107,7 @@ export function About() {
   const user = useCloud((s) => s.user)
   const signin = useSignIn()
   useReveal()
-  useTitle('Dizayr · Your future starts with a vision')
+  useTitle('Dizayr')
 
   return (
     <div className="about relative min-h-screen overflow-x-clip bg-[#07080c] text-zinc-100 antialiased">
@@ -251,9 +251,8 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
       className="relative mx-auto grid max-w-6xl items-center gap-14 px-5 pb-16 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.08fr_1fr] lg:items-start lg:gap-14 lg:pb-24 lg:pt-12"
     >
       <div className="text-center lg:text-left">
-        <p className="hero-in text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">A private space for the life you want</p>
-        <h1 className="hero-in mt-6 font-display font-semibold tracking-[-0.035em] text-[2.9rem] leading-[1] text-white sm:text-[4rem] lg:text-[4.6rem]" style={{ ['--d' as string]: '80ms' }}>
-          Your future starts with a <span className="text-brand-300">vision.</span>
+        <h1 className="hero-in font-display font-semibold tracking-[-0.035em] text-[2.9rem] leading-[1] text-white sm:text-[4rem] lg:text-[4.6rem]" style={{ ['--d' as string]: '80ms' }}>
+          A private space for <span className="text-brand-300">the life you want.</span>
         </h1>
         <p className="hero-in mx-auto mt-7 max-w-lg text-lg leading-relaxed text-zinc-300 lg:mx-0" style={{ ['--d' as string]: '180ms' }}>
           Build a visual version of the life you want. Give every dream a price and a date, then work toward it, one month at a time.
@@ -809,7 +808,7 @@ function FinalCta({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           <span className="text-brand-300">Build it.</span>
         </h2>
         <p className="mx-auto mt-7 max-w-lg text-lg leading-relaxed text-zinc-300">
-          Your future starts with a vision. Write yours down today, and take the first step toward it.
+          Write down the life you want today, and take the first step toward it.
         </p>
         <div className="mt-10 flex justify-center">{signedIn ? <OpenApp big /> : <GoogleButton signin={signin} big />}</div>
         <p className="mt-5 text-sm text-zinc-400">
