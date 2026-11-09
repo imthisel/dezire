@@ -259,6 +259,10 @@ VITE_LS_STORE_URL=https://dizayr.lemonsqueezy.com
 
 ## Step 9: Test everything (nothing is charged in Test mode)
 
+> **First, allow test payments on the live site.** For safety, the live site ignores Test-mode purchases (fake cards could
+> otherwise unlock real accounts). While you test, add `LS_ALLOW_TEST_MODE` = `1` in **Vercel → Settings → Environment
+> Variables** (Production) and redeploy. **Delete it again** when you go live in Step 10, then redeploy.
+
 Use a **spare Google account** in a private window. Do these in order, because one account goes through the whole journey.
 
 **Trial**

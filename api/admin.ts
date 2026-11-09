@@ -17,6 +17,9 @@ import {
 
 const MAX_TRIES = 5
 const LOCK_MS = 15 * 60_000
+/** Across every address together: this many wrong passwords in an hour pauses all sign-ins for the rest of that hour. */
+const MAX_TRIES_ALL = 25
+const WINDOW_MS = 60 * 60_000
 const DAY = 86_400_000
 
 const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -36,7 +39,9 @@ const safe =
       return await handler(request)
     } catch (e) {
       console.error('admin', e)
-      return fail(500, 'server_error', { message: e instanceof Error ? e.message.slice(0, 300) : String(e) })
+      // The details only go to a signed-in admin: to anyone else they'd describe the server's insides.
+      const detail = session(request) ? { message: e instanceof Error ? e.message.slice(0, 300) : String(e) } : {}
+      return fail(500, 'server_error', detail)
     }
   }
 
@@ -171,16 +176,28 @@ function sameSite(request: Request) {
 async function login(request: Request, given: unknown) {
   const { db } = await firebase()
   const lockRef = db.collection('admin_locks').doc(ipKey(clientIp(request)))
-  const lock = await lockRef.get()
+  // Someone guessing from many addresses at once gets past a per-address lock, so there's one for everyone too.
+  const allRef = db.collection('admin_locks').doc('_all')
+  const [lock, all] = await Promise.all([lockRef.get(), allRef.get()])
   const until = ms(lock.get('until')) ?? 0
   if (until > Date.now()) return fail(429, 'locked', { retryAt: until })
+  const windowStart = ms(all.get('since')) ?? 0
+  const inWindow = Date.now() - windowStart < WINDOW_MS
+  const failedAll = inWindow ? ((all.get('tries') as number) ?? 0) : 0
+  if (failedAll >= MAX_TRIES_ALL) {
+    await audit(request, 'login_blocked_all')
+    return fail(429, 'locked', { retryAt: windowStart + WINDOW_MS })
+  }
 
   if (!passwordMatches(given)) {
     const tries = ((lock.get('tries') as number) ?? 0) + 1
     const locked = tries >= MAX_TRIES
-    await lockRef.set(
-      locked ? { tries: 0, until: Timestamp.fromMillis(Date.now() + LOCK_MS) } : { tries, until: null, last: FieldValue.serverTimestamp() },
-    )
+    await Promise.all([
+      lockRef.set(
+        locked ? { tries: 0, until: Timestamp.fromMillis(Date.now() + LOCK_MS) } : { tries, until: null, last: FieldValue.serverTimestamp() },
+      ),
+      allRef.set(inWindow ? { tries: FieldValue.increment(1) } : { tries: 1, since: Timestamp.now() }, { merge: true }),
+    ])
     await audit(request, locked ? 'login_locked' : 'login_failed')
     // A moment's pause makes guessing slower still.
     await new Promise((r) => setTimeout(r, 600))

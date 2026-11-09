@@ -228,7 +228,7 @@ function loadLemon(): Promise<Lemon | null> {
       resolve(ls)
     }
     const s = document.createElement('script')
-    s.src = 'https://app.lemonsqueezy.com/js/lemon.js'
+    s.src = 'https://assets.lemonsqueezy.com/lemon.js'
     s.defer = true
     s.onload = done
     s.onerror = () => resolve(null)
