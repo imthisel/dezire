@@ -12,7 +12,7 @@ import type { ExpenseCategory, NeedItem, NeedsPlan } from '../lib/types'
 import { card } from './Dashboard'
 import { MoneyInput } from './MoneyInput'
 import { NeedsPicker } from './NeedItemModal'
-import { BringInModal, NeedsBridge, SendBar, SendTick, flipSent } from './NeedsBridge'
+import { BOUGHT_TEXT, BringInModal, NOT_BOUGHT_TEXT, NeedsBridge, SendBar, SendTick, flipSent } from './NeedsBridge'
 import { toast } from '../toast'
 
 const OPEN_KEY = 'dizayr-needs-open'
@@ -778,7 +778,7 @@ function NeedRow({ item, cat, sent }: { item: NeedItem; cat: ExpenseCategory; se
         <Icon className="h-4 w-4" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium text-zinc-100">{title}</span>
+        <span className={`block truncate text-[13px] font-medium text-zinc-100 ${sent ? BOUGHT_TEXT : NOT_BOUGHT_TEXT}`}>{title}</span>
         <span className="block truncate text-[11px] text-zinc-400">
           {WEEKDAYS[d.getDay()]} {d.getDate()}
           {item.name ? ` · ${cat.label}` : ''}

@@ -9,6 +9,15 @@ import { Modal } from './Modal'
 import { toast } from '../toast'
 
 /** The tick that sends something to Expenses. Used for one item, and for a whole week (where `partly` can show). */
+/**
+ * The name of something already bought (a ticked Wants or Needs item): a thin soft-green line through it, the same in
+ * both. The text keeps its full colour, so it reads as easily as before; the line fades in and out with the tick.
+ */
+const STRIKE = 'line-through decoration-[1.5px] transition-[text-decoration-color] duration-300'
+export const BOUGHT_TEXT = `${STRIKE} decoration-emerald-300/75`
+/** The same line, invisible, so ticking fades it in instead of popping. */
+export const NOT_BOUGHT_TEXT = `${STRIKE} decoration-transparent`
+
 export function SendTick({ on, partly, label, onChange, size = 'md' }: { on: boolean; partly?: boolean; label: string; onChange: () => void; size?: 'sm' | 'md' }) {
   const box = size === 'sm' ? 'h-5 w-5 rounded-md' : 'h-6 w-6 rounded-lg'
   const click = (e: MouseEvent) => {
