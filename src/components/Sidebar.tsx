@@ -1,8 +1,8 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import { ArrowDown, ArrowUp, ArrowUpDown, CalendarCheck, CalendarDays, ChevronDown, Download, Flag, Gem, GraduationCap, GripVertical, Wallet, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
 import { modeKind } from '../lib/needs'
-import { CopyModeModal, ModesModal } from './Modes'
-import type { ModeInfo, ModeKind } from '../lib/types'
+import { CopyModeModal, ModesModal, enterKind, lastMode, modeFor } from './Modes'
+import type { ModeKind } from '../lib/types'
 import { inNeedsMode, useFmt, useKinds, useStore } from '../store'
 import { SOURCE_KIND, kindColor, kindIcon } from '../lib/meta'
 import { useMedia } from '../lib/useMedia'
@@ -388,22 +388,6 @@ export function Sidebar() {
   )
 }
 
-/** The last mode used of each kind, so going back to Wants or Needs lands where you were. */
-const lastMode: Partial<Record<ModeKind, string>> = {}
-
-function modeFor(kind: ModeKind, modes: ModeInfo[]) {
-  return modes.find((m) => m.id === lastMode[kind] && modeKind(m) === kind) ?? modes.find((m) => modeKind(m) === kind)
-}
-
-/** Switches to a mode of this kind if one isn't in use. False when there is none of that kind yet. */
-function enterKind(kind: ModeKind) {
-  const s = useStore.getState()
-  if (modeKind(s.modes.find((m) => m.id === s.modeId)) === kind) return true
-  const to = modeFor(kind, s.modes)
-  if (!to) return false
-  s.switchMode(to.id)
-  return true
-}
 
 /** The sidebar's fold-open blocks: Wants and Needs, plus the Money plan, which serves both. */
 type FoldKind = ModeKind | 'plan'

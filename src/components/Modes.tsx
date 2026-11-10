@@ -6,6 +6,7 @@ import { modeKind } from '../lib/needs'
 import type { ModeInfo, ModeKind } from '../lib/types'
 import { Modal } from './Modal'
 import { toast } from '../toast'
+import { goTo } from '../nav'
 
 /** Each mode's colour, by its place in the list (the main plan is always indigo). Written out so Tailwind keeps them. */
 const COLORS = [
@@ -81,9 +82,30 @@ function open(m: { id: string; name: string; locked: boolean; kind: ModeKind }, 
   if (crossing && s.view !== 'settings') s.setView('planner')
 }
 
-/** Header: a Wants button and a Needs button. Each opens a menu of that section's modes. */
+/** The last mode used of each kind, so going back to Wants or Needs lands where you were. */
+export const lastMode: Partial<Record<ModeKind, string>> = {}
+
+export function modeFor(kind: ModeKind, modes: ModeInfo[]) {
+  return modes.find((m) => m.id === lastMode[kind] && modeKind(m) === kind) ?? modes.find((m) => modeKind(m) === kind)
+}
+
+/** Switches to a mode of this kind if one isn't in use. False when there is none of that kind yet. */
+export function enterKind(kind: ModeKind) {
+  const s = useStore.getState()
+  if (modeKind(s.modes.find((m) => m.id === s.modeId)) === kind) return true
+  const to = modeFor(kind, s.modes)
+  if (!to) return false
+  s.switchMode(to.id)
+  return true
+}
+
+/**
+ * Header: a Wants button and a Needs button. The name goes straight to that section's overview;
+ * the arrow beside it opens the menu of that section's modes.
+ */
 export function ModeSwitcher({ phone }: { phone: boolean }) {
   const { list, current, limit, canAdd } = useModes()
+  lastMode[current.kind] = current.id
   const [menu, setMenu] = useState<ModeKind | null>(null)
   // A kind: Manage, opened on a new mode of that kind.
   const [manage, setManage] = useState<null | 'list' | 'copy' | ModeKind>(null)
@@ -115,32 +137,49 @@ export function ModeSwitcher({ phone }: { phone: boolean }) {
         const inUse = current.kind === k.id
         const count = list.filter((m) => m.kind === k.id).length
         const opened = menu === k.id
+        // The name: straight to this section's overview (no modes of this kind yet: the menu, to make one).
+        const goOverview = () => {
+          setMenu(null)
+          if (!enterKind(k.id)) return setMenu(k.id)
+          goTo('overview')
+        }
         return (
-          <button
+          <div
             key={k.id}
-            onClick={() => setMenu(opened ? null : k.id)}
-            aria-expanded={opened}
-            aria-haspopup="menu"
-            aria-current={inUse ? 'true' : undefined}
-            aria-label={inUse ? `${k.title}, in “${current.name}”. Show ${k.title} modes.` : `${k.title}. Show ${k.title} modes.`}
-            title={`${k.title} modes`}
-            className={`flex min-w-0 items-center gap-1.5 rounded-xl border pl-2.5 pr-2 text-sm font-medium transition ${phone ? `h-10 ${inUse ? 'flex-[2]' : 'flex-1'}` : `h-9 ${inUse ? 'max-w-[14rem]' : 'shrink-0'}`} ${
-              inUse ? k.on : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
+            className={`flex min-w-0 items-stretch overflow-hidden rounded-xl border text-sm font-medium transition ${phone ? `h-10 ${inUse ? 'flex-[2]' : 'flex-1'}` : `h-9 ${inUse ? 'max-w-[14rem]' : 'shrink-0'}`} ${
+              inUse ? k.on : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/20 hover:text-white'
             } ${opened ? 'ring-2 ring-white/15' : ''}`}
           >
-            <k.icon className={`h-4 w-4 shrink-0 ${k.id === 'needs' ? 'text-emerald-300' : 'text-indigo-300'}`} />
-            <span className="shrink-0 font-semibold">{k.title}</span>
-            {inUse ? (
-              <>
-                <span aria-hidden className="shrink-0 text-white/30">·</span>
-                <span className="min-w-0 flex-1 truncate text-left font-normal text-zinc-200">{current.name}</span>
-                {current.main && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label={mainLabel(current.kind)} />}
-              </>
-            ) : (
-              count > 0 && <span className="ml-auto shrink-0 rounded-full bg-white/[0.08] px-1.5 text-[11px] font-semibold tabular-nums text-zinc-400">{count}</span>
-            )}
-            <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform duration-300 ${opened ? 'rotate-180' : ''}`} />
-          </button>
+            <button
+              onClick={goOverview}
+              aria-current={inUse ? 'true' : undefined}
+              aria-label={inUse ? `${k.title}, in “${current.name}”. Go to the overview.` : `${k.title}. Go to the overview.`}
+              title={`${k.title} overview`}
+              className="flex min-w-0 flex-1 items-center gap-1.5 pl-2.5 pr-1.5 transition hover:bg-white/[0.06]"
+            >
+              <k.icon className={`h-4 w-4 shrink-0 ${k.id === 'needs' ? 'text-emerald-300' : 'text-indigo-300'}`} />
+              <span className="shrink-0 font-semibold">{k.title}</span>
+              {inUse ? (
+                <>
+                  <span aria-hidden className="shrink-0 text-white/30">·</span>
+                  <span className="min-w-0 flex-1 truncate text-left font-normal text-zinc-200">{current.name}</span>
+                  {current.main && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label={mainLabel(current.kind)} />}
+                </>
+              ) : (
+                count > 0 && <span className="ml-auto shrink-0 rounded-full bg-white/[0.08] px-1.5 text-[11px] font-semibold tabular-nums text-zinc-400">{count}</span>
+              )}
+            </button>
+            <button
+              onClick={() => setMenu(opened ? null : k.id)}
+              aria-expanded={opened}
+              aria-haspopup="menu"
+              aria-label={`Show ${k.title} modes`}
+              title={`${k.title} modes`}
+              className="grid w-7 shrink-0 place-items-center border-l border-white/10 text-zinc-500 transition hover:bg-white/[0.08] hover:text-white"
+            >
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-300 ${opened ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
         )
       })}
 
