@@ -14,8 +14,8 @@ import { walletState } from '../lib/wallet'
 import { AccountPicker } from './Wallet'
 
 /** The account expenses are paid from by default: the last one picked on this device. */
-const PAID_KEY = 'dizayr-paid-with'
-const lastPaid = () => {
+export const PAID_KEY = 'dizayr-paid-with'
+export const lastPaid = () => {
   try {
     return localStorage.getItem(PAID_KEY) ?? ''
   } catch {
@@ -23,7 +23,7 @@ const lastPaid = () => {
   }
 }
 
-const field =
+export const field =
   'h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm'
 
 /** Add or edit an expense. Only the amount and the day are needed. */
@@ -263,7 +263,7 @@ export function ExpenseModal({ editId, date: startDate }: { editId?: string; dat
   )
 }
 
-function Section({ label, required, onClear, children }: { label: string; required?: boolean; onClear?: () => void; children: ReactNode }) {
+export function Section({ label, required, onClear, children }: { label: string; required?: boolean; onClear?: () => void; children: ReactNode }) {
   return (
     <div className="min-w-0">
       <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -282,7 +282,7 @@ function Section({ label, required, onClear, children }: { label: string; requir
   )
 }
 
-function Chip({ on, onClick, children, cls }: { on: boolean; onClick: () => void; children: ReactNode; cls?: string }) {
+export function Chip({ on, onClick, children, cls }: { on: boolean; onClick: () => void; children: ReactNode; cls?: string }) {
   return (
     <button
       type="button"
@@ -298,7 +298,9 @@ function Chip({ on, onClick, children, cls }: { on: boolean; onClick: () => void
 }
 
 /** "What was it?" with suggestions: the category's usual things first, then what was typed before. */
-function NameField(props: {
+export function NameField(props: {
+  label?: string
+  placeholder?: string
   name: string
   setName: (v: string) => void
   category: string
@@ -337,10 +339,10 @@ function NameField(props: {
   }
 
   return (
-    <Section label="What was it">
+    <Section label={props.label ?? 'What was it'}>
       <div className="relative">
         <Tag className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-        <input value={name} maxLength={MAX_ITEM_NAME} onChange={(e) => setName(e.target.value)} placeholder="e.g. Lunch, Grab ride, Groceries" className={`${field} pl-9`} />
+        <input value={name} maxLength={MAX_ITEM_NAME} onChange={(e) => setName(e.target.value)} placeholder={props.placeholder ?? 'e.g. Lunch, Grab ride, Groceries'} className={`${field} pl-9`} />
       </div>
       {past && (past.amount !== props.amount || (past.place && !props.place)) && (
         <div className="animate-fade mt-2 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
@@ -417,7 +419,7 @@ function CategoryField({ category, setCategory, name, setName, onEdit }: { categ
 }
 
 /** Where: saved places first, then places used before. The star saves the typed place for next time. */
-function PlaceField({ place, setPlace, onEdit }: { place: string; setPlace: (v: string) => void; onEdit: () => void }) {
+export function PlaceField({ place, setPlace, onEdit, label = 'Where' }: { place: string; setPlace: (v: string) => void; onEdit: () => void; label?: string }) {
   const saved = useStore((s) => s.places)
   const { places: past } = useHistory()
   const q = place.trim().toLowerCase()
@@ -449,7 +451,7 @@ function PlaceField({ place, setPlace, onEdit }: { place: string; setPlace: (v: 
   }
 
   return (
-    <Section label="Where">
+    <Section label={label}>
       <div className="relative">
         <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
         <input value={place} maxLength={MAX_PLACE_NAME} onChange={(e) => setPlace(e.target.value)} placeholder="e.g. SM North, 7-Eleven, Home" className={`${field} pl-9 pr-11`} />

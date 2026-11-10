@@ -1,15 +1,26 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { Check, ChevronDown, Copy, Receipt, Settings2, StickyNote, Trash2 } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { CalendarDays, Check, ChevronDown, Copy, NotebookPen, Receipt, Settings2, Trash2 } from 'lucide-react'
 import { useCurrentNeeds, useFmt, useStore } from '../store'
 import { useExpenseCats } from '../expenseHooks'
-import { MAX_CAT_NAME, MAX_DATE, MAX_ITEM_NAME, MIN_DATE, WEEKDAYS, addDays, catColor, catIcon, clampDate, fromKey, todayKey } from '../lib/expenses'
-import { budgetFor, daysOfWeek, isSent, needsByMonth, weekLabel, weekOfDay } from '../lib/needs'
-import { MONTHS } from '../lib/time'
+import { MAX_CAT_NAME, MAX_DATE, addDays, catColor, catIcon, clampDate, fromKey, longDate, todayKey } from '../lib/expenses'
+import { budgetFor, needsByMonth, weekLabel, weekOfDay } from '../lib/needs'
+import { MONTHS, MONTHS_SHORT } from '../lib/time'
+import { walletState } from '../lib/wallet'
+import { Calendar } from './Calendar'
+import { Chip, NameField, PAID_KEY, PlaceField, Section, lastPaid } from './ExpenseModal'
+import { ExpenseSettings } from './ExpenseSettings'
 import { Modal } from './Modal'
 import { MoneyInput } from './MoneyInput'
+import { AccountPicker } from './Wallet'
 import { toast } from '../toast'
 
-/** Add or edit something in a week of a Needs mode. It stays out of Expenses unless the box here is ticked. */
+/** A picked day chip, in the Needs green. */
+const ON = 'border-emerald-400/50 bg-emerald-500/15 text-emerald-100'
+
+/**
+ * Add or edit something in a Needs mode: laid out like adding an expense, worded for what's coming up. It stays out of
+ * Expenses unless "Send to Expenses" is on.
+ */
 export function NeedItemModal({ editId, date: startDate }: { editId?: string; date?: string }) {
   const close = useStore((s) => s.closeModal)
   const plan = useCurrentNeeds()
@@ -23,15 +34,28 @@ export function NeedItemModal({ editId, date: startDate }: { editId?: string; da
   const [category, setCategory] = useState(editing?.category ?? '')
   const [name, setName] = useState(editing?.name ?? '')
   const [amount, setAmount] = useState<number | null>(editing?.amount ?? null)
-  const [date, setDate] = useState(clampDate(editing?.date ?? startDate ?? todayKey()))
+  const [date, setDateRaw] = useState(clampDate(editing?.date ?? startDate ?? todayKey()))
+  const setDate = (k: string) => setDateRaw(clampDate(k))
+  const [place, setPlace] = useState(editing?.place ?? '')
   const [notes, setNotes] = useState(editing?.notes ?? '')
   const [notesOpen, setNotesOpen] = useState(!!editing?.notes)
+  // Paying with: one of your money accounts, the same choice as when adding an expense.
+  const accounts = useStore((s) => s.wallet.accounts)
+  const [account, setAccount] = useState(() => {
+    const ids = accounts.map((a) => a.id)
+    const want = editing ? editing.account || ids[0] : lastPaid()
+    return want && ids.includes(want) ? want : (ids[0] ?? '')
+  })
+  const [calOpen, setCalOpen] = useState(false)
   const [picking, setPicking] = useState(false)
+  const [places, setPlaces] = useState(false)
   const [send, setSend] = useState(wasSent)
+  const [added, setAdded] = useState(0)
   const amountBox = useRef<HTMLDivElement>(null)
 
+  const today = todayKey()
+  const tomorrow = addDays(today, 1)
   const week = weekOfDay(date)
-  const days = daysOfWeek(week)
   const picked = cats.find((c) => c.id === category)
   const ready = !!picked && (amount ?? 0) > 0
 
@@ -44,26 +68,52 @@ export function NeedItemModal({ editId, date: startDate }: { editId?: string; da
   }, [plan, monthKey, editId, amount])
   const hasBudget = !!plan && budgetFor(plan, monthKey) > 0
 
+  // What's already planned per day, as dots on the calendar.
+  const marks = useMemo(() => {
+    const t = new Map<string, number>()
+    for (const e of plan?.items ?? []) if (e.id !== editId) t.set(e.date, (t.get(e.date) ?? 0) + e.amount)
+    return new Map([...t].map(([k, v]) => [k, `${f(v)} planned`]))
+  }, [plan, editId, f])
+
   function save(again: boolean) {
-    if (!ready) return
-    const data = { date, amount: amount!, name, category, place: editing?.place ?? '', notes: notesOpen ? notes : '' }
+    if ((amount ?? 0) <= 0) {
+      amountBox.current?.querySelector('input')?.focus()
+      return toast.error('Type how much it will cost.')
+    }
+    if (!picked) return toast.error(cats.length ? 'Pick a category.' : 'Choose your categories first.')
+    const data = { date, amount: amount!, name, category, place, notes: notesOpen ? notes : '', ...(accounts.length ? { account } : {}) }
+    if (accounts.length) {
+      try {
+        localStorage.setItem(PAID_KEY, account)
+      } catch {
+        // Not remembered: fine.
+      }
+    }
     const s = useStore.getState()
-    const what = name.trim() || picked!.label
+    const what = name.trim() || picked.label
     if (editing) {
       s.updateNeedItem(editing.id, data)
       if (send !== wasSent) s.setNeedsSent([editing.id], send)
       toast.success(send === wasSent ? `Updated “${what}”.` : send ? `Updated “${what}” and sent it to Expenses.` : `Updated “${what}” and took it out of Expenses.`)
       return close()
     }
+    const before = walletState(s.wallet, s.expenses)
     s.addNeedItem(data, send)
-    toast.success(`Added ${f(amount!)} · ${what} to Week ${week.n}${send ? ' and to Expenses' : ''}.`)
+    // Sent to Expenses: say what's left in the account it comes out of, like adding an expense does.
+    const now = useStore.getState()
+    const after = walletState(now.wallet, now.expenses)
+    const from = after?.accounts.find((a) => a.account.id === account)
+    const leftIn = send && before && after && from && after.total !== before.total ? ` ${f(from.balance)} left in ${from.account.name}.` : ''
+    toast.success(`Added ${f(amount!)} · ${what} to Week ${week.n}${send ? ' and to Expenses' : ''}.${leftIn}`)
     if (!again) return close()
-    // Ready for the next one: same week and category, the shopping-list way.
-    setName('')
+    // Ready for the next one: same day and category, everything else cleared.
     setAmount(null)
+    setName('')
+    setPlace('')
     setNotes('')
     setNotesOpen(false)
     setSend(false)
+    setAdded((n) => n + 1)
     requestAnimationFrame(() => amountBox.current?.querySelector('input')?.focus())
   }
 
@@ -85,223 +135,230 @@ export function NeedItemModal({ editId, date: startDate }: { editId?: string; da
     toast.undo(`Copied to Week ${weekOfDay(to).n} of ${MONTHS[fromKey(to).getMonth()]}.`, () => useStore.getState().removeNeedItem(id))
   }
 
+  const d = fromKey(date)
+  const shortDate = `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+  const other = date !== today && date !== tomorrow
+
   return (
-    <Modal
-      title={editing ? 'Edit item' : `Add to Week ${week.n}`}
-      subtitle={`${weekLabel(week)}, ${date.slice(0, 4)}`}
-      onClose={close}
-      width="max-w-lg"
-      footer={
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-zinc-500">
-            {hasBudget ? (
-              <>
-                Left in {MONTHS[fromKey(date).getMonth()]} after this: <span className={`font-semibold tabular-nums ${left < 0 ? 'text-red-300' : 'text-zinc-200'}`}>{f(left)}</span>
-              </>
-            ) : (
-              send ? 'Goes to Expenses too.' : 'Stays in Needs only.'
-            )}
-          </p>
-          <div className="flex gap-2">
-            {!editing && (
-              <button type="button" onClick={() => save(true)} disabled={!ready} className="h-11 flex-1 whitespace-nowrap rounded-xl border border-white/10 px-3 text-sm font-medium text-zinc-200 transition hover:bg-white/5 disabled:opacity-40 sm:h-10 sm:flex-none">
-                Add another
-              </button>
-            )}
+    <>
+      <Modal
+        title={editing ? 'Edit need' : 'Add need'}
+        subtitle={added > 0 ? `${added} added · keep going, or close when done` : `${longDate(date)} · Week ${week.n}`}
+        onClose={close}
+        width="max-w-3xl"
+        footer={
+          <div className="flex items-center gap-2">
             {editing && (
-              <button type="button" onClick={close} className="h-11 flex-1 rounded-xl border border-white/10 px-4 text-sm font-medium text-zinc-300 transition hover:bg-white/5 sm:h-10 sm:flex-none">
-                Cancel
+              <>
+                <button
+                  type="button"
+                  onClick={remove}
+                  className="inline-flex h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-zinc-400 transition hover:bg-red-500/10 hover:text-red-300 sm:h-10"
+                >
+                  <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">Delete</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={copyToNextWeek}
+                  title="Copy to next week"
+                  className="inline-flex h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-zinc-400 transition hover:bg-white/5 hover:text-zinc-100 sm:h-10"
+                >
+                  <Copy className="h-4 w-4" /> <span className="hidden sm:inline">Copy to next week</span>
+                </button>
+              </>
+            )}
+            <span className="flex-1" />
+            {!editing && (
+              <button
+                type="button"
+                onClick={() => save(true)}
+                disabled={!ready}
+                className="h-11 rounded-xl border border-white/10 px-4 text-sm font-medium text-zinc-200 transition hover:bg-white/5 disabled:opacity-40 sm:h-10"
+              >
+                Save &amp; add another
               </button>
             )}
-            <button type="button" onClick={() => save(false)} disabled={!ready} className="h-11 flex-[2] whitespace-nowrap rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-5 text-sm font-semibold text-emerald-950 shadow-lg shadow-emerald-500/20 transition hover:brightness-110 disabled:opacity-40 disabled:shadow-none sm:h-10 sm:flex-none">
-              {editing ? 'Save changes' : 'Add item'}
+            <button
+              type="button"
+              onClick={() => save(false)}
+              disabled={!ready}
+              className="h-11 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-6 text-sm font-semibold text-emerald-950 shadow-lg shadow-emerald-500/20 transition hover:brightness-110 disabled:opacity-40 disabled:shadow-none sm:h-10"
+            >
+              {editing ? 'Save' : 'Add'}
             </button>
+          </div>
+        }
+      >
+        <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_19rem] sm:gap-6" onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && save(false)}>
+          <div className="min-w-0 space-y-5">
+            {/* How much */}
+            <Section label="How much" required>
+              <div ref={amountBox}>
+                <MoneyInput value={amount} nullable onChange={(v) => setAmount(v || null)} size="md" placeholder="0" autoFocus={!editing} ariaLabel="How much it will cost" key={added} />
+              </div>
+              {hasBudget && (
+                <p className="mt-1.5 text-xs text-zinc-500">
+                  Left in {MONTHS[d.getMonth()]} after this: <span className={`font-semibold tabular-nums ${left < 0 ? 'text-red-300' : 'text-zinc-200'}`}>{f(left)}</span>
+                </p>
+              )}
+            </Section>
+
+            {/* When (phones: a row that unfolds the calendar) */}
+            <div className="sm:hidden">
+              <Section label="When" required>
+                <div className="flex flex-wrap gap-1.5">
+                  <Chip on={date === today} onClick={() => setDate(today)} cls={ON}>
+                    Today
+                  </Chip>
+                  <Chip on={date === tomorrow} onClick={() => setDate(tomorrow)} cls={ON}>
+                    Tomorrow
+                  </Chip>
+                  <button
+                    type="button"
+                    onClick={() => setCalOpen((o) => !o)}
+                    aria-expanded={calOpen}
+                    className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition ${other ? ON : 'border-white/10 text-zinc-300 hover:border-white/20'}`}
+                  >
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    {other ? shortDate : 'Pick a day'}
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${calOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+                <div className={`grid transition-all duration-300 ease-out ${calOpen ? 'mt-2.5 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`} inert={!calOpen}>
+                  <div className="min-h-0 overflow-hidden">
+                    <Calendar value={date} onChange={setDate} marks={marks} />
+                  </div>
+                </div>
+              </Section>
+            </div>
+
+            <NameField
+              label="What will it be"
+              placeholder={picked?.items[0] ? `e.g. ${picked.items[0]}` : 'e.g. Groceries, Load, Rent'}
+              name={name}
+              setName={setName}
+              category={category}
+              setCategory={(c) => {
+                if (cats.some((x) => x.id === c)) setCategory(c)
+              }}
+              amount={amount}
+              setAmount={setAmount}
+              place={place}
+              setPlace={setPlace}
+            />
+
+            {accounts.length > 1 && (
+              <Section label="Paying with">
+                <AccountPicker accounts={accounts} value={account} onChange={setAccount} />
+              </Section>
+            )}
+
+            {/* Category: the ones this mode offers. Needed, since it's how Needs groups things. */}
+            <Section label="Category" required>
+              {cats.length === 0 ? (
+                <button type="button" onClick={() => setPicking(true)} className="w-full rounded-2xl border border-dashed border-white/15 py-4 text-sm font-medium text-zinc-300 transition hover:border-emerald-400/40">
+                  Choose your categories first
+                </button>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {cats.map((c) => {
+                    const Icon = catIcon(c)
+                    const col = catColor(c)
+                    const on = category === c.id
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => {
+                          setCategory(c.id)
+                          // A category with just one usual thing names it too, when nothing's typed yet.
+                          if (!on && !name.trim() && c.items.length === 1) setName(c.items[0])
+                        }}
+                        className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition active:scale-95 ${
+                          on ? `${col.soft} border-transparent text-white ring-1 ${col.ring}` : 'border-white/10 text-zinc-300 hover:border-white/20 hover:text-white'
+                        }`}
+                      >
+                        <Icon className={`h-3.5 w-3.5 ${col.text}`} /> {c.label}
+                      </button>
+                    )
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setPicking(true)}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full border border-dashed border-white/15 px-3 text-sm text-zinc-500 transition hover:border-white/30 hover:text-zinc-200"
+                  >
+                    <Settings2 className="h-3.5 w-3.5" /> Edit
+                  </button>
+                </div>
+              )}
+            </Section>
+
+            <PlaceField place={place} setPlace={setPlace} onEdit={() => setPlaces(true)} />
+
+            {notesOpen ? (
+              <Section label="Notes" onClear={() => (setNotes(''), setNotesOpen(false))}>
+                <textarea
+                  value={notes}
+                  autoFocus={!editing?.notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  maxLength={2000}
+                  placeholder="Anything to remember about it"
+                  className="block min-h-[3.5rem] w-full resize-y rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base text-zinc-100 outline-none transition [field-sizing:content] placeholder:text-zinc-600 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm"
+                />
+              </Section>
+            ) : (
+              <button type="button" onClick={() => setNotesOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm text-zinc-500 transition hover:text-zinc-200">
+                <NotebookPen className="h-4 w-4" /> Add a note
+              </button>
+            )}
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={send}
+              onClick={() => setSend((v) => !v)}
+              className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${send ? 'border-emerald-400/60 bg-emerald-500/15 ring-1 ring-emerald-400/30' : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]'}`}
+            >
+              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl transition ${send ? 'bg-emerald-400/25 text-emerald-200' : 'bg-white/[0.06] text-zinc-400'}`}>
+                <Receipt className="h-[18px] w-[18px]" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-white">Send to Expenses</span>
+                <span className="block text-xs leading-relaxed text-zinc-400">{send ? 'Counts in Expenses too.' : 'Off: stays in Needs only.'}</span>
+              </span>
+              <span className={`relative h-6 w-10 shrink-0 rounded-full transition ${send ? 'bg-emerald-400' : 'bg-white/15'}`}>
+                <span className={`absolute top-0.5 grid h-5 w-5 place-items-center rounded-full bg-white shadow transition-all ${send ? 'left-[18px] text-emerald-600' : 'left-0.5 text-transparent'}`}>
+                  <Check className="h-3 w-3" strokeWidth={3.5} />
+                </span>
+              </span>
+            </button>
+          </div>
+
+          {/* When (wider screens: the calendar is always showing) */}
+          <div className="hidden sm:block">
+            <Section label="When" required>
+              <div className="mb-2 flex gap-1.5">
+                <Chip on={date === today} onClick={() => setDate(today)} cls={ON}>
+                  Today
+                </Chip>
+                <Chip on={date === tomorrow} onClick={() => setDate(tomorrow)} cls={ON}>
+                  Tomorrow
+                </Chip>
+              </div>
+              <Calendar value={date} onChange={setDate} marks={marks} />
+              <p className="mt-2 text-center text-xs text-zinc-500">{longDate(date)}</p>
+              <p className="mt-0.5 text-center text-[11px] text-zinc-600">
+                Week {week.n} · {weekLabel(week)}
+              </p>
+            </Section>
           </div>
         </div>
-      }
-    >
-      <form
-        className="space-y-6"
-        onSubmit={(e) => {
-          e.preventDefault()
-          save(false)
-        }}
-      >
-        <Step
-          n={1}
-          title="What is it for?"
-          done={!!picked}
-          aside={
-            <button type="button" onClick={() => setPicking(true)} className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-zinc-400 transition hover:bg-white/5 hover:text-white">
-              <Settings2 className="h-3.5 w-3.5" /> Edit categories
-            </button>
-          }
-        >
-          {cats.length === 0 ? (
-            <button type="button" onClick={() => setPicking(true)} className="w-full rounded-2xl border border-dashed border-white/15 py-5 text-sm font-medium text-zinc-300 transition hover:border-emerald-400/40">
-              Choose your categories first
-            </button>
-          ) : (
-            <div role="radiogroup" aria-label="Category" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {cats.map((c) => {
-                const Icon = catIcon(c)
-                const on = c.id === category
-                const col = catColor(c)
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => setCategory(c.id)}
-                    className={`relative flex min-w-0 items-center gap-2.5 rounded-2xl border p-2.5 text-left transition ${on ? `border-white/30 ${col.soft} ring-2 ${col.ring}` : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]'}`}
-                  >
-                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${col.soft} ${col.text}`}>
-                      <Icon className="h-[18px] w-[18px]" />
-                    </span>
-                    <span className="min-w-0 break-words text-sm font-semibold leading-tight text-white">{c.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </Step>
-
-        <Step n={2} title="What and how much?" done={(amount ?? 0) > 0}>
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
-            <label className="block min-w-0">
-              <span className="mb-1.5 block text-xs font-medium text-zinc-400">
-                Name <span className="text-zinc-600">· optional</span>
-              </span>
-              <input
-                value={name}
-                maxLength={MAX_ITEM_NAME}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={picked?.items[0] ? `e.g. ${picked.items[0]}` : 'What did you get?'}
-                className="h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 hover:border-white/20 focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm"
-              />
-            </label>
-            <div ref={amountBox} className="min-w-0">
-              <span className="mb-1.5 block text-xs font-medium text-zinc-400">Amount</span>
-              <MoneyInput value={amount} onChange={(v) => setAmount(v || null)} ariaLabel="Amount" size="md" nullable />
-            </div>
-          </div>
-          {!!picked?.items.length && (
-            <div className="mt-2.5 flex flex-wrap gap-1.5">
-              {picked.items.slice(0, 8).map((i) => (
-                <button key={i} type="button" onClick={() => setName(i)} aria-pressed={name === i} className={`h-7 rounded-lg border px-2 text-xs font-medium transition ${name === i ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-100' : 'border-white/10 text-zinc-400 hover:border-white/20 hover:text-white'}`}>
-                  {i}
-                </button>
-              ))}
-            </div>
-          )}
-        </Step>
-
-        <Step n={3} title="Which day?" done>
-          <div role="radiogroup" aria-label="Day" className="flex gap-1.5">
-            {days.map((k) => {
-              const d = fromKey(k)
-              const on = k === date
-              const isToday = k === todayKey()
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  aria-label={`${WEEKDAYS[d.getDay()]} ${d.getDate()}`}
-                  onClick={() => setDate(k)}
-                  className={`flex h-14 min-w-0 flex-1 flex-col items-center justify-center rounded-xl border transition ${on ? 'border-emerald-400/60 bg-emerald-500/15 text-white ring-1 ring-emerald-400/40' : 'border-white/10 text-zinc-400 hover:border-white/20 hover:text-white'}`}
-                >
-                  <span className="text-[10px] font-semibold uppercase tracking-wide">{WEEKDAYS[d.getDay()].slice(0, days.length > 5 ? 1 : 3)}</span>
-                  <span className={`text-sm font-semibold tabular-nums ${isToday && !on ? 'text-emerald-300' : ''}`}>{d.getDate()}</span>
-                </button>
-              )
-            })}
-          </div>
-          <label className="mt-2 flex items-center justify-between gap-3 text-xs text-zinc-500">
-            <span>Or another date</span>
-            <input
-              type="date"
-              value={date}
-              min={MIN_DATE}
-              max={MAX_DATE}
-              onChange={(e) => e.target.value && setDate(clampDate(e.target.value))}
-              aria-label="Another date"
-              className="h-8 rounded-lg border border-white/10 bg-black/30 px-2 text-xs text-zinc-200 outline-none transition [color-scheme:dark] hover:border-white/20 focus:border-emerald-400/60"
-            />
-          </label>
-        </Step>
-
-        <section>
-          <button type="button" onClick={() => setNotesOpen((o) => !o)} aria-expanded={notesOpen} className="group flex w-full items-center gap-2.5 text-left">
-            <span className={`grid h-6 w-6 place-items-center rounded-full ${notes.trim() ? 'bg-amber-300/20 text-amber-200' : 'bg-white/10 text-zinc-300'}`}>
-              <StickyNote className="h-3.5 w-3.5" />
-            </span>
-            <span className="text-sm font-semibold text-zinc-200">Notes</span>
-            <span className="rounded-full bg-white/[0.06] px-1.5 py-px text-[10px] font-medium uppercase tracking-wider text-zinc-500">optional</span>
-            <ChevronDown className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform ${notesOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {notesOpen && (
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              maxLength={2000}
-              placeholder="Anything to remember"
-              className="animate-fade mt-2.5 block w-full resize-y rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 hover:border-white/20 focus:border-amber-300/50 focus:ring-2 focus:ring-amber-300/15 sm:text-sm"
-            />
-          )}
-        </section>
-
-        <button
-          type="button"
-          role="switch"
-          aria-checked={send}
-          onClick={() => setSend((v) => !v)}
-          className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${send ? 'border-emerald-400/60 bg-emerald-500/15 ring-1 ring-emerald-400/30' : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]'}`}
-        >
-          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl transition ${send ? 'bg-emerald-400/25 text-emerald-200' : 'bg-white/[0.06] text-zinc-400'}`}>
-            <Receipt className="h-[18px] w-[18px]" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-white">Send to Expenses</span>
-            <span className="block text-xs leading-relaxed text-zinc-400">{send ? 'This will count in your Expenses totals too.' : 'Off: this stays in Needs and won’t touch Expenses.'}</span>
-          </span>
-          <span className={`relative h-6 w-10 shrink-0 rounded-full transition ${send ? 'bg-emerald-400' : 'bg-white/15'}`}>
-            <span className={`absolute top-0.5 grid h-5 w-5 place-items-center rounded-full bg-white shadow transition-all ${send ? 'left-[18px] text-emerald-600' : 'left-0.5 text-transparent'}`}>
-              <Check className="h-3 w-3" strokeWidth={3.5} />
-            </span>
-          </span>
-        </button>
-
-        {editing && (
-          <div className="flex flex-wrap gap-2 border-t border-white/[0.06] pt-4">
-            <button type="button" onClick={copyToNextWeek} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-[13px] font-medium text-zinc-200 transition hover:bg-white/5">
-              <Copy className="h-3.5 w-3.5" /> Copy to next week
-            </button>
-            <button type="button" onClick={remove} className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-red-300 transition hover:bg-red-500/10">
-              <Trash2 className="h-3.5 w-3.5" /> Delete
-            </button>
-          </div>
-        )}
-        <button type="submit" hidden />
-      </form>
+      </Modal>
       {picking && <NeedsPicker onClose={() => setPicking(false)} />}
-    </Modal>
-  )
-}
-
-function Step({ n, title, done, aside, children }: { n: number; title: string; done: boolean; aside?: ReactNode; children: ReactNode }) {
-  return (
-    <section>
-      <div className="mb-2.5 flex items-center gap-2.5">
-        <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold transition ${done ? 'bg-emerald-400 text-emerald-950' : 'bg-white/10 text-zinc-300'}`}>{done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : n}</span>
-        <h3 className="text-sm font-semibold text-zinc-200">{title}</h3>
-        {aside}
-      </div>
-      {children}
-    </section>
+      {places && <ExpenseSettings tab="places" onClose={() => setPlaces(false)} />}
+    </>
   )
 }
 
