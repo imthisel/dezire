@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
-import { CalendarCheck, CalendarDays, ChevronDown, Download, Flag, Gem, GraduationCap, GripVertical, Wallet, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarCheck, CalendarDays, ChevronDown, Download, Flag, Gem, GraduationCap, GripVertical, Wallet, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
 import { modeKind } from '../lib/needs'
 import { CopyModeModal, ModesModal } from './Modes'
 import type { ModeInfo, ModeKind } from '../lib/types'
@@ -13,6 +13,8 @@ import { happensOn, isDoneOn, isEvent } from '../lib/tasks'
 import { daysBetween } from '../lib/school'
 import { walletState } from '../lib/wallet'
 import { useSortable } from '../sortable'
+import { DEFAULT_PREFS, moveSideBlock, type NavId, type SideBlock } from '../lib/prefs'
+import { toast } from '../toast'
 import { installApp, useApp } from '../appUpdate'
 import { PremiumCard } from './Plans'
 import type { IncomeSource } from '../lib/types'
@@ -75,6 +77,10 @@ export function Sidebar() {
   const needsMode = useStore(inNeedsMode)
   // Money plans can be put in order by dragging them in the list below.
   const [dragSource, setDragSource] = useState<string | null>(null)
+  // The blocks themselves can be put in any order: drag one by its grip, or use "Arrange menu".
+  const sideOrder = useStore((s) => s.prefs.sideOrder)
+  const [dragBlock, setDragBlock] = useState<string | null>(null)
+  const [arranging, setArranging] = useState(false)
 
   // Esc closes the slide-over; growing the window to docked size drops it.
   useEffect(() => {
@@ -98,42 +104,9 @@ export function Sidebar() {
   /** A Wants page: from a Needs mode, step back into Wants first. */
   const wants = (id: string) => enterKind('wants') && goTo(id)
 
-  return (
-    <>
-      {!docked && drawer && (
-        <div className="animate-fade fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => useStore.getState().setDrawer(false)} />
-      )}
-      <aside
-        aria-label="Sections"
-        aria-hidden={!shown}
-        inert={!shown}
-        className={`fixed inset-y-0 left-0 z-50 flex w-[17rem] max-w-[85vw] flex-col border-r border-white/[0.07] bg-[#0a0b10]/95 backdrop-blur-xl transition-transform duration-200 ease-out lg:w-64 lg:bg-[#0a0b10]/80 ${
-          shown ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] lg:pt-6">
-          <a
-            href="/"
-            onClick={goHome}
-            title="Go to Overview"
-            className="flex items-center gap-2.5 rounded-xl transition hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
-          >
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-indigo-400 to-emerald-400">
-              <Target className="h-4 w-4 text-white" strokeWidth={2.5} />
-            </span>
-            <span className="font-bold tracking-tight text-white">Dizayr</span>
-          </a>
-          <button
-            onClick={() => toggleSidebar(docked)}
-            title={docked ? 'Hide sidebar' : 'Close'}
-            aria-label={docked ? 'Hide sidebar' : 'Close menu'}
-            className="grid h-9 w-9 place-items-center rounded-lg text-zinc-400 transition hover:bg-white/5 hover:text-white"
-          >
-            {docked ? <PanelLeftClose className="h-4 w-4" /> : <X className="h-5 w-5" />}
-          </button>
-        </div>
-
-        <nav className="scrollbar-none flex-1 space-y-6 overflow-y-auto px-3 pb-6 pt-2">
+  // Each block of the menu, put in the order you chose (Settings stays last). Null: taken out of the menu.
+  const blocks: Record<SideBlock, ReactNode> = {
+    wants: (
           <KindSection kind="wants" on={!needsMode} mode={wantsName}>
             <Link icon={LayoutDashboard} label="Overview" on={inWants && active === 'overview'} onClick={() => wants('overview')} />
             <Link icon={CalendarDays} label="Months" on={inWants && active === 'years'} onClick={() => wants('years')} />
@@ -191,7 +164,8 @@ export function Sidebar() {
             </ul>
             </SubGroup>}
           </KindSection>
-
+        ),
+    needs: (
           <KindSection kind="needs" on={needsMode} mode={needsName}>
             {needsName ? (
               <Link
@@ -217,9 +191,9 @@ export function Sidebar() {
               </button>
             )}
           </KindSection>
-
-          {/* Its own section: making the money serves the whole plan, not one Wants page. (It opens in Wants, where the page lives.) */}
-          {!hiddenNav.includes('plan') && <KindSection
+        ),
+    plan: !hiddenNav.includes('plan') && (
+          <KindSection
             kind="plan"
             on={inWants && active === 'plan'}
             mode={sources.length ? `${sources.length} ${sources.length === 1 ? 'way' : 'ways'} to earn` : 'Making the money'}
@@ -239,9 +213,10 @@ export function Sidebar() {
             >
               <Plus className="h-4 w-4" /> Add a way to earn
             </button>
-          </KindSection>}
-
-          {!hiddenNav.includes('calendar') && <Group label="Time">
+          </KindSection>
+        ),
+    calendar: !hiddenNav.includes('calendar') && (
+          <Group label="Time">
             <Link
               icon={CalendarCheck}
               label="Calendar"
@@ -268,9 +243,10 @@ export function Sidebar() {
             >
               <Plus className="h-4 w-4" /> Add a task
             </button>
-          </Group>}
-
-          {!hiddenNav.includes('school') && <Group label="School">
+          </Group>
+        ),
+    school: !hiddenNav.includes('school') && (
+          <Group label="School">
             <Link
               icon={GraduationCap}
               label="School"
@@ -288,9 +264,10 @@ export function Sidebar() {
             >
               <Plus className="h-4 w-4" /> Add a school task
             </button>
-          </Group>}
-
-          {!hiddenNav.includes('expenses') && <Group label="Spending">
+          </Group>
+        ),
+    expenses: !hiddenNav.includes('expenses') && (
+          <Group label="Spending">
             <Link
               icon={Receipt}
               label="Expenses"
@@ -319,10 +296,69 @@ export function Sidebar() {
             >
               <Plus className="h-4 w-4" /> Add an expense
             </button>
-          </Group>}
+          </Group>
+        ),
+  }
+
+  return (
+    <>
+      {!docked && drawer && (
+        <div className="animate-fade fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => useStore.getState().setDrawer(false)} />
+      )}
+      <aside
+        aria-label="Sections"
+        aria-hidden={!shown}
+        inert={!shown}
+        className={`fixed inset-y-0 left-0 z-50 flex w-[17rem] max-w-[85vw] flex-col border-r border-white/[0.07] bg-[#0a0b10]/95 backdrop-blur-xl transition-transform duration-200 ease-out lg:w-64 lg:bg-[#0a0b10]/80 ${
+          shown ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] lg:pt-6">
+          <a
+            href="/"
+            onClick={goHome}
+            title="Go to Overview"
+            className="flex items-center gap-2.5 rounded-xl transition hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+          >
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-indigo-400 to-emerald-400">
+              <Target className="h-4 w-4 text-white" strokeWidth={2.5} />
+            </span>
+            <span className="font-bold tracking-tight text-white">Dizayr</span>
+          </a>
+          <button
+            onClick={() => toggleSidebar(docked)}
+            title={docked ? 'Hide sidebar' : 'Close'}
+            aria-label={docked ? 'Hide sidebar' : 'Close menu'}
+            className="grid h-9 w-9 place-items-center rounded-lg text-zinc-400 transition hover:bg-white/5 hover:text-white"
+          >
+            {docked ? <PanelLeftClose className="h-4 w-4" /> : <X className="h-5 w-5" />}
+          </button>
+        </div>
+
+        <nav className="scrollbar-none flex-1 space-y-6 overflow-y-auto px-3 pb-6 pt-2">
+          {arranging ? (
+            <Arrange order={sideOrder} hidden={hiddenNav} onDone={() => setArranging(false)} />
+          ) : (
+            sideOrder.map(
+              (id, i) =>
+                blocks[id] && (
+                  <Block key={id} id={id} index={i} dragId={dragBlock} setDragId={setDragBlock}>
+                    {blocks[id]}
+                  </Block>
+                ),
+            )
+          )}
 
           <Group label="You">
             <Link icon={Settings} label="Settings" on={active === 'settings'} onClick={() => openSettings()} />
+            {!arranging && (
+              <button
+                onClick={() => setArranging(true)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
+              >
+                <ArrowUpDown className="h-4 w-4" /> Arrange this menu
+              </button>
+            )}
           </Group>
         </nav>
 
@@ -538,5 +574,115 @@ function Link({ icon: Icon, label, on, onClick, badge, iconCls, note, noteTitle 
         </span>
       )}
     </button>
+  )
+}
+
+/** How each block is named and marked when arranging the menu. */
+const BLOCK_LOOK: Record<SideBlock, { label: string; icon: typeof Flag; tint: string }> = {
+  wants: { label: 'Wants', icon: Sparkles, tint: 'bg-gradient-to-br from-indigo-400 to-indigo-600 text-white' },
+  needs: { label: 'Needs', icon: ShoppingBasket, tint: 'bg-gradient-to-br from-emerald-400 to-teal-500 text-white' },
+  plan: { label: 'Money plan', icon: Rocket, tint: 'bg-gradient-to-br from-amber-400 to-orange-500 text-white' },
+  calendar: { label: 'Calendar', icon: CalendarCheck, tint: 'bg-sky-500/20 text-sky-200' },
+  school: { label: 'School', icon: GraduationCap, tint: 'bg-violet-500/20 text-violet-200' },
+  expenses: { label: 'Spending', icon: Receipt, tint: 'bg-rose-500/20 text-rose-200' },
+}
+
+const setOrder = (order: SideBlock[]) => useStore.getState().setPrefs({ sideOrder: order })
+const moveBlock = (id: string, to: number) => setOrder(moveSideBlock(useStore.getState().prefs.sideOrder, id as SideBlock, to))
+
+/** One block of the menu. On wide screens a grip shows on its left when you point at it: drag it up or down. */
+function Block({ id, index, dragId, setDragId, children }: { id: SideBlock; index: number; dragId: string | null; setDragId: (id: string | null) => void; children: ReactNode }) {
+  const sort = useSortable({ id, index, ids: () => useStore.getState().prefs.sideOrder, dragId, setDragId, onMove: moveBlock })
+  return (
+    <div {...sort.zone} data-block className={`group/block relative transition-opacity ${sort.dragging ? 'opacity-40' : ''}`}>
+      {sort.dropAt && (
+        <span
+          aria-hidden
+          className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)] ${sort.dropAt === 'above' ? '-top-3' : '-bottom-3'}`}
+        />
+      )}
+      <span
+        {...sort.handle('[data-block]')}
+        title={`Drag to move ${BLOCK_LOOK[id].label}`}
+        aria-hidden
+        className="absolute -left-3 top-2 z-10 hidden h-7 w-3 cursor-grab place-items-center rounded text-zinc-600 opacity-0 transition hover:bg-white/5 hover:text-zinc-300 active:cursor-grabbing group-hover/block:opacity-100 lg:grid"
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </span>
+      {children}
+    </div>
+  )
+}
+
+/** "Arrange this menu": every block as one row, to drag or move with the arrows. Works the same on phones. */
+function Arrange({ order, hidden, onDone }: { order: SideBlock[]; hidden: NavId[]; onDone: () => void }) {
+  const [dragId, setDragId] = useState<string | null>(null)
+  const isDefault = order.join() === DEFAULT_PREFS.sideOrder.join()
+
+  function reset() {
+    const before = order
+    setOrder(DEFAULT_PREFS.sideOrder)
+    toast.undo('Menu back to its usual order.', () => setOrder(before))
+  }
+
+  return (
+    <section aria-label="Arrange the menu" className="animate-fade rounded-2xl border border-indigo-400/25 bg-indigo-500/[0.05] p-2">
+      <div className="flex items-start justify-between gap-2 px-1.5 pb-2 pt-1">
+        <div>
+          <h3 className="text-[13px] font-semibold text-white">Arrange the menu</h3>
+          <p className="text-[11px] text-zinc-500">Drag, or use the arrows.</p>
+        </div>
+        <button onClick={onDone} className="h-8 shrink-0 rounded-lg bg-indigo-500 px-3 text-xs font-semibold text-white transition hover:brightness-110">
+          Done
+        </button>
+      </div>
+      <ol className="space-y-1">
+        {order.map((id, i) => (
+          <ArrangeRow key={id} id={id} index={i} last={i === order.length - 1} off={id !== 'wants' && id !== 'needs' && hidden.includes(id)} dragId={dragId} setDragId={setDragId} />
+        ))}
+      </ol>
+      {!isDefault && (
+        <button onClick={reset} className="mt-1.5 w-full rounded-lg px-2 py-1.5 text-[11px] text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200">
+          Back to the usual order
+        </button>
+      )}
+    </section>
+  )
+}
+
+function ArrangeRow({ id, index, last, off, dragId, setDragId }: { id: SideBlock; index: number; last: boolean; off: boolean; dragId: string | null; setDragId: (id: string | null) => void }) {
+  const k = BLOCK_LOOK[id]
+  const sort = useSortable({ id, index, ids: () => useStore.getState().prefs.sideOrder, dragId, setDragId, onMove: moveBlock })
+  const arrow = 'grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-400 transition hover:bg-white/10 hover:text-white disabled:opacity-25 disabled:hover:bg-transparent'
+  return (
+    <li {...sort.zone} className="relative">
+      {sort.dropAt && (
+        <span
+          aria-hidden
+          className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)] ${sort.dropAt === 'above' ? '-top-[3px]' : '-bottom-[3px]'}`}
+        />
+      )}
+      <div
+        {...sort.handle('li')}
+        className={`flex cursor-grab items-center gap-2 rounded-xl border border-white/[0.07] bg-[#0e1016] py-1 pl-1.5 pr-1 transition active:cursor-grabbing ${sort.dragging ? 'opacity-40' : 'hover:border-white/15'}`}
+      >
+        <GripVertical className="h-3.5 w-3.5 shrink-0 text-zinc-600" />
+        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${k.tint} ${off ? 'opacity-40' : ''}`}>
+          <k.icon className="h-3.5 w-3.5" strokeWidth={2.4} />
+        </span>
+        <span className={`min-w-0 flex-1 truncate text-[13px] font-medium ${off ? 'text-zinc-500' : 'text-zinc-100'}`}>{k.label}</span>
+        {off && (
+          <span title="Taken out of the menu in Settings" className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-px text-[10px] text-zinc-500">
+            Hidden
+          </span>
+        )}
+        <button type="button" draggable={false} onClick={() => moveBlock(id, index - 1)} disabled={index === 0} aria-label={`Move ${k.label} up`} className={arrow}>
+          <ArrowUp className="h-3.5 w-3.5" />
+        </button>
+        <button type="button" draggable={false} onClick={() => moveBlock(id, index + 1)} disabled={last} aria-label={`Move ${k.label} down`} className={arrow}>
+          <ArrowDown className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </li>
   )
 }

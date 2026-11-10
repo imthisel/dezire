@@ -14,6 +14,8 @@ export type StartPage = 'last' | 'planner' | 'calendar' | 'school' | 'expenses' 
 export type BackupEvery = 0 | 7 | 30
 /** Places that can be taken out of the side menu and the phone's tab bar. */
 export type NavId = 'favorites' | 'calendar' | 'school' | 'expenses' | 'assets' | 'plan'
+/** The side menu's blocks, which can be put in any order. */
+export type SideBlock = 'wants' | 'needs' | 'plan' | 'calendar' | 'school' | 'expenses'
 
 export type Prefs = {
   accent: Accent
@@ -32,6 +34,8 @@ export type Prefs = {
   privacyButton: boolean
   /** Places taken out of the side menu and the tab bar */
   hiddenNav: NavId[]
+  /** The order of the side menu's blocks, top to bottom */
+  sideOrder: SideBlock[]
 }
 
 export type DevicePrefs = {
@@ -68,6 +72,7 @@ export const DEFAULT_PREFS: Prefs = {
   hideModes: false,
   privacyButton: false,
   hiddenNav: [],
+  sideOrder: ['wants', 'needs', 'plan', 'calendar', 'school', 'expenses'],
 }
 
 export const DEFAULT_DEVICE: DevicePrefs = {
@@ -117,6 +122,7 @@ export function parsePrefs(raw: unknown): Prefs {
     hideModes: bool(r.hideModes, d.hideModes),
     privacyButton: bool(r.privacyButton, d.privacyButton),
     hiddenNav: Array.isArray(r.hiddenNav) ? NAV_IDS.filter((id) => (r.hiddenNav as unknown[]).includes(id)) : d.hiddenNav,
+    sideOrder: parseSideOrder(r.sideOrder),
   }
 }
 
@@ -144,3 +150,23 @@ export function parseDevice(raw: unknown): DevicePrefs {
  * know about the store. The store keeps them up to date before anything redraws.
  */
 export const live = { weekStart: 0 as WeekStart, clock: '12' as Clock, masked: false, budgetWarnings: true, eventLength: 60 }
+
+/** A saved side menu order, cleaned up: unknown or repeated blocks dropped, any missing ones added where they'd be by default. */
+export function parseSideOrder(raw: unknown): SideBlock[] {
+  const all = DEFAULT_PREFS.sideOrder
+  const out = Array.isArray(raw) ? all.filter((b) => raw.includes(b)).sort((a, b) => raw.indexOf(a) - raw.indexOf(b)) : []
+  // A block that's new since the order was saved goes back in after the block it follows by default.
+  all.forEach((b, i) => {
+    if (out.includes(b)) return
+    const after = i === 0 ? -1 : out.indexOf(all[i - 1])
+    out.splice(after + 1, 0, b)
+  })
+  return out
+}
+
+/** The order with `id` moved to position `to`. */
+export function moveSideBlock(order: SideBlock[], id: SideBlock, to: number): SideBlock[] {
+  const rest = order.filter((b) => b !== id)
+  rest.splice(Math.max(0, Math.min(rest.length, to)), 0, id)
+  return rest
+}
