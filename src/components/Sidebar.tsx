@@ -359,25 +359,22 @@ export function Sidebar() {
                 <ArrowUpDown className="h-4 w-4" /> Arrange this menu
               </button>
             )}
+            {!arranging && !appInstalled && (
+              <button
+                onClick={() => {
+                  useStore.getState().setDrawer(false)
+                  void installApp()
+                }}
+                title="Works offline and stays in sync"
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
+              >
+                <Download className="h-4 w-4" /> Get the app
+              </button>
+            )}
           </Group>
         </nav>
 
         <PremiumCard onOpen={() => useStore.getState().setDrawer(false)} />
-        {!appInstalled && (
-          <button
-            onClick={() => {
-              useStore.getState().setDrawer(false)
-              void installApp()
-            }}
-            className="mx-3 mb-2 flex items-center gap-3 rounded-xl border border-indigo-400/20 bg-indigo-500/[0.07] px-3 py-2.5 text-left text-sm text-indigo-100 transition hover:bg-indigo-500/15"
-          >
-            <Download className="h-4 w-4 shrink-0 text-indigo-300" />
-            <span className="min-w-0 flex-1">
-              <span className="block font-medium">Download the app</span>
-              <span className="block truncate text-[11px] text-indigo-200/60">Works offline · stays in sync</span>
-            </span>
-          </button>
-        )}
         {docked && (
           <p className="border-t border-white/[0.06] px-4 py-3 text-[11px] text-zinc-600">
             Hide this anytime with <PanelLeftClose className="inline h-3 w-3" /> · bring it back from the top left
