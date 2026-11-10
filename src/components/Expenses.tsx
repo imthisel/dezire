@@ -16,6 +16,7 @@ import { ChartToggle, useChartHidden } from './ChartToggle'
 import { ExpenseSettings, type SettingsTab } from './ExpenseSettings'
 import { toast } from '../toast'
 import { useLinkSources, type LinkSource } from './Spent'
+import { WalletCard } from './Wallet'
 
 const KINDS: { id: PeriodKind; label: string }[] = [
   { id: 'week', label: 'Week' },
@@ -100,6 +101,9 @@ export function Expenses() {
           </button>
         </div>
       </section>
+
+      {/* Money on hand: right under the title, since every expense below changes it. */}
+      <WalletCard />
 
       {expenses.length === 0 ? (
         <Empty />

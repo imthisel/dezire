@@ -9,7 +9,7 @@ import { toast } from './toast'
 /** The account's data: what an undo puts back. `modeId` goes with it, so a mode's plan always returns to its own mode. */
 const KEYS = [
   'months', 'kinds', 'goals', 'goalAreas', 'sources', 'birthday', 'yearNotes', 'currency', 'expenses', 'expenseCats', 'places',
-  'layouts', 'setupNotes', 'setupFavorites', 'modes', 'modeId', 'modeData', 'tasks', 'taskKinds', 'school', 'prefs',
+  'layouts', 'setupNotes', 'setupFavorites', 'modes', 'modeId', 'modeData', 'tasks', 'taskKinds', 'school', 'wallet', 'prefs',
 ] as const
 
 type State = ReturnType<typeof useStore.getState>

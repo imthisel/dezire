@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
-import { CalendarCheck, CalendarDays, ChevronDown, Download, Flag, Gem, GraduationCap, GripVertical, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
+import { CalendarCheck, CalendarDays, ChevronDown, Download, Flag, Gem, GraduationCap, GripVertical, Wallet, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
 import { modeKind } from '../lib/needs'
 import { CopyModeModal, ModesModal } from './Modes'
 import type { ModeInfo, ModeKind } from '../lib/types'
@@ -11,6 +11,7 @@ import { openSettings } from '../settingsNav'
 import { todayKey } from '../lib/expenses'
 import { happensOn, isDoneOn, isEvent } from '../lib/tasks'
 import { daysBetween } from '../lib/school'
+import { walletState } from '../lib/wallet'
 import { useSortable } from '../sortable'
 import { installApp, useApp } from '../appUpdate'
 import { PremiumCard } from './Plans'
@@ -66,6 +67,8 @@ export function Sidebar() {
   })
     .split(',')
     .map(Number)
+  // Money on hand, live (null until it's set up).
+  const onHand = useStore((s) => walletState(s.wallet, s.expenses, today)?.balance ?? null)
   const shown = docked ? sidebar : drawer
   const appInstalled = useApp((s) => s.installed)
   const hiddenNav = useStore((s) => s.prefs.hiddenNav)
@@ -297,6 +300,16 @@ export function Sidebar() {
               note={spentThisMonth > 0 ? f(spentThisMonth, true) : undefined}
               noteTitle="Spent this month"
             />
+            {onHand !== null && (
+              <Link
+                icon={Wallet}
+                label="Money on hand"
+                on={false}
+                onClick={() => goTo('expenses')}
+                note={f(onHand, true)}
+                noteTitle="What you have right now, after your expenses"
+              />
+            )}
             <button
               onClick={() => {
                 useStore.getState().setDrawer(false)

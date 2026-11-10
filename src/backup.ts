@@ -21,8 +21,8 @@ function download(name: string, text: string, type: string) {
 /** Downloads everything in the account as one file that Restore can read back. */
 export function downloadBackup() {
   const s = useStore.getState()
-  const { kinds, currency, goals, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, school, prefs } = s
-  const data = { app: 'dizayr', version: 5, exportedAt: new Date().toISOString(), currency, kinds, goals, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, school, prefs, ...savedModes(s) }
+  const { kinds, currency, goals, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, school, wallet, prefs } = s
+  const data = { app: 'dizayr', version: 5, exportedAt: new Date().toISOString(), currency, kinds, goals, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, school, wallet, prefs, ...savedModes(s) }
   download(`dizayr-backup-${today()}.json`, JSON.stringify(data, null, 2), 'application/json')
   s.setDevice({ lastBackup: Date.now() })
   toast.success('Backup downloaded.')
@@ -64,7 +64,7 @@ function keepForUndo() {
   const kept = {
     months: s.months, kinds: s.kinds, goals: s.goals, goalAreas: s.goalAreas, sources: s.sources, birthday: s.birthday, yearNotes: s.yearNotes, currency: s.currency,
     expenses: s.expenses, expenseCats: s.expenseCats, places: s.places, layouts: s.layouts, setupNotes: s.setupNotes, setupFavorites: s.setupFavorites,
-    modes: s.modes, modeId: s.modeId, modeData: s.modeData, tasks: s.tasks, taskKinds: s.taskKinds, school: s.school, prefs: s.prefs,
+    modes: s.modes, modeId: s.modeId, modeData: s.modeData, tasks: s.tasks, taskKinds: s.taskKinds, school: s.school, wallet: s.wallet, prefs: s.prefs,
   }
   return () => useStore.setState(kept)
 }
@@ -95,7 +95,8 @@ export function clearData(parts: ClearPart[]) {
             modes: s.modes.map((m) => (m.id === s.modeId && m.kind === 'needs' ? { ...m, needs: starterNeeds(s.expenseCats) } : m)),
           }
         : {}),
-      ...(parts.includes('expenses') ? { expenses: [] } : {}),
+      // Money on hand is worked out from expenses, so it goes with them.
+      ...(parts.includes('expenses') ? { expenses: [], wallet: { entries: [] } } : {}),
       ...(parts.includes('calendar') ? { tasks: [] } : {}),
       // Keeps the columns and subjects: only the tasks go.
       ...(parts.includes('school') ? { school: { ...s.school, tasks: [] } } : {}),

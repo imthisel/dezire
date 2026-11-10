@@ -10,6 +10,7 @@ import { MoneyInput } from './MoneyInput'
 import { ExpenseSettings, type SettingsTab } from './ExpenseSettings'
 import { toast } from '../toast'
 import { useLinkSources } from './Spent'
+import { walletState } from '../lib/wallet'
 
 const field =
   'h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm'
@@ -51,7 +52,11 @@ export function ExpenseModal({ editId, date: startDate }: { editId?: string; dat
     }
     s.addExpense(data)
     const what = name.trim() || (category ? s.expenseCats.find((c) => c.id === category)?.label : '') || 'Expense'
-    toast.success(`Added ${f(amount!)} · ${what}${date === today ? '' : ` · ${dayLabel(date)}`}.`)
+    // Tracking money on hand: say what's left, when this expense came off it.
+    const before = walletState(s.wallet, s.expenses)
+    const after = walletState(useStore.getState().wallet, useStore.getState().expenses)
+    const left = before && after && after.balance !== before.balance ? ` ${f(after.balance)} left on hand.` : ''
+    toast.success(`Added ${f(amount!)} · ${what}${date === today ? '' : ` · ${dayLabel(date)}`}.${left}`)
     if (!again) return close()
     // Ready for the next one: same day, everything else cleared.
     setAmount(null)

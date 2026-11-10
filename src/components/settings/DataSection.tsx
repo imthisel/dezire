@@ -155,7 +155,7 @@ function ClearModal({ items, expenses, tasks, goals, sources, onClose }: { items
     needsMode
       ? { id: 'plan', title: `The budgets in “${modeName}”`, hint: 'Its items, monthly budgets and categories. Your expenses stay.' }
       : { id: 'plan', title: `The plan in “${modeName}”`, hint: `${plural(items, 'item')}, goals to make, budgets, setups and year notes` },
-    { id: 'expenses', title: 'Expenses', hint: plural(expenses, 'expense') },
+    { id: 'expenses', title: 'Expenses', hint: `${plural(expenses, 'expense')} and money on hand` },
     { id: 'calendar', title: 'Calendar & tasks', hint: plural(tasks, 'entry').replace('entrys', 'entries') },
     { id: 'school', title: 'School tasks', hint: `${plural(schoolTasks, 'task')} · your columns and subjects stay` },
     { id: 'goals', title: 'Yearly goals', hint: plural(goals, 'goal') },
