@@ -83,7 +83,7 @@ export function Expenses() {
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Expenses</h2>
-            <p className="truncate text-sm text-zinc-400">Where your money actually goes, day by day.</p>
+            <p className="truncate text-sm text-zinc-400">Where your money goes.</p>
           </div>
           <button
             onClick={() => setSettings('categories')}
@@ -102,7 +102,7 @@ export function Expenses() {
         </div>
       </section>
 
-      {/* Money on hand: right under the title, since every expense below changes it. */}
+      {/* Your money: right under the title, since every expense below changes it. */}
       <WalletCard />
 
       {expenses.length === 0 ? (

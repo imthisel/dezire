@@ -11,6 +11,17 @@ import { ExpenseSettings, type SettingsTab } from './ExpenseSettings'
 import { toast } from '../toast'
 import { useLinkSources } from './Spent'
 import { walletState } from '../lib/wallet'
+import { AccountPicker } from './Wallet'
+
+/** The account expenses are paid from by default: the last one picked on this device. */
+const PAID_KEY = 'dizayr-paid-with'
+const lastPaid = () => {
+  try {
+    return localStorage.getItem(PAID_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
 
 const field =
   'h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm'
@@ -27,6 +38,13 @@ export function ExpenseModal({ editId, date: startDate }: { editId?: string; dat
   const [category, setCategory] = useState(editing?.category ?? '')
   const [place, setPlace] = useState(editing?.place ?? '')
   const [notes, setNotes] = useState(editing?.notes ?? '')
+  // Paid with: one of your money accounts (only once you track your money).
+  const accounts = useStore((s) => s.wallet.accounts)
+  const [account, setAccount] = useState(() => {
+    const ids = accounts.map((a) => a.id)
+    const want = editing ? editing.account || ids[0] : lastPaid()
+    return want && ids.includes(want) ? want : (ids[0] ?? '')
+  })
   const [notesOpen, setNotesOpen] = useState(!!editing?.notes)
   const [calOpen, setCalOpen] = useState(false)
   const [settings, setSettings] = useState<SettingsTab | null>(null)
@@ -43,7 +61,14 @@ export function ExpenseModal({ editId, date: startDate }: { editId?: string; dat
       amountBox.current?.querySelector('input')?.focus()
       return toast.error('Type how much was spent.')
     }
-    const data = { date, amount: amount!, name, category, place, notes: notesOpen ? notes : '' }
+    const data = { date, amount: amount!, name, category, place, notes: notesOpen ? notes : '', ...(accounts.length ? { account } : {}) }
+    if (accounts.length) {
+      try {
+        localStorage.setItem(PAID_KEY, account)
+      } catch {
+        // Not remembered: fine.
+      }
+    }
     const s = useStore.getState()
     if (editing) {
       s.updateExpense(editing.id, data)
@@ -55,7 +80,8 @@ export function ExpenseModal({ editId, date: startDate }: { editId?: string; dat
     // Tracking money on hand: say what's left, when this expense came off it.
     const before = walletState(s.wallet, s.expenses)
     const after = walletState(useStore.getState().wallet, useStore.getState().expenses)
-    const left = before && after && after.balance !== before.balance ? ` ${f(after.balance)} left on hand.` : ''
+    const paid = after?.accounts.find((a) => a.account.id === account)
+    const left = before && after && paid && after.total !== before.total ? ` ${f(paid.balance)} left in ${paid.account.name}.` : ''
     toast.success(`Added ${f(amount!)} · ${what}${date === today ? '' : ` · ${dayLabel(date)}`}.${left}`)
     if (!again) return close()
     // Ready for the next one: same day, everything else cleared.
@@ -181,6 +207,12 @@ export function ExpenseModal({ editId, date: startDate }: { editId?: string; dat
             </div>
 
             <NameField name={name} setName={setName} category={category} setCategory={setCategory} amount={amount} setAmount={setAmount} setPlace={setPlace} place={place} />
+
+            {accounts.length > 1 && (
+              <Section label="Paid with">
+                <AccountPicker accounts={accounts} value={account} onChange={setAccount} />
+              </Section>
+            )}
 
             <CategoryField category={category} setCategory={setCategory} setName={setName} name={name} onEdit={() => setSettings('categories')} />
 

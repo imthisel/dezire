@@ -155,7 +155,7 @@ function Modals() {
       {modal.type === 'need' && <NeedItemModal key={modal.editId ?? `new-${modal.date ?? ''}`} editId={modal.editId} date={modal.date} />}
       {modal.type === 'task' && <TaskModal key={modal.editId ?? `new-${modal.date ?? ''}-${modal.start ?? ''}`} {...modal} />}
       {modal.type === 'school' && <SchoolTaskModal key={modal.editId ?? `new-${modal.column ?? ''}-${modal.due ?? ''}`} {...modal} />}
-      {modal.type === 'wallet' && <WalletModal key={modal.mode} mode={modal.mode} />}
+      {modal.type === 'wallet' && <WalletModal key={`${modal.mode}-${modal.account ?? ''}`} mode={modal.mode} account={modal.account} />}
       {modal.type === 'kinds' && <KindsModal onClose={close} />}
       {modal.type === 'goalAreas' && <GoalAreasModal onClose={close} openId={modal.openId} add={modal.add} />}
       {modal.type === 'goal' && (

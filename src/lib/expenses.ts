@@ -112,6 +112,7 @@ export function parseExpenses(list: unknown): Expense[] {
       category: typeof x.category === 'string' ? x.category : '',
       place: typeof x.place === 'string' ? x.place.trim().slice(0, MAX_PLACE_NAME) : '',
       notes: typeof x.notes === 'string' ? x.notes.slice(0, 2000) : '',
+      ...(typeof x.account === 'string' && x.account ? { account: x.account.slice(0, 64) } : {}),
       createdAt: Number(x.createdAt) || Date.now(),
     })
   }

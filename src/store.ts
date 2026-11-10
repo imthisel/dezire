@@ -39,7 +39,7 @@ export type ModalState =
   /** Add (no `editId`) or edit a School task. `column` / `due` / `subject`: what a new one starts with. */
   | { type: 'school'; editId?: string; column?: string; due?: string; subject?: string }
   /** Money on hand: add money, take some out, or say how much you have now. */
-  | { type: 'wallet'; mode: 'add' | 'out' | 'set' }
+  | { type: 'wallet'; mode: 'add' | 'out' | 'move' | 'set'; account?: string }
   | null
 export type PhoneCols = 1 | 2 | 3
 export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses' | 'calendar' | 'school' | 'settings'
@@ -56,7 +56,7 @@ export type DropAt = { id: string; after: boolean }
 export type KindPatch = Partial<Omit<ItemKind, 'id'>>
 export type AreaPatch = Partial<Omit<GoalAreaDef, 'id'>>
 /** What's typed when adding / editing an expense: only the date and amount are needed. */
-export type ExpenseInput = { date: string; amount: number; name?: string; category?: string; place?: string; notes?: string }
+export type ExpenseInput = { date: string; amount: number; name?: string; category?: string; place?: string; notes?: string; account?: string }
 export type ExpenseCatPatch = Partial<Omit<ExpenseCategory, 'id'>>
 export type TaskKindPatch = Partial<Omit<TaskKind, 'id'>>
 export type ItemInput = { name: string; category: Category; trend: Trend; price: number; rate: number; notes?: string; links?: ItemLink[]; propertyId?: string; running?: RunningCosts }
@@ -73,6 +73,8 @@ function cleanExpense(d: ExpenseInput) {
     category: d.category ?? '',
     place: (d.place ?? '').trim().slice(0, MAX_PLACE_NAME),
     notes: (d.notes ?? '').slice(0, 2000),
+    // Only when it's given, so edits from elsewhere (e.g. a Needs item) keep the account it was paid from.
+    ...(d.account !== undefined ? { account: d.account.slice(0, 64) } : {}),
   }
 }
 /** A copy of `list` with the entry `id` moved to position `to` (or `list` itself when nothing moves). */

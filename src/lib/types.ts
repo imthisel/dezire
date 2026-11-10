@@ -199,6 +199,8 @@ export interface Expense {
   /** Where ('' = not said) */
   place: string
   notes: string
+  /** Money on hand: the account it was paid from (a WalletAccount id). Missing / '' = the first account. */
+  account?: string
   createdAt: number
 }
 

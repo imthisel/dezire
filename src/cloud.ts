@@ -42,6 +42,7 @@ const compact = (e: Expense) => {
   if (e.category) out.category = e.category
   if (e.place) out.place = e.place
   if (e.notes) out.notes = e.notes
+  if (e.account) out.account = e.account
   return out
 }
 

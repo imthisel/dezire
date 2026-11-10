@@ -96,7 +96,7 @@ export function clearData(parts: ClearPart[]) {
           }
         : {}),
       // Money on hand is worked out from expenses, so it goes with them.
-      ...(parts.includes('expenses') ? { expenses: [], wallet: { entries: [] } } : {}),
+      ...(parts.includes('expenses') ? { expenses: [], wallet: { accounts: [], entries: [] } } : {}),
       ...(parts.includes('calendar') ? { tasks: [] } : {}),
       // Keeps the columns and subjects: only the tasks go.
       ...(parts.includes('school') ? { school: { ...s.school, tasks: [] } } : {}),

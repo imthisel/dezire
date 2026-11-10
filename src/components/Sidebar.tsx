@@ -68,7 +68,7 @@ export function Sidebar() {
     .split(',')
     .map(Number)
   // Money on hand, live (null until it's set up).
-  const onHand = useStore((s) => walletState(s.wallet, s.expenses, today)?.balance ?? null)
+  const onHand = useStore((s) => walletState(s.wallet, s.expenses, today)?.total ?? null)
   const shown = docked ? sidebar : drawer
   const appInstalled = useApp((s) => s.installed)
   const hiddenNav = useStore((s) => s.prefs.hiddenNav)
@@ -303,7 +303,7 @@ export function Sidebar() {
             {onHand !== null && (
               <Link
                 icon={Wallet}
-                label="Money on hand"
+                label="Your money"
                 on={false}
                 onClick={() => goTo('expenses')}
                 note={f(onHand, true)}
