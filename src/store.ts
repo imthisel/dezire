@@ -293,6 +293,12 @@ interface State {
   /** Charts and Overview cards folded away for a simpler look, e.g. 'networth', 'assets' (remembered) */
   hiddenCharts: string[]
   toggleChart: (id: string) => void
+  /** Overview cards blurred so their amounts can't be read, e.g. 'w-networth' (remembered) */
+  blurred: string[]
+  toggleBlur: (id: string) => void
+  setBlurred: (ids: string[], on: boolean) => void
+  /** The blurred card being held open to peek at (not remembered) */
+  peeking: string | null
   /** Settings that follow the account (saved with the plan, the same on every device). See lib/prefs. */
   prefs: Prefs
   setPrefs: (patch: Partial<Prefs>) => void
@@ -594,6 +600,10 @@ export const useStore = create<State>()(
       hiddenCharts: [],
       toggleChart: (id) =>
         set((s) => ({ hiddenCharts: s.hiddenCharts.includes(id) ? s.hiddenCharts.filter((c) => c !== id) : [...s.hiddenCharts, id] })),
+      blurred: [],
+      toggleBlur: (id) => set((s) => ({ blurred: s.blurred.includes(id) ? s.blurred.filter((c) => c !== id) : [...s.blurred, id] })),
+      setBlurred: (ids, on) => set((s) => ({ blurred: on ? [...new Set([...s.blurred, ...ids])] : s.blurred.filter((c) => !ids.includes(c)) })),
+      peeking: null,
       prefs: DEFAULT_PREFS,
       setPrefs: (patch) => set((s) => ({ prefs: parsePrefs({ ...s.prefs, ...patch }) })),
       device: DEFAULT_DEVICE,
@@ -1580,6 +1590,7 @@ export const useStore = create<State>()(
         sidebar: s.sidebar,
         openAllMonths: s.openAllMonths,
         hiddenCharts: s.hiddenCharts,
+        blurred: s.blurred,
         prefs: s.prefs,
         device: s.device,
         phoneCols: s.phoneCols,
@@ -1627,6 +1638,8 @@ export const useStore = create<State>()(
           device: parseDevice(p.device),
           school: parseSchool(p.school),
           wallet: parseWallet(p.wallet),
+          blurred: Array.isArray(p.blurred) ? p.blurred.filter((id): id is string => typeof id === 'string') : [],
+          peeking: null,
           ...(p.modes ? { modes: p.modes.map((m) => (m.needs ? { ...m, needs: parseNeeds(m.needs) } : m)) } : {}),
         }
       },

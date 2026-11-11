@@ -14,6 +14,10 @@ import { MoneyInput } from './MoneyInput'
 import { NeedsPicker } from './NeedItemModal'
 import { BOUGHT_TEXT, BringInModal, NOT_BOUGHT_TEXT, NeedsBridge, SendBar, SendTick, flipSent } from './NeedsBridge'
 import { toast } from '../toast'
+import { BlurAll, BlurToggle, Blurred } from './Blur'
+
+/** The Needs overview's cards that can be blurred. */
+const BLUR_IDS = ['n-month', 'n-left', 'n-week', 'n-year', 'n-chart', 'n-breakdown']
 
 const OPEN_KEY = 'dizayr-needs-open'
 const monthKey = (year: number, m: number) => `${year}-${String(m + 1).padStart(2, '0')}`
@@ -85,9 +89,12 @@ export function NeedsPage() {
             <span className="text-zinc-300">{modeName}</span> · four weeks a month
           </p>
         </div>
-        <button onClick={() => addTo(weekOfDay(today))} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-4 text-sm font-semibold text-emerald-950 shadow-lg shadow-emerald-500/20 transition hover:brightness-110">
-          <Plus className="h-4 w-4" strokeWidth={2.5} /> Add item
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <BlurAll ids={BLUR_IDS} what="the overview" />
+          <button onClick={() => addTo(weekOfDay(today))} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-4 text-sm font-semibold text-emerald-950 shadow-lg shadow-emerald-500/20 transition hover:brightness-110">
+            <Plus className="h-4 w-4" strokeWidth={2.5} /> Add item
+          </button>
+        </div>
       </div>
 
       <Stats plan={plan} byMonth={byMonth} sentIds={sentIds} />
@@ -145,8 +152,9 @@ function Stats({ plan, byMonth, sentIds }: { plan: NeedsPlan; byMonth: Map<strin
 
   return (
     <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
-      <Stat highlight icon={<ShoppingBasket className="h-4 w-4 text-emerald-300" />} iconCls="bg-emerald-400/15" label="Spent this month" value={f(spent)} alt={u(spent)} sub={budget > 0 ? `of ${f(budget)} budget` : `in ${MONTHS[d.getMonth()]}`} progress={pct} />
+      <Stat highlight blurId="n-month" icon={<ShoppingBasket className="h-4 w-4 text-emerald-300" />} iconCls="bg-emerald-400/15" label="Spent this month" value={f(spent)} alt={u(spent)} sub={budget > 0 ? `of ${f(budget)} budget` : `in ${MONTHS[d.getMonth()]}`} progress={pct} />
       <Stat
+        blurId="n-left"
         icon={<Wallet className={`h-4 w-4 ${left < 0 ? 'text-rose-300' : 'text-sky-300'}`} />}
         iconCls={left < 0 ? 'bg-rose-400/15' : 'bg-sky-400/15'}
         label={left < 0 ? 'Over budget' : 'Left this month'}
@@ -155,34 +163,37 @@ function Stats({ plan, byMonth, sentIds }: { plan: NeedsPlan; byMonth: Map<strin
         valueCls={left < 0 ? 'text-rose-300' : 'text-white'}
         sub={budget === 0 ? 'Set a budget below' : left > 0 ? `about ${f(left / daysLeft)} a day` : left < 0 ? 'Past this month’s budget' : 'All used'}
       />
-      <Stat icon={<CalendarDays className="h-4 w-4 text-violet-300" />} iconCls="bg-violet-400/15" label={`This week · Week ${week.n}`} value={f(weekSpent)} alt={u(weekSpent)} sub={weekLabel(week)} />
-      <Stat icon={<Wallet className="h-4 w-4 text-amber-300" />} iconCls="bg-amber-400/15" label={`Spent in ${yearKey}`} value={f(yearSpent)} alt={u(yearSpent)} sub={`${yearCount} ${yearCount === 1 ? 'item' : 'items'} · ${yearSent} in Expenses`} />
+      <Stat blurId="n-week" icon={<CalendarDays className="h-4 w-4 text-violet-300" />} iconCls="bg-violet-400/15" label={`This week · Week ${week.n}`} value={f(weekSpent)} alt={u(weekSpent)} sub={weekLabel(week)} />
+      <Stat blurId="n-year" icon={<Wallet className="h-4 w-4 text-amber-300" />} iconCls="bg-amber-400/15" label={`Spent in ${yearKey}`} value={f(yearSpent)} alt={u(yearSpent)} sub={`${yearCount} ${yearCount === 1 ? 'item' : 'items'} · ${yearSent} in Expenses`} />
     </div>
   )
 }
 
-function Stat(p: { icon: ReactNode; iconCls: string; label: string; value: string; alt: string; sub: string; valueCls?: string; progress?: number; highlight?: boolean }) {
+function Stat(p: { blurId: string; icon: ReactNode; iconCls: string; label: string; value: string; alt: string; sub: string; valueCls?: string; progress?: number; highlight?: boolean }) {
   const altCode = useStore((s) => s.currency.alt.code)
   return (
-    <div className={`${card} relative min-w-0 overflow-hidden p-3.5 sm:p-5 ${p.highlight ? 'border-emerald-400/30 bg-gradient-to-br from-emerald-500/[0.14] via-white/[0.02] to-teal-500/[0.06]' : ''}`}>
+    <div className={`${card} group/blur relative min-w-0 overflow-hidden p-3.5 sm:p-5 ${p.highlight ? 'border-emerald-400/30 bg-gradient-to-br from-emerald-500/[0.14] via-white/[0.02] to-teal-500/[0.06]' : ''}`}>
       <div className="flex items-center gap-2 sm:gap-2.5">
         <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${p.iconCls}`}>{p.icon}</span>
-        <span className="truncate text-xs font-medium text-zinc-400 sm:text-sm">{p.label}</span>
+        <span className="min-w-0 truncate text-xs font-medium text-zinc-400 sm:text-sm">{p.label}</span>
+        <BlurToggle id={p.blurId} name={p.label} className="-my-1 -mr-1.5 ml-auto" />
       </div>
-      <p key={p.value} className={`animate-tick mt-2.5 truncate text-xl font-bold leading-none tracking-tight tabular-nums sm:mt-3 sm:text-[28px] ${p.valueCls ?? 'text-white'}`}>
-        {p.value}
-      </p>
-      {p.alt && (
-        <p className="alt mt-1.5 truncate text-xs font-medium tabular-nums text-zinc-400 sm:text-sm">
-          ≈ {p.alt} {altCode}
+      <Blurred id={p.blurId} name={p.label}>
+        <p key={p.value} className={`animate-tick mt-2.5 truncate text-xl font-bold leading-none tracking-tight tabular-nums sm:mt-3 sm:text-[28px] ${p.valueCls ?? 'text-white'}`}>
+          {p.value}
         </p>
-      )}
-      <p className="mt-1.5 truncate text-xs text-zinc-500">{p.sub}</p>
-      {p.progress !== undefined && (
-        <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/5">
-          <div className={`h-full rounded-full transition-all duration-500 ${barCls(p.progress)}`} style={{ width: `${Math.min(100, p.progress * 100)}%` }} />
-        </div>
-      )}
+        {p.alt && (
+          <p className="alt mt-1.5 truncate text-xs font-medium tabular-nums text-zinc-400 sm:text-sm">
+            ≈ {p.alt} {altCode}
+          </p>
+        )}
+        <p className="mt-1.5 truncate text-xs text-zinc-500">{p.sub}</p>
+        {p.progress !== undefined && (
+          <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/5">
+            <div className={`h-full rounded-full transition-all duration-500 ${barCls(p.progress)}`} style={{ width: `${Math.min(100, p.progress * 100)}%` }} />
+          </div>
+        )}
+      </Blurred>
     </div>
   )
 }
@@ -203,42 +214,49 @@ function YearChart({ plan, byMonth, year, onOpen }: { plan: NeedsPlan; byMonth: 
     <>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <h3 className="font-semibold text-white">Spending in {year}</h3>
-        {shown ? (
-          <p className="truncate text-[13px] tabular-nums text-zinc-400" aria-live="polite">
-            <span className="text-zinc-300">{MONTHS[shown.m]}:</span> <span className="font-medium text-white">{f(shown.spent)}</span>
-            {shown.budget > 0 && ` of ${f(shown.budget)}`}
-          </p>
-        ) : (
-          <p className="text-[13px] text-zinc-500">Press a month to open it</p>
-        )}
+        <div className="flex min-w-0 items-center gap-2.5">
+          {shown ? (
+            <Blurred id="n-chart" name={`Spending in ${year}`} hint={false} className="min-w-0">
+              <p className="truncate text-[13px] tabular-nums text-zinc-400" aria-live="polite">
+                <span className="text-zinc-300">{MONTHS[shown.m]}:</span> <span className="font-medium text-white">{f(shown.spent)}</span>
+                {shown.budget > 0 && ` of ${f(shown.budget)}`}
+              </p>
+            </Blurred>
+          ) : (
+            <p className="truncate text-[13px] text-zinc-500">Press a month to open it</p>
+          )}
+          <BlurToggle id="n-chart" name="the spending chart" label />
+        </div>
       </div>
-      <div className="relative mt-4 flex h-44 items-end gap-1 sm:gap-1.5" onMouseLeave={() => setPicked(null)}>
-        {bars.map((b) => {
-          const over = b.budget > 0 && b.spent > b.budget
-          return (
-            <button
-              key={b.key}
-              type="button"
-              onMouseEnter={() => setPicked(b.key)}
-              onFocus={() => setPicked(b.key)}
-              onClick={() => onOpen(b.key)}
-              aria-label={`${MONTHS[b.m]}: ${f(b.spent)}${b.budget > 0 ? ` of ${f(b.budget)} budget` : ''}${over ? ', over budget' : ''}. Open this month.`}
-              className={`relative flex h-full min-w-0 flex-1 items-end rounded-t outline-none transition focus-visible:bg-white/10 ${picked === b.key ? 'bg-white/[0.05]' : ''}`}
-            >
-              <span className={`block w-full rounded-t transition-[height] duration-500 ease-out ${over ? 'bg-rose-400' : 'bg-emerald-400'} ${b.key === thisMonth || picked === b.key ? '' : 'opacity-60'}`} style={{ height: `${b.spent > 0 ? Math.max(2, (b.spent / top) * 100) : 0}%` }} />
-              {b.budget > 0 && <span aria-hidden className="absolute inset-x-0 border-t-2 border-dashed border-white/40" style={{ bottom: `${(b.budget / top) * 100}%` }} />}
-            </button>
-          )
-        })}
-      </div>
-      <div className="mt-1.5 flex gap-1 border-t border-white/[0.08] pt-1.5 sm:gap-1.5" aria-hidden>
-        {bars.map((b) => (
-          <span key={b.key} className={`min-w-0 flex-1 text-center text-[10px] ${b.key === thisMonth ? 'font-semibold text-zinc-200' : 'text-zinc-500'}`}>
-            <span className="sm:hidden">{MONTHS_SHORT[b.m].slice(0, 1)}</span>
-            <span className="hidden sm:inline">{MONTHS_SHORT[b.m]}</span>
-          </span>
-        ))}
-      </div>
+      <Blurred id="n-chart" name={`Spending in ${year}`}>
+        <div className="relative mt-4 flex h-44 items-end gap-1 sm:gap-1.5" onMouseLeave={() => setPicked(null)}>
+          {bars.map((b) => {
+            const over = b.budget > 0 && b.spent > b.budget
+            return (
+              <button
+                key={b.key}
+                type="button"
+                onMouseEnter={() => setPicked(b.key)}
+                onFocus={() => setPicked(b.key)}
+                onClick={() => onOpen(b.key)}
+                aria-label={`${MONTHS[b.m]}: ${f(b.spent)}${b.budget > 0 ? ` of ${f(b.budget)} budget` : ''}${over ? ', over budget' : ''}. Open this month.`}
+                className={`relative flex h-full min-w-0 flex-1 items-end rounded-t outline-none transition focus-visible:bg-white/10 ${picked === b.key ? 'bg-white/[0.05]' : ''}`}
+              >
+                <span className={`block w-full rounded-t transition-[height] duration-500 ease-out ${over ? 'bg-rose-400' : 'bg-emerald-400'} ${b.key === thisMonth || picked === b.key ? '' : 'opacity-60'}`} style={{ height: `${b.spent > 0 ? Math.max(2, (b.spent / top) * 100) : 0}%` }} />
+                {b.budget > 0 && <span aria-hidden className="absolute inset-x-0 border-t-2 border-dashed border-white/40" style={{ bottom: `${(b.budget / top) * 100}%` }} />}
+              </button>
+            )
+          })}
+        </div>
+        <div className="mt-1.5 flex gap-1 border-t border-white/[0.08] pt-1.5 sm:gap-1.5" aria-hidden>
+          {bars.map((b) => (
+            <span key={b.key} className={`min-w-0 flex-1 text-center text-[10px] ${b.key === thisMonth ? 'font-semibold text-zinc-200' : 'text-zinc-500'}`}>
+              <span className="sm:hidden">{MONTHS_SHORT[b.m].slice(0, 1)}</span>
+              <span className="hidden sm:inline">{MONTHS_SHORT[b.m]}</span>
+            </span>
+          ))}
+        </div>
+      </Blurred>
       <p className="mt-2 text-xs text-zinc-500">The dashed line on each month is its budget.</p>
     </>
   )
@@ -264,37 +282,42 @@ function Breakdown({ cats: offered, allCats, byMonth, year, onEdit }: { cats: Ex
     <>
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-semibold text-white">Where it goes</h3>
-        <button onClick={onEdit} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 px-2 text-xs font-medium text-zinc-400 transition hover:bg-white/5 hover:text-white">
-          <Settings2 className="h-3.5 w-3.5" /> Categories
-        </button>
+        <div className="flex items-center gap-2">
+          <BlurToggle id="n-breakdown" name="where it goes" label />
+          <button onClick={onEdit} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 px-2 text-xs font-medium text-zinc-400 transition hover:bg-white/5 hover:text-white">
+            <Settings2 className="h-3.5 w-3.5" /> Categories
+          </button>
+        </div>
       </div>
       {cats.length === 0 ? (
         <p className="mt-6 text-center text-sm text-zinc-500">No categories yet.</p>
       ) : (
-        <ul className="mt-3.5 space-y-3">
-          {cats.map((c) => {
-            const Icon = catIcon(c)
-            const col = catColor(c)
-            const t = totals.get(c.id) ?? { n: 0, count: 0 }
-            return (
-              <li key={c.id}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="flex min-w-0 items-center gap-2 text-sm text-zinc-200">
-                    <Icon className={`h-4 w-4 shrink-0 ${col.text}`} />
-                    <span className="truncate">{c.label}</span>
-                    <span className="shrink-0 text-xs tabular-nums text-zinc-600">×{t.count}</span>
-                  </span>
-                  <span className="shrink-0 text-right text-sm font-semibold tabular-nums text-white">
-                    {f(t.n, true)} <span className="alt-i ml-1 text-[11px] font-normal text-zinc-500">· {u(t.n, true)}</span>
-                  </span>
-                </div>
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                  <div className={`h-full rounded-full transition-all duration-500 ${col.bar}`} style={{ width: `${all > 0 ? (t.n / all) * 100 : 0}%` }} />
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+        <Blurred id="n-breakdown" name="Where it goes" className="mt-3.5">
+          <ul className="space-y-3">
+            {cats.map((c) => {
+              const Icon = catIcon(c)
+              const col = catColor(c)
+              const t = totals.get(c.id) ?? { n: 0, count: 0 }
+              return (
+                <li key={c.id}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2 text-sm text-zinc-200">
+                      <Icon className={`h-4 w-4 shrink-0 ${col.text}`} />
+                      <span className="truncate">{c.label}</span>
+                      <span className="shrink-0 text-xs tabular-nums text-zinc-600">×{t.count}</span>
+                    </span>
+                    <span className="shrink-0 text-right text-sm font-semibold tabular-nums text-white">
+                      {f(t.n, true)} <span className="alt-i ml-1 text-[11px] font-normal text-zinc-500">· {u(t.n, true)}</span>
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className={`h-full rounded-full transition-all duration-500 ${col.bar}`} style={{ width: `${all > 0 ? (t.n / all) * 100 : 0}%` }} />
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </Blurred>
       )}
     </>
   )

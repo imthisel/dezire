@@ -9,6 +9,10 @@ import { NetWorthChart } from './NetWorthChart'
 import { ChartToggle, useChartHidden } from './ChartToggle'
 import { useIsPhone } from '../lib/useMedia'
 import { ModeStrip } from './Modes'
+import { BlurAll, BlurToggle, Blurred } from './Blur'
+
+/** The Overview's cards that can be blurred. */
+const BLUR_IDS = ['w-earned', 'w-spent', 'w-left', 'w-networth', 'w-chart', 'w-assets']
 
 export const card =
   'rounded-2xl border border-white/[0.07] bg-white/[0.025] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]'
@@ -82,22 +86,25 @@ export function Dashboard() {
             </p>
           )}
         </div>
-        <div className="inline-flex shrink-0 rounded-xl border border-white/10 bg-white/[0.03] p-1 text-sm">
-          {(['plan', 'year'] as const).map((m) => {
-            const on = (m === 'year') === yearMode
-            return (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                aria-pressed={on}
-                className={`rounded-lg px-2.5 py-1.5 font-medium transition sm:px-3 ${
-                  on ? 'bg-white/10 text-white shadow' : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                {m === 'plan' ? 'Whole plan' : 'Year'}
-              </button>
-            )
-          })}
+        <div className="flex shrink-0 items-center gap-2">
+          <BlurAll ids={BLUR_IDS} what="the overview" className="h-[42px] w-[42px]" />
+          <div className="inline-flex shrink-0 rounded-xl border border-white/10 bg-white/[0.03] p-1 text-sm">
+            {(['plan', 'year'] as const).map((m) => {
+              const on = (m === 'year') === yearMode
+              return (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  aria-pressed={on}
+                  className={`rounded-lg px-2.5 py-1.5 font-medium transition sm:px-3 ${
+                    on ? 'bg-white/10 text-white shadow' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  {m === 'plan' ? 'Whole plan' : 'Year'}
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 
@@ -115,6 +122,7 @@ export function Dashboard() {
       ) : (
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat
+          blurId="w-earned"
           icon={<ArrowUpRight className="h-4 w-4" />}
           iconCls="bg-emerald-500/15 text-emerald-300"
           label={yearMode ? `Earned in ${year}` : 'Total earned'}
@@ -124,6 +132,7 @@ export function Dashboard() {
           progress={goalPct !== null ? goalPct / 100 : undefined}
         />
         <Stat
+          blurId="w-spent"
           icon={<ArrowDownRight className="h-4 w-4" />}
           iconCls="bg-red-500/15 text-red-300"
           label={yearMode ? `Spent in ${year}` : 'Total spent'}
@@ -134,6 +143,7 @@ export function Dashboard() {
           warn
         />
         <Stat
+          blurId="w-left"
           icon={<Wallet className="h-4 w-4" />}
           iconCls="bg-sky-500/15 text-sky-300"
           label={yearMode ? `Saved in ${year}` : 'Money left'}
@@ -144,6 +154,7 @@ export function Dashboard() {
         />
         <Stat
           highlight
+          blurId="w-networth"
           icon={<Landmark className="h-4 w-4" />}
           iconCls="bg-indigo-500/20 text-indigo-200"
           label={yearMode ? `Net worth, end of ${year}` : 'Net worth'}
@@ -168,13 +179,14 @@ export function Dashboard() {
             </div>
             <div className="flex shrink-0 items-center gap-3">
               {!chartHidden && <p className="hidden text-xs text-zinc-500 md:block">Hover for details · click to open a year</p>}
+              {!chartHidden && <BlurToggle id="w-chart" name="the net worth chart" label />}
               <ChartToggle id="networth" name="net worth chart" />
             </div>
           </div>
           {!chartHidden && (
-            <div className="animate-fade">
+            <Blurred id="w-chart" name="Net worth over time" className="animate-fade">
               <NetWorthChart />
-            </div>
+            </Blurred>
           )}
         </div>
 
@@ -182,7 +194,10 @@ export function Dashboard() {
           <div className={`flex items-center justify-between gap-3 ${assetsHidden ? '' : 'mb-4'}`}>
             <h3 className="shrink-0 font-semibold text-white">{yearMode ? `Bought in ${year}` : 'Assets'}</h3>
             <div className="flex min-w-0 items-center gap-3">
-              <span className="truncate text-sm tabular-nums text-zinc-300">{f(port.value)} <span className="alt-i text-zinc-500">· {u(port.value)}</span></span>
+              <Blurred id="w-assets" name="Assets" hint={false} className="min-w-0">
+                <span className="block truncate text-sm tabular-nums text-zinc-300">{f(port.value)} <span className="alt-i text-zinc-500">· {u(port.value)}</span></span>
+              </Blurred>
+              <BlurToggle id="w-assets" name={yearMode ? `bought in ${year}` : 'assets'} label />
               <ChartToggle id="assets" name={yearMode ? `bought in ${year}` : 'assets'} show="Show" />
             </div>
           </div>
@@ -195,7 +210,7 @@ export function Dashboard() {
               </div>
             </div>
           ) : (
-            <div className="animate-fade flex flex-1 flex-col">
+            <Blurred id="w-assets" name={yearMode ? `Bought in ${year}` : 'Assets'} className="animate-fade flex flex-1 flex-col" innerClassName="flex flex-1 flex-col">
               <div className={`space-y-3 ${chartHidden ? 'lg:grid lg:grid-cols-2 lg:gap-x-10 lg:gap-y-3 lg:space-y-0' : ''}`}>
                 {kinds.map((k) => {
                   const Icon = kindIcon(k)
@@ -236,7 +251,7 @@ export function Dashboard() {
                   {f(gain)}
                 </span>
               </div>
-            </div>
+            </Blurred>
           )}
         </div>
       </div>
@@ -245,6 +260,7 @@ export function Dashboard() {
 }
 
 function Stat(props: {
+  blurId: string
   icon: ReactNode
   iconCls: string
   label: string
@@ -261,27 +277,30 @@ function Stat(props: {
   const altCode = useStore((s) => s.currency.alt.code)
   return (
     <div
-      className={`${card} relative overflow-hidden p-5 ${
+      className={`${card} group/blur relative overflow-hidden p-5 ${
         props.highlight ? 'border-indigo-400/30 bg-gradient-to-br from-indigo-500/[0.14] via-white/[0.02] to-emerald-500/[0.08]' : ''
       }`}
     >
       <div className="flex items-center gap-2.5">
         <span className={`grid h-7 w-7 place-items-center rounded-lg ${props.iconCls}`}>{props.icon}</span>
-        <span className="text-sm font-medium text-zinc-400">{props.label}</span>
+        <span className="min-w-0 truncate text-sm font-medium text-zinc-400">{props.label}</span>
+        <BlurToggle id={props.blurId} name={props.label} className="-my-1 -mr-1.5 ml-auto" />
       </div>
-      <p
-        key={props.value}
-        className={`animate-tick mt-3 truncate text-[28px] font-bold leading-none tracking-tight tabular-nums ${props.valueCls ?? 'text-white'}`}
-      >
-        {props.value}
-      </p>
-      <p className="alt mt-1.5 truncate text-sm font-medium tabular-nums text-zinc-400">≈ {props.usd} {altCode}</p>
-      <p className="mt-1.5 truncate text-xs text-zinc-500">{props.sub}</p>
-      {p !== undefined && (
-        <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/5">
-          <div className={`h-full rounded-full transition-all duration-500 ${barCls}`} style={{ width: `${Math.min(100, p * 100)}%` }} />
-        </div>
-      )}
+      <Blurred id={props.blurId} name={props.label}>
+        <p
+          key={props.value}
+          className={`animate-tick mt-3 truncate text-[28px] font-bold leading-none tracking-tight tabular-nums ${props.valueCls ?? 'text-white'}`}
+        >
+          {props.value}
+        </p>
+        <p className="alt mt-1.5 truncate text-sm font-medium tabular-nums text-zinc-400">≈ {props.usd} {altCode}</p>
+        <p className="mt-1.5 truncate text-xs text-zinc-500">{props.sub}</p>
+        {p !== undefined && (
+          <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/5">
+            <div className={`h-full rounded-full transition-all duration-500 ${barCls}`} style={{ width: `${Math.min(100, p * 100)}%` }} />
+          </div>
+        )}
+      </Blurred>
     </div>
   )
 }
@@ -303,55 +322,61 @@ function PhoneStats(p: {
   return (
     <div className="space-y-2.5">
       <div
-        className={`${card} relative overflow-hidden border-indigo-400/30 bg-gradient-to-br from-indigo-500/[0.16] via-white/[0.02] to-emerald-500/[0.08] p-4`}
+        className={`${card} group/blur relative overflow-hidden border-indigo-400/30 bg-gradient-to-br from-indigo-500/[0.16] via-white/[0.02] to-emerald-500/[0.08] p-4`}
       >
         <div className="flex items-center gap-2">
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-500/20 text-indigo-200">
             <Landmark className="h-4 w-4" />
           </span>
           <span className="text-sm font-medium text-zinc-300">Net worth</span>
+          <BlurToggle id="w-networth" name="Net worth" className="-my-1 -mr-1 ml-auto" />
         </div>
-        <p
-          key={p.netWorth}
-          className={`animate-tick mt-2.5 truncate text-[32px] font-bold leading-none tracking-tight tabular-nums ${p.netWorth < 0 ? 'text-red-300' : 'text-white'}`}
-        >
-          {f(p.netWorth)}
-        </p>
-        <p className="alt mt-1.5 truncate text-sm font-medium tabular-nums text-zinc-400">≈ {u(p.netWorth)} {altCode}</p>
-        <div className="mt-3 flex gap-2 text-xs">
-          <span className="truncate rounded-full bg-white/[0.06] px-2.5 py-1 tabular-nums text-zinc-300">
-            <span className="text-zinc-500">Cash</span> {f(p.cash, true)}
-          </span>
-          <span className="truncate rounded-full bg-white/[0.06] px-2.5 py-1 tabular-nums text-zinc-300">
-            <span className="text-zinc-500">Assets</span> {f(p.assets, true)}
-          </span>
-        </div>
+        <Blurred id="w-networth" name="Net worth">
+          <p
+            key={p.netWorth}
+            className={`animate-tick mt-2.5 truncate text-[32px] font-bold leading-none tracking-tight tabular-nums ${p.netWorth < 0 ? 'text-red-300' : 'text-white'}`}
+          >
+            {f(p.netWorth)}
+          </p>
+          <p className="alt mt-1.5 truncate text-sm font-medium tabular-nums text-zinc-400">≈ {u(p.netWorth)} {altCode}</p>
+          <div className="mt-3 flex gap-2 text-xs">
+            <span className="truncate rounded-full bg-white/[0.06] px-2.5 py-1 tabular-nums text-zinc-300">
+              <span className="text-zinc-500">Cash</span> {f(p.cash, true)}
+            </span>
+            <span className="truncate rounded-full bg-white/[0.06] px-2.5 py-1 tabular-nums text-zinc-300">
+              <span className="text-zinc-500">Assets</span> {f(p.assets, true)}
+            </span>
+          </div>
+        </Blurred>
       </div>
       <div className="grid grid-cols-3 gap-2.5">
-        <MiniStat icon={<ArrowUpRight className="h-3.5 w-3.5" />} iconCls="bg-emerald-500/15 text-emerald-300" label="Earned" value={f(p.earned, true)} usd={u(p.earned, true)} progress={p.goalPct !== null ? p.goalPct / 100 : undefined} />
-        <MiniStat icon={<ArrowDownRight className="h-3.5 w-3.5" />} iconCls="bg-red-500/15 text-red-300" label="Spent" value={f(p.spent, true)} usd={u(p.spent, true)} progress={p.budgetPct} warn />
-        <MiniStat icon={<Wallet className="h-3.5 w-3.5" />} iconCls="bg-sky-500/15 text-sky-300" label="Left" value={f(p.left, true)} usd={u(p.left, true)} valueCls={p.left < 0 ? 'text-red-300' : undefined} />
+        <MiniStat blurId="w-earned" icon={<ArrowUpRight className="h-3.5 w-3.5" />} iconCls="bg-emerald-500/15 text-emerald-300" label="Earned" value={f(p.earned, true)} usd={u(p.earned, true)} progress={p.goalPct !== null ? p.goalPct / 100 : undefined} />
+        <MiniStat blurId="w-spent" icon={<ArrowDownRight className="h-3.5 w-3.5" />} iconCls="bg-red-500/15 text-red-300" label="Spent" value={f(p.spent, true)} usd={u(p.spent, true)} progress={p.budgetPct} warn />
+        <MiniStat blurId="w-left" icon={<Wallet className="h-3.5 w-3.5" />} iconCls="bg-sky-500/15 text-sky-300" label="Left" value={f(p.left, true)} usd={u(p.left, true)} valueCls={p.left < 0 ? 'text-red-300' : undefined} />
       </div>
     </div>
   )
 }
 
-function MiniStat(props: { icon: ReactNode; iconCls: string; label: string; value: string; usd: string; valueCls?: string; progress?: number; warn?: boolean }) {
+function MiniStat(props: { blurId: string; icon: ReactNode; iconCls: string; label: string; value: string; usd: string; valueCls?: string; progress?: number; warn?: boolean }) {
   const p = props.progress
   const barCls = props.warn && p !== undefined && p > 1 ? 'bg-red-400' : props.warn ? 'bg-amber-300/80' : 'bg-emerald-400/80'
   return (
-    <div className={`${card} min-w-0 p-3`}>
+    <div className={`${card} group/blur relative min-w-0 overflow-hidden p-3`}>
       <div className="flex items-center gap-1.5">
         <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md ${props.iconCls}`}>{props.icon}</span>
-        <span className="truncate text-xs font-medium text-zinc-400">{props.label}</span>
+        <span className="min-w-0 truncate text-xs font-medium text-zinc-400">{props.label}</span>
+        <BlurToggle id={props.blurId} name={props.label} small className="-my-1 -mr-1.5 ml-auto" />
       </div>
-      <p key={props.value} className={`animate-tick mt-2 truncate text-lg font-bold leading-tight tabular-nums ${props.valueCls ?? 'text-white'}`}>
-        {props.value}
-      </p>
-      <p className="alt truncate text-[11px] tabular-nums text-zinc-500">≈ {props.usd}</p>
-      <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/5">
-        {p !== undefined && <div className={`h-full rounded-full transition-all duration-500 ${barCls}`} style={{ width: `${Math.min(100, p * 100)}%` }} />}
-      </div>
+      <Blurred id={props.blurId} name={props.label} compact>
+        <p key={props.value} className={`animate-tick mt-2 truncate text-lg font-bold leading-tight tabular-nums ${props.valueCls ?? 'text-white'}`}>
+          {props.value}
+        </p>
+        <p className="alt truncate text-[11px] tabular-nums text-zinc-500">≈ {props.usd}</p>
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/5">
+          {p !== undefined && <div className={`h-full rounded-full transition-all duration-500 ${barCls}`} style={{ width: `${Math.min(100, p * 100)}%` }} />}
+        </div>
+      </Blurred>
     </div>
   )
 }
