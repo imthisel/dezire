@@ -10,10 +10,11 @@ import { toast } from '../toast'
 
 /** The tick that sends something to Expenses. Used for one item, and for a whole week (where `partly` can show). */
 /**
- * The name of something already bought (a ticked Wants or Needs item): a thin soft-green line through it, the same in
- * both. The text keeps its full colour, so it reads as easily as before; the line fades in and out with the tick.
+ * The name of something already bought (a ticked Wants or Needs item): a thin line through it. Needs items get soft green;
+ * Wants items use their trend's colour (see TREND in lib/meta). The text keeps its full colour, so it reads as easily as
+ * before; the line fades in and out with the tick.
  */
-const STRIKE = 'line-through decoration-[1.5px] transition-[text-decoration-color] duration-300'
+export const STRIKE = 'line-through decoration-[1.5px] transition-[text-decoration-color] duration-300'
 export const BOUGHT_TEXT = `${STRIKE} decoration-emerald-300/75`
 /** The same line, invisible, so ticking fades it in instead of popping. */
 export const NOT_BOUGHT_TEXT = `${STRIKE} decoration-transparent`

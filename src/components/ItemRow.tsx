@@ -10,7 +10,7 @@ import { selection, usePicking, useSelected } from '../selection'
 import { ItemLinks } from './ItemLinks'
 import { NotYet } from './Kept'
 import { RunningCostsSummary } from './RunningCosts'
-import { BOUGHT_TEXT, NOT_BOUGHT_TEXT, SendTick } from './NeedsBridge'
+import { NOT_BOUGHT_TEXT, STRIKE, SendTick } from './NeedsBridge'
 import { flipSpent, useSpentExpense } from './Spent'
 import { fromKey } from '../lib/expenses'
 import { MONTHS_SHORT } from '../lib/time'
@@ -213,7 +213,8 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
       <div className="min-w-0 flex-1">
         <p className={`flex items-center gap-1 truncate text-sm font-medium ${over ? 'text-red-200' : 'text-zinc-100'}`}>
           {over && <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-400" />}
-          <span className={`truncate ${spent ? BOUGHT_TEXT : NOT_BOUGHT_TEXT}`}>{item.name}</span>
+          {/* Ticked: a line through the name in its trend's colour (green appreciating, blue stable, red depreciating) */}
+          <span className={`truncate ${spent ? `${STRIKE} ${t.strike}` : NOT_BOUGHT_TEXT}`}>{item.name}</span>
           {!open && vehicles.length > 0 && (
             <span title={`${vehicles.length} vehicle${vehicles.length > 1 ? 's' : ''} kept here`} className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-medium tabular-nums text-teal-200/70">
               <Car className="h-3 w-3" />

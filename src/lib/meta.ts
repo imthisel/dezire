@@ -86,23 +86,25 @@ export const TREND: Record<
   {
     label: string; hint: string; icon: LucideIcon
     text: string; bg: string; border: string; solid: string; iconBg: string; ring: string; stroke: string
+    /** The line through a ticked (bought) item's name */
+    strike: string
     defaultRate: number
   }
 > = {
   appreciating: {
     label: 'Appreciating', hint: 'Gains value over time', icon: TrendingUp,
     text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/35',
-    solid: 'bg-emerald-500', iconBg: 'bg-emerald-500/20', ring: 'ring-emerald-400/70', stroke: '#34d399', defaultRate: 5,
+    solid: 'bg-emerald-500', iconBg: 'bg-emerald-500/20', ring: 'ring-emerald-400/70', stroke: '#34d399', strike: 'decoration-emerald-400/85', defaultRate: 5,
   },
   depreciating: {
     label: 'Depreciating', hint: 'Loses value over time', icon: TrendingDown,
     text: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/35',
-    solid: 'bg-red-500', iconBg: 'bg-red-500/20', ring: 'ring-red-400/70', stroke: '#f87171', defaultRate: 15,
+    solid: 'bg-red-500', iconBg: 'bg-red-500/20', ring: 'ring-red-400/70', stroke: '#f87171', strike: 'decoration-red-400/85', defaultRate: 15,
   },
   stable: {
     label: 'Stable', hint: 'Holds its value', icon: Minus,
     text: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/35',
-    solid: 'bg-blue-500', iconBg: 'bg-blue-500/20', ring: 'ring-blue-400/70', stroke: '#60a5fa', defaultRate: 0,
+    solid: 'bg-blue-500', iconBg: 'bg-blue-500/20', ring: 'ring-blue-400/70', stroke: '#60a5fa', strike: 'decoration-blue-400/85', defaultRate: 0,
   },
 }
 
