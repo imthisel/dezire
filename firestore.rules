@@ -43,7 +43,78 @@ service cloud.firestore {
         && request.resource.data.trialStartedAt == request.time;
     }
 
-    // Admin-only collections (admin_log, admin_locks, admin_users): never readable or writable from the browser.
+    // ---- Help & feedback ----
+    // Anyone signed in can write to the team, even without a plan (they may need help with billing).
+    // The sender is always the real account: uid, email and name must match the sign-in, so they can't be faked.
+    // `private` only asks the team not to name them if it's quoted; the message stays linked to the account.
+    // At most one message (or follow-up) every 30 seconds, per account (see feedback_limits).
+    function limitTouched() {
+      return getAfter(/databases/$(database)/documents/feedback_limits/$(request.auth.uid)).data.last == request.time;
+    }
+    function shortText(v, max) {
+      return v is string && v.size() <= max;
+    }
+    function validContext(c) {
+      return c is map
+        && c.keys().hasOnly(['version', 'page', 'browser', 'screen', 'lang', 'tz', 'installed', 'online'])
+        && shortText(c.get('version', ''), 40) && shortText(c.get('page', ''), 40) && shortText(c.get('browser', ''), 80)
+        && shortText(c.get('screen', ''), 40) && shortText(c.get('lang', ''), 20) && shortText(c.get('tz', ''), 60)
+        && shortText(c.get('installed', ''), 5) && shortText(c.get('online', ''), 5);
+    }
+    function validNewFeedback() {
+      let d = request.resource.data;
+      return request.auth != null
+        && d.keys().hasOnly(['uid', 'email', 'name', 'kind', 'topic', 'subject', 'message', 'rating', 'private', 'context', 'status', 'createdAt', 'updatedAt'])
+        && d.keys().hasAll(['uid', 'email', 'kind', 'subject', 'message', 'private', 'status', 'createdAt'])
+        && d.uid == request.auth.uid
+        && d.email == request.auth.token.get('email', null)
+        && d.get('name', null) == request.auth.token.get('name', null)
+        && d.kind in ['question', 'problem', 'idea', 'praise']
+        && shortText(d.get('topic', ''), 32)
+        && d.subject is string && d.subject.size() > 0 && d.subject.size() <= 120
+        && d.message is string && d.message.size() > 0 && d.message.size() <= 5000
+        && (d.get('rating', 0) is int && d.get('rating', 0) >= 0 && d.get('rating', 0) <= 5)
+        && d.private is bool
+        && (!('context' in d) || validContext(d.context))
+        && d.status == 'open'
+        && d.createdAt == request.time
+        && d.get('updatedAt', request.time) == request.time
+        && limitTouched();
+    }
+    // The sender adds one follow-up to the end of the conversation (reopening it), or closes it.
+    function validFollowUp() {
+      let before = resource.data.get('replies', []);
+      let after = request.resource.data.get('replies', []);
+      let last = after[after.size() - 1];
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replies', 'status', 'updatedAt'])
+        && after is list && after.size() == before.size() + 1 && after.size() <= 60
+        && after[0:before.size()] == before
+        && last is map && last.keys().hasOnly(['from', 'text', 'at']) && last.from == 'user'
+        && last.text is string && last.text.size() > 0 && last.text.size() <= 5000
+        && last.at is int && last.at > request.time.toMillis() - 300000 && last.at < request.time.toMillis() + 300000
+        && request.resource.data.status == 'open'
+        && request.resource.data.updatedAt == request.time
+        && limitTouched();
+    }
+    function validClose() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && request.resource.data.status == 'resolved'
+        && request.resource.data.updatedAt == request.time;
+    }
+    match /feedback/{id} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow create: if validNewFeedback();
+      allow update: if request.auth != null && resource.data.uid == request.auth.uid && (validFollowUp() || validClose());
+    }
+    match /feedback_limits/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['last'])
+        && request.resource.data.last == request.time
+        && (resource == null || resource.data.last < request.time - duration.value(30, 's'));
+    }
+
+    // Admin-only collections (admin_log, admin_locks, admin_users, admin_feedback): never readable or writable from the browser.
     // Only the server (api/admin.ts, with the service account) uses them. Everything not matched above is denied anyway.
   }
 }

@@ -21,7 +21,7 @@ const SECTIONS: { id: SettingsSection; label: string; about: string; icon: Lucid
   { id: 'privacy', label: 'Privacy', about: 'Hide your amounts from others', icon: EyeOff, show: () => <PrivacySection /> },
   { id: 'lists', label: 'Your lists', about: 'Kinds, categories, places and modes', icon: ListTree, show: () => <ListsSection /> },
   { id: 'data', label: 'Data & backup', about: 'Export, import, spreadsheets and clearing', icon: Database, show: () => <DataSection /> },
-  { id: 'help', label: 'Help & app', about: 'Updates, install, shortcuts and tips', icon: LifeBuoy, show: () => <HelpSection /> },
+  { id: 'help', label: 'Help & support', about: 'Help center, contact us, updates and tips', icon: LifeBuoy, show: () => <HelpSection /> },
 ]
 
 const VIEW_NAMES: Record<View, string> = {
@@ -32,6 +32,7 @@ const VIEW_NAMES: Record<View, string> = {
   expenses: 'Expenses',
   calendar: 'Calendar',
   school: 'School',
+  help: 'Help',
   settings: 'Overview',
 }
 

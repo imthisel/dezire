@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Ban, Eye, Gift, Infinity as InfinityIcon, KeyRound, Lock, LogIn, LogOut, NotebookPen, RefreshCw, RotateCcw, ShieldAlert, ShieldX, Trash2, UserCheck, X,
+  Ban, Eye, Inbox, MessageSquareReply, Gift, Infinity as InfinityIcon, KeyRound, Lock, LogIn, LogOut, NotebookPen, RefreshCw, RotateCcw, ShieldAlert, ShieldX, Trash2, UserCheck, X,
   type LucideIcon,
 } from 'lucide-react'
 import { api, errorText, type LogEntry } from './api'
@@ -25,6 +25,9 @@ const ACTIONS: Record<string, { label: string; icon: LucideIcon; tone: string; k
   sign_out_everywhere: { label: 'Signed out everywhere', icon: LogOut, tone: 'text-zinc-300 bg-white/[0.06]', kind: 'change' },
   note: { label: 'Edited note', icon: NotebookPen, tone: 'text-zinc-300 bg-white/[0.06]', kind: 'change' },
   delete_account: { label: 'Deleted account', icon: Trash2, tone: 'text-rose-300 bg-rose-400/10', kind: 'change' },
+  feedback_reply: { label: 'Replied to a message', icon: MessageSquareReply, tone: 'text-indigo-300 bg-indigo-400/10', kind: 'change' },
+  feedback_status: { label: 'Changed a message’s status', icon: Inbox, tone: 'text-zinc-300 bg-white/[0.06]', kind: 'change' },
+  feedback_note: { label: 'Noted on a message', icon: NotebookPen, tone: 'text-zinc-300 bg-white/[0.06]', kind: 'change' },
 }
 const meta = (a: string) => ACTIONS[a] ?? { label: a, icon: ShieldAlert, tone: 'text-zinc-300 bg-white/[0.06]', kind: 'change' as const }
 

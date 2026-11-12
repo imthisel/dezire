@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, Check, ChevronRight, CloudOff, CreditCard, Loader2, LogOut, Settings } from 'lucide-react'
+import { AlertCircle, Check, ChevronRight, CloudOff, CreditCard, LifeBuoy, Loader2, LogOut, Settings } from 'lucide-react'
 import { signOut, useCloud, type SaveStatus } from '../cloud'
 import { toast } from '../toast'
 import { openPlans, useAccess } from '../billing'
 import { PLANS } from '../lib/plans'
 import { openSettings } from '../settingsNav'
+import { openHelp } from './Help'
+import { useUnreadReplies } from '../lib/feedback'
 
 export const STATUS: Record<SaveStatus, { label: string; cls: string; icon: typeof Check; spin?: boolean }> = {
   saved: { label: 'Saved', cls: 'text-emerald-300', icon: Check },
@@ -28,6 +30,7 @@ export function AccountMenu() {
   const user = useCloud((s) => s.user)
   const access = useAccess()
   const [open, setOpen] = useState(false)
+  const newReplies = useUnreadReplies()
   const root = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -78,6 +81,17 @@ export function AccountMenu() {
             <Settings className="h-4 w-4 text-indigo-300" />
             <span className="flex-1">Settings</span>
             <ChevronRight className="h-4 w-4 text-zinc-600" />
+          </button>
+          <button
+            onClick={() => {
+              setOpen(false)
+              openHelp(newReplies ? 'requests' : 'guides')
+            }}
+            className="flex w-full items-center gap-2.5 border-b border-white/[0.06] px-4 py-3 text-left text-sm text-zinc-300 transition hover:bg-white/5 hover:text-white"
+          >
+            <LifeBuoy className="h-4 w-4" />
+            <span className="flex-1">Help & feedback</span>
+            {newReplies > 0 && <span className="rounded-full bg-indigo-500 px-1.5 text-[11px] font-semibold tabular-nums text-white">{newReplies}</span>}
           </button>
           <button
             onClick={() => {

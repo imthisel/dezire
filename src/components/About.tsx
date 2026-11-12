@@ -8,6 +8,7 @@ import { auth } from '../lib/firebase'
 import { PLANS, TRIAL_DAYS, billingUrl, perMonth, pesos, type Plan, type PlanId } from '../lib/plans'
 import { EXAMPLE_REVIEWS, REVIEWS, type Review } from '../content/reviews'
 import { DownloadSection } from './AppInstall'
+import { ContactDialog } from './Help'
 import { BoardPreview, GoalsFloat, GoalsPreview, MonthOverview, NetWorthFloat, WishListPreview } from './about/Previews'
 import { TryOverview } from './about/TryOverview'
 import { TryExpenses } from './about/TryExpenses'
@@ -845,6 +846,7 @@ function SectionHead({ id, eyebrow, title, sub }: { id?: string; eyebrow: string
 export function TrialEnded() {
   const user = useCloud((s) => s.user)
   const activating = useAccess((s) => s.activating)
+  const [contact, setContact] = useState(false)
   return (
     <div className="about relative min-h-screen overflow-x-clip bg-[#07080c] px-5 pb-16 pt-12 text-zinc-100 antialiased sm:px-8 sm:pt-20">
       <Glow />
@@ -869,11 +871,15 @@ export function TrialEnded() {
               Already paid? Check your billing
             </a>
           )}
+          <button onClick={() => setContact(true)} className="text-zinc-300 underline-offset-4 hover:text-white hover:underline">
+            Contact support
+          </button>
           <button onClick={() => void signOut()} className="inline-flex items-center gap-1.5 text-zinc-300 hover:text-white">
             <LogOut className="h-3.5 w-3.5" /> Sign out
           </button>
         </div>
       </div>
+      {contact && <ContactDialog kind="question" onClose={() => setContact(false)} />}
     </div>
   )
 }

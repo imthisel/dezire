@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarCheck, CalendarDays, ChevronDown, Download, Flag, Gem, GraduationCap, GripVertical, Wallet, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarCheck, CalendarDays, ChevronDown, Download, Flag, Gem, GraduationCap, GripVertical, LifeBuoy, Wallet, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
 import { modeKind } from '../lib/needs'
 import { CopyModeModal, ModesModal, enterKind, lastMode, modeFor } from './Modes'
 import type { ModeKind } from '../lib/types'
@@ -17,6 +17,8 @@ import { DEFAULT_PREFS, moveSideBlock, type NavId, type SideBlock } from '../lib
 import { toast } from '../toast'
 import { installApp, useApp } from '../appUpdate'
 import { PremiumCard } from './Plans'
+import { openHelp } from './Help'
+import { useUnreadReplies } from '../lib/feedback'
 import type { IncomeSource } from '../lib/types'
 
 /** Wide screens keep the sidebar docked on the left; smaller ones slide it over the page. */
@@ -74,6 +76,7 @@ export function Sidebar() {
   const shown = docked ? sidebar : drawer
   const appInstalled = useApp((s) => s.installed)
   const hiddenNav = useStore((s) => s.prefs.hiddenNav)
+  const newReplies = useUnreadReplies()
   const needsMode = useStore(inNeedsMode)
   // Money plans can be put in order by dragging them in the list below.
   const [dragSource, setDragSource] = useState<string | null>(null)
@@ -351,6 +354,14 @@ export function Sidebar() {
 
           <Group label="You">
             <Link icon={Settings} label="Settings" on={active === 'settings'} onClick={() => openSettings()} />
+            <Link
+              icon={LifeBuoy}
+              label="Help & feedback"
+              on={active === 'help'}
+              onClick={() => openHelp(newReplies ? 'requests' : 'guides')}
+              note={newReplies ? `${newReplies} new` : undefined}
+              noteTitle="New replies from the Dizayr team"
+            />
             {!arranging && (
               <button
                 onClick={() => setArranging(true)}

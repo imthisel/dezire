@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { BookOpen, Check, Download, Layers, ListChecks, MapPin, RefreshCw, RotateCcw, Sparkles, Tags, Target } from 'lucide-react'
+import { BookOpen, Bug, Check, Download, Inbox, Layers, LifeBuoy, Lightbulb, ListChecks, MapPin, RefreshCw, RotateCcw, Sparkles, Tags, Target } from 'lucide-react'
 import { applyUpdate, checkForUpdate, installApp, useApp } from '../../appUpdate'
 import { DEFAULT_DEVICE, DEFAULT_PREFS } from '../../lib/prefs'
 import { useStore } from '../../store'
@@ -8,6 +8,8 @@ import { ExpenseSettings, type SettingsTab } from '../ExpenseSettings'
 import { CopyModeModal, ModesModal } from '../Modes'
 import { TaskKinds } from '../TaskKinds'
 import { ActionRow, Button, Group, Row } from './ui'
+import { openHelp } from '../Help'
+import { useMine } from '../../lib/feedback'
 
 export function ListsSection() {
   const kinds = useStore((s) => s.kinds.length)
@@ -74,6 +76,7 @@ function Key({ children }: { children: ReactNode }) {
 
 export function HelpSection() {
   const { version, builtAt, update, checking, installed } = useApp()
+  const requests = useMine((s) => s.tickets?.length ?? 0)
 
   function resetSettings() {
     const s = useStore.getState()
@@ -96,6 +99,13 @@ export function HelpSection() {
 
   return (
     <>
+      <Group title="Support" hint="Guides for every part of Dizayr, and a direct line to the team.">
+        <ActionRow id="help-center" icon={LifeBuoy} title="Help center" hint="Search answers and step-by-step guides." onClick={() => openHelp('guides')} />
+        <ActionRow id="contact" icon={Bug} title="Contact us or report a problem" hint="A real person reads every message and replies in the app." onClick={() => openHelp('contact', { kind: 'problem' })} />
+        <ActionRow id="feedback" icon={Lightbulb} title="Suggest an idea or share feedback" onClick={() => openHelp('contact', { kind: 'idea' })} />
+        <ActionRow id="requests" icon={Inbox} title="Your requests" hint="Your messages to the team and their replies." value={requests || undefined} onClick={() => openHelp('requests')} />
+      </Group>
+
       <Group title="The app">
         <Row
           id="version"

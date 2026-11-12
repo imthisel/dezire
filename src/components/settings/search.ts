@@ -70,6 +70,10 @@ export const SEARCH: { id: string; section: SettingsSection; title: string; word
   { id: 'storage', section: 'data', title: 'Space used', words: 'storage size limit full' },
   { id: 'clear', section: 'data', title: 'Clear data', words: 'delete erase wipe reset everything' },
 
+  { id: 'help-center', section: 'help', title: 'Help center', words: 'help guides faq questions answers support' },
+  { id: 'contact', section: 'help', title: 'Contact us or report a problem', words: 'support bug problem issue email message team' },
+  { id: 'feedback', section: 'help', title: 'Suggest an idea or share feedback', words: 'feedback idea feature request suggestion review' },
+  { id: 'requests', section: 'help', title: 'Your requests', words: 'tickets replies messages support' },
   { id: 'version', section: 'help', title: 'Version & updates', words: 'check update latest' },
   { id: 'install', section: 'help', title: 'Install the app', words: 'download pwa home screen offline' },
   { id: 'about-page', section: 'help', title: 'About Dizayr', words: 'website features pricing' },

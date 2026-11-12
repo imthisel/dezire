@@ -4,6 +4,7 @@ import { firebaseConfigured } from '../lib/firebase'
 import { retryLoad, startCloud, useCloud } from '../cloud'
 import { useAccess } from '../billing'
 import { About, TrialEnded } from './About'
+import { watchMine } from '../lib/feedback'
 
 /**
  * Shows the app only to a signed-in account that may use it (free trial, a plan, or lifetime) once its data has loaded.
@@ -14,6 +15,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const access = useAccess((s) => s.state)
 
   useEffect(() => startCloud(), [])
+  // Your Help requests and their replies, kept up to date while signed in.
+  useEffect(() => watchMine(user?.uid ?? null), [user])
 
   if (!firebaseConfigured) return <NotConfigured />
   if (location.pathname.replace(/\/$/, '') === '/about') return <About />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { Activity as ActivityIcon, ArrowRight, Eye, EyeOff, KeyRound, LayoutDashboard, Loader2, Lock, RefreshCw, Search, ServerOff, ShieldCheck, Users as UsersIcon } from 'lucide-react'
+import { Activity as ActivityIcon, ArrowRight, Eye, EyeOff, Inbox as InboxIcon, KeyRound, LayoutDashboard, Loader2, Lock, RefreshCw, Search, ServerOff, ShieldCheck, Users as UsersIcon } from 'lucide-react'
 import { useStore } from '../store'
 import { Toasts } from '../components/Toasts'
 import { toast } from '../toast'
@@ -11,6 +11,7 @@ import { Users } from './Users'
 import { UserPage } from './UserPage'
 import { Activity } from './Activity'
 import { Preview } from './Preview'
+import { Inbox, loadInbox, useInboxCount } from './Inbox'
 import { go, useRoute } from './router'
 
 /*
@@ -22,12 +23,13 @@ useStore.persist.setOptions({ storage: { getItem: () => null, setItem: () => {},
 
 // ---------------------------------------------------------------- routing
 
-type Route = { page: 'overview' | 'users' | 'activity' } | { page: 'user'; uid: string } | { page: 'planner'; uid: string }
+type Route = { page: 'overview' | 'users' | 'activity' } | { page: 'inbox'; id?: string } | { page: 'user'; uid: string } | { page: 'planner'; uid: string }
 function parse(path: string): Route {
   const p = path.split('/').filter(Boolean).slice(1)
   if (p[0] === 'users' && p[1]) return p[2] === 'planner' ? { page: 'planner', uid: p[1] } : { page: 'user', uid: p[1] }
   if (p[0] === 'users') return { page: 'users' }
   if (p[0] === 'activity') return { page: 'activity' }
+  if (p[0] === 'inbox') return { page: 'inbox', id: p[1] }
   return { page: 'overview' }
 }
 
@@ -240,7 +242,10 @@ function Login() {
 function Signed() {
   const path = useRoute((s) => s.path)
   const route = useMemo(() => parse(path), [path])
-  useEffect(() => void loadUsers(), [])
+  useEffect(() => {
+    void loadUsers()
+    void loadInbox()
+  }, [])
 
   if (route.page === 'planner') return <Preview uid={route.uid} />
   return (
@@ -248,6 +253,7 @@ function Signed() {
       {route.page === 'overview' && <Overview />}
       {route.page === 'users' && <Users />}
       {route.page === 'activity' && <Activity />}
+      {route.page === 'inbox' && <Inbox id={route.id} />}
       {route.page === 'user' && <UserPage key={route.uid} uid={route.uid} />}
     </Shell>
   )
@@ -256,6 +262,7 @@ function Signed() {
 const NAV = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard, path: '/admin' },
   { id: 'users', label: 'Users', icon: UsersIcon, path: '/admin/users' },
+  { id: 'inbox', label: 'Inbox', icon: InboxIcon, path: '/admin/inbox' },
   { id: 'activity', label: 'Activity log', icon: ActivityIcon, path: '/admin/activity' },
 ] as const
 
@@ -263,6 +270,7 @@ function Shell({ route, children }: { route: Route; children: ReactNode }) {
   const [finder, setFinder] = useState(false)
   const active = route.page === 'user' ? 'users' : route.page
   const count = useUsers((s) => s.users?.length)
+  const waiting = useInboxCount()
 
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
@@ -315,6 +323,7 @@ function Shell({ route, children }: { route: Route; children: ReactNode }) {
               <n.icon className={cx('h-4 w-4', active === n.id && 'text-indigo-300')} />
               <span className="flex-1">{n.label}</span>
               {n.id === 'users' && count != null && <span className="text-xs tabular-nums text-zinc-500">{count}</span>}
+              {n.id === 'inbox' && waiting > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-indigo-500 px-1.5 text-[11px] font-semibold tabular-nums text-white">{waiting}</span>}
             </a>
           ))}
         </nav>
@@ -339,6 +348,7 @@ function Shell({ route, children }: { route: Route; children: ReactNode }) {
               className={cx('inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium', active === n.id ? 'bg-white/[0.08] text-white' : 'text-zinc-400')}
             >
               <n.icon className="h-3.5 w-3.5" /> {n.label}
+              {n.id === 'inbox' && waiting > 0 && <span className="rounded-full bg-indigo-500 px-1.5 text-[10px] font-semibold tabular-nums text-white">{waiting}</span>}
             </button>
           ))}
         </nav>

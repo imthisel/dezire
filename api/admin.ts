@@ -3,8 +3,8 @@
  * so the Firestore rules (which keep each user to their own data) don't apply: every request except `login` must carry
  * a valid admin session (see _lib/admin.ts).
  *
- * GET  /api/admin?action=session | users | user&uid=… | log
- * POST /api/admin  { action: login | logout | lifetime | comp | endComp | trial | disable | revoke | note | delete, … }
+ * GET  /api/admin?action=session | users | user&uid=… | log | feedback
+ * POST /api/admin  { action: login | logout | lifetime | comp | endComp | trial | disable | revoke | note | delete | feedback, … }
  *
  * Protections: the password only lives in ADMIN_PASSWORD; 5 wrong tries from one address lock it out for 15 minutes;
  * sessions are HttpOnly, SameSite=Strict cookies that expire after 8 hours; changes must come from this site
@@ -140,6 +140,74 @@ async function auditLog() {
   }))
 }
 
+// ---------------------------------------------------------------- help & feedback
+
+/** Messages people sent from Help (see src/lib/feedback.ts), newest first, with the team's private notes. */
+async function feedbackList() {
+  const { db } = await firebase()
+  const [snap, notes] = await Promise.all([db.collection('feedback').orderBy('createdAt', 'desc').limit(500).get(), db.collection('admin_feedback').get()])
+  const note = new Map(notes.docs.map((d) => [d.id, (d.get('note') as string) ?? '']))
+  return snap.docs.map((d) => {
+    const x = d.data()
+    return {
+      id: d.id,
+      uid: (x.uid as string) ?? null,
+      email: (x.email as string) ?? null,
+      name: (x.name as string) ?? null,
+      kind: (x.kind as string) ?? 'question',
+      topic: (x.topic as string) ?? '',
+      subject: (x.subject as string) ?? '',
+      message: (x.message as string) ?? '',
+      rating: Number(x.rating) || 0,
+      private: x.private === true,
+      status: (x.status as string) ?? 'open',
+      context: (x.context as Record<string, string>) ?? null,
+      replies: Array.isArray(x.replies) ? (x.replies as { from: string; text: string; at: number }[]) : [],
+      createdAt: ms(x.createdAt),
+      updatedAt: ms(x.updatedAt),
+      seenAt: ms(x.seenAt),
+      note: note.get(d.id) ?? '',
+    }
+  })
+}
+
+const validDocId = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9]{1,64}$/.test(v)
+const FEEDBACK_STATUS = ['open', 'pending', 'resolved']
+
+/** Reply, change the status, mark as read, or keep a private note on one message. */
+async function feedbackUpdate(request: Request, body: Body) {
+  if (!validDocId(body.id)) return fail(400, 'bad_id')
+  const { db } = await firebase()
+  const ref = db.collection('feedback').doc(body.id)
+  const snap = await ref.get()
+  if (!snap.exists) return fail(404, 'not_found')
+  const who = { uid: (snap.get('uid') as string) ?? undefined, email: (snap.get('email') as string) ?? null }
+  const change: Record<string, unknown> = {}
+  const reply = typeof body.reply === 'string' ? body.reply.trim().slice(0, 5000) : ''
+  if (reply) {
+    // Arrays can't hold server timestamps: the time is the server's own clock.
+    change.replies = FieldValue.arrayUnion({ from: 'team', text: reply, at: Date.now() })
+    // Answered: waiting on them, unless it's being closed at the same time.
+    change.status = 'pending'
+  }
+  if (typeof body.status === 'string') {
+    if (!FEEDBACK_STATUS.includes(body.status)) return fail(400, 'bad_status')
+    change.status = body.status
+  }
+  if (body.seen === true && !snap.get('seenAt')) change.seenAt = FieldValue.serverTimestamp()
+  if (Object.keys(change).length) {
+    if (change.replies || change.status) change.updatedAt = FieldValue.serverTimestamp()
+    await ref.update(change)
+  }
+  if (typeof body.note === 'string') {
+    await db.collection('admin_feedback').doc(body.id).set({ note: body.note.slice(0, 5000), updatedAt: FieldValue.serverTimestamp() }, { merge: true })
+    await audit(request, 'feedback_note', { ...who, detail: body.id })
+  }
+  if (reply) await audit(request, 'feedback_reply', { ...who, detail: body.id })
+  else if (typeof body.status === 'string') await audit(request, 'feedback_status', { ...who, detail: `${body.id} → ${body.status}` })
+  return json({ ok: true })
+}
+
 export const GET = safe(async (request: Request) => {
   if (!adminConfigured()) return notConfigured()
   const action = new URL(request.url).searchParams.get('action')
@@ -149,6 +217,7 @@ export const GET = safe(async (request: Request) => {
   try {
     if (action === 'users') return json({ users: await listUsers(), at: Date.now() })
     if (action === 'log') return json({ log: await auditLog() })
+    if (action === 'feedback') return json({ feedback: await feedbackList(), at: Date.now() })
     if (action === 'user') {
       const uid = new URL(request.url).searchParams.get('uid')
       if (!validUid(uid)) return fail(400, 'bad_uid')
@@ -210,7 +279,7 @@ async function login(request: Request, given: unknown) {
   return json({ ok: true, expires }, 200, { 'Set-Cookie': sessionCookie(token, SESSION_MS / 1000) })
 }
 
-type Body = { action?: string; uid?: unknown; on?: unknown; days?: unknown; note?: unknown; confirm?: unknown; password?: unknown }
+type Body = { action?: string; uid?: unknown; on?: unknown; days?: unknown; note?: unknown; confirm?: unknown; password?: unknown; id?: unknown; reply?: unknown; status?: unknown; seen?: unknown }
 
 export const POST = safe(async (request: Request) => {
   if (!adminConfigured()) return notConfigured()
@@ -228,6 +297,7 @@ export const POST = safe(async (request: Request) => {
     return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie('', 0) })
   }
   if (!session(request)) return fail(401, 'signed_out')
+  if (body.action === 'feedback') return feedbackUpdate(request, body)
 
   const uid = body.uid
   if (!validUid(uid)) return fail(400, 'bad_uid')

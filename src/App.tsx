@@ -37,6 +37,7 @@ import { useTouchDrag } from './touchdrag'
 import { useBackgroundJobs } from './reminders'
 import { startSettingsNav } from './settingsNav'
 import { Settings } from './components/settings/Settings'
+import { Help } from './components/Help'
 
 export default function App() {
   return (
@@ -106,6 +107,7 @@ function page(view: View, needs: boolean) {
   if (view === 'assets') return <Assets />
   if (view === 'calendar') return <Schedule />
   if (view === 'school') return <School />
+  if (view === 'help') return <Help />
   if (view === 'settings') return <Settings />
   if (needs) return <NeedsPage />
   return (
