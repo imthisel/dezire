@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type MouseEvent } from 'react'
-import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Car, Check, Copy, CopyPlus, GripVertical, Home, Link2, Pencil, Plus, Scissors, Star, StickyNote, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, Car, Check, CopyPlus, Eye, EyeClosed, GripVertical, Home, Link2, Pencil, Plus, Star, StickyNote, Trash2 } from 'lucide-react'
 import type { Item } from '../lib/types'
 import { TREND, kindIcon } from '../lib/meta'
 import { useFmt, useItemIndex, useKindOf, useStore, useAlt } from '../store'
@@ -15,6 +15,7 @@ import { flipSpent, useSpentExpense } from './Spent'
 import { fromKey } from '../lib/expenses'
 import { MONTHS_SHORT } from '../lib/time'
 import { toast } from '../toast'
+import { useBlurred } from './Blur'
 
 interface Props {
   item: Item
@@ -40,6 +41,10 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
   const KindIcon = kindIcon(kind)
   const isCut = clipboard?.mode === 'cut' && clipboard.item.id === item.id
   const selected = useSelected(item.id)
+  // Blurred: its name and price can't be read (remembered on this device)
+  const blurId = `item:${item.id}`
+  const blurred = useBlurred(blurId)
+  const blurCls = blurred ? 'select-none blur-[6px] saturate-50' : ''
 
   const act = (fn: () => void) => (e: MouseEvent) => {
     e.stopPropagation()
@@ -81,12 +86,8 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
       ? [{ icon: ArrowDown, label: 'Move down', run: () => s().transferItem(monthKey, item.id, monthKey, 'move', { id: nextId, after: true }) }]
       : []),
     {
-      icon: Copy, label: 'Copy (then Paste on any month)',
-      run: () => { s().copyToClipboard(monthKey, item.id, 'copy'); toast.info(`Copied “${item.name}”. Click Paste on any month.`) },
-    },
-    {
-      icon: Scissors, label: 'Cut (then Paste on any month)',
-      run: () => { s().copyToClipboard(monthKey, item.id, 'cut'); toast.info(`Cut “${item.name}”. Click Paste on the month to move it to.`) },
+      icon: blurred ? Eye : EyeClosed, label: blurred ? 'Unblur' : 'Blur', on: blurred,
+      run: () => s().toggleBlur(blurId),
     },
     { icon: ArrowRightLeft, label: 'Move / copy to…', run: () => s().openModal({ type: 'move', key: monthKey, id: item.id }) },
     {
@@ -210,7 +211,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
           </span>
         )}
       </span>
-      <div className="min-w-0 flex-1">
+      <div aria-hidden={blurred || undefined} className={`min-w-0 flex-1 transition-[filter] duration-300 ${blurCls}`}>
         <p className={`flex items-center gap-1 truncate text-sm font-medium ${over ? 'text-red-200' : 'text-zinc-100'}`}>
           {over && <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-400" />}
           {/* Ticked: a line through the name in its trend's colour (green appreciating, blue stable, red depreciating) */}
@@ -265,7 +266,7 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
       >
         <Star className={`h-4 w-4 ${fav ? 'fill-amber-300' : ''}`} strokeWidth={fav ? 2 : 1.75} />
       </button>
-      <div className={`shrink-0 text-right ${open ? 'max-sm:block sm:hidden' : picking ? '' : 'sm:group-hover:hidden'}`}>
+      <div aria-hidden={blurred || undefined} className={`shrink-0 text-right transition-[filter] duration-300 ${blurCls} ${open ? 'max-sm:block sm:hidden' : picking ? '' : 'sm:group-hover:hidden'}`}>
         <p className={`text-sm font-semibold tabular-nums ${over ? 'text-red-300' : 'text-zinc-100'}`}>{f(item.price)}</p>
         <p className="alt text-[10px] tabular-nums text-zinc-500">≈ {u(item.price)}</p>
       </div>
@@ -280,9 +281,10 @@ export function ItemRow({ item, monthKey, over = false, prevId, nextId }: Props)
             title={a.label}
             aria-label={a.label}
             onClick={act(a.run)}
-            className={`grid h-9 w-9 place-items-center rounded-lg text-zinc-400 transition hover:bg-white/10 sm:h-7 sm:w-7 sm:rounded-md ${
-              a.danger ? 'hover:text-red-300' : 'hover:text-white'
-            }`}
+            aria-pressed={'on' in a ? a.on : undefined}
+            className={`grid h-9 w-9 place-items-center rounded-lg transition hover:bg-white/10 sm:h-7 sm:w-7 sm:rounded-md ${
+              'on' in a && a.on ? 'bg-violet-500/15 text-violet-200' : 'text-zinc-400'
+            } ${a.danger ? 'hover:text-red-300' : 'hover:text-white'}`}
           >
             <a.icon className="h-3.5 w-3.5" />
           </button>
