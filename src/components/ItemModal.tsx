@@ -12,6 +12,7 @@ import { KindsModal } from './KindsModal'
 import { MoneyInput } from './MoneyInput'
 import { toast } from '../toast'
 import { useSpentExpense } from './Spent'
+import { markWantsSpent } from './PayFrom'
 import { RunningCostsField, draftOf, runningOf, type RunningDraft } from './RunningCosts'
 import { cleanRunning, lastFuelPrice, rememberFuelPrice } from '../lib/running'
 
@@ -104,10 +105,12 @@ export function ItemModal({ monthKey, editId }: { monthKey: string; editId?: str
     const pid = editId ?? (r.ok ? r.id : undefined)
     if (pid && (category === 'property' || editing?.category === 'property')) s.setVehiclesAt(pid, category === 'property' ? [...kept] : [])
     const flip = pid && r.ok && isSpent !== (editId ? wasSpent : false)
-    if (flip) s.setItemsSpent([pid], isSpent)
-    const how = !flip ? '' : isSpent ? ', marked spent and added to Expenses' : ', no longer marked spent'
+    // Marking it spent asks which account paid (when that matters) and says what's left, after this closes.
+    if (flip && !isSpent) s.setItemsSpent([pid], false)
+    const how = flip && !isSpent ? ', no longer marked spent' : ''
     toast.result(r, `${editId ? 'Updated' : 'Added'} “${data.name}” in ${labelOfKey(monthKey)}${how}.`)
     if (r.ok) close()
+    if (flip && isSpent) markWantsSpent([pid], true, `“${data.name}”`)
   }
 
   const remaining = left - (price ?? 0)

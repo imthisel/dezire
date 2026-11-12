@@ -7,6 +7,7 @@ import { MONTHS } from '../lib/time'
 import type { Expense } from '../lib/types'
 import { Modal } from './Modal'
 import { toast } from '../toast'
+import { sendNeeds } from './PayFrom'
 
 /** The tick that sends something to Expenses. Used for one item, and for a whole week (where `partly` can show). */
 /**
@@ -54,12 +55,7 @@ export function SendTick({ on, partly, label, onChange, size = 'md' }: { on: boo
 const plural = (n: number) => `${n} ${n === 1 ? 'item' : 'items'}`
 
 /** Sends or takes back items, and says what happened with a way to undo it. `what`: how to name them, like “Lunch” or “Week 2”. */
-export function flipSent(ids: string[], on: boolean, what?: string) {
-  const { count, undo } = useStore.getState().setNeedsSent(ids, on)
-  if (!count) return
-  const name = what ?? plural(count)
-  toast.undo(on ? `${name} sent to Expenses.` : `${name} taken out of Expenses. Still here in Needs.`, undo)
-}
+export const flipSent = (ids: string[], on: boolean, what?: string) => sendNeeds(ids, on, what)
 
 /** Everything in a month or more, sent or not, and the button that sends what's left. */
 export function SendBar({ ids, sentIds, sentTotal, total, scope }: { ids: string[]; sentIds: string[]; sentTotal: number; total: number; scope: string }) {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
-  ArrowDownLeft, ArrowLeftRight, ArrowRight, Banknote, ChevronDown, CreditCard, Landmark, Minus, PiggyBank, Plus, Receipt, Scale, Settings2, Smartphone,
+  AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowRight, Banknote, ChevronDown, History, CreditCard, Landmark, Minus, PiggyBank, Plus, Receipt, Scale, Settings2, Smartphone,
   Trash2, TrendingDown, TrendingUp, Wallet as WalletIcon, X,
 } from 'lucide-react'
 import { useAlt, useFmt, useStore } from '../store'
@@ -16,12 +16,15 @@ import { Modal } from './Modal'
 import { MoneyInput } from './MoneyInput'
 import { ColorRow } from './SchoolSubjects'
 import { toast } from '../toast'
+import { BlurToggle, Blurred } from './Blur'
+import { useLinkSources } from './Spent'
+import { MONTHS_SHORT } from '../lib/time'
 
 type Mode = 'add' | 'out' | 'move' | 'set'
 export const openWallet = (mode: Mode, account?: string) => useStore.getState().openModal({ type: 'wallet', mode, account })
 
 export const ICONS: Record<AccountIcon, typeof Plus> = { cash: Banknote, bank: Landmark, phone: Smartphone, card: CreditCard, piggy: PiggyBank, wallet: WalletIcon }
-const colorOf = (a: { color: string }) => KIND_COLORS[a.color] ?? KIND_COLORS.slate
+export const colorOf = (a: { color: string }) => KIND_COLORS[a.color] ?? KIND_COLORS.slate
 
 /** Money on hand right now (null = not set up), kept in step with Expenses. */
 export function useWallet(today = todayKey()) {
@@ -167,176 +170,287 @@ function Start() {
   )
 }
 
+/** The account a move belongs to, for filters and "latest" lines (a move counts for both sides). */
+const touches = (m: Move, id: string) => m.account === id || m.to === id
+
 function Tracker({ state, today }: { state: WalletState; today: string }) {
   const f = useFmt()
   const u = useAlt()
   const shown = useGlide(state.total)
-  const [activity, setActivity] = useState(false)
   const [managing, setManaging] = useState(false)
   const negative = state.total < 0
 
   const stats = useMemo(() => {
     const spentToday = state.moves.reduce((n, m) => (m.kind === 'expense' && m.date === today ? n + m.amount : n), 0)
-    const weekFrom = addDays(today, -6)
-    let net = 0
-    for (const m of state.moves) {
-      if (m.date < weekFrom || m.kind === 'set' || m.kind === 'move') continue
-      net += m.kind === 'add' ? m.amount : -m.amount
-    }
     const perDay = dailySpend(state, today)
     const lasts = perDay > 0 && state.total > 0 ? Math.floor(state.total / perDay) : null
-    return { spentToday, net, perDay, lasts }
+    // This month: what came in, what was spent, what was taken out.
+    const monthStart = `${today.slice(0, 7)}-01`
+    let mIn = 0
+    let mSpent = 0
+    let mOut = 0
+    for (const m of state.moves) {
+      if (m.date < monthStart) continue
+      if (m.kind === 'add') mIn += m.amount
+      else if (m.kind === 'expense') mSpent += m.amount
+      else if (m.kind === 'out') mOut += m.amount
+    }
+    // Each account's latest change (not counting its own count).
+    const latest = new Map<string, Move>()
+    for (const m of state.moves) {
+      if (m.kind === 'set') continue
+      if (m.account) latest.set(m.account, m)
+      if (m.to) latest.set(m.to, m)
+    }
+    return { spentToday, perDay, lasts, mIn: round(mIn), mSpent: round(mSpent), mOut: round(mOut), latest }
   }, [state, today])
 
+  const since = state.since === today ? 'today' : dayLabel(state.since, today).replace(/^\w+, /, '')
+
   return (
-    <section id="wallet" aria-label="Your money" className={`${card} relative overflow-hidden`}>
-      <div aria-hidden className={`pointer-events-none absolute -right-16 -top-24 h-56 w-96 rounded-full blur-3xl transition-colors duration-700 ${negative ? 'bg-rose-500/10' : 'bg-emerald-500/10'}`} />
-      <div className="relative grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-8">
+    <section id="wallet" aria-label="Your money" className={`${card} group/blur relative overflow-hidden`}>
+      {/* Soft glow that turns red when you're below zero */}
+      <div aria-hidden className={`pointer-events-none absolute -right-20 -top-28 h-64 w-[28rem] rounded-full blur-3xl transition-colors duration-700 ${negative ? 'bg-rose-500/[0.12]' : 'bg-emerald-500/[0.12]'}`} />
+      <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 h-48 w-80 rounded-full bg-indigo-500/[0.07] blur-3xl" />
+
+      <div className="relative grid gap-6 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-8">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className={`grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br shadow-md ${negative ? 'from-rose-400 to-orange-500' : 'from-emerald-400 to-teal-500'}`}>
-              <WalletIcon className="h-4 w-4 text-white" strokeWidth={2.4} />
+            <span className={`grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br shadow-lg ${negative ? 'from-rose-400 to-orange-500 shadow-rose-500/20' : 'from-emerald-400 to-teal-500 shadow-emerald-500/20'}`}>
+              <WalletIcon className="h-[18px] w-[18px] text-white" strokeWidth={2.4} />
             </span>
-            <h3 className="text-sm font-semibold text-zinc-200">Your money</h3>
-            <span title="Updates as you log expenses" className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300 ring-1 ring-inset ring-emerald-400/20">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              </span>
-              Live
-            </span>
+            <div className="min-w-0">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
+                Your money
+                <span title="Every expense comes off it as you log it" className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300 ring-1 ring-inset ring-emerald-400/20">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  </span>
+                  Live
+                </span>
+              </h3>
+              <p className="truncate text-[11px] text-zinc-500">
+                {state.accounts.length} account{state.accounts.length === 1 ? '' : 's'} · tracking since {since}
+              </p>
+            </div>
             <span className="flex-1" />
-            <button
-              onClick={() => setManaging(true)}
-              title="Edit accounts"
-              aria-label="Edit accounts"
-              className="grid h-8 w-8 place-items-center rounded-lg text-zinc-500 transition hover:bg-white/5 hover:text-white"
-            >
+            <BlurToggle id="x-wallet" name="your money" />
+            <button onClick={() => setManaging(true)} title="Edit accounts" aria-label="Edit accounts" className="grid h-8 w-8 place-items-center rounded-lg text-zinc-500 transition hover:bg-white/5 hover:text-white">
               <Settings2 className="h-4 w-4" />
             </button>
           </div>
 
-          <p className={`mt-3 break-all text-4xl font-bold tabular-nums tracking-tight sm:text-5xl ${negative ? 'text-rose-300' : 'text-white'}`} aria-live="polite">
-            {f(round(shown))}
-          </p>
-          <p className="alt mt-0.5 text-sm tabular-nums text-zinc-500">≈ {u(state.total)}</p>
-
-          {(state.added > 0 || state.spent > 0 || state.out > 0) && (
-            <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-              {state.added > 0 && <span className="text-emerald-300/90">+{f(state.added)} in</span>}
-              {state.spent > 0 && <span className="text-rose-300/90">−{f(state.spent)} spent</span>}
-              {state.out > 0 && <span className="text-sky-300/90">−{f(state.out)} out</span>}
-              <span className="text-zinc-600">since {state.since === today ? 'today' : dayLabel(state.since, today).replace(/^\w+, /, '')}</span>
+          <Blurred id="x-wallet" name="Your money" className="mt-4">
+            <p className={`break-all text-[2.5rem] font-bold leading-none tabular-nums tracking-tight sm:text-6xl ${negative ? 'text-rose-300' : 'bg-gradient-to-br from-white via-white to-zinc-300 bg-clip-text text-transparent'}`} aria-live="polite">
+              {f(round(shown))}
             </p>
-          )}
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+              <span className="alt tabular-nums text-zinc-500">≈ {u(state.total)}</span>
+              {stats.spentToday > 0 && <span className="text-rose-300/90">−{f(stats.spentToday)} today</span>}
+            </div>
+            <Split state={state} />
+          </Blurred>
 
-          {/* Each account: tap to add money to it */}
+          {/* Each account */}
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {state.accounts.map(({ account: a, balance }) => (
-              <AccountTile key={a.id} account={a} balance={balance} total={state.total} />
+              <AccountTile key={a.id} account={a} balance={balance} total={state.total} latest={stats.latest.get(a.id)} today={today} />
             ))}
             <button
               onClick={() => setManaging(true)}
-              className="flex min-h-[4.5rem] items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/10 text-xs font-medium text-zinc-500 transition hover:border-white/25 hover:bg-white/[0.02] hover:text-zinc-200"
+              className="flex min-h-[6.25rem] flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-white/10 text-xs font-medium text-zinc-500 transition hover:border-white/25 hover:bg-white/[0.02] hover:text-zinc-200"
             >
-              <Plus className="h-3.5 w-3.5" /> Add account
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-white/[0.05]">
+                <Plus className="h-3.5 w-3.5" />
+              </span>
+              Add account
             </button>
           </div>
 
           {negative && (
-            <p className="animate-fade mt-3 rounded-xl border border-rose-400/25 bg-rose-500/[0.07] px-3 py-2 text-xs text-rose-100/90">
-              More spent than you had. Add money or count again.
+            <p className="animate-fade mt-3 flex items-start gap-2 rounded-xl border border-rose-400/25 bg-rose-500/[0.07] px-3 py-2 text-xs text-rose-100/90">
+              <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0 text-rose-300" />
+              More spent than you had. Add the money that came in, or count again.
             </p>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <button
               onClick={() => openWallet('add')}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:brightness-110 active:scale-[0.98]"
+              className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:brightness-110 active:scale-[0.98] sm:h-10"
             >
               <Plus className="h-4 w-4" strokeWidth={2.5} /> Add money
             </button>
-            {state.accounts.length > 1 && (
-              <button onClick={() => openWallet('move')} title="E.g. withdraw from Bank to Cash" className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 px-3.5 text-sm font-medium text-zinc-200 transition hover:bg-white/5">
-                <ArrowLeftRight className="h-4 w-4" /> Move
-              </button>
-            )}
-            <button onClick={() => openWallet('out')} className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 px-3.5 text-sm font-medium text-zinc-200 transition hover:bg-white/5">
-              <Minus className="h-4 w-4" /> Take out
-            </button>
-            <button onClick={() => openWallet('set')} title="Counted your money? Put the real amounts" className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 px-3.5 text-sm font-medium text-zinc-200 transition hover:bg-white/5">
-              <Scale className="h-4 w-4" /> Count
-            </button>
+            <ActionButton onClick={() => useStore.getState().openModal({ type: 'expense' })} icon={Receipt} label="Spent" title="Log an expense: it comes off your money" />
+            {state.accounts.length > 1 && <ActionButton onClick={() => openWallet('move')} icon={ArrowLeftRight} label="Move" title="E.g. withdraw from Bank to Cash" />}
+            <ActionButton onClick={() => openWallet('out')} icon={Minus} label="Take out" title="Money that left, not spending (savings, lent…)" />
+            <ActionButton onClick={() => openWallet('set')} icon={Scale} label="Count" title="Counted your money? Put the real amounts" />
           </div>
         </div>
 
         <div className="min-w-0 space-y-3">
-          <Spark state={state} today={today} />
-          <div className="grid grid-cols-3 gap-2">
-            <Mini label="Spent today" value={f(stats.spentToday, true)} tone={stats.spentToday ? 'text-rose-200' : 'text-zinc-300'} />
-            <Mini label="Last 7 days" value={`${stats.net >= 0 ? '+' : '−'}${f(Math.abs(stats.net), true)}`} tone={stats.net >= 0 ? 'text-emerald-200' : 'text-rose-200'} title="Money in minus money out" />
+          <Blurred id="x-wallet" name="Your money" hint={false}>
+            <Spark state={state} today={today} />
+          </Blurred>
+          <Blurred id="x-wallet" name="Your money" hint={false}>
+            <MonthFlow inn={stats.mIn} spent={stats.mSpent} out={stats.mOut} month={MONTHS_SHORT[Number(today.slice(5, 7)) - 1]} />
+          </Blurred>
+          <div className="grid grid-cols-2 gap-2">
             <Mini
               label="Lasts about"
               value={stats.lasts === null ? '—' : stats.lasts > 365 ? '1 yr+' : `${stats.lasts} day${stats.lasts === 1 ? '' : 's'}`}
-              tone={stats.lasts !== null && stats.lasts < 7 ? 'text-amber-200' : 'text-zinc-200'}
-              title={stats.perDay > 0 ? `At ${f(stats.perDay)} a day, your average lately` : 'Log some spending to see'}
+              tone={stats.lasts !== null && stats.lasts < 7 ? 'text-amber-200' : 'text-zinc-100'}
+              hint={stats.perDay > 0 ? `at ${f(stats.perDay, true)}/day` : 'log spending to see'}
+              title={stats.perDay > 0 ? `At ${f(stats.perDay)} a day, your average over the last 2 weeks` : 'Log some spending to see'}
             />
+            <Mini label="Spent today" value={f(stats.spentToday, true)} tone={stats.spentToday ? 'text-rose-200' : 'text-zinc-100'} hint={stats.spentToday ? 'comes off as you log' : 'nothing yet'} />
           </div>
         </div>
       </div>
 
-      <div className="relative border-t border-white/[0.06]">
-        <button
-          onClick={() => setActivity((o) => !o)}
-          aria-expanded={activity}
-          className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-zinc-300 transition hover:bg-white/[0.02] sm:px-6"
-        >
-          Activity
-          <span className="rounded-full bg-white/[0.07] px-1.5 text-[11px] tabular-nums text-zinc-400">{state.moves.length}</span>
-          <ChevronDown className={`ml-auto h-4 w-4 text-zinc-500 transition-transform duration-200 ${activity ? 'rotate-180' : ''}`} />
-        </button>
-        <div className={`grid transition-all duration-300 ease-out ${activity ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`} inert={!activity}>
-          <div className="min-h-0 overflow-hidden">
-            <Activity state={state} today={today} />
-          </div>
-        </div>
-      </div>
+      <Activity state={state} today={today} />
 
       {managing && <AccountsModal state={state} onClose={() => setManaging(false)} />}
     </section>
   )
 }
 
-function AccountTile({ account: a, balance, total }: { account: WalletAccount; balance: number; total: number }) {
-  const f = useFmt()
-  const c = colorOf(a)
-  const share = total > 0 && balance > 0 ? Math.min(100, (balance / total) * 100) : 0
+function ActionButton({ onClick, icon: Icon, label, title }: { onClick: () => void; icon: typeof Plus; label: string; title: string }) {
   return (
-    <button
-      onClick={() => openWallet('add', a.id)}
-      title={`Add money to ${a.name}`}
-      className="group relative overflow-hidden rounded-xl border border-white/[0.07] bg-black/20 p-2.5 text-left transition hover:border-white/20 hover:bg-white/[0.03] active:scale-[0.98]"
-    >
-      <span className="flex items-center gap-2">
-        <AccountChip account={a} size="sm" />
-        <span className="min-w-0 flex-1 truncate text-xs font-medium text-zinc-300">{a.name}</span>
-        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-white/[0.06] text-zinc-400 transition group-hover:bg-emerald-500/20 group-hover:text-emerald-200">
-          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-        </span>
-      </span>
-      <span className={`mt-1.5 block truncate text-base font-semibold tabular-nums ${balance < 0 ? 'text-rose-300' : 'text-white'}`}>{f(balance)}</span>
-      <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-white/[0.04]">
-        <span className={`block h-full ${c.bar} opacity-70 transition-[width] duration-500`} style={{ width: `${share}%` }} />
-      </span>
+    <button onClick={onClick} title={title} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3.5 text-sm font-medium text-zinc-200 transition hover:border-white/20 hover:bg-white/[0.05] active:scale-[0.98] sm:h-10">
+      <Icon className="h-4 w-4 text-zinc-400" /> {label}
     </button>
   )
 }
 
-function Mini({ label, value, tone, title }: { label: string; value: string; tone: string; title?: string }) {
+/** One bar split by account, so you see at a glance where your money is. */
+function Split({ state }: { state: WalletState }) {
+  const parts = state.accounts.filter((a) => a.balance > 0)
+  const sum = parts.reduce((n, a) => n + a.balance, 0)
+  if (state.accounts.length < 2 || sum <= 0) return null
   return (
-    <div title={title} className="rounded-xl border border-white/[0.06] bg-black/20 px-2.5 py-2">
+    <div className="mt-4">
+      <div className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-white/[0.04]" role="img" aria-label={parts.map((a) => `${a.account.name} ${Math.round((a.balance / sum) * 100)}%`).join(', ')}>
+        {parts.map((a) => (
+          <span key={a.account.id} title={`${a.account.name} · ${Math.round((a.balance / sum) * 100)}%`} className={`h-full ${colorOf(a.account).bar} transition-[flex-grow] duration-500 first:rounded-l-full last:rounded-r-full`} style={{ flexGrow: a.balance }} />
+        ))}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+        {parts.map((a) => (
+          <span key={a.account.id} className="inline-flex items-center gap-1.5 text-[11px] text-zinc-400">
+            <span className={`h-1.5 w-1.5 rounded-full ${colorOf(a.account).bar}`} />
+            {a.account.name}
+            <span className="tabular-nums text-zinc-600">{Math.round((a.balance / sum) * 100)}%</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function AccountTile({ account: a, balance, total, latest, today }: { account: WalletAccount; balance: number; total: number; latest?: Move; today: string }) {
+  const f = useFmt()
+  const c = colorOf(a)
+  const share = total > 0 && balance > 0 ? Math.min(100, (balance / total) * 100) : 0
+  const shownBal = useGlide(balance)
+  // Its latest change: "−₱120 · Coffee · Today"
+  const sign = !latest ? '' : latest.kind === 'add' || (latest.kind === 'move' && latest.to === a.id) ? '+' : '−'
+  const what = !latest ? '' : latest.kind === 'move' ? (latest.to === a.id ? 'Moved in' : 'Moved out') : latest.label || (latest.kind === 'add' ? 'Money in' : latest.kind === 'out' ? 'Taken out' : 'Expense')
+  return (
+    <div className={`group/tile relative overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-b from-white/[0.035] to-black/20 p-3 transition hover:border-white/20`}>
+      <span aria-hidden className={`pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full ${c.bar} opacity-[0.12] blur-2xl`} />
+      <div className="relative flex items-center gap-2">
+        <AccountChip account={a} size="sm" />
+        <span className="min-w-0 flex-1 truncate text-xs font-medium text-zinc-300">{a.name}</span>
+        <span className="flex shrink-0 gap-0.5 sm:opacity-0 sm:transition sm:group-hover/tile:opacity-100 sm:group-focus-within/tile:opacity-100">
+          <button onClick={() => openWallet('out', a.id)} title={`Take money out of ${a.name}`} aria-label={`Take money out of ${a.name}`} className="grid h-6 w-6 place-items-center rounded-md bg-white/[0.06] text-zinc-400 transition hover:bg-sky-500/20 hover:text-sky-200">
+            <Minus className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </button>
+          <button onClick={() => openWallet('add', a.id)} title={`Add money to ${a.name}`} aria-label={`Add money to ${a.name}`} className="grid h-6 w-6 place-items-center rounded-md bg-white/[0.06] text-zinc-400 transition hover:bg-emerald-500/20 hover:text-emerald-200">
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </button>
+        </span>
+      </div>
+      <Blurred id="x-wallet" name={a.name} hint={false} className="relative">
+        <p className={`mt-2 truncate text-lg font-semibold tabular-nums ${balance < 0 ? 'text-rose-300' : 'text-white'}`}>{f(round(shownBal))}</p>
+        <p className="mt-0.5 truncate text-[11px] text-zinc-500" title={latest ? `${what} · ${dayLabel(latest.date, today)}` : undefined}>
+          {latest ? (
+            <>
+              <span className={`tabular-nums ${sign === '+' ? 'text-emerald-300/80' : 'text-rose-300/80'}`}>
+                {sign}
+                {f(latest.amount, true)}
+              </span>{' '}
+              · {what} · {dayLabel(latest.date, today).replace(/^\w+, /, '')}
+            </>
+          ) : (
+            'No changes yet'
+          )}
+        </p>
+      </Blurred>
+      <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-white/[0.04]">
+        <span className={`block h-full ${c.bar} opacity-70 transition-[width] duration-500`} style={{ width: `${share}%` }} />
+      </span>
+    </div>
+  )
+}
+
+function Mini({ label, value, tone, hint, title }: { label: string; value: string; tone: string; hint?: string; title?: string }) {
+  return (
+    <div title={title} className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
       <p className="truncate text-[10px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
-      <p className={`mt-0.5 truncate text-sm font-semibold tabular-nums ${tone}`}>{value}</p>
+      <p className={`mt-0.5 truncate text-base font-semibold tabular-nums ${tone}`}>{value}</p>
+      {hint && <p className="truncate text-[11px] text-zinc-600">{hint}</p>}
+    </div>
+  )
+}
+
+/** This month: money in against money out (spent + taken out), as two bars. */
+function MonthFlow({ inn, spent, out, month }: { inn: number; spent: number; out: number; month: string }) {
+  const f = useFmt()
+  const left = round(spent + out)
+  const net = round(inn - left)
+  const max = Math.max(inn, left, 1)
+  return (
+    <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="font-medium uppercase tracking-wider text-zinc-500">{month} so far</span>
+        <span className={`font-semibold tabular-nums ${net >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+          {net >= 0 ? '+' : '−'}
+          {f(Math.abs(net), true)}
+        </span>
+      </div>
+      <div className="mt-2.5 space-y-2">
+        <FlowBar label="In" value={inn} max={max} cls="bg-gradient-to-r from-emerald-500 to-teal-400" tone="text-emerald-200" />
+        <div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="w-7 shrink-0 text-zinc-500">Out</span>
+            <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
+              <span className="h-full bg-gradient-to-r from-rose-500 to-rose-400 transition-[width] duration-500" style={{ width: `${(spent / max) * 100}%` }} title={`Spent ${f(spent)}`} />
+              <span className="h-full bg-sky-400/80 transition-[width] duration-500" style={{ width: `${(out / max) * 100}%` }} title={`Taken out ${f(out)}`} />
+            </div>
+            <span className="w-20 shrink-0 text-right font-medium tabular-nums text-rose-200">{f(left, true)}</span>
+          </div>
+          {out > 0 && spent > 0 && (
+            <p className="mt-1 pl-9 text-[10px] text-zinc-600">
+              <span className="text-rose-300/80">{f(spent, true)} spent</span> · <span className="text-sky-300/80">{f(out, true)} taken out</span>
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FlowBar({ label, value, max, cls, tone }: { label: string; value: number; max: number; cls: string; tone: string }) {
+  const f = useFmt()
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span className="w-7 shrink-0 text-zinc-500">{label}</span>
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
+        <span className={`block h-full ${cls} transition-[width] duration-500`} style={{ width: `${(value / max) * 100}%` }} />
+      </div>
+      <span className={`w-20 shrink-0 text-right font-medium tabular-nums ${tone}`}>{f(value, true)}</span>
     </div>
   )
 }
@@ -361,6 +475,7 @@ function Spark({ state, today }: { state: WalletState; today: string }) {
   const up = last.total >= first.total
   const pick = at === null ? null : points[at]
   const stroke = up ? '#34d399' : '#fb7185'
+  const lastI = points.length - 1
 
   function move(clientX: number, el: SVGSVGElement) {
     const r = el.getBoundingClientRect()
@@ -371,8 +486,8 @@ function Spark({ state, today }: { state: WalletState; today: string }) {
   return (
     <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
       <div className="flex items-center justify-between text-[11px]">
-        <span className="text-zinc-500">{pick ? dayLabel(pick.day, today) : points.length > 1 ? `Last ${points.length} days` : 'Today'}</span>
-        <span className={`inline-flex items-center gap-1 font-medium tabular-nums ${pick ? 'text-zinc-200' : up ? 'text-emerald-300' : 'text-rose-300'}`}>
+        <span className="font-medium uppercase tracking-wider text-zinc-500">{pick ? dayLabel(pick.day, today) : points.length > 1 ? `Last ${points.length} days` : 'Today'}</span>
+        <span className={`inline-flex items-center gap-1 font-semibold tabular-nums ${pick ? 'text-zinc-100' : up ? 'text-emerald-300' : 'text-rose-300'}`}>
           {pick ? (
             f(pick.total)
           ) : (
@@ -403,24 +518,58 @@ function Spark({ state, today }: { state: WalletState; today: string }) {
         {min < 0 && <line x1="0" x2={W} y1={y(0)} y2={y(0)} stroke="rgba(255,255,255,0.15)" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />}
         <path d={area} fill="url(#wallet-fill)" />
         <path d={line} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        {pick && at !== null && (
+        {pick && at !== null ? (
           <>
             <line x1={x(at)} x2={x(at)} y1="0" y2={H} stroke="rgba(255,255,255,0.25)" vectorEffect="non-scaling-stroke" />
             <circle cx={x(at)} cy={y(pick.total)} r="3.5" fill="#fff" />
           </>
+        ) : (
+          <circle cx={x(lastI)} cy={y(last.total)} r="3" fill={stroke} />
         )}
       </svg>
+      <div className="mt-1 flex justify-between text-[10px] text-zinc-600">
+        <span>{dayLabel(first.day, today).replace(/^\w+, /, '')}</span>
+        <span>Today</span>
+      </div>
     </div>
   )
 }
 
-/** Everything that counted, newest first, with the total after each. */
+type Filter = 'all' | 'in' | 'spent' | 'out' | 'move'
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'in', label: 'In' },
+  { id: 'spent', label: 'Spent' },
+  { id: 'out', label: 'Out' },
+  { id: 'move', label: 'Moves' },
+]
+const fits = (m: Move, f: Filter) =>
+  f === 'all' || (f === 'in' && m.kind === 'add') || (f === 'spent' && m.kind === 'expense') || (f === 'out' && m.kind === 'out') || (f === 'move' && (m.kind === 'move' || m.kind === 'set'))
+
+/** Everything that counted, newest first, grouped by day, with the total after each. */
 function Activity({ state, today }: { state: WalletState; today: string }) {
   const f = useFmt()
+  const [open, setOpen] = useState(false)
   const [all, setAll] = useState(false)
+  const [filter, setFilter] = useState<Filter>('all')
+  const [account, setAccount] = useState<string | null>(null)
+  const sources = useLinkSources()
   const rows = useMemo(() => withTotals(state), [state])
   const byId = useMemo(() => new Map(state.accounts.map((a) => [a.account.id, a.account])), [state.accounts])
-  const shown = all ? rows : rows.slice(0, 6)
+  const picked = rows.filter(({ move: m }) => fits(m, filter) && (!account || touches(m, account)))
+  const shown = all ? picked : picked.slice(0, 8)
+  // Grouped by day, each with what came in and went out that day.
+  const days = useMemo(() => {
+    const out: { day: string; net: number; rows: typeof shown }[] = []
+    for (const r of shown) {
+      const last = out[out.length - 1]
+      const g = last && last.day === r.move.date ? last : (out.push({ day: r.move.date, net: 0, rows: [] }), out[out.length - 1])
+      g.rows.push(r)
+      const m = r.move
+      g.net += m.kind === 'add' ? m.amount : m.kind === 'expense' || m.kind === 'out' ? -m.amount : 0
+    }
+    return out
+  }, [shown])
 
   function remove(m: Move) {
     const entry = useStore.getState().wallet.entries.find((e) => e.id === m.id) as WalletEntry | undefined
@@ -429,79 +578,157 @@ function Activity({ state, today }: { state: WalletState; today: string }) {
     toast.undo(`Removed ${f(m.amount)}.`, () => useStore.getState().changeWallet((w) => restoreEntry(w, entry)))
   }
 
+  const latest = rows[0]?.move
+
   return (
-    <div className="px-2 pb-3 sm:px-4">
-      <ul className="space-y-0.5">
-        {shown.map(({ move: m, total }) => {
-          const acc = byId.get(m.account || m.to || '')
-          const to = m.to ? byId.get(m.to) : undefined
-          const label =
-            m.kind === 'set'
-              ? `${acc?.name ?? 'Account'} set`
-              : m.kind === 'move'
-                ? `${byId.get(m.account)?.name ?? 'Elsewhere'} → ${to?.name ?? 'elsewhere'}`
-                : m.label || (m.kind === 'add' ? 'Money in' : m.kind === 'out' ? 'Taken out' : 'Expense')
-          const look =
-            m.kind === 'add'
-              ? { icon: ArrowDownLeft, chip: 'bg-emerald-500/15 text-emerald-300', tone: 'text-emerald-300', sign: '+' }
-              : m.kind === 'expense'
-                ? { icon: Receipt, chip: 'bg-rose-500/15 text-rose-300', tone: 'text-rose-300', sign: '−' }
-                : m.kind === 'out'
-                  ? { icon: Minus, chip: 'bg-sky-500/15 text-sky-300', tone: 'text-sky-300', sign: '−' }
-                  : m.kind === 'move'
-                    ? { icon: ArrowLeftRight, chip: 'bg-violet-500/15 text-violet-300', tone: 'text-zinc-300', sign: '' }
-                    : { icon: Scale, chip: 'bg-white/10 text-zinc-300', tone: 'text-zinc-200', sign: '' }
-          const body = (
-            <>
-              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${look.chip}`}>
-                <look.icon className="h-4 w-4" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm text-zinc-100">{label}</span>
-                <span className="block truncate text-[11px] text-zinc-500">
-                  {dayLabel(m.date, today)}
-                  {m.kind !== 'set' && m.kind !== 'move' && acc && ` · ${acc.name}`}
-                </span>
-              </span>
-              <span className="shrink-0 text-right">
-                <span className={`block text-sm font-semibold tabular-nums ${look.tone}`}>
-                  {look.sign}
-                  {f(m.amount)}
-                </span>
-                <span className="block text-[11px] tabular-nums text-zinc-500">{f(total)} total</span>
-              </span>
-            </>
-          )
-          return (
-            <li key={`${m.kind}-${m.id}`} className="group">
-              {m.kind === 'expense' ? (
-                <button onClick={() => useStore.getState().openModal({ type: 'expense', editId: m.expenseId })} title="Open this expense" className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-white/[0.04]">
-                  {body}
-                </button>
-              ) : (
-                <div className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-white/[0.03]">
-                  {body}
-                  {m.kind !== 'set' && (
+    <div className="relative border-t border-white/[0.06]">
+      <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-zinc-300 transition hover:bg-white/[0.02] sm:px-6">
+        <History className="h-4 w-4 text-zinc-500" />
+        Activity
+        <span className="rounded-full bg-white/[0.07] px-1.5 text-[11px] tabular-nums text-zinc-400">{state.moves.length}</span>
+        {!open && latest && latest.kind !== 'set' && (
+          <span className="ml-1 hidden min-w-0 truncate text-xs font-normal text-zinc-500 sm:block">
+            Latest: {latest.label || (latest.kind === 'add' ? 'Money in' : latest.kind === 'move' ? 'Move' : latest.kind === 'out' ? 'Taken out' : 'Expense')} · {f(latest.amount, true)}
+          </span>
+        )}
+        <ChevronDown className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <div className={`grid transition-all duration-300 ease-out ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`} inert={!open}>
+        <div className="min-h-0 overflow-hidden">
+          <div className="px-2 pb-3 sm:px-4">
+            {/* Filters: what kind, and which account */}
+            <div className="flex flex-wrap items-center gap-1.5 px-2 pb-2">
+              <div role="tablist" aria-label="Show" className="flex rounded-lg border border-white/10 bg-white/[0.03] p-0.5">
+                {FILTERS.map((x) => (
+                  <button
+                    key={x.id}
+                    role="tab"
+                    aria-selected={filter === x.id}
+                    onClick={() => setFilter(x.id)}
+                    className={`h-7 rounded-md px-2.5 text-xs font-medium transition ${filter === x.id ? 'bg-white/[0.1] text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
+                  >
+                    {x.label}
+                  </button>
+                ))}
+              </div>
+              {state.accounts.length > 1 &&
+                state.accounts.map(({ account: a }) => {
+                  const on = account === a.id
+                  const Icon = ICONS[a.icon]
+                  return (
                     <button
-                      onClick={() => remove(m)}
-                      aria-label={`Remove ${label}`}
-                      title="Remove"
-                      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-500 transition hover:bg-red-500/10 hover:text-red-300 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                      key={a.id}
+                      aria-pressed={on}
+                      onClick={() => setAccount(on ? null : a.id)}
+                      className={`inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition ${on ? `${colorOf(a).soft} border-transparent text-white ring-1 ${colorOf(a).ring}` : 'border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-200'}`}
                     >
-                      <X className="h-4 w-4" />
+                      <Icon className={`h-3 w-3 ${colorOf(a).text}`} /> {a.name}
                     </button>
+                  )
+                })}
+            </div>
+
+            {days.length === 0 && <p className="px-3 py-6 text-center text-sm text-zinc-500">Nothing here yet.</p>}
+            {days.map((g) => (
+              <div key={g.day} className="mt-1">
+                <p className="flex items-center justify-between px-2 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                  <span>{dayLabel(g.day, today)}</span>
+                  {g.net !== 0 && (
+                    <span className={`tabular-nums normal-case tracking-normal ${g.net > 0 ? 'text-emerald-300/70' : 'text-rose-300/70'}`}>
+                      {g.net > 0 ? '+' : '−'}
+                      {f(Math.abs(round(g.net)), true)}
+                    </span>
                   )}
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-      {rows.length > 6 && (
-        <button onClick={() => setAll((a) => !a)} className="mt-1 w-full rounded-xl py-2 text-xs font-medium text-zinc-400 transition hover:bg-white/5 hover:text-white">
-          {all ? 'Show less' : `Show all ${rows.length}`}
-        </button>
-      )}
+                </p>
+                <ul className="space-y-0.5">
+                  {g.rows.map(({ move: m, total }) => {
+                    const acc = byId.get(m.account || m.to || '')
+                    const to = m.to ? byId.get(m.to) : undefined
+                    const from = m.expenseId ? sources.get(m.expenseId) : undefined
+                    const label =
+                      m.kind === 'set'
+                        ? `Counted ${acc?.name ?? 'account'}`
+                        : m.kind === 'move'
+                          ? `${byId.get(m.account)?.name ?? 'Elsewhere'} → ${to?.name ?? 'elsewhere'}`
+                          : m.label || (m.kind === 'add' ? 'Money in' : m.kind === 'out' ? 'Taken out' : 'Expense')
+                    const look =
+                      m.kind === 'add'
+                        ? { icon: ArrowDownLeft, chip: 'bg-emerald-500/15 text-emerald-300', tone: 'text-emerald-300', sign: '+' }
+                        : m.kind === 'expense'
+                          ? { icon: Receipt, chip: 'bg-rose-500/15 text-rose-300', tone: 'text-rose-300', sign: '−' }
+                          : m.kind === 'out'
+                            ? { icon: Minus, chip: 'bg-sky-500/15 text-sky-300', tone: 'text-sky-300', sign: '−' }
+                            : m.kind === 'move'
+                              ? { icon: ArrowLeftRight, chip: 'bg-violet-500/15 text-violet-300', tone: 'text-zinc-300', sign: '' }
+                              : { icon: Scale, chip: 'bg-white/10 text-zinc-300', tone: 'text-zinc-200', sign: '' }
+                    const body = (
+                      <>
+                        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${look.chip}`}>
+                          <look.icon className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-1.5">
+                            <span className="truncate text-sm text-zinc-100">{label}</span>
+                            {from && (
+                              <span className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider ${from.kind === 'wants' ? 'bg-violet-400/15 text-violet-200' : 'bg-emerald-400/15 text-emerald-200'}`} title={`From ${from.mode}`}>
+                                {from.kind === 'wants' ? 'Want' : 'Need'}
+                              </span>
+                            )}
+                          </span>
+                          <span className="flex items-center gap-1 truncate text-[11px] text-zinc-500">
+                            {m.kind !== 'move' && acc && (
+                              <>
+                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${colorOf(acc).bar}`} />
+                                {acc.name}
+                              </>
+                            )}
+                            {m.kind === 'move' && 'Between accounts'}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-right">
+                          <span className={`block text-sm font-semibold tabular-nums ${look.tone}`}>
+                            {look.sign}
+                            {f(m.amount)}
+                          </span>
+                          <span className="block text-[11px] tabular-nums text-zinc-600">{f(total)}</span>
+                        </span>
+                      </>
+                    )
+                    return (
+                      <li key={`${m.kind}-${m.id}`} className="group">
+                        {m.kind === 'expense' ? (
+                          <button onClick={() => useStore.getState().openModal({ type: 'expense', editId: m.expenseId })} title="Open this expense" className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-white/[0.04]">
+                            {body}
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-white/[0.03]">
+                            {body}
+                            {m.kind !== 'set' && (
+                              <button
+                                onClick={() => remove(m)}
+                                aria-label={`Remove ${label}`}
+                                title="Remove"
+                                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-500 transition hover:bg-red-500/10 hover:text-red-300 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            ))}
+            {picked.length > 8 && (
+              <button onClick={() => setAll((a) => !a)} className="mt-1 w-full rounded-xl py-2 text-xs font-medium text-zinc-400 transition hover:bg-white/5 hover:text-white">
+                {all ? 'Show less' : `Show all ${picked.length}`}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

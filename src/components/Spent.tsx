@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useStore } from '../store'
 import { modeKind } from '../lib/needs'
 import type { ModeKind } from '../lib/types'
-import { toast } from '../toast'
+import { markWantsSpent } from './PayFrom'
 
 export type LinkSource = { kind: ModeKind; mode: string }
 
@@ -51,12 +51,8 @@ export function useSpentOf(items: { expenseId?: string; price: number }[]) {
   return { count, sum }
 }
 
-const plural = (n: number) => `${n} ${n === 1 ? 'item' : 'items'}`
-
-/** Marks or unmarks items as spent, and says what happened with a way to undo it. `what`: how to name them, like “Rolex”. */
-export function flipSpent(ids: string[], on: boolean, what?: string) {
-  const { count, undo } = useStore.getState().setItemsSpent(ids, on)
-  if (!count) return
-  const name = what ?? plural(count)
-  toast.undo(on ? `${name} marked spent and added to Expenses. Still in its month.` : `${name} no longer marked spent. Taken out of Expenses.`, undo)
-}
+/**
+ * Marks or unmarks items as spent, and says what happened with a way to undo it. `what`: how to name them, like “Rolex”.
+ * Marking takes it off your money: when you track more than one account, it asks which one paid.
+ */
+export const flipSpent = (ids: string[], on: boolean, what?: string) => markWantsSpent(ids, on, what)

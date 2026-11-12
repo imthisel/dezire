@@ -15,6 +15,7 @@ import { School } from './components/School'
 import { TaskModal } from './components/TaskModal'
 import { SchoolTaskModal } from './components/SchoolTaskModal'
 import { WalletModal } from './components/Wallet'
+import { PayModal } from './components/PayFrom'
 import { ItemModal } from './components/ItemModal'
 import { MoveDialog } from './components/MoveDialog'
 import { GoalModal } from './components/GoalModal'
@@ -155,6 +156,7 @@ function Modals() {
       {modal.type === 'need' && <NeedItemModal key={modal.editId ?? `new-${modal.date ?? ''}`} editId={modal.editId} date={modal.date} />}
       {modal.type === 'task' && <TaskModal key={modal.editId ?? `new-${modal.date ?? ''}-${modal.start ?? ''}`} {...modal} />}
       {modal.type === 'school' && <SchoolTaskModal key={modal.editId ?? `new-${modal.column ?? ''}-${modal.due ?? ''}`} {...modal} />}
+      {modal.type === 'pay' && <PayModal key={modal.ids.join()} kind={modal.kind} ids={modal.ids} what={modal.what} />}
       {modal.type === 'wallet' && <WalletModal key={`${modal.mode}-${modal.account ?? ''}`} mode={modal.mode} account={modal.account} />}
       {modal.type === 'kinds' && <KindsModal onClose={close} />}
       {modal.type === 'goalAreas' && <GoalAreasModal onClose={close} openId={modal.openId} add={modal.add} />}

@@ -40,6 +40,8 @@ export type ModalState =
   | { type: 'school'; editId?: string; column?: string; due?: string; subject?: string }
   /** Money on hand: add money, take some out, or say how much you have now. */
   | { type: 'wallet'; mode: 'add' | 'out' | 'move' | 'set'; account?: string }
+  /** Marking things spent: which money account paid (see PayFrom). `what`: how to name them, like “Rolex”. */
+  | { type: 'pay'; kind: 'wants' | 'needs'; ids: string[]; what?: string }
   | null
 export type PhoneCols = 1 | 2 | 3
 export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses' | 'calendar' | 'school' | 'settings'
@@ -55,6 +57,8 @@ export type MonthField = 'goal' | 'budget' | 'earned' | 'netWorthGoal'
 export type DropAt = { id: string; after: boolean }
 export type KindPatch = Partial<Omit<ItemKind, 'id'>>
 export type AreaPatch = Partial<Omit<GoalAreaDef, 'id'>>
+/** Marking Wants items spent: the money account it came out of, and the day (default: today, or the month's last day for past months). */
+export type SpendInput = { account?: string; date?: string }
 /** What's typed when adding / editing an expense: only the date and amount are needed. */
 export type ExpenseInput = { date: string; amount: number; name?: string; category?: string; place?: string; notes?: string; account?: string }
 export type ExpenseCatPatch = Partial<Omit<ExpenseCategory, 'id'>>
@@ -374,7 +378,8 @@ interface State {
   /** Deletes an item, and its expense when it's in Expenses. */
   removeNeedItem: (id: string) => { item: NeedItem; wasSent: boolean; undo: () => void } | undefined
   /** Sends items to Expenses, or takes them back out (they stay in Needs). Says how many changed and how to undo it. */
-  setNeedsSent: (ids: string[], on: boolean) => { count: number; undo: () => void }
+  /** `account`: the money account it was paid from, for items that don't say yet. */
+  setNeedsSent: (ids: string[], on: boolean, account?: string) => { count: number; undo: () => void }
   /** Makes items from existing expenses. `keep`: they stay in Expenses, linked; otherwise they move out of it. */
   importNeedItems: (expenseIds: string[], keep: boolean) => { count: number; undo: () => void }
   /** Replaces another mode's plan with a copy of the one in use, which stays open. Returns how to undo it. */
@@ -408,7 +413,7 @@ interface State {
    * Marks Wants items (in the mode in use) as already spent on, or not. Marking adds a linked expense to Expenses;
    * unmarking removes it. The items stay in their months either way. Returns how many changed and how to undo it.
    */
-  setItemsSpent: (ids: string[], on: boolean) => { count: number; undo: () => void }
+  setItemsSpent: (ids: string[], on: boolean, pay?: SpendInput) => { count: number; undo: () => void }
 
   addGoal: (year: number, area: GoalArea, text: string) => void
   updateGoal: (year: number, id: string, patch: Partial<Pick<Goal, 'text' | 'area' | 'done'>>) => void
@@ -859,7 +864,7 @@ export const useStore = create<State>()(
           )
         return { item, wasSent: !!expense, undo }
       },
-      setNeedsSent: (ids, on) => {
+      setNeedsSent: (ids, on, account) => {
         const s = get()
         const inExpenses = new Set(s.expenses.map((e) => e.id))
         const wanted = new Set(ids)
@@ -868,14 +873,16 @@ export const useStore = create<State>()(
         if (changing.length) {
           const links = new Map(changing.map((i) => [i.id, shortId()]))
           const gone = new Set(changing.map((i) => i.expenseId))
-          const made: Expense[] = changing.map(({ expenseId: _old, ...i }) => ({ ...i, id: links.get(i.id)!, createdAt: Date.now() }))
+          // Paid from: the item's own account, else the one just picked.
+          const paid = (i: NeedItem) => (on && !i.account && account ? { account } : {})
+          const made: Expense[] = changing.map(({ expenseId: _old, ...i }) => ({ ...i, ...paid(i), id: links.get(i.id)!, createdAt: Date.now() }))
           set((now) => ({
             modes: changeNeeds(now, (n) => ({
               ...n,
               items: n.items.map((i) => {
                 if (!links.has(i.id)) return i
                 const { expenseId: _old, ...rest } = i
-                return on ? { ...rest, expenseId: links.get(i.id) } : rest
+                return on ? { ...rest, ...paid(i), expenseId: links.get(i.id) } : rest
               }),
             })),
             expenses: on ? [...now.expenses, ...made] : now.expenses.filter((e) => !gone.has(e.id)),
@@ -1134,7 +1141,7 @@ export const useStore = create<State>()(
 
       clearClipboard: () => set({ clipboard: null }),
 
-      setItemsSpent: (ids, on) => {
+      setItemsSpent: (ids, on, pay) => {
         const s = get()
         const inExpenses = new Set(s.expenses.map((e) => e.id))
         const want = new Set(ids)
@@ -1147,8 +1154,9 @@ export const useStore = create<State>()(
           const today = todayKey()
           const made: Expense[] = changing.map(({ key, item }) => ({
             id: links.get(item.id)!,
-            date: spentDay(key, today),
+            date: pay?.date ?? spentDay(key, today),
             amount: Math.max(0, item.price),
+            ...(pay?.account ? { account: pay.account } : {}),
             name: item.name.trim().slice(0, MAX_ITEM_NAME),
             category,
             place: '',
