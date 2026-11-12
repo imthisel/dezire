@@ -9,6 +9,26 @@ import { toast } from './toast'
 import { stopAccess, watchAccess } from './billing'
 import { leaveSettings } from './settingsNav'
 import { clearHistory, quietly } from './history'
+import { mergeSchool, parseSchool, unstamped, type School } from './lib/school'
+
+/** Whose School is kept in this browser, so it's only ever merged into that same account. */
+const OWNER_KEY = 'dizayr-school-owner'
+const owner = () => {
+  try {
+    return localStorage.getItem(OWNER_KEY)
+  } catch {
+    return null
+  }
+}
+const setOwner = (uid: string | null) => {
+  try {
+    if (uid) localStorage.setItem(OWNER_KEY, uid)
+    else localStorage.removeItem(OWNER_KEY)
+  } catch {
+    // Not remembered: School is then replaced instead of merged on the next start.
+  }
+}
+const same = (a: School, b: School) => a === b || JSON.stringify(a) === JSON.stringify(b)
 
 export type SaveStatus = 'saved' | 'saving' | 'offline' | 'error'
 
@@ -108,16 +128,45 @@ async function load(ref: DocumentReference): Promise<DocumentSnapshot> {
 async function connect(user: User) {
   const ref = doc(db!, 'users', user.uid)
   let applyingRemote = false
+  /** This device has School changes the cloud's copy is missing: save once autosave is running. */
+  let schoolAhead = false
+  let queueSave = () => {
+    schoolAhead = true
+  }
 
+  /**
+   * Another device's version replaces what's here (undoing past it would quietly throw its changes away),
+   * except School, which is merged: tasks only on this device (not saved yet, or saved over by a device with an
+   * old copy) are kept, and sent back up.
+   */
   const apply = (data: unknown) => {
     applyingRemote = true
     try {
-      // Another device's version replaces what's here: undoing past it would quietly throw its changes away.
-      quietly(() => useStore.getState().importData(data))
+      const o = owner()
+      const mine = o === null || o === user.uid ? useStore.getState().school : null
+      quietly(() => unstamped(() => useStore.getState().importData(data)))
+      if (mine) {
+        const remote = useStore.getState().school
+        const merged = mergeSchool(mine, remote)
+        if (!same(merged, remote)) {
+          quietly(() => unstamped(() => useStore.setState({ school: merged })))
+          queueSave()
+        }
+      }
+      setOwner(user.uid)
       clearHistory()
     } finally {
       applyingRemote = false
     }
+  }
+
+  /** While this device is about to save, another device's School changes are merged in (instead of being saved over). */
+  const mergeRemoteSchool = (data: unknown) => {
+    const raw = data && typeof data === 'object' ? (data as { school?: unknown }).school : undefined
+    if (raw === undefined) return
+    const local = useStore.getState().school
+    const merged = mergeSchool(local, parseSchool(raw))
+    if (!same(merged, local)) quietly(() => unstamped(() => useStore.setState({ school: merged })))
   }
 
   try {
@@ -125,7 +174,10 @@ async function connect(user: User) {
     if (useCloud.getState().user?.uid !== user.uid) return // signed out or switched while loading
     if (snap.exists()) apply(snap.data().data)
     // First sign-in: whatever was already in this browser becomes the account's starting data.
-    else await setDoc(ref, { data: snapshot(), clientId, updatedAt: serverTimestamp() })
+    else {
+      await setDoc(ref, { data: snapshot(), clientId, updatedAt: serverTimestamp() })
+      setOwner(user.uid)
+    }
   } catch (e) {
     console.error(e)
     useCloud.setState({
@@ -169,7 +221,9 @@ async function connect(user: User) {
   const unsubRemote = onSnapshot(ref, (snap) => {
     if (snap.metadata.hasPendingWrites || !snap.exists()) return
     const d = snap.data()
-    if (d.clientId !== clientId && !pending) apply(d.data)
+    if (d.clientId === clientId) return
+    if (!pending) apply(d.data)
+    else mergeRemoteSchool(d.data)
   })
 
   // Don't lose the last edit when the tab is closed or hidden.
@@ -188,6 +242,12 @@ async function connect(user: User) {
       .catch(() => {})
   }
   const onOffline = () => useCloud.setState({ status: 'offline' })
+  queueSave = () => {
+    pending = true
+    clearTimeout(timer)
+    timer = setTimeout(save, SAVE_DELAY)
+  }
+  if (schoolAhead) queueSave()
   document.addEventListener('visibilitychange', flush)
   window.addEventListener('online', onOnline)
   window.addEventListener('offline', onOffline)
@@ -222,10 +282,14 @@ export async function signOut() {
   stopSync = null
   await fbSignOut(auth)
   leaveSettings()
-  quietly(() => {
-    useStore.getState().resetAll()
-    useStore.setState({ prefs: DEFAULT_PREFS })
-  })
+  // Not a deletion: the account keeps everything, this browser just forgets it.
+  quietly(() =>
+    unstamped(() => {
+      useStore.getState().resetAll()
+      useStore.setState({ prefs: DEFAULT_PREFS })
+    }),
+  )
+  setOwner(null)
   clearHistory() // the next person here can't undo their way into this account
 }
 

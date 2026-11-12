@@ -1,5 +1,6 @@
 import { useStore } from './store'
 import { toast } from './toast'
+import { stampSchool, stampsPaused } from './lib/school'
 
 /**
  * Undo and redo for everything that belongs to the account (Ctrl+Z, and Ctrl+Shift+Z or Ctrl+Y to redo).
@@ -90,6 +91,21 @@ let started = false
 export function startHistory() {
   if (started) return
   started = true
+
+  // Every change to School is marked with its time (and deletions remembered), so copies from different devices
+  // merge without losing anything (see mergeSchool). Registered first, so the steps below see the marked version.
+  let stamping = false
+  useStore.subscribe((s, prev) => {
+    if (stamping || stampsPaused() || s.school === prev.school) return
+    const school = stampSchool(prev.school, s.school)
+    if (school === s.school) return
+    stamping = true
+    try {
+      quietly(() => useStore.setState({ school }))
+    } finally {
+      stamping = false
+    }
+  })
 
   useStore.subscribe((s, prev) => {
     if (quiet) return

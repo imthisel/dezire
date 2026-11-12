@@ -18,6 +18,8 @@ export interface SchoolColumn {
   /** Key into KIND_COLORS */
   color: string
   role: ColumnRole
+  /** When it was last added or changed here (for merging copies from different devices) */
+  at?: number
 }
 
 export interface SchoolTask {
@@ -35,6 +37,8 @@ export interface SchoolTask {
   /** Done tasks: the column it was in before, so un-ticking puts it back there */
   from?: string
   createdAt: number
+  /** When it was last added or changed (for merging copies from different devices) */
+  updatedAt?: number
 }
 
 /** Every subject typed is kept here (so it's offered next time), with its colour. Starred ones come first. */
@@ -42,12 +46,19 @@ export interface SchoolSubject {
   name: string
   color: string
   fav: boolean
+  /** When it was last added or changed here (for merging copies from different devices) */
+  at?: number
 }
 
 export interface School {
   columns: SchoolColumn[]
   tasks: SchoolTask[]
   subjects: SchoolSubject[]
+  /**
+   * What was deleted and when ('t:<task id>', 'c:<column id>', 's:<subject name>'), so a device that still has an
+   * old copy can't bring it back, and a device that missed an addition can't wipe it out.
+   */
+  deleted?: Record<string, number>
 }
 
 export const MAX_SUBJECT = 40
@@ -118,6 +129,7 @@ export function shortDate(k: string) {
 
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '')
 const color = (v: unknown, fallback = 'slate') => (typeof v === 'string' && v in KIND_COLORS ? v : fallback)
+const time = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? { v } : null)
 
 /** Cleans up School from a backup file, the cloud or this browser. Anything missing gets its default. */
 export function parseSchool(raw: unknown): School {
@@ -129,7 +141,8 @@ export function parseSchool(raw: unknown): School {
     if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !x.id || seen.has(x.id)) continue
     seen.add(x.id)
     const role: ColumnRole = x.role === 'week' || x.role === 'done' ? x.role : 'open'
-    columns.push({ id: x.id, name: str(x.name, MAX_COLUMN).trim() || 'Untitled', color: color(x.color), role })
+    const at = time(x.at)
+    columns.push({ id: x.id, name: str(x.name, MAX_COLUMN).trim() || 'Untitled', color: color(x.color), role, ...(at && { at: at.v }) })
   }
   if (!columns.length) columns.push(...DEFAULT_SCHOOL.columns)
   const ids = new Set(columns.map((c) => c.id))
@@ -145,6 +158,7 @@ export function parseSchool(raw: unknown): School {
     const column = typeof x.column === 'string' && ids.has(x.column) ? x.column : columns[0].id
     const doneRole = isDoneRole(columns.find((c) => c.id === column)!.role)
     const doneAt = typeof x.doneAt === 'string' && isDate(x.doneAt) ? x.doneAt : ''
+    const updatedAt = time(x.updatedAt)
     tasks.push({
       id,
       subject,
@@ -155,15 +169,140 @@ export function parseSchool(raw: unknown): School {
       doneAt: doneRole ? doneAt || todayKey() : '',
       ...(doneRole && typeof x.from === 'string' && ids.has(x.from) ? { from: x.from } : {}),
       createdAt: Number(x.createdAt) || Date.now(),
+      ...(updatedAt && { updatedAt: updatedAt.v }),
     })
   }
   const subjects: SchoolSubject[] = []
   for (const x of Array.isArray(r.subjects) ? (r.subjects as Record<string, unknown>[]) : []) {
     const name = x && typeof x === 'object' ? str(x.name, MAX_SUBJECT).trim() : ''
     if (!name || subjects.some((s) => same(s.name, name))) continue
-    subjects.push({ name, color: color(x.color, 'violet'), fav: x.fav === true })
+    const at = time(x.at)
+    subjects.push({ name, color: color(x.color, 'violet'), fav: x.fav === true, ...(at && { at: at.v }) })
   }
-  return { columns, tasks, subjects }
+  const deleted: Record<string, number> = {}
+  if (r.deleted && typeof r.deleted === 'object') {
+    for (const [k, v] of Object.entries(r.deleted as Record<string, unknown>)) {
+      const t = time(v)
+      if (t && /^[tcs]:/.test(k)) deleted[k] = t.v
+    }
+  }
+  return { columns, tasks, subjects, ...(Object.keys(deleted).length ? { deleted } : {}) }
+}
+
+// ---- Keeping copies from different devices in step ----
+//
+// The whole account is saved as one document, so a device (or tab) with an old copy could save over newer changes.
+// To stop School losing anything that way, every task, column and subject remembers when it was last changed, and
+// deletions are remembered too. Two copies then merge: everything from both is kept, the newer version of each
+// wins, and only what was really deleted goes.
+
+const taskKey = (t: SchoolTask) => `t:${t.id}`
+const columnKey = (c: SchoolColumn) => `c:${c.id}`
+const subjectKey = (x: SchoolSubject) => `s:${x.name.trim().toLowerCase()}`
+
+const sameTask = (a: SchoolTask, b: SchoolTask) =>
+  a.subject === b.subject && a.title === b.title && a.due === b.due && a.notes === b.notes && a.column === b.column && a.doneAt === b.doneAt && a.from === b.from && a.createdAt === b.createdAt
+const sameColumn = (a: SchoolColumn, b: SchoolColumn) => a.name === b.name && a.color === b.color && a.role === b.role
+const sameSubject = (a: SchoolSubject, b: SchoolSubject) => a.name === b.name && a.color === b.color && a.fav === b.fav
+
+/** Deletions are forgotten after this long (by then every device has long caught up). */
+const KEEP_DELETED = 180 * 86400000
+
+let paused = 0
+export const stampsPaused = () => paused > 0
+/** Runs `fn` without marking School's changes as new (signing out, data arriving from the cloud). */
+export function unstamped(fn: () => void) {
+  paused++
+  try {
+    fn()
+  } finally {
+    paused--
+  }
+}
+
+function stampList<T>(
+  prev: T[], next: T[], key: (x: T) => string, same: (a: T, b: T) => boolean,
+  get: (x: T) => number | undefined, set: (x: T, at: number) => T, now: number, deleted: Record<string, number>,
+) {
+  const before = new Map(prev.map((x) => [key(x), x]))
+  let changed = false
+  const list = next.map((x) => {
+    const p = before.get(key(x))
+    if (p === x) return x
+    if (p && same(p, x)) {
+      const at = get(p)
+      if (get(x) === undefined && at !== undefined) {
+        changed = true
+        return set(x, at)
+      }
+      return x
+    }
+    changed = true
+    return set(x, now)
+  })
+  const keys = new Set(next.map(key))
+  for (const k of before.keys()) {
+    if (!keys.has(k)) {
+      deleted[k] = now
+      changed = true
+    }
+  }
+  for (const k of keys) {
+    if (k in deleted && !before.has(k)) {
+      delete deleted[k]
+      changed = true
+    }
+  }
+  return { list, changed }
+}
+
+/** Marks what changed between `prev` and `next` with the time `now`, and remembers what was deleted. */
+export function stampSchool(prev: School, next: School, now = Date.now()): School {
+  if (prev === next) return next
+  const deleted = { ...next.deleted }
+  const tasks = stampList(prev.tasks, next.tasks, taskKey, sameTask, (t) => t.updatedAt, (t, updatedAt) => ({ ...t, updatedAt }), now, deleted)
+  const columns = stampList(prev.columns, next.columns, columnKey, sameColumn, (c) => c.at, (c, at) => ({ ...c, at }), now, deleted)
+  const subjects = stampList(prev.subjects, next.subjects, subjectKey, sameSubject, (x) => x.at, (x, at) => ({ ...x, at }), now, deleted)
+  if (!tasks.changed && !columns.changed && !subjects.changed) return next
+  return { ...next, tasks: tasks.list, columns: columns.list, subjects: subjects.list, deleted }
+}
+
+function mergeList<T>(local: T[], remote: T[], key: (x: T) => string, stamp: (x: T) => number, has: (x: T) => boolean, deleted: Record<string, number>) {
+  const mine = new Map(local.map((x) => [key(x), x]))
+  const theirs = new Set(remote.map(key))
+  const alive = (x: T) => stamp(x) >= (deleted[key(x)] ?? -Infinity)
+  const out: T[] = []
+  for (const r of remote) {
+    const l = mine.get(key(r))
+    const pick = l && stamp(l) > stamp(r) ? l : r
+    if (alive(pick)) out.push(pick)
+  }
+  // Only here: added on this device and not saved yet (or saved over by an old copy). Kept, unless it was deleted.
+  for (const l of local) if (!theirs.has(key(l)) && has(l) && alive(l)) out.push(l)
+  return out
+}
+
+/**
+ * Merges this device's School with a copy from the cloud. Nothing is lost: what's only on one side is kept,
+ * the newer version of anything on both sides wins, and only what was deleted (after its last change) goes.
+ */
+export function mergeSchool(local: School, remote: School, now = Date.now()): School {
+  const deleted: Record<string, number> = { ...remote.deleted }
+  for (const [k, v] of Object.entries(local.deleted ?? {})) deleted[k] = Math.max(deleted[k] ?? 0, v)
+  const taskStamp = (t: SchoolTask) => t.updatedAt ?? t.createdAt ?? 0
+  const tasks = mergeList(local.tasks, remote.tasks, taskKey, taskStamp, () => true, deleted)
+  // Columns and subjects from before this was added have no time: those only come from the cloud's copy
+  // (so a fresh device's starter columns don't come back after being deleted).
+  const columns = mergeList(local.columns, remote.columns, columnKey, (c) => c.at ?? 0, (c) => c.at !== undefined, deleted)
+  const subjects = mergeList(local.subjects, remote.subjects, subjectKey, (x) => x.at ?? 0, (x) => x.at !== undefined, deleted)
+  // Tidy the list of deletions: old ones, and ones for things added back since.
+  const alive = new Map<string, number>([
+    ...tasks.map((t) => [taskKey(t), taskStamp(t)] as const),
+    ...columns.map((c) => [columnKey(c), c.at ?? 0] as const),
+    ...subjects.map((x) => [subjectKey(x), x.at ?? 0] as const),
+  ])
+  for (const [k, v] of Object.entries(deleted)) if (now - v > KEEP_DELETED || (alive.get(k) ?? -1) >= v) delete deleted[k]
+  return parseSchool({ columns, tasks, subjects, deleted })
 }
 
 // ---- Changes (each returns a new School, or the same one when nothing changes) ----
