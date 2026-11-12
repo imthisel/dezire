@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarCheck, CalendarDays, ChevronDown, Download, Flag, Gem, GraduationCap, GripVertical, LifeBuoy, Wallet, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, Award, CalendarCheck, CalendarDays, ChevronDown, Download, Flag, Gem, GraduationCap, GripVertical, LifeBuoy, Wallet, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
 import { modeKind } from '../lib/needs'
 import { CopyModeModal, ModesModal, enterKind, lastMode, modeFor } from './Modes'
 import type { ModeKind } from '../lib/types'
@@ -11,6 +11,7 @@ import { openSettings } from '../settingsNav'
 import { todayKey } from '../lib/expenses'
 import { happensOn, isDoneOn, isEvent } from '../lib/tasks'
 import { daysBetween } from '../lib/school'
+import { overallAverage } from '../lib/grades'
 import { walletState } from '../lib/wallet'
 import { useSortable } from '../sortable'
 import { DEFAULT_PREFS, moveSideBlock, type NavId, type SideBlock } from '../lib/prefs'
@@ -71,6 +72,11 @@ export function Sidebar() {
   })
     .split(',')
     .map(Number)
+  // Grades: the average across subjects (rounded, so it only redraws on a real change).
+  const gradeAvg = useStore((s) => {
+    const a = overallAverage(s.school)
+    return a === null ? null : Math.round(a)
+  })
   // Money on hand, live (null until it's set up).
   const onHand = useStore((s) => walletState(s.wallet, s.expenses, today)?.total ?? null)
   const shown = docked ? sidebar : drawer
@@ -257,6 +263,14 @@ export function Sidebar() {
               onClick={() => goTo('school')}
               note={schoolLate > 0 ? `${schoolLate} late` : schoolSoon > 0 ? `${schoolSoon} due soon` : undefined}
               noteTitle={schoolLate > 0 ? 'School tasks past their due date' : 'School tasks due in the next 3 days'}
+            />
+            <Link
+              icon={Award}
+              label="Grades"
+              on={active === 'grades'}
+              onClick={() => goTo('grades')}
+              note={gradeAvg !== null ? `${gradeAvg}%` : undefined}
+              noteTitle="Your average across subjects"
             />
             <button
               onClick={() => {

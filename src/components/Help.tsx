@@ -243,6 +243,25 @@ const ARTICLES: Article[] = [
     ),
   },
   {
+    id: 'grades',
+    topic: 'school',
+    title: 'Track your grades',
+    words: 'grades grade score percent average weight quiz exam target gpa marks',
+    body: (
+      <>
+        <p>
+          On {b('Grades')}, each of your School subjects gets its own grade. Under {b('How it’s graded')}, split it into parts with their weights (Quizzes 20%, Final exam
+          40%…), or pick a ready-made split and adjust it. You can also leave out the lowest scores in a part.
+        </p>
+        <p>
+          Add a score by typing {b('18/20')}, {b('92%')} or just {b('18')}: it’s turned into a percentage and your grade updates right away. Set a {b('target')} to
+          see what you need on the rest of the course to reach it. Press {b('N')} to jump to the score box.
+        </p>
+      </>
+    ),
+    action: { label: 'Open Grades', run: () => goTo('grades') },
+  },
+  {
     id: 'shortcuts',
     topic: 'school',
     title: 'Keyboard shortcuts',

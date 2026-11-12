@@ -12,6 +12,7 @@ import { ExpenseModal } from './components/ExpenseModal'
 import { Assets } from './components/Assets'
 import { Schedule } from './components/Schedule'
 import { School } from './components/School'
+import { Grades } from './components/Grades'
 import { TaskModal } from './components/TaskModal'
 import { SchoolTaskModal } from './components/SchoolTaskModal'
 import { WalletModal } from './components/Wallet'
@@ -107,6 +108,7 @@ function page(view: View, needs: boolean) {
   if (view === 'assets') return <Assets />
   if (view === 'calendar') return <Schedule />
   if (view === 'school') return <School />
+  if (view === 'grades') return <Grades />
   if (view === 'help') return <Help />
   if (view === 'settings') return <Settings />
   if (needs) return <NeedsPage />

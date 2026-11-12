@@ -2,7 +2,7 @@ import { useEffect, useState, type MouseEvent } from 'react'
 import { useStore, type AssetCat, type View } from './store'
 
 /** Places the sidebar and the phone tab bar can jump to. Also `month-<key>`, `assets-<category>`, and on the Money plan page `plan-add` and `source-<id>`. */
-export type Section = 'overview' | 'years' | 'goals' | 'favorites' | 'assets' | 'plan' | 'expenses' | 'calendar' | 'school' | 'help' | 'settings'
+export type Section = 'overview' | 'years' | 'goals' | 'favorites' | 'assets' | 'plan' | 'expenses' | 'calendar' | 'school' | 'grades' | 'help' | 'settings'
 
 export const PLANNER_SECTIONS = ['overview', 'years', 'goals'] as const
 
@@ -16,6 +16,8 @@ const viewOf = (id: string): View =>
     ? 'calendar'
     : id === 'school'
     ? 'school'
+    : id === 'grades'
+    ? 'grades'
     : id === 'help'
     ? 'help'
     : id === 'favorites'
@@ -52,7 +54,7 @@ export function goTo(id: string) {
   whenShown(view, id, () => scrollTo(id, switched))
 }
 
-const atTop = (id: string) => id === 'overview' || id === 'plan' || id === 'favorites' || id === 'expenses' || id === 'calendar' || id === 'school' || id === 'help' || id.startsWith('assets')
+const atTop = (id: string) => id === 'overview' || id === 'plan' || id === 'favorites' || id === 'expenses' || id === 'calendar' || id === 'school' || id === 'grades' || id === 'help' || id.startsWith('assets')
 
 /**
  * Runs `then` once page `view` is on screen (pages are built in the background, see `Pages` in App) and the section

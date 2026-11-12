@@ -9,7 +9,7 @@ export type WeekStart = 0 | 1 | 6
 export type Clock = '12' | '24'
 export type TextSize = 'small' | 'default' | 'large'
 /** The page the app opens on. `last`: wherever you left off. */
-export type StartPage = 'last' | 'planner' | 'calendar' | 'school' | 'expenses' | 'assets' | 'favorites' | 'plan'
+export type StartPage = 'last' | 'planner' | 'calendar' | 'school' | 'grades' | 'expenses' | 'assets' | 'favorites' | 'plan'
 /** Days between backup reminders. 0 = never. */
 export type BackupEvery = 0 | 7 | 30
 /** Places that can be taken out of the side menu and the phone's tab bar. */
@@ -100,7 +100,7 @@ export const ACCENTS: { id: Accent; label: string; swatch: string }[] = [
 export const EVENT_LENGTHS = [15, 30, 45, 60, 90, 120]
 export const REMINDER_LEADS = [5, 10, 15, 30, 60]
 export const NAV_IDS: NavId[] = ['favorites', 'calendar', 'school', 'expenses', 'assets', 'plan']
-const START_PAGES: StartPage[] = ['last', 'planner', 'calendar', 'school', 'expenses', 'assets', 'favorites', 'plan']
+const START_PAGES: StartPage[] = ['last', 'planner', 'calendar', 'school', 'grades', 'expenses', 'assets', 'favorites', 'plan']
 
 const bool = (v: unknown, fallback: boolean) => (typeof v === 'boolean' ? v : fallback)
 const oneOf = <T,>(v: unknown, list: readonly T[], fallback: T) => (list.includes(v as T) ? (v as T) : fallback)

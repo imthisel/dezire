@@ -6,7 +6,7 @@ import { Group, Row, Segmented, Select, ToggleRow } from './ui'
 const NAV_LABELS: Record<NavId, { label: string; hint: string }> = {
   favorites: { label: 'Favorites', hint: 'The items you starred' },
   calendar: { label: 'Calendar', hint: 'Events and tasks' },
-  school: { label: 'School', hint: 'Subjects, deadlines and a board of what’s done' },
+  school: { label: 'School', hint: 'Subjects, deadlines, grades and a board of what’s done' },
   expenses: { label: 'Expenses', hint: 'Money spent, day by day' },
   assets: { label: 'Assets', hint: 'What you own, and vehicle setups' },
   plan: { label: 'Money plan', hint: 'The ways you’ll make the money' },
@@ -17,6 +17,7 @@ const START_PAGES: { id: StartPage; label: string }[] = [
   { id: 'planner', label: 'Overview' },
   { id: 'calendar', label: 'Calendar' },
   { id: 'school', label: 'School' },
+  { id: 'grades', label: 'Grades' },
   { id: 'expenses', label: 'Expenses' },
   { id: 'assets', label: 'Assets' },
   { id: 'favorites', label: 'Favorites' },

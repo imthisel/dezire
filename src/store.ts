@@ -44,7 +44,7 @@ export type ModalState =
   | { type: 'pay'; kind: 'wants' | 'needs'; ids: string[]; what?: string }
   | null
 export type PhoneCols = 1 | 2 | 3
-export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses' | 'calendar' | 'school' | 'help' | 'settings'
+export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses' | 'calendar' | 'school' | 'grades' | 'help' | 'settings'
 /** Assets page: which kind of item, and which years */
 export type AssetCat = 'all' | Category
 /** `month` (0–11) is used by the 'month' mode: one of the year's setups (see `setupMonths`). */

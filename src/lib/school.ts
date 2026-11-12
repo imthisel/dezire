@@ -46,7 +46,39 @@ export interface SchoolSubject {
   name: string
   color: string
   fav: boolean
+  /** The grade you're aiming for in this class, as a percentage (Grades page) */
+  target?: number
   /** When it was last added or changed here (for merging copies from different devices) */
+  at?: number
+}
+
+/** A part of a subject's grade, e.g. "Quizzes" worth 20%. */
+export interface GradeCategory {
+  id: string
+  /** The subject it belongs to (matches a SchoolSubject's name, ignoring case) */
+  subject: string
+  name: string
+  /** How much it counts towards the subject's grade, in percent */
+  weight: number
+  /** Leave out this many of the lowest scores (0 = count them all) */
+  drop?: number
+  /** When it was last added or changed (for merging copies from different devices) */
+  at?: number
+}
+
+/** One score, e.g. 18 out of 20 on "Quiz 3". */
+export interface Grade {
+  id: string
+  subject: string
+  /** GradeCategory id ('' = not in a category yet) */
+  cat: string
+  title: string
+  score: number
+  max: number
+  /** "YYYY-MM-DD" */
+  date: string
+  createdAt: number
+  /** When it was last added or changed (for merging copies from different devices) */
   at?: number
 }
 
@@ -54,8 +86,11 @@ export interface School {
   columns: SchoolColumn[]
   tasks: SchoolTask[]
   subjects: SchoolSubject[]
+  /** Grades page: how each subject's grade is made up, and the scores */
+  gradeCats: GradeCategory[]
+  grades: Grade[]
   /**
-   * What was deleted and when ('t:<task id>', 'c:<column id>', 's:<subject name>'), so a device that still has an
+   * What was deleted and when ('t:<task id>', 'c:<column id>', 's:<subject name>', 'gc:<category id>', 'g:<grade id>'), so a device that still has an
    * old copy can't bring it back, and a device that missed an addition can't wipe it out.
    */
   deleted?: Record<string, number>
@@ -65,6 +100,8 @@ export const MAX_SUBJECT = 40
 export const MAX_TITLE = 120
 export const MAX_COLUMN = 32
 export const MAX_NOTES = 4000
+export const MAX_GRADE_TITLE = 80
+export const MAX_CATEGORY = 32
 
 export const DEFAULT_SCHOOL: School = {
   columns: [
@@ -75,6 +112,8 @@ export const DEFAULT_SCHOOL: School = {
   ],
   tasks: [],
   subjects: [],
+  gradeCats: [],
+  grades: [],
 }
 
 export const uid = () =>
@@ -130,6 +169,7 @@ export function shortDate(k: string) {
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '')
 const color = (v: unknown, fallback = 'slate') => (typeof v === 'string' && v in KIND_COLORS ? v : fallback)
 const time = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? { v } : null)
+const num = (v: unknown, min: number, max: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : null)
 
 /** Cleans up School from a backup file, the cloud or this browser. Anything missing gets its default. */
 export function parseSchool(raw: unknown): School {
@@ -177,16 +217,58 @@ export function parseSchool(raw: unknown): School {
     const name = x && typeof x === 'object' ? str(x.name, MAX_SUBJECT).trim() : ''
     if (!name || subjects.some((s) => same(s.name, name))) continue
     const at = time(x.at)
-    subjects.push({ name, color: color(x.color, 'violet'), fav: x.fav === true, ...(at && { at: at.v }) })
+    const target = num(x.target, 0, 1000)
+    subjects.push({ name, color: color(x.color, 'violet'), fav: x.fav === true, ...(target !== null && target > 0 && { target }), ...(at && { at: at.v }) })
+  }
+  const gradeCats: GradeCategory[] = []
+  const catIds = new Set<string>()
+  for (const x of Array.isArray(r.gradeCats) ? (r.gradeCats as Record<string, unknown>[]) : []) {
+    if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !x.id || catIds.has(x.id)) continue
+    const subject = str(x.subject, MAX_SUBJECT).trim()
+    if (!subject) continue
+    catIds.add(x.id)
+    const at = time(x.at)
+    const drop = num(x.drop, 0, 99)
+    gradeCats.push({
+      id: x.id,
+      subject,
+      name: str(x.name, MAX_CATEGORY).trim() || 'Untitled',
+      weight: num(x.weight, 0, 1000) ?? 0,
+      ...(drop ? { drop: Math.round(drop) } : {}),
+      ...(at && { at: at.v }),
+    })
+  }
+  const grades: Grade[] = []
+  const gradeIds = new Set<string>()
+  for (const x of Array.isArray(r.grades) ? (r.grades as Record<string, unknown>[]) : []) {
+    if (!x || typeof x !== 'object') continue
+    const subject = str(x.subject, MAX_SUBJECT).trim()
+    const score = num(x.score, -1e6, 1e6)
+    const max = num(x.max, 0, 1e6)
+    if (!subject || score === null || !max) continue
+    const id = typeof x.id === 'string' && x.id && !gradeIds.has(x.id) ? x.id : uid()
+    gradeIds.add(id)
+    const at = time(x.at)
+    grades.push({
+      id,
+      subject,
+      cat: typeof x.cat === 'string' && catIds.has(x.cat) ? x.cat : '',
+      title: str(x.title, MAX_GRADE_TITLE).trim(),
+      score,
+      max,
+      date: typeof x.date === 'string' && isDate(x.date) ? x.date : todayKey(),
+      createdAt: Number(x.createdAt) || Date.now(),
+      ...(at && { at: at.v }),
+    })
   }
   const deleted: Record<string, number> = {}
   if (r.deleted && typeof r.deleted === 'object') {
     for (const [k, v] of Object.entries(r.deleted as Record<string, unknown>)) {
       const t = time(v)
-      if (t && /^[tcs]:/.test(k)) deleted[k] = t.v
+      if (t && /^(t|c|s|g|gc):/.test(k)) deleted[k] = t.v
     }
   }
-  return { columns, tasks, subjects, ...(Object.keys(deleted).length ? { deleted } : {}) }
+  return { columns, tasks, subjects, gradeCats, grades, ...(Object.keys(deleted).length ? { deleted } : {}) }
 }
 
 // ---- Keeping copies from different devices in step ----
@@ -199,11 +281,16 @@ export function parseSchool(raw: unknown): School {
 const taskKey = (t: SchoolTask) => `t:${t.id}`
 const columnKey = (c: SchoolColumn) => `c:${c.id}`
 const subjectKey = (x: SchoolSubject) => `s:${x.name.trim().toLowerCase()}`
+const catKey = (c: GradeCategory) => `gc:${c.id}`
+const gradeKey = (g: Grade) => `g:${g.id}`
 
 const sameTask = (a: SchoolTask, b: SchoolTask) =>
   a.subject === b.subject && a.title === b.title && a.due === b.due && a.notes === b.notes && a.column === b.column && a.doneAt === b.doneAt && a.from === b.from && a.createdAt === b.createdAt
 const sameColumn = (a: SchoolColumn, b: SchoolColumn) => a.name === b.name && a.color === b.color && a.role === b.role
-const sameSubject = (a: SchoolSubject, b: SchoolSubject) => a.name === b.name && a.color === b.color && a.fav === b.fav
+const sameSubject = (a: SchoolSubject, b: SchoolSubject) => a.name === b.name && a.color === b.color && a.fav === b.fav && a.target === b.target
+const sameCat = (a: GradeCategory, b: GradeCategory) => a.subject === b.subject && a.name === b.name && a.weight === b.weight && a.drop === b.drop
+const sameGrade = (a: Grade, b: Grade) =>
+  a.subject === b.subject && a.cat === b.cat && a.title === b.title && a.score === b.score && a.max === b.max && a.date === b.date && a.createdAt === b.createdAt
 
 /** Deletions are forgotten after this long (by then every device has long caught up). */
 const KEEP_DELETED = 180 * 86400000
@@ -263,8 +350,10 @@ export function stampSchool(prev: School, next: School, now = Date.now()): Schoo
   const tasks = stampList(prev.tasks, next.tasks, taskKey, sameTask, (t) => t.updatedAt, (t, updatedAt) => ({ ...t, updatedAt }), now, deleted)
   const columns = stampList(prev.columns, next.columns, columnKey, sameColumn, (c) => c.at, (c, at) => ({ ...c, at }), now, deleted)
   const subjects = stampList(prev.subjects, next.subjects, subjectKey, sameSubject, (x) => x.at, (x, at) => ({ ...x, at }), now, deleted)
-  if (!tasks.changed && !columns.changed && !subjects.changed) return next
-  return { ...next, tasks: tasks.list, columns: columns.list, subjects: subjects.list, deleted }
+  const gradeCats = stampList(prev.gradeCats, next.gradeCats, catKey, sameCat, (x) => x.at, (x, at) => ({ ...x, at }), now, deleted)
+  const grades = stampList(prev.grades, next.grades, gradeKey, sameGrade, (x) => x.at, (x, at) => ({ ...x, at }), now, deleted)
+  if (!tasks.changed && !columns.changed && !subjects.changed && !gradeCats.changed && !grades.changed) return next
+  return { ...next, tasks: tasks.list, columns: columns.list, subjects: subjects.list, gradeCats: gradeCats.list, grades: grades.list, deleted }
 }
 
 function mergeList<T>(local: T[], remote: T[], key: (x: T) => string, stamp: (x: T) => number, has: (x: T) => boolean, deleted: Record<string, number>) {
@@ -295,14 +384,20 @@ export function mergeSchool(local: School, remote: School, now = Date.now()): Sc
   // (so a fresh device's starter columns don't come back after being deleted).
   const columns = mergeList(local.columns, remote.columns, columnKey, (c) => c.at ?? 0, (c) => c.at !== undefined, deleted)
   const subjects = mergeList(local.subjects, remote.subjects, subjectKey, (x) => x.at ?? 0, (x) => x.at !== undefined, deleted)
+  // Grades and their categories always get a time when they're made here, like tasks.
+  const gradeStamp = (g: Grade) => g.at ?? g.createdAt ?? 0
+  const gradeCats = mergeList(local.gradeCats, remote.gradeCats, catKey, (c) => c.at ?? 0, () => true, deleted)
+  const grades = mergeList(local.grades, remote.grades, gradeKey, gradeStamp, () => true, deleted)
   // Tidy the list of deletions: old ones, and ones for things added back since.
   const alive = new Map<string, number>([
     ...tasks.map((t) => [taskKey(t), taskStamp(t)] as const),
     ...columns.map((c) => [columnKey(c), c.at ?? 0] as const),
     ...subjects.map((x) => [subjectKey(x), x.at ?? 0] as const),
+    ...gradeCats.map((c) => [catKey(c), c.at ?? 0] as const),
+    ...grades.map((g) => [gradeKey(g), gradeStamp(g)] as const),
   ])
   for (const [k, v] of Object.entries(deleted)) if (now - v > KEEP_DELETED || (alive.get(k) ?? -1) >= v) delete deleted[k]
-  return parseSchool({ columns, tasks, subjects, deleted })
+  return parseSchool({ columns, tasks, subjects, gradeCats, grades, deleted })
 }
 
 // ---- Changes (each returns a new School, or the same one when nothing changes) ----
@@ -329,8 +424,12 @@ export function updateSubject(s: School, name: string, patch: Partial<SchoolSubj
   const subjects = base.subjects
     .filter((x) => x !== merge)
     .map((x) => (same(x.name, name) ? { ...x, ...patch, name: to || x.name, fav: patch.fav ?? (x.fav || !!merge?.fav) } : x))
-  const tasks = to && !same(to, name) ? base.tasks.map((t) => (same(t.subject, name) ? { ...t, subject: to } : t)) : base.tasks
-  return { ...base, subjects, tasks }
+  const renamed = !!to && !same(to, name)
+  const tasks = renamed ? base.tasks.map((t) => (same(t.subject, name) ? { ...t, subject: to } : t)) : base.tasks
+  // Its grades and how they're weighted follow the new name too.
+  const gradeCats = renamed ? base.gradeCats.map((c) => (same(c.subject, name) ? { ...c, subject: to } : c)) : base.gradeCats
+  const grades = renamed ? base.grades.map((g) => (same(g.subject, name) ? { ...g, subject: to } : g)) : base.grades
+  return { ...base, subjects, tasks, gradeCats, grades }
 }
 
 /** Forgets a subject (its tasks keep their subject's name, so it comes back if they're edited). */
