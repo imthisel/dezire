@@ -47,7 +47,8 @@ export const MEMBERSHIP_LABEL: Record<Membership, string> = {
 }
 
 export const PLAN_LABEL = { annual: 'Yearly', semiannual: '6 months' } as const
-export const PLAN_PRICE = { annual: 1260, semiannual: 950 } as const
+/** In US dollars, the same as src/lib/plans.ts (and Paddle). */
+export const PLAN_PRICE = { annual: 22, semiannual: 16 } as const
 
 /** Short line under the status: when it ends, which plan… */
 export function membershipDetail(u: Sub, now = Date.now()) {

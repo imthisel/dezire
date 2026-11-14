@@ -3,9 +3,9 @@ import {
   ArrowRight, BadgeCheck, Check, ChevronDown, Download, EyeOff, KeyRound, Loader2, Lock, LogOut, Quote, ShieldCheck, Star, Target,
 } from 'lucide-react'
 import { signIn, signOut, useCloud } from '../cloud'
-import { forgetIntent, openCheckout, rememberIntent, useAccess } from '../billing'
+import { forgetIntent, openBilling, openCheckout, rememberIntent, upgradeToYearly, useAccess } from '../billing'
 import { auth } from '../lib/firebase'
-import { PLANS, TRIAL_DAYS, billingUrl, perMonth, pesos, type Plan, type PlanId } from '../lib/plans'
+import { PLANS, TRIAL_DAYS, dollars, paymentsReady, perMonth, type Plan, type PlanId } from '../lib/plans'
 import { EXAMPLE_REVIEWS, REVIEWS, type Review } from '../content/reviews'
 import { DownloadSection } from './AppInstall'
 import { ContactDialog } from './Help'
@@ -145,7 +145,7 @@ export function About() {
             <a href="#realistic" className="transition hover:text-white">Realistic</a>
             <a href="#pricing" className="transition hover:text-white">Pricing</a>
             <a href="#faq" className="transition hover:text-white">Questions</a>
-            <span>Payments by Lemon Squeezy</span>
+            <span>Payments by Paddle</span>
           </nav>
         </div>
       </footer>
@@ -632,11 +632,22 @@ export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; co
   const brand = (tone ?? (compact ? 'app' : 'brand')) === 'brand'
   const order: PlanId[] = ['semiannual', 'annual']
   const onPlan = access.state === 'paid' || access.state === 'comp' || access.state === 'lifetime'
+  // A running 6-month subscription can move up to Yearly from here (Paddle's billing page can't change plans).
+  const canUpgrade =
+    access.state === 'paid' && access.plan === 'semiannual' && (access.status === 'active' || access.status === 'on_trial') && paymentsReady()
   const body = (
     <>
       <div className="mx-auto grid max-w-3xl gap-5 md:grid-cols-2">
         {order.map((id) => (
-          <PlanCard key={id} plan={PLANS[id]} featured={id === 'annual'} current={onPlan && access.plan === id} disabled={onPlan} brand={brand} />
+          <PlanCard
+            key={id}
+            plan={PLANS[id]}
+            featured={id === 'annual'}
+            current={onPlan && access.plan === id}
+            disabled={onPlan && !(id === 'annual' && canUpgrade)}
+            upgrade={id === 'annual' && canUpgrade}
+            brand={brand}
+          />
         ))}
       </div>
       {!compact && !user && signin && (
@@ -648,7 +659,7 @@ export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; co
         </div>
       )}
       <ul className="mx-auto mt-10 flex max-w-3xl flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-zinc-400">
-        <li className="flex items-center gap-1.5"><Lock className="h-4 w-4" /> Secure checkout by Lemon Squeezy</li>
+        <li className="flex items-center gap-1.5"><Lock className="h-4 w-4" /> Secure checkout by Paddle</li>
         <li className="flex items-center gap-1.5"><BadgeCheck className="h-4 w-4" /> Cancel anytime</li>
         <li className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" /> Your data stays private</li>
       </ul>
@@ -668,7 +679,9 @@ export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; co
   )
 }
 
-function PlanCard({ plan, featured, current, disabled, brand }: { plan: Plan; featured: boolean; current: boolean; disabled: boolean; brand: boolean }) {
+function PlanCard({
+  plan, featured, current, disabled, upgrade = false, brand,
+}: { plan: Plan; featured: boolean; current: boolean; disabled: boolean; upgrade?: boolean; brand: boolean }) {
   const [busy, setBusy] = useState(false)
   const signedIn = useCloud((s) => !!s.user)
   const included = [...plan.perks, 'Every other feature included', 'Plans from 2026 to 2040', 'All your devices, synced', 'Works offline']
@@ -708,11 +721,11 @@ function PlanCard({ plan, featured, current, disabled, brand }: { plan: Plan; fe
       )}
       <p className="font-semibold text-zinc-200">{plan.name}</p>
       <div className="mt-4 flex items-end gap-2">
-        <span className="text-5xl font-semibold tracking-tight text-white">{pesos(plan.price)}</span>
+        <span className="text-5xl font-semibold tracking-tight text-white">{dollars(plan.price)}</span>
         <span className="pb-1.5 text-zinc-400">{plan.every}</span>
       </div>
       <p className="mt-2 flex items-center gap-2 text-sm">
-        {plan.compareAt && <span className="text-zinc-500 line-through">{pesos(plan.compareAt)}</span>}
+        {plan.compareAt && <span className="text-zinc-500 line-through">{dollars(plan.compareAt)}</span>}
         <span className={featured ? look.save : 'text-zinc-400'}>just {perMonth(plan)} a month</span>
       </p>
       <ul className="mt-6 flex-1 space-y-2.5 text-sm">
@@ -726,7 +739,7 @@ function PlanCard({ plan, featured, current, disabled, brand }: { plan: Plan; fe
         onClick={async () => {
           setBusy(true)
           try {
-            await choose(plan.id)
+            await (upgrade ? upgradeToYearly() : choose(plan.id))
           } finally {
             setBusy(false)
           }
@@ -735,10 +748,16 @@ function PlanCard({ plan, featured, current, disabled, brand }: { plan: Plan; fe
         className={`mt-7 inline-flex h-12 items-center justify-center gap-2 text-[15px] font-semibold transition disabled:cursor-default ${look.btnRadius} ${look.button}`}
       >
         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-        {current ? 'Your plan' : `Buy ${plan.name} now`}
+        {current ? 'Your plan' : upgrade ? `Upgrade to ${plan.name}` : `Buy ${plan.name} now`}
       </button>
       {!disabled && (
-        <p className="mt-2.5 text-center text-xs text-zinc-400">{signedIn ? 'Starts today · secure checkout' : 'Skip the trial · sign in, then straight to checkout'}</p>
+        <p className="mt-2.5 text-center text-xs text-zinc-400">
+          {upgrade
+            ? 'Credit for your unused 6-month time · you’ll see the price first'
+            : signedIn
+              ? 'Starts today · secure checkout'
+              : 'Skip the trial · sign in, then straight to checkout'}
+        </p>
       )}
     </div>
   )
@@ -756,7 +775,7 @@ function Faq() {
     ['Does it work on my phone?', 'Yes. Dizayr works in any browser on your phone, tablet or computer, and stays in sync. Add it to your home screen and it opens like an app, even offline.'],
     ['What are modes?', 'Separate versions of your plan. Add some to try a different future, each with its own items, net worth and setups, while your calendar, expenses and goals stay shared. Modes come in two sections, Wants and Needs, and you choose which one is the main one in each. The free trial includes 1 of each, the 6-month plan 2 of each, and the yearly plan is unlimited.'],
     ['Which currency does it use?', 'Plan in your own currency, and see a second one next to every amount if you like (for example pesos and US dollars).'],
-    ['How do I pay?', 'By card or PayPal, through Lemon Squeezy’s secure checkout. Prices are in Philippine pesos, tax included; your bank converts them if you pay in another currency.'],
+    ['How do I pay?', 'By card, PayPal, Apple Pay or Google Pay, through Paddle’s secure checkout. Prices are in US dollars, tax included; your bank converts them if your card is in pesos or another currency.'],
   ]
   return (
     <section id="faq" aria-labelledby="faq-title" className="border-t border-white/[0.06] sec">
@@ -866,10 +885,10 @@ export function TrialEnded() {
       <div className="relative mt-10 flex flex-col items-center gap-2 text-sm text-zinc-400">
         <p>Signed in as {user?.email}</p>
         <div className="flex gap-4">
-          {billingUrl() && (
-            <a href={billingUrl()} target="_blank" rel="noreferrer" className="text-zinc-300 underline-offset-4 hover:text-white hover:underline">
+          {paymentsReady() && (
+            <button type="button" onClick={() => void openBilling()} className="text-zinc-300 underline-offset-4 hover:text-white hover:underline">
               Already paid? Check your billing
-            </a>
+            </button>
           )}
           <button onClick={() => setContact(true)} className="text-zinc-300 underline-offset-4 hover:text-white hover:underline">
             Contact support

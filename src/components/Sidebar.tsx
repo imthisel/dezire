@@ -255,10 +255,22 @@ export function Sidebar() {
           </Group>
         ),
     school: !hiddenNav.includes('school') && (
-          <Group label="School">
+          <KindSection
+            kind="school"
+            on={active === 'school' || active === 'grades'}
+            mode={
+              schoolLate > 0
+                ? `${schoolLate} ${schoolLate === 1 ? 'task' : 'tasks'} late`
+                : schoolSoon > 0
+                  ? `${schoolSoon} due soon`
+                  : gradeAvg !== null
+                    ? `Average ${gradeAvg}%`
+                    : 'Tasks and grades'
+            }
+          >
             <Link
               icon={GraduationCap}
-              label="School"
+              label="Tasks"
               on={active === 'school'}
               onClick={() => goTo('school')}
               note={schoolLate > 0 ? `${schoolLate} late` : schoolSoon > 0 ? `${schoolSoon} due soon` : undefined}
@@ -281,7 +293,7 @@ export function Sidebar() {
             >
               <Plus className="h-4 w-4" /> Add a school task
             </button>
-          </Group>
+          </KindSection>
         ),
     expenses: !hiddenNav.includes('expenses') && (
           <Group label="Spending">
@@ -414,13 +426,14 @@ export function Sidebar() {
 }
 
 
-/** The sidebar's fold-open blocks: Wants and Needs, plus the Money plan, which serves both. */
-type FoldKind = ModeKind | 'plan'
+/** The sidebar's fold-open blocks: Wants and Needs, the Money plan (which serves both), and School. */
+type FoldKind = ModeKind | 'plan' | 'school'
 
 const KIND_LOOK: Record<FoldKind, { title: string; icon: typeof Flag; chip: string; box: string; dot: string }> = {
   wants: { title: 'Wants', icon: Sparkles, chip: 'bg-gradient-to-br from-indigo-400 to-indigo-600', box: 'border-indigo-400/20 bg-indigo-500/[0.04]', dot: 'bg-indigo-400' },
   needs: { title: 'Needs', icon: ShoppingBasket, chip: 'bg-gradient-to-br from-emerald-400 to-teal-500', box: 'border-emerald-400/20 bg-emerald-500/[0.04]', dot: 'bg-emerald-400' },
   plan: { title: 'Money plan', icon: Rocket, chip: 'bg-gradient-to-br from-amber-400 to-orange-500', box: 'border-amber-400/20 bg-amber-500/[0.04]', dot: 'bg-amber-400' },
+  school: { title: 'School', icon: GraduationCap, chip: 'bg-gradient-to-br from-violet-400 to-indigo-500', box: 'border-violet-400/20 bg-violet-500/[0.04]', dot: 'bg-violet-400' },
 }
 
 /** Which blocks are folded open, remembered on this device. Unset: only the one in use is open (or its default). */
@@ -441,7 +454,7 @@ function saveOpen(kind: FoldKind, open: boolean) {
 }
 
 /**
- * Wants, Needs or the Money plan: a block that folds open and shut from its header, so the sidebar stays tidy.
+ * Wants, Needs, the Money plan or School: a block that folds open and shut from its header, so the sidebar stays tidy.
  * Tinted when it's the one in use, with a short line under the title. Moving into a block opens it.
  */
 function KindSection({ kind, on, mode, defaultOpen = false, children }: { kind: FoldKind; on: boolean; mode?: string; defaultOpen?: boolean; children: ReactNode }) {
@@ -481,7 +494,7 @@ function KindSection({ kind, on, mode, defaultOpen = false, children }: { kind: 
               {on && <span aria-label="In use" title="In use" className={`h-1.5 w-1.5 rounded-full ${k.dot}`} />}
             </span>
             {mode && (
-              <span title={kind === 'plan' ? mode : on ? `In use: ${mode}` : `Opens ${mode}`} className="block truncate text-[11px] leading-tight text-zinc-500">
+              <span title={kind === 'plan' || kind === 'school' ? mode : on ? `In use: ${mode}` : `Opens ${mode}`} className="block truncate text-[11px] leading-tight text-zinc-500">
                 {mode}
               </span>
             )}

@@ -1,7 +1,7 @@
 import { CreditCard, Crown, ExternalLink, LogOut, ShieldCheck, Sparkles } from 'lucide-react'
-import { openPlans, useAccess, useModeLimit } from '../../billing'
+import { openBilling, openPlans, useAccess, useModeLimit } from '../../billing'
 import { signOut, useCloud } from '../../cloud'
-import { TRIAL_DAYS, billingUrl } from '../../lib/plans'
+import { TRIAL_DAYS, paymentsReady } from '../../lib/plans'
 import { useStore } from '../../store'
 import { toast } from '../../toast'
 import { Avatar, STATUS } from '../AccountMenu'
@@ -71,7 +71,7 @@ export function PlanSection() {
   const access = useAccess()
   const modes = useStore((s) => s.modes.length)
   const limit = useModeLimit()
-  const billing = billingUrl()
+  const billing = paymentsReady()
   const subscribed = access.state === 'paid'
   const free = access.state === 'lifetime' || access.state === 'comp'
   const trialLeft = access.state === 'trial' && access.trialEndsAt ? Math.max(0, Math.ceil((access.trialEndsAt - Date.now()) / 86_400_000)) : null
@@ -102,9 +102,9 @@ export function PlanSection() {
             </Button>
           )}
           {subscribed && billing && (
-            <a href={billing} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/10 px-3 text-[13px] font-semibold text-zinc-200 transition hover:bg-white/5 hover:text-white">
+            <button type="button" onClick={() => void openBilling()} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/10 px-3 text-[13px] font-semibold text-zinc-200 transition hover:bg-white/5 hover:text-white">
               Manage billing <ExternalLink className="h-3.5 w-3.5" />
-            </a>
+            </button>
           )}
         </div>
       </div>
@@ -113,7 +113,7 @@ export function PlanSection() {
         <Row id="plan-modes" title="Modes" hint="How many you can have in each of Wants and Needs.">
           <span className="text-[13px] font-medium tabular-nums text-zinc-300">{limit === Infinity ? `${modes} · unlimited` : `${limit} + ${limit}`}</span>
         </Row>
-        <ActionRow id="plan-billing" icon={CreditCard} title="Plans & billing" hint={subscribed ? 'Compare plans, or change your card or plan.' : 'Compare plans and prices.'} onClick={() => openPlans()} />
+        <ActionRow id="plan-billing" icon={CreditCard} title="Plans & billing" hint={subscribed ? 'Compare plans, or change your card.' : 'Compare plans and prices.'} onClick={() => openPlans()} />
       </Group>
     </>
   )

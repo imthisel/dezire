@@ -60,15 +60,15 @@ Dizayr installs as an app straight from the website (it's a Progressive Web App)
 
 **Updating the app = pushing to GitHub.** Every deploy gets a version (the commit), written to `/version.json`. The app checks it when it opens, when it comes back to the screen, and every 15 minutes; if there's a newer one it shows **"A new version of Dizayr is ready · Update now"**, and after updating says **"Dizayr was updated"**. Users can also press **Check for updates** in Settings → Help & app. Nothing else to do.
 
-## Payments: 7-day free trial and plans (Lemon Squeezy)
+## Payments: 7-day free trial and plans (Paddle)
 
-How it works: anyone who signs in with Google gets **7 days free** (no card). The trial start is saved once in Firestore (`subscriptions/{uid}`) and can't be restarted. After that, they pick **Yearly (₱1,260)** or **6 months (₱950)** in a Lemon Squeezy checkout. Lemon Squeezy tells the site about every subscription change through a webhook (`api/lemonsqueezy.ts`), which unlocks or locks the account. The Firestore rules enforce the same thing, so nobody can use the app past their trial without paying, even by editing the page.
+How it works: anyone who signs in with Google gets **7 days free** (no card). The trial start is saved once in Firestore (`subscriptions/{uid}`) and can't be restarted. After that, they pick **Yearly ($22)** or **6 months ($16)** in a Paddle checkout that opens over the page. Paddle tells the site about every subscription change through a webhook (`api/paddle.ts`), which unlocks or locks the account. The Firestore rules enforce the same thing, so nobody can use the app past their trial without paying, even by editing the page. **Manage billing** (Paddle's customer portal) and upgrading from 6 months to Yearly go through `api/billing.ts`.
 
-**Full step-by-step setup (Lemon Squeezy, Firebase rules and keys, Vercel settings, testing, going live): see [SETUP-PAYMENTS.md](SETUP-PAYMENTS.md).**
+**Full step-by-step setup (Paddle, Firebase rules and keys, Vercel settings, testing, going live): see [SETUP-PAYMENTS.md](SETUP-PAYMENTS.md).**
 
 **Reviews** on the About page: add them in [`src/content/reviews.ts`](src/content/reviews.ts). The section only shows on the live site once there's at least one.
 
-**Prices** shown on the page are in [`src/lib/plans.ts`](src/lib/plans.ts). Keep them the same as in Lemon Squeezy. Both prices include tax (the tax-inclusive setting in Lemon Squeezy is on).
+**Prices** shown on the page are in [`src/lib/plans.ts`](src/lib/plans.ts). Keep them the same as in Paddle. Both prices are in US dollars (Paddle can't charge in pesos) and include tax (each Paddle price is set to tax-inclusive).
 
 The About page is what signed-out visitors see, and it's always at `/about`.
 

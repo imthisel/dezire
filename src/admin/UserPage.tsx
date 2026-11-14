@@ -379,11 +379,16 @@ function MembershipCard({ user, reload }: { user: UserDetail; reload: () => Prom
       </div>
       {user.plan && (
         <p className="border-t border-white/[0.06] px-5 py-3 text-xs leading-relaxed text-zinc-500">
-          Paid subscriptions are billed by Lemon Squeezy. To refund or cancel one, use{' '}
-          <a href="https://app.lemonsqueezy.com/subscriptions" target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-zinc-300 hover:text-white">
-            Lemon Squeezy → Subscriptions <ExternalLink className="h-3 w-3" />
+          Paid subscriptions are billed by Paddle. To refund or cancel one, open{' '}
+          <a
+            href={import.meta.env.VITE_PADDLE_ENV === 'sandbox' ? 'https://sandbox-vendors.paddle.com/' : 'https://vendors.paddle.com/'}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-0.5 text-zinc-300 hover:text-white"
+          >
+            Paddle → Customers → Subscriptions <ExternalLink className="h-3 w-3" />
           </a>
-          .
+          {user.subscriptionId ? <> and search for <span className="font-mono text-zinc-300">{user.subscriptionId}</span></> : null}.
         </p>
       )}
 
@@ -574,7 +579,7 @@ function AccountControls({ user, reload }: { user: UserDetail; reload: () => Pro
             <>
               This deletes <span className="font-semibold text-white">{displayName(user)}</span>’s sign-in, every dream, goal, expense and note they saved, and their membership.
               {user.plan && (user.accessUntil ?? 0) > Date.now() && (
-                <span className="mt-2 block text-amber-200">They still have a paid subscription: cancel it in Lemon Squeezy too, or they’ll keep being charged.</span>
+                <span className="mt-2 block text-amber-200">They still have a paid subscription: cancel it in Paddle too, or they’ll keep being charged.</span>
               )}
             </>
           }

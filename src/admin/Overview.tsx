@@ -37,7 +37,7 @@ export function Overview() {
     const week = users.filter((u) => (u.createdAt ?? 0) > now - 7 * DAY).length
     const prevWeek = users.filter((u) => (u.createdAt ?? 0) > now - 14 * DAY && (u.createdAt ?? 0) <= now - 7 * DAY).length
     const active7 = users.filter((u) => (lastActive(u) ?? 0) > now - 7 * DAY).length
-    // What paying subscribers bring in a year at today's prices: yearly × ₱1,260, 6-month × ₱950 × 2.
+    // What paying subscribers bring in a year at today's prices: yearly × $22, 6-month × $16 × 2 (US dollars).
     const arr = yearly * PLAN_PRICE.annual + semi * PLAN_PRICE.semiannual * 2
     const everTried = users.filter((u) => u.trialStartedAt != null).length
     const conversion = everTried ? (groups.paying / everTried) * 100 : 0
@@ -80,7 +80,7 @@ export function Overview() {
             />
             <Stat
               label="Yearly revenue"
-              value={`₱${stats.arr.toLocaleString()}`}
+              value={`$${stats.arr.toLocaleString()}`}
               icon={Zap}
               accent="text-amber-300 bg-amber-400/10"
               hint={`${stats.yearly} yearly · ${stats.semi} six-month`}
