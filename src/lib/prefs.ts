@@ -16,6 +16,8 @@ export type BackupEvery = 0 | 7 | 30
 export type NavId = 'favorites' | 'calendar' | 'school' | 'expenses' | 'assets' | 'plan'
 /** The side menu's blocks, which can be put in any order. */
 export type SideBlock = 'wants' | 'needs' | 'plan' | 'calendar' | 'school' | 'expenses'
+/** What a tab of the phone's tab bar can open. More is always added after them. */
+export type TabId = 'wants' | 'needs' | 'school' | 'grades' | 'expenses' | 'calendar' | 'assets' | 'favorites' | 'plan'
 
 export type Prefs = {
   accent: Accent
@@ -36,6 +38,8 @@ export type Prefs = {
   hiddenNav: NavId[]
   /** The order of the side menu's blocks, top to bottom */
   sideOrder: SideBlock[]
+  /** The phone tab bar's tabs, left to right (up to `TAB_MAX`; More follows them) */
+  tabBar: TabId[]
 }
 
 export type DevicePrefs = {
@@ -73,6 +77,7 @@ export const DEFAULT_PREFS: Prefs = {
   privacyButton: false,
   hiddenNav: [],
   sideOrder: ['wants', 'needs', 'plan', 'calendar', 'school', 'expenses'],
+  tabBar: ['wants', 'needs', 'school', 'expenses'],
 }
 
 export const DEFAULT_DEVICE: DevicePrefs = {
@@ -99,6 +104,9 @@ export const ACCENTS: { id: Accent; label: string; swatch: string }[] = [
 ]
 export const EVENT_LENGTHS = [15, 30, 45, 60, 90, 120]
 export const REMINDER_LEADS = [5, 10, 15, 30, 60]
+export const TAB_IDS: TabId[] = ['wants', 'needs', 'school', 'grades', 'expenses', 'calendar', 'assets', 'favorites', 'plan']
+/** Tabs besides More: any more and the labels get too cramped on a phone. */
+export const TAB_MAX = 4
 export const NAV_IDS: NavId[] = ['favorites', 'calendar', 'school', 'expenses', 'assets', 'plan']
 const START_PAGES: StartPage[] = ['last', 'planner', 'calendar', 'school', 'grades', 'expenses', 'assets', 'favorites', 'plan']
 
@@ -123,6 +131,7 @@ export function parsePrefs(raw: unknown): Prefs {
     privacyButton: bool(r.privacyButton, d.privacyButton),
     hiddenNav: Array.isArray(r.hiddenNav) ? NAV_IDS.filter((id) => (r.hiddenNav as unknown[]).includes(id)) : d.hiddenNav,
     sideOrder: parseSideOrder(r.sideOrder),
+    tabBar: parseTabBar(r.tabBar),
   }
 }
 
@@ -169,4 +178,10 @@ export function moveSideBlock(order: SideBlock[], id: SideBlock, to: number): Si
   const rest = order.filter((b) => b !== id)
   rest.splice(Math.max(0, Math.min(rest.length, to)), 0, id)
   return rest
+}
+
+/** A saved tab bar, cleaned up: unknown or repeated tabs dropped, at most `TAB_MAX`. Nothing saved: the default. */
+export function parseTabBar(raw: unknown): TabId[] {
+  if (!Array.isArray(raw)) return DEFAULT_PREFS.tabBar
+  return raw.filter((t, i): t is TabId => TAB_IDS.includes(t as TabId) && raw.indexOf(t) === i).slice(0, TAB_MAX)
 }

@@ -1,39 +1,65 @@
-import { CalendarCheck, Flag, Gem, LayoutDashboard, Menu, Receipt, ShoppingBasket } from 'lucide-react'
-import { goTo, useActiveSection, type Section } from '../nav'
+import { useState } from 'react'
+import { Award, CalendarCheck, Flag, Gem, GraduationCap, Menu, Receipt, Rocket, ShoppingBasket, Sparkles, Star } from 'lucide-react'
+import { goTo, useActiveSection } from '../nav'
 import { inNeedsMode, useStore } from '../store'
-import type { NavId } from '../lib/prefs'
+import type { NavId, TabId } from '../lib/prefs'
+import { CopyModeModal, ModesModal, enterKind } from './Modes'
 
-/** The everyday places; everything else is one tap away under More (the side menu). */
-const SECTIONS: { id: Section; label: string; icon: typeof Flag }[] = [
-  { id: 'overview', label: 'Home', icon: LayoutDashboard },
-  { id: 'calendar', label: 'Calendar', icon: CalendarCheck },
-  { id: 'expenses', label: 'Expenses', icon: Receipt },
-  { id: 'assets', label: 'Assets', icon: Gem },
-]
+/** How each tab looks, and the page it's "on" for. */
+export const TAB_LOOK: Record<TabId, { label: string; icon: typeof Flag; hint: string }> = {
+  wants: { label: 'Wants', icon: Sparkles, hint: 'Your Wants overview' },
+  needs: { label: 'Needs', icon: ShoppingBasket, hint: 'Your everyday budget' },
+  school: { label: 'School', icon: GraduationCap, hint: 'Subjects and deadlines' },
+  grades: { label: 'Grades', icon: Award, hint: 'Your grade tracker' },
+  expenses: { label: 'Expenses', icon: Receipt, hint: 'Money spent, day by day' },
+  calendar: { label: 'Calendar', icon: CalendarCheck, hint: 'Events and tasks' },
+  assets: { label: 'Assets', icon: Gem, hint: 'What you own' },
+  favorites: { label: 'Favorites', icon: Star, hint: 'The items you starred' },
+  plan: { label: 'Plan', icon: Rocket, hint: 'Your money plan' },
+}
 
-/** Bottom tab bar on phones: the main sections, plus More for the rest (Months, Goals, Favorites, Money plan…). */
+/** The setting that takes a tab's page out of the menus (a hidden page doesn't get a tab either). */
+const HIDDEN_BY: Partial<Record<TabId, NavId>> = { school: 'school', grades: 'school', expenses: 'expenses', calendar: 'calendar', assets: 'assets', favorites: 'favorites', plan: 'plan' }
+
+/** Bottom tab bar on phones: the tabs chosen in Settings → Layout (Wants, Needs, School, Expenses by default), then More for the rest. */
 export function MobileNav() {
   const active = useActiveSection()
   const drawer = useStore((s) => s.drawer)
   const hiddenNav = useStore((s) => s.prefs.hiddenNav)
+  const tabBar = useStore((s) => s.prefs.tabBar)
   const needsMode = useStore(inNeedsMode)
-  // A Needs mode has no assets of its own, and Home is its budget.
-  const tabs = SECTIONS.filter((s) => !hiddenNav.includes(s.id as NavId) && !(needsMode && s.id === 'assets')).map((s) =>
-    needsMode && s.id === 'overview' ? { ...s, label: 'Budget', icon: ShoppingBasket } : s,
-  )
-  // Months and Goals are part of Home; Favorites and Money plan live under More.
-  const current = active === 'years' || active === 'goals' ? 'overview' : active
-  const inMore = !SECTIONS.some((s) => s.id === current)
+  const [modal, setModal] = useState<null | 'needs' | 'copy'>(null)
+
+  const tabs = tabBar.filter((id) => !(HIDDEN_BY[id] && hiddenNav.includes(HIDDEN_BY[id]!)))
+  // Months and Goals are part of the overview, which is Wants or Needs depending on the mode in use.
+  const home = active === 'overview' || active === 'years' || active === 'goals'
+  const isOn = (id: TabId) => (id === 'wants' ? home && !needsMode : id === 'needs' ? home && needsMode : active === id)
+  const inMore = !tabs.some(isOn)
+
+  function open(id: TabId) {
+    if (id === 'needs') {
+      // No Needs mode yet: offer to set one up.
+      if (enterKind('needs')) goTo('overview')
+      else setModal('needs')
+    } else if (id === 'wants') enterKind('wants') && goTo('overview')
+    // These pages belong to Wants, as in the side menu.
+    else if (id === 'assets' || id === 'favorites' || id === 'plan') enterKind('wants') && goTo(id)
+    else goTo(id)
+  }
 
   return (
-    <nav data-tabbar className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-[#0b0c11]/90 backdrop-blur-xl sm:hidden">
-      <div className="mx-auto flex max-w-md">
-        {tabs.map((s) => (
-          <Tab key={s.id} on={!drawer && current === s.id} label={s.label} icon={s.icon} onClick={() => goTo(s.id)} />
-        ))}
-        <Tab on={drawer || inMore} label="More" icon={Menu} onClick={() => useStore.getState().setDrawer(!drawer)} />
-      </div>
-    </nav>
+    <>
+      <nav data-tabbar className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-[#0b0c11]/90 backdrop-blur-xl sm:hidden">
+        <div className="mx-auto flex max-w-md">
+          {tabs.map((id) => (
+            <Tab key={id} on={!drawer && isOn(id)} label={TAB_LOOK[id].label} icon={TAB_LOOK[id].icon} onClick={() => open(id)} />
+          ))}
+          <Tab on={drawer || inMore} label="More" icon={Menu} onClick={() => useStore.getState().setDrawer(!drawer)} />
+        </div>
+      </nav>
+      {modal === 'needs' && <ModesModal startAdding="needs" onCopy={() => setModal('copy')} onClose={() => setModal(null)} />}
+      {modal === 'copy' && <CopyModeModal onClose={() => setModal(null)} />}
+    </>
   )
 }
 
