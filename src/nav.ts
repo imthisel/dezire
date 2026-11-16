@@ -1,7 +1,7 @@
 import { useEffect, useState, type MouseEvent } from 'react'
 import { useStore, type AssetCat, type View } from './store'
 
-/** Places the sidebar and the phone tab bar can jump to. Also `month-<key>`, `assets-<category>`, and on the Money plan page `plan-add` and `source-<id>`. */
+/** Places the sidebar and the phone tab bar can jump to. Also `wallet` (Your money, on the Expenses page), `month-<key>`, `assets-<category>`, and on the Money plan page `plan-add` and `source-<id>`. */
 export type Section = 'overview' | 'years' | 'goals' | 'favorites' | 'assets' | 'plan' | 'expenses' | 'calendar' | 'school' | 'grades' | 'help' | 'settings'
 
 export const PLANNER_SECTIONS = ['overview', 'years', 'goals'] as const
@@ -10,7 +10,7 @@ export const PLANNER_SECTIONS = ['overview', 'years', 'goals'] as const
 const OFFSET = 72
 
 const viewOf = (id: string): View =>
-  id === 'expenses'
+  id === 'expenses' || id === 'wallet'
     ? 'expenses'
     : id === 'calendar'
     ? 'calendar'

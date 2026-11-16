@@ -9,6 +9,7 @@ import type { Goal, GoalAreaDef } from '../lib/types'
 import { card } from './Dashboard'
 import { toast } from '../toast'
 import { goalDrag } from '../dnd'
+import { GoalNote } from './YearNote'
 
 const EMPTY: never[] = []
 
@@ -100,6 +101,11 @@ export function GoalsSection() {
           </div>
         </div>
       )}
+
+      {/* A note for the year's goals */}
+      <div className="relative mt-5">
+        <GoalNote year={year} />
+      </div>
 
       {/* Areas */}
       <div className="relative mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">

@@ -296,7 +296,17 @@ export function Sidebar() {
           </KindSection>
         ),
     expenses: !hiddenNav.includes('expenses') && (
-          <Group label="Spending">
+          <KindSection
+            kind="money"
+            on={active === 'expenses'}
+            mode={
+              onHand !== null
+                ? `${f(onHand, true)} on hand`
+                : spentThisMonth > 0
+                  ? `${f(spentThisMonth, true)} spent this month`
+                  : 'Expenses and your money'
+            }
+          >
             <Link
               icon={Receipt}
               label="Expenses"
@@ -306,16 +316,14 @@ export function Sidebar() {
               note={spentThisMonth > 0 ? f(spentThisMonth, true) : undefined}
               noteTitle="Spent this month"
             />
-            {onHand !== null && (
-              <Link
-                icon={Wallet}
-                label="Your money"
-                on={false}
-                onClick={() => goTo('expenses')}
-                note={f(onHand, true)}
-                noteTitle="What you have right now, after your expenses"
-              />
-            )}
+            <Link
+              icon={Wallet}
+              label="Your money"
+              on={false}
+              onClick={() => goTo('wallet')}
+              note={onHand !== null ? f(onHand, true) : 'Set up'}
+              noteTitle={onHand !== null ? 'What you have right now, after your expenses' : 'Track the money you have on hand'}
+            />
             <button
               onClick={() => {
                 useStore.getState().setDrawer(false)
@@ -325,7 +333,7 @@ export function Sidebar() {
             >
               <Plus className="h-4 w-4" /> Add an expense
             </button>
-          </Group>
+          </KindSection>
         ),
   }
 
@@ -426,14 +434,15 @@ export function Sidebar() {
 }
 
 
-/** The sidebar's fold-open blocks: Wants and Needs, the Money plan (which serves both), and School. */
-type FoldKind = ModeKind | 'plan' | 'school'
+/** The sidebar's fold-open blocks: Wants and Needs, the Money plan (which serves both), School, and Spending. */
+type FoldKind = ModeKind | 'plan' | 'school' | 'money'
 
 const KIND_LOOK: Record<FoldKind, { title: string; icon: typeof Flag; chip: string; box: string; dot: string }> = {
   wants: { title: 'Wants', icon: Sparkles, chip: 'bg-gradient-to-br from-indigo-400 to-indigo-600', box: 'border-indigo-400/20 bg-indigo-500/[0.04]', dot: 'bg-indigo-400' },
   needs: { title: 'Needs', icon: ShoppingBasket, chip: 'bg-gradient-to-br from-emerald-400 to-teal-500', box: 'border-emerald-400/20 bg-emerald-500/[0.04]', dot: 'bg-emerald-400' },
   plan: { title: 'Money plan', icon: Rocket, chip: 'bg-gradient-to-br from-amber-400 to-orange-500', box: 'border-amber-400/20 bg-amber-500/[0.04]', dot: 'bg-amber-400' },
   school: { title: 'School', icon: GraduationCap, chip: 'bg-gradient-to-br from-violet-400 to-indigo-500', box: 'border-violet-400/20 bg-violet-500/[0.04]', dot: 'bg-violet-400' },
+  money: { title: 'Spending', icon: Receipt, chip: 'bg-gradient-to-br from-rose-400 to-pink-500', box: 'border-rose-400/20 bg-rose-500/[0.04]', dot: 'bg-rose-400' },
 }
 
 /** Which blocks are folded open, remembered on this device. Unset: only the one in use is open (or its default). */
@@ -454,7 +463,7 @@ function saveOpen(kind: FoldKind, open: boolean) {
 }
 
 /**
- * Wants, Needs, the Money plan or School: a block that folds open and shut from its header, so the sidebar stays tidy.
+ * Wants, Needs, the Money plan, School or Spending: a block that folds open and shut from its header, so the sidebar stays tidy.
  * Tinted when it's the one in use, with a short line under the title. Moving into a block opens it.
  */
 function KindSection({ kind, on, mode, defaultOpen = false, children }: { kind: FoldKind; on: boolean; mode?: string; defaultOpen?: boolean; children: ReactNode }) {
@@ -494,7 +503,7 @@ function KindSection({ kind, on, mode, defaultOpen = false, children }: { kind: 
               {on && <span aria-label="In use" title="In use" className={`h-1.5 w-1.5 rounded-full ${k.dot}`} />}
             </span>
             {mode && (
-              <span title={kind === 'plan' || kind === 'school' ? mode : on ? `In use: ${mode}` : `Opens ${mode}`} className="block truncate text-[11px] leading-tight text-zinc-500">
+              <span title={kind === 'plan' || kind === 'school' || kind === 'money' ? mode : on ? `In use: ${mode}` : `Opens ${mode}`} className="block truncate text-[11px] leading-tight text-zinc-500">
                 {mode}
               </span>
             )}
@@ -603,7 +612,7 @@ const BLOCK_LOOK: Record<SideBlock, { label: string; icon: typeof Flag; tint: st
   plan: { label: 'Money plan', icon: Rocket, tint: 'bg-gradient-to-br from-amber-400 to-orange-500 text-white' },
   calendar: { label: 'Calendar', icon: CalendarCheck, tint: 'bg-sky-500/20 text-sky-200' },
   school: { label: 'School', icon: GraduationCap, tint: 'bg-violet-500/20 text-violet-200' },
-  expenses: { label: 'Spending', icon: Receipt, tint: 'bg-rose-500/20 text-rose-200' },
+  expenses: { label: 'Spending', icon: Receipt, tint: 'bg-gradient-to-br from-rose-400 to-pink-500 text-white' },
 }
 
 const setOrder = (order: SideBlock[]) => useStore.getState().setPrefs({ sideOrder: order })

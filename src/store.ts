@@ -252,6 +252,9 @@ interface State {
   modal: ModalState
   /** Yearly goals, keyed by year ("2027") */
   goals: Record<string, Goal[]>
+  /** A note for each year's goals, keyed by year ("2027"). Shared by every mode, like the goals. */
+  goalNotes: Record<string, string>
+  setGoalNote: (year: number, text: string) => void
   /** The areas goals can belong to (always at least one), in the order they're shown */
   goalAreas: GoalAreaDef[]
   /** Adds an area named `label` with a fitting icon and an unused colour. Returns its id. */
@@ -585,6 +588,12 @@ export const useStore = create<State>()(
       clipboard: null,
       modal: null,
       goals: {},
+      goalNotes: {},
+      setGoalNote: (year, text) =>
+        set((s) => {
+          const { [year]: _old, ...rest } = s.goalNotes
+          return { goalNotes: text ? { ...rest, [year]: text } : rest }
+        }),
       goalAreas: DEFAULT_GOAL_AREAS,
       sources: [],
       kinds: DEFAULT_KINDS,
@@ -1492,6 +1501,7 @@ export const useStore = create<State>()(
             sources?: unknown
             birthday?: unknown
             yearNotes?: unknown
+            goalNotes?: unknown
             kinds?: unknown
             expenses?: unknown
             expenseCats?: unknown
@@ -1556,14 +1566,14 @@ export const useStore = create<State>()(
           const modeState = { modes: list, modeId: active, modeData: others, months: inUse.months, layouts: inUse.layouts, setupNotes: inUse.setupNotes, setupFavorites: inUse.setupFavorites, yearNotes: inUse.yearNotes }
           // Saved before settings followed the account: keep what's here.
           const prefs = d.prefs === undefined ? cur.prefs : parsePrefs(d.prefs)
-          set({ ...spending, ...modeState, prefs, kinds, goals, goalAreas, sources: parseSources(d.sources), birthday, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
+          set({ ...spending, ...modeState, prefs, kinds, goals, goalNotes: parseYearNotes(d.goalNotes), goalAreas, sources: parseSources(d.sources), birthday, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
           return OK
         } catch {
           return fail('Could not read that file.')
         }
       },
 
-      resetAll: () => set({ modes: [mainMode()], modeId: MAIN_MODE, modeData: {}, tasks: [], taskKinds: DEFAULT_TASK_KINDS, school: DEFAULT_SCHOOL, wallet: EMPTY_WALLET, layouts: {}, setupNotes: {}, setupFavorites: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
+      resetAll: () => set({ modes: [mainMode()], modeId: MAIN_MODE, modeData: {}, tasks: [], taskKinds: DEFAULT_TASK_KINDS, school: DEFAULT_SCHOOL, wallet: EMPTY_WALLET, layouts: {}, setupNotes: {}, setupFavorites: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalNotes: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
       name: 'dizayr-goal-planner-v1',
@@ -1573,6 +1583,7 @@ export const useStore = create<State>()(
         months: s.months,
         kinds: s.kinds,
         goals: s.goals,
+        goalNotes: s.goalNotes,
         goalAreas: s.goalAreas,
         sources: s.sources,
         birthday: s.birthday,

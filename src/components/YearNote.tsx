@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Cake, Car, Check, ChevronDown, Pencil, StickyNote, Trash2 } from 'lucide-react'
+import { Cake, Car, Check, ChevronDown, NotebookPen, Pencil, StickyNote, Trash2 } from 'lucide-react'
 import { useStore } from '../store'
 import { labelOfKey } from '../lib/time'
 import { toast } from '../toast'
@@ -28,6 +28,16 @@ const TONES = {
     done: 'bg-pink-300/15 text-pink-100 hover:bg-pink-300/25',
     ring: 'ring-pink-200/10 focus:ring-pink-200/30',
     more: 'text-pink-200/80 hover:text-pink-100',
+  },
+  indigo: {
+    dashed: 'border-indigo-300/20 hover:border-indigo-300/40 hover:bg-indigo-300/[0.03]',
+    iconBox: 'bg-indigo-400/10 text-indigo-200/70 group-hover:text-indigo-200',
+    card: 'border-indigo-300/15 from-indigo-400/[0.08] via-indigo-400/[0.025]',
+    bar: 'from-sky-300 via-fuchsia-300 to-amber-200',
+    label: 'text-indigo-100/70',
+    done: 'bg-indigo-400/15 text-indigo-100 hover:bg-indigo-400/25',
+    ring: 'ring-indigo-300/10 focus:ring-indigo-300/30',
+    more: 'text-indigo-200/80 hover:text-indigo-100',
   },
   teal: {
     dashed: 'border-teal-200/20 hover:border-teal-200/40 hover:bg-teal-200/[0.03]',
@@ -195,6 +205,24 @@ export function YearNote({ year, compact = false }: { year: number; compact?: bo
       addHint="What this year is about, plans, reminders…"
       placeholder={`What is ${year} about? Big plans, reminders, things to remember…`}
       compact={compact}
+    />
+  )
+}
+
+/** The note for one year's goals: why they matter, how you'll get there, what to look back on. */
+export function GoalNote({ year }: { year: number }) {
+  const note = useStore((s) => s.goalNotes[year]) ?? ''
+  const setNote = useStore((s) => s.setGoalNote)
+  return (
+    <NoteCard
+      key={year}
+      note={note}
+      setNote={(text) => setNote(year, text)}
+      name={`your ${year} goals`}
+      addHint="Why these goals matter, how you'll get there, what to look back on…"
+      placeholder={`Anything about your ${year} goals: why they matter, the plan to reach them, how the year went…`}
+      tone="indigo"
+      icon={NotebookPen}
     />
   )
 }
