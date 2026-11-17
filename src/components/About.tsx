@@ -9,6 +9,8 @@ import { PLANS, TRIAL_DAYS, dollars, paymentsReady, perMonth, type Plan, type Pl
 import { EXAMPLE_REVIEWS, REVIEWS, type Review } from '../content/reviews'
 import { DownloadSection } from './AppInstall'
 import { ContactDialog } from './Help'
+import { LegalLinks } from './Legal'
+import { LEGAL } from '../lib/legal'
 import { BoardPreview, GoalsFloat, GoalsPreview, MonthOverview, NetWorthFloat, WishListPreview } from './about/Previews'
 import { TryOverview } from './about/TryOverview'
 import { TryExpenses } from './about/TryExpenses'
@@ -145,7 +147,7 @@ export function About() {
             <a href="#realistic" className="transition hover:text-white">Realistic</a>
             <a href="#pricing" className="transition hover:text-white">Pricing</a>
             <a href="#faq" className="transition hover:text-white">Questions</a>
-            <span>Payments by Paddle</span>
+            <LegalLinks className="transition hover:text-white" />
           </nav>
         </div>
       </footer>
@@ -660,9 +662,16 @@ export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; co
       )}
       <ul className="mx-auto mt-10 flex max-w-3xl flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-zinc-400">
         <li className="flex items-center gap-1.5"><Lock className="h-4 w-4" /> Secure checkout by Paddle</li>
-        <li className="flex items-center gap-1.5"><BadgeCheck className="h-4 w-4" /> Cancel anytime</li>
+        <li className="flex items-center gap-1.5"><BadgeCheck className="h-4 w-4" /> {LEGAL.refundDays}-day money-back guarantee</li>
+        <li className="flex items-center gap-1.5"><Check className="h-4 w-4" /> Cancel anytime</li>
         <li className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" /> Your data stays private</li>
       </ul>
+      <p className="mx-auto mt-5 max-w-2xl text-center text-xs leading-relaxed text-zinc-500">
+        Prices in US dollars, tax included. Plans renew automatically until you cancel. Orders are processed by Paddle.com, our reseller and
+        merchant of record. By buying you agree to the{' '}
+        <a href="/terms" className="underline underline-offset-2 hover:text-zinc-300">Terms</a> and{' '}
+        <a href="/refunds" className="underline underline-offset-2 hover:text-zinc-300">Refund Policy</a>.
+      </p>
     </>
   )
   if (compact) return body
@@ -771,6 +780,7 @@ function Faq() {
     ['Can I pay right away, without the free trial?', 'Yes. Pick a plan under Pricing, sign in with Google, and you go straight to the secure checkout. Your plan starts the day you pay. Already on the trial? You can buy whenever you like; the plan starts that day.'],
     ['What happens to my plan if I don’t subscribe?', 'Nothing is deleted. Everything you planned stays saved in your account, and it’s all there the moment you choose a plan.'],
     ['Can I cancel anytime?', 'Yes. Cancel from your billing page in a couple of clicks, and you keep access until the end of the time you paid for.'],
+    ['Can I get a refund?', `Yes. Ask within ${LEGAL.refundDays} days of any payment and you get your money back in full, no questions asked. See the Refund Policy at the bottom of this page.`],
     ['Is my data private?', 'Yes. Your plan is tied to your Google account and only you can open it. We never sell or share it.'],
     ['Does it work on my phone?', 'Yes. Dizayr works in any browser on your phone, tablet or computer, and stays in sync. Add it to your home screen and it opens like an app, even offline.'],
     ['What are modes?', 'Separate versions of your plan. Add some to try a different future, each with its own items, net worth and setups, while your calendar, expenses and goals stay shared. Modes come in two sections, Wants and Needs, and you choose which one is the main one in each. The free trial includes 1 of each, the 6-month plan 2 of each, and the yearly plan is unlimited.'],

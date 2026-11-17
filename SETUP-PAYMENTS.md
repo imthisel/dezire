@@ -136,7 +136,7 @@ Paddle has two separate accounts: **sandbox** (for testing, fake cards, nothing 
 Use **one product with two prices**, so customers can move from 6 months to Yearly.
 
 1. In the sandbox dashboard, go to **Catalog → Products → New product**.
-2. **Name:** `Dizayr`. **Tax category:** **Standard digital goods** (or **SaaS**, whichever is offered). **Description:** `Plan the life you want, month by month. Every feature, on every device.` Save.
+2. **Name:** `Dizayr`. **Tax category:** **Standard digital goods** (or **SaaS**, whichever is offered). **Description:** `Budget each month, track your net worth and expenses, and set yearly goals in one place. Syncs across all your devices and works offline.` Save.
 3. In the product, click **New price** and enter:
    - **Description / name:** `Yearly` (customers see this)
    - **Type:** Recurring. **Billing period:** every `1` `year`
