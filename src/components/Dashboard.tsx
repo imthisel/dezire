@@ -218,12 +218,16 @@ export function Dashboard() {
                   const share = port.value > 0 ? v.value / port.value : 0
                   return (
                     <div key={k.id}>
-                      <div className="mb-1.5 flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-2 text-zinc-300">
-                          <Icon className={`h-4 w-4 shrink-0 ${kindColor(k).text}`} /> <span className="truncate">{k.label}</span>
-                          <span className="text-xs text-zinc-500">×{v.count}</span>
+                      {/* The name takes all the room the amount leaves, and wraps to a second line before it gets cut off. */}
+                      <div className="mb-1.5 flex items-start justify-between gap-3 text-sm">
+                        <span className="flex min-w-0 flex-1 items-start gap-2 text-zinc-300" title={`${k.label} ×${v.count}`}>
+                          <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${kindColor(k).text}`} />
+                          <span className="min-w-0 break-words leading-snug line-clamp-2">
+                            {k.label}
+                            <span className="ml-1.5 whitespace-nowrap text-xs text-zinc-500">×{v.count}</span>
+                          </span>
                         </span>
-                        <span className="tabular-nums text-zinc-200">{f(v.value, true)} <span className="alt-i text-xs text-zinc-500">· {u(v.value, true)}</span></span>
+                        <span className="shrink-0 whitespace-nowrap leading-snug tabular-nums text-zinc-200">{f(v.value, true)} <span className="alt-i text-xs text-zinc-500">· {u(v.value, true)}</span></span>
                       </div>
                       <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
                         <div className={`h-full rounded-full ${kindColor(k).bar} opacity-80 transition-all`} style={{ width: `${share * 100}%` }} />
