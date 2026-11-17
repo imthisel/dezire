@@ -5,7 +5,7 @@
  */
 export const LEGAL = {
   /** Your legal name (or registered business name), exactly as on your Paddle account. */
-  operator: 'OPERATOR_NAME',
+  operator: 'Zion Angeles',
   /** Where you're based. Also the law the Terms follow. */
   country: 'the Philippines',
   /** Where customers can reach you about billing, refunds and their data. */

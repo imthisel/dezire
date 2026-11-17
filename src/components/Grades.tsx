@@ -142,7 +142,7 @@ export function Grades() {
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Grades</h2>
-            <p className="truncate text-sm text-zinc-400">Every score, weighted the way your class is graded, worked out for you.</p>
+            <p className="truncate text-sm text-zinc-400">Your scores and averages, by subject.</p>
           </div>
           <button onClick={() => setManaging(true)} title="Your subjects" className={`${ghostBtn} h-10 shrink-0`}>
             <BookOpen className="h-4 w-4" /> <span className="hidden sm:inline">Subjects</span>
@@ -160,16 +160,15 @@ export function Grades() {
 
         {subjects.length > 0 && (
           <div className="relative mt-4 grid grid-cols-2 gap-2 sm:mt-5 sm:grid-cols-4 sm:gap-3">
-            <Stat icon={TrendingUp} label="Overall average" value={fmtPct(stats.overall)} hint={stats.overall === null ? 'add a score to start' : 'across your subjects'} />
+            <Stat icon={TrendingUp} label="Average" value={fmtPct(stats.overall)} />
             <Stat
               icon={Target}
               label="On target"
               value={stats.withTarget ? `${stats.onTarget} of ${stats.withTarget}` : '—'}
-              hint={stats.withTarget ? (stats.onTarget === stats.withTarget ? 'every one, nice' : 'subjects at their goal') : 'set a target per subject'}
               tone={stats.withTarget ? (stats.onTarget === stats.withTarget ? 'good' : 'close') : undefined}
             />
-            <Stat icon={Sparkles} label="Strongest" value={stats.best ? fmtPct(stats.best.value, true) : '—'} hint={stats.best?.name ?? 'nothing yet'} />
-            <Stat icon={ListPlus} label="Scores logged" value={String(school.grades.length)} hint={stats.recent ? `${stats.recent} in the last 7 days` : 'none this week'} />
+            <Stat icon={Sparkles} label="Best" value={stats.best ? fmtPct(stats.best.value, true) : '—'} hint={stats.best?.name} />
+            <Stat icon={ListPlus} label="Scores" value={String(school.grades.length)} hint={stats.recent ? `+${stats.recent} this week` : undefined} />
           </div>
         )}
       </section>
@@ -188,7 +187,7 @@ export function Grades() {
   )
 }
 
-function Stat({ icon: Icon, label, value, hint, tone }: { icon: typeof Plus; label: string; value: string; hint: string; tone?: 'good' | 'close' }) {
+function Stat({ icon: Icon, label, value, hint, tone }: { icon: typeof Plus; label: string; value: string; hint?: string; tone?: 'good' | 'close' }) {
   const color = tone === 'good' ? 'text-emerald-300' : tone === 'close' ? 'text-amber-200' : 'text-zinc-400'
   return (
     <div className="min-w-0 rounded-xl border border-white/[0.06] bg-black/20 p-3">
@@ -196,23 +195,23 @@ function Stat({ icon: Icon, label, value, hint, tone }: { icon: typeof Plus; lab
         <Icon className="h-3.5 w-3.5" /> {label}
       </span>
       <span className="mt-1 block truncate text-2xl font-bold tabular-nums tracking-tight text-white">{value}</span>
-      <span className="block truncate text-[11px] text-zinc-500">{hint}</span>
+      {hint && <span className="block truncate text-[11px] text-zinc-500">{hint}</span>}
     </div>
   )
 }
 
 function Welcome({ onSubjects }: { onSubjects: () => void }) {
   const tips = [
-    { icon: Layers, title: 'Set how it’s graded', text: 'Quizzes 20%, Exams 40%… or pick a ready-made split.' },
-    { icon: ListPlus, title: 'Type scores fast', text: '“18/20”, “92%” or just “18”. It works out the rest.' },
-    { icon: Crosshair, title: 'Aim for a target', text: 'See exactly what you need on what’s left to get there.' },
+    { icon: Layers, title: 'Set the weights', text: 'e.g. Quizzes 20%, Exams 40%.' },
+    { icon: ListPlus, title: 'Add scores', text: '“18/20”, “92%” or “18”.' },
+    { icon: Crosshair, title: 'Set a target', text: 'See what you need to reach it.' },
   ]
   return (
     <section className={`${card} p-5 sm:p-6`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold text-white">Track your grades, class by class</h3>
-          <p className="mt-0.5 text-sm text-zinc-400">Your subjects from School show up here. Add the classes you’re taking to begin.</p>
+          <h3 className="text-base font-semibold text-white">Track your grades</h3>
+          <p className="mt-0.5 text-sm text-zinc-400">Add your subjects to get started.</p>
         </div>
         <button
           onClick={onSubjects}
@@ -334,7 +333,7 @@ function SubjectDetail({ school, subject, r, scoreBox }: { school: SchoolData; s
               <TargetChip subject={subject} target={target} />
               {r.cats.length > 0 && r.weightTotal > 0 && (
                 <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/[0.07] px-3 text-xs text-zinc-400" title="How much of the course has scores so far">
-                  <CircleDashed className="h-3.5 w-3.5" /> {Math.round((r.weightDone / r.weightTotal) * 100)}% of the course graded
+                  <CircleDashed className="h-3.5 w-3.5" /> {Math.round((r.weightDone / r.weightTotal) * 100)}% graded
                 </span>
               )}
               {r.cats.length > 0 && r.weightDone > 0 && r.weightDone < r.weightTotal && (
@@ -405,18 +404,18 @@ function Ring({ value, target, color }: { value: number | null; target?: number;
 }
 
 function Status({ r, target }: { r: SubjectReport; target?: number }) {
-  if (r.current === null) return <p className="mt-0.5 text-sm text-zinc-500">No scores yet. Add your first one below.</p>
-  if (!target) return <p className="mt-0.5 text-sm text-zinc-400">From {plural(r.count, 'score')}. Set a target to see how you’re tracking.</p>
+  if (r.current === null) return <p className="mt-0.5 text-sm text-zinc-500">No scores yet</p>
+  if (!target) return <p className="mt-0.5 text-sm text-zinc-400">{plural(r.count, 'score')}</p>
   const gap = r.current - target
   if (gap >= 0)
     return (
       <p className="mt-0.5 flex items-center gap-1.5 text-sm text-emerald-300">
-        <CheckCircle2 className="h-4 w-4 shrink-0" /> On track: {fmtPct(gap)} above your {fmtPct(target, true)} target
+        <CheckCircle2 className="h-4 w-4 shrink-0" /> {fmtPct(gap)} above target
       </p>
     )
   return (
     <p className={`mt-0.5 flex items-center gap-1.5 text-sm ${gap >= -5 ? 'text-amber-200' : 'text-rose-300'}`}>
-      <AlertTriangle className="h-4 w-4 shrink-0" /> {fmtPct(-gap)} below your {fmtPct(target, true)} target
+      <AlertTriangle className="h-4 w-4 shrink-0" /> {fmtPct(-gap)} below target
     </p>
   )
 }
@@ -481,21 +480,20 @@ function Needed({ r, target }: { r: SubjectReport; target?: number }) {
   const parts = left.map((c) => `${c.cat.name} (${fmtPct(c.cat.weight, true)})`).join(', ')
   const [tone, icon, text] =
     n <= 0
-      ? (['border-emerald-400/25 bg-emerald-500/[0.07] text-emerald-100', CheckCircle2, <>You’ve already locked in {fmtPct(target, true)}. Anything from here is a bonus.</>] as const)
+      ? (['border-emerald-400/25 bg-emerald-500/[0.07] text-emerald-100', CheckCircle2, <>{fmtPct(target, true)} is locked in.</>] as const)
       : n > 100
         ? ([
             'border-rose-400/25 bg-rose-500/[0.07] text-rose-100',
             AlertTriangle,
             <>
-              Reaching {fmtPct(target, true)} would take <b className="font-semibold text-white">{fmtPct(n)}</b> on what’s left, more than full marks. The most you can still
-              finish with is about <b className="font-semibold text-white">{fmtPct(maxReachable(r))}</b>.
+              {fmtPct(target, true)} is out of reach. Best possible: <b className="font-semibold text-white">~{fmtPct(maxReachable(r))}</b>.
             </>,
           ] as const)
         : ([
             n > 90 ? 'border-amber-400/25 bg-amber-500/[0.07] text-amber-50' : 'border-indigo-400/25 bg-indigo-500/[0.07] text-indigo-50',
             Crosshair,
             <>
-              To finish with {fmtPct(target, true)}, you need an average of <b className="font-semibold text-white">{fmtPct(n)}</b> on what’s left.
+              Need <b className="font-semibold text-white">{fmtPct(n)}</b> on what’s left to reach {fmtPct(target, true)}.
             </>,
           ] as const)
   const Icon = icon
@@ -504,7 +502,7 @@ function Needed({ r, target }: { r: SubjectReport; target?: number }) {
       <Icon className="mt-0.5 h-4 w-4 shrink-0" />
       <p className="min-w-0">
         {text}
-        {parts && <span className="block text-xs opacity-70">Still to come: {parts}</span>}
+        {parts && <span className="block text-xs opacity-70">Left: {parts}</span>}
       </p>
     </div>
   )
@@ -542,7 +540,7 @@ function Trend({ points, target }: { points: { date: string; value: number }[]; 
   return (
     <div className="relative mt-5 border-t border-white/[0.05] pt-4">
       <div className="mb-2 flex items-baseline justify-between gap-3">
-        <p className="text-xs font-medium text-zinc-400">Grade over time</p>
+        <p className="text-xs font-medium text-zinc-400">Over time</p>
         <p className="text-xs tabular-nums text-zinc-500">
           {Math.abs(delta) < 0.05 ? 'Steady' : `${delta > 0 ? '+' : '−'}${fmtPct(Math.abs(delta))}`} since {shortDate(points[0].date).replace(/^\w+, /, '')}
         </p>
@@ -646,9 +644,6 @@ function QuickAdd({ school, subject, r, scoreBox, onAdded }: {
         <h4 className="flex items-center gap-2 text-sm font-semibold text-white">
           <ListPlus className="h-4 w-4 text-indigo-300" /> Add a score
         </h4>
-        <span className="hidden text-[11px] text-zinc-500 sm:block">
-          Press <kbd className="rounded border border-white/10 px-1">Enter</kbd> to add, then type the next
-        </span>
       </div>
 
       {cats.length > 0 && (
@@ -727,12 +722,10 @@ function QuickAdd({ school, subject, r, scoreBox, onAdded }: {
             {scoreText(parsed)} = <span className="font-medium text-zinc-300">{fmtPct(pct)}</span>
             {catReport ? (
               <>
-                {' '}
-                in {catReport.cat.name}
                 {catReport.avg !== null && (
                   <>
                     {' '}
-                    · its average would go from {fmtPct(catReport.avg, true)} to{' '}
+                    · {catReport.cat.name} avg {fmtPct(catReport.avg, true)} →{' '}
                     {fmtPct(((catReport.grades.reduce((n, g) => n + g.score, 0) + parsed.score) / (catReport.grades.reduce((n, g) => n + g.max, 0) + parsed.max)) * 100, true)}
                   </>
                 )}
@@ -740,7 +733,7 @@ function QuickAdd({ school, subject, r, scoreBox, onAdded }: {
             ) : null}
           </>
         ) : (
-          <>Type “18/20”, “18 of 20”, “92%”, or just a number{lastMax !== 100 ? ` (out of ${lastMax}, like the last one)` : ' (out of 100)'}.</>
+          <>e.g. 18/20, 92%, or a number out of {lastMax}</>
         )}
       </p>
     </section>
@@ -762,7 +755,7 @@ function Breakdown({ subject, r }: { subject: string; r: SubjectReport }) {
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold text-white">How it’s graded</span>
           <span className="block truncate text-xs text-zinc-500">
-            {r.cats.length ? `${plural(r.cats.length, 'part')} · ${r.cats.map((c) => `${c.cat.name} ${fmtPct(c.cat.weight, true)}`).join(' · ')}` : 'Every score counts the same until you add parts'}
+            {r.cats.length ? `${plural(r.cats.length, 'part')} · ${r.cats.map((c) => `${c.cat.name} ${fmtPct(c.cat.weight, true)}`).join(' · ')}` : 'All scores count equally'}
           </span>
         </span>
         {r.cats.length > 0 && (
@@ -789,7 +782,7 @@ function Breakdown({ subject, r }: { subject: string; r: SubjectReport }) {
                 {off && (
                   <p className="flex items-start gap-2 rounded-xl border border-amber-400/20 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-100">
                     <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
-                    The parts add up to {fmtPct(total)}, not 100%. Your grade is still worked out fairly, scaled to {fmtPct(total, true)}.
+                    Weights add up to {fmtPct(total)}, not 100%.
                   </p>
                 )}
                 <div className="hidden grid-cols-[minmax(0,1fr)_5.5rem_6.5rem_4.5rem_5.5rem] gap-2 px-1 text-[11px] font-medium uppercase tracking-wider text-zinc-500 sm:grid">
@@ -842,14 +835,14 @@ function WeightBar({ cats, total }: { cats: CatReport[]; total: number }) {
 function Templates({ subject, onCustom }: { subject: string; onCustom: () => void }) {
   return (
     <div>
-      <p className="mb-2.5 text-sm text-zinc-400">Split the grade the way your syllabus does. Pick a starting point and adjust it, or make your own.</p>
+      <p className="mb-2.5 text-sm text-zinc-400">Pick a split, or make your own.</p>
       <div className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-2">
         {TEMPLATES.map((t) => (
           <button
             key={t.id}
             onClick={() => {
               change((s) => setCategories(s, subject, t.parts))
-              toast.success(`Set up ${subject}: ${t.parts.length} parts. Change any name or weight to match your class.`)
+              toast.success(`${subject} set up. Edit the weights anytime.`)
             }}
             className="group rounded-xl border border-white/[0.07] bg-black/20 p-3 text-left transition hover:border-indigo-400/40 hover:bg-indigo-500/[0.05]"
           >
@@ -972,14 +965,14 @@ function CategoryRow({ c, index, all }: { c: CatReport; index: number; all: CatR
       </div>
       {sure && (
         <div className="animate-fade mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-red-500/[0.06] px-2.5 py-2 text-xs text-red-100">
-          <span className="mr-auto">“{c.cat.name}” has {plural(c.grades.length, 'score')}. What should happen to them?</span>
+          <span className="mr-auto">It has {plural(c.grades.length, 'score')}.</span>
           {moveTo && (
             <button onClick={() => remove(true)} className="h-8 rounded-lg border border-white/10 px-2.5 font-medium text-zinc-100 transition hover:bg-white/5">
               Move to “{moveTo.name}”
             </button>
           )}
           <button onClick={() => remove(false)} className="h-8 rounded-lg bg-red-500/80 px-2.5 font-semibold text-white transition hover:bg-red-500">
-            Delete them too
+            Delete all
           </button>
           <button onClick={() => setSure(false)} aria-label="Cancel" className={iconBtn}>
             <X className="h-3.5 w-3.5" />
@@ -1008,7 +1001,7 @@ function AddCategory({ subject, suggest, startOpen, onDone }: { subject: string;
   if (!open)
     return (
       <button onClick={() => setOpen(true)} className="flex h-10 w-full items-center gap-2 rounded-xl px-3 text-sm text-zinc-500 transition hover:bg-white/[0.04] hover:text-zinc-200">
-        <Plus className="h-4 w-4" /> Add a part{suggest > 0 ? ` (${fmtPct(suggest, true)} still unassigned)` : ''}
+        <Plus className="h-4 w-4" /> Add a part{suggest > 0 ? ` (${fmtPct(suggest, true)} left)` : ''}
       </button>
     )
 
@@ -1074,10 +1067,10 @@ function Scores({ school, r, target, fresh }: { school: SchoolData; r: SubjectRe
                 {g.color && <span className={`h-2.5 w-2.5 shrink-0 rounded-sm ${g.color}`} />}
                 <span className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wider text-zinc-400">
                   {g.name}
-                  {g.weight !== undefined && <span className="ml-1.5 font-normal normal-case tracking-normal text-zinc-600">{fmtPct(g.weight, true)} of the grade</span>}
+                  {g.weight !== undefined && <span className="ml-1.5 font-normal normal-case tracking-normal text-zinc-600">{fmtPct(g.weight, true)}</span>}
                 </span>
                 {g.loose ? (
-                  <span className="text-[11px] text-amber-200/80">Not counted · pick a part for each</span>
+                  <span className="text-[11px] text-amber-200/80">Not counted</span>
                 ) : (
                   <span className="text-xs font-semibold tabular-nums text-zinc-300">avg {fmtPct(g.avg)}</span>
                 )}
@@ -1113,7 +1106,7 @@ function ScoreRow({ grade: g, target, dropped, fresh, onEdit }: { grade: Grade; 
           <span className={`block truncate text-sm font-medium ${dropped ? 'text-zinc-500 line-through decoration-zinc-600' : 'text-zinc-100'}`}>{g.title || 'Untitled'}</span>
           <span className="block text-xs text-zinc-500">
             {shortDate(g.date)}
-            {dropped && ' · dropped as one of the lowest'}
+            {dropped && ' · dropped'}
           </span>
         </span>
         <span className="shrink-0 text-sm tabular-nums text-zinc-400">{scoreText(g)}</span>
