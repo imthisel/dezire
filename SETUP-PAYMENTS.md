@@ -305,7 +305,7 @@ In Paddle, go to **Customers → Subscriptions** (or search for the `sub_…` ID
 1. Paddle (live): add a new price on the product (Paddle prices can't be edited once used). Archive the old one.
 2. Vercel: put the new price's `pri_…` ID in `VITE_PADDLE_PRICE_ANNUAL` or `VITE_PADDLE_PRICE_SEMIANNUAL`, and redeploy. Existing subscribers stay on the old price unless you move them in Paddle.
 3. `src/lib/plans.ts`: change `price`.
-4. `src/admin/data.ts`: change `PLAN_PRICE`, which the admin revenue figure uses.
+4. `src/admin/data.ts`: change `PLAN_PRICE`, which the admin revenue figure uses. Also change the prices in the `<noscript>` text in `index.html`.
 5. Push to GitHub.
 
 **Change how many modes a plan includes**
