@@ -28,7 +28,7 @@ export const PLANS: Record<PlanId, Plan> = {
   annual: {
     id: 'annual',
     name: 'Yearly',
-    price: 22,
+    price: 20,
     every: 'per year',
     months: 12,
     perks: ['Unlimited Wants and Needs modes'],
@@ -37,7 +37,7 @@ export const PLANS: Record<PlanId, Plan> = {
   semiannual: {
     id: 'semiannual',
     name: '6 months',
-    price: 16,
+    price: 14,
     every: 'every 6 months',
     months: 6,
     perks: ['2 Wants modes + 2 Needs modes'],
@@ -45,14 +45,14 @@ export const PLANS: Record<PlanId, Plan> = {
   },
 }
 
-/** "$22", "$2.67": whole dollars stay whole, anything else shows cents. */
+/** "$20", "$2.33": whole dollars stay whole, anything else shows cents. */
 export function dollars(n: number) {
   const cents = Math.round(n * 100)
   const opts = cents % 100 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 }
   return `$${(cents / 100).toLocaleString('en-US', opts)}`
 }
 
-/** "$1.83" a month */
+/** "$1.67" a month */
 export const perMonth = (p: Plan) => dollars(p.price / p.months)
 
 /** Payments are set up: the Paddle client token and both price ids are in this build. */

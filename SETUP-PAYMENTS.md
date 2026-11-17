@@ -18,13 +18,13 @@
 
 ## Prices
 
-These are the prices set in the app (`src/lib/plans.ts`). Paddle must charge exactly the same. Prices are in **US dollars** and **include tax**, so customers pay exactly $16 or $22 at checkout.
+These are the prices set in the app (`src/lib/plans.ts`). Paddle must charge exactly the same. Prices are in **US dollars** and **include tax**, so customers pay exactly $14 or $20 at checkout.
 
 | | Free trial | 6 months | Yearly |
 |---|---|---|---|
-| **Price** | Free | **$16 every 6 months** | **$22 per year** |
-| **Works out to** | | about $2.67 a month | about $1.83 a month |
-| **Over a full year** | | $32 | $22 |
+| **Price** | Free | **$14 every 6 months** | **$20 per year** |
+| **Works out to** | | about $2.33 a month | about $1.67 a month |
+| **Over a full year** | | $28 | $20 |
 | **Length** | 7 days, once per Google account | Renews every 6 months | Renews every year |
 | **Card needed** | No | Yes (card, PayPal, Apple Pay, Google Pay) | Yes |
 | **Wants modes** | 1 | 2 | **Unlimited** |
@@ -69,10 +69,10 @@ Rough estimates, **before tax**:
 
 | Sale | After fees |
 |---|---|
-| $22 Yearly | about $20.40 |
-| $16 for 6 months | about $14.70 |
+| $20 Yearly | about $18.50 |
+| $14 for 6 months | about $12.80 |
 
-The 50¢ part of the fee matters a lot at these prices. **Your prices include tax, so any tax comes out of these amounts.** How much depends on where the customer lives. For example, with 12% VAT (as in the Philippines), a $22 sale includes about $2.36 of tax.
+The 50¢ part of the fee matters a lot at these prices. **Your prices include tax, so any tax comes out of these amounts.** How much depends on where the customer lives. For example, with 12% VAT (as in the Philippines), a $20 sale includes about $2.14 of tax.
 
 **Payouts:** Paddle pays out monthly by bank transfer (or other methods it offers in your country), usually in USD. Set this up in Step 11.
 
@@ -140,13 +140,13 @@ Use **one product with two prices**, so customers can move from 6 months to Year
 3. In the product, click **New price** and enter:
    - **Description / name:** `Yearly` (customers see this)
    - **Type:** Recurring. **Billing period:** every `1` `year`
-   - **Price:** `22.00` **USD**
-   - **Tax:** choose **Tax included in the price** (labelled "inclusive" in some places). This makes customers pay exactly $22.
+   - **Price:** `20.00` **USD**
+   - **Tax:** choose **Tax included in the price** (labelled "inclusive" in some places). This makes customers pay exactly $20.
    - **Trial period:** none. The website already gives the 7 free days without a card.
 4. Click **New price** again:
    - **Name:** `6 months`
    - **Billing period:** every `6` `months`
-   - **Price:** `16.00` **USD**, tax included, no trial.
+   - **Price:** `14.00` **USD**, tax included, no trial.
 5. Copy each price's **ID** (`pri_…`). Save them as **Yearly price ID** and **6-month price ID**. Don't mix them up: the app uses them to decide how many modes someone gets.
 
 ## Step 4: Get your client-side token and API key (sandbox)
@@ -244,7 +244,7 @@ Use a **spare Google account** in a private window. Do these in order, because o
 
 **6-month plan**
 
-5. Click **Choose a plan → Buy 6 months now**. The Paddle checkout should open over the page with the email filled in and show **$16.00**.
+5. Click **Choose a plan → Buy 6 months now**. The Paddle checkout should open over the page with the email filled in and show **$14.00**.
 6. Pay with test card **4242 4242 4242 4242**, any future date such as `12/30`, CVC `100`, and any name and country.
 7. You should see **"Payment received! Activating your plan…"**, then **"You're all set"** within a few seconds. The trial bar disappears.
 8. In Firestore, open **subscriptions →** that account's UID. It should show `status: active`, `plan: semiannual`, `customerId: ctm_…`, `subscriptionId: sub_…`, and an `accessUntil` about 6 months away.
@@ -258,7 +258,7 @@ Use a **spare Google account** in a private window. Do these in order, because o
 
 **Moving up to Yearly**
 
-12. In the app, click **Go Yearly**, then **Upgrade to Yearly** on the Yearly card. It should ask you to confirm, showing an amount less than $22 (the yearly price minus credit for unused 6-month time).
+12. In the app, click **Go Yearly**, then **Upgrade to Yearly** on the Yearly card. It should ask you to confirm, showing an amount less than $20 (the yearly price minus credit for unused 6-month time).
 13. Confirm. Within a few seconds Firestore should show `plan: annual`, and the mode count should say **unlimited**.
 
 **Cancelling**

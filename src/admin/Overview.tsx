@@ -37,7 +37,7 @@ export function Overview() {
     const week = users.filter((u) => (u.createdAt ?? 0) > now - 7 * DAY).length
     const prevWeek = users.filter((u) => (u.createdAt ?? 0) > now - 14 * DAY && (u.createdAt ?? 0) <= now - 7 * DAY).length
     const active7 = users.filter((u) => (lastActive(u) ?? 0) > now - 7 * DAY).length
-    // What paying subscribers bring in a year at today's prices: yearly × $22, 6-month × $16 × 2 (US dollars).
+    // What paying subscribers bring in a year at today's prices: yearly × $20, 6-month × $14 × 2 (US dollars).
     const arr = yearly * PLAN_PRICE.annual + semi * PLAN_PRICE.semiannual * 2
     const everTried = users.filter((u) => u.trialStartedAt != null).length
     const conversion = everTried ? (groups.paying / everTried) * 100 : 0
