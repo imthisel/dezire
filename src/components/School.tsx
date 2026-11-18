@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   AlarmClock, ArrowDownUp, ArrowLeft, ArrowRight, BookOpen, CalendarClock, CalendarDays, Check, CheckCheck, ChevronDown, Columns3, GraduationCap,
@@ -14,6 +14,7 @@ import {
 } from '../lib/school'
 import { card } from './Dashboard'
 import { ColorRow, SubjectsModal } from './SchoolSubjects'
+import { SchoolCalendar } from './SchoolCalendar'
 import { toast } from '../toast'
 
 // ---- Looks ----
@@ -102,7 +103,7 @@ function tick(id: string) {
 export function School() {
   const school = useStore((s) => s.school)
   const today = useToday()
-  const [view, setView] = useLocal('dizayr-school-view', 'board', ['board', 'list'] as const)
+  const [view, setView] = useLocal('dizayr-school-view', 'board', ['board', 'list', 'calendar'] as const)
   const [sort, setSort] = useLocal<Sort>('dizayr-school-sort', 'due', ['due', 'manual'] as const)
   const [subject, setSubject] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -134,7 +135,7 @@ export function School() {
 
   const week = thisWeek(today)
   const roleOf = useMemo(() => new Map(school.columns.map((c) => [c.id, c.role])), [school.columns])
-  const isOpen = (t: SchoolTask) => roleOf.get(t.column) === 'open'
+  const isOpen = useCallback((t: SchoolTask) => roleOf.get(t.column) === 'open', [roleOf])
 
   const stats = useMemo(() => {
     let open = 0, late = 0, soon = 0, done = 0
@@ -236,6 +237,7 @@ export function School() {
                 [
                   ['board', 'Board', Columns3],
                   ['list', 'List', List],
+                  ['calendar', 'Calendar', CalendarDays],
                 ] as const
               ).map(([id, label, Icon]) => (
                 <button
@@ -308,6 +310,8 @@ export function School() {
 
       {view === 'board' || school.tasks.length === 0 ? (
         <Board school={school} tasks={shown} today={today} sort={sort} filtering={filtering} />
+      ) : view === 'calendar' ? (
+        <SchoolCalendar school={school} tasks={shown} today={today} isOpen={isOpen} onTick={tick} />
       ) : (
         <ListView school={school} tasks={shown} today={today} isOpen={isOpen} />
       )}
