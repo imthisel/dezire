@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { AlertTriangle, CalendarDays, Check, ChevronDown, History, Link2, MapPin, NotebookPen, Settings2, StickyNote, Tag, X } from 'lucide-react'
+import { AlertTriangle, CalendarDays, Check, ChevronDown, History, Home, Link2, MapPin, NotebookPen, Settings2, StickyNote, Tag, X } from 'lucide-react'
 import { Modal } from '../Modal'
 import { Calendar } from '../Calendar'
 import { LinksEditor, emptyDraft, withDraft, type LinkDraft } from '../ItemLinks'
@@ -81,16 +81,20 @@ function InAppHint({ show, children }: { show: boolean; children: ReactNode }) {
 
 // ---- Add an item ----
 
-export type NewItem = { name: string; category: Category; trend: Trend; price: number; rate: number; notes: string; links?: ItemLink[] }
+export type NewItem = { name: string; category: Category; trend: Trend; price: number; rate: number; notes: string; links?: ItemLink[]; propertyId?: string }
+
+/** A property a vehicle can be kept at. `owned`: bought by the vehicle's month. */
+export type PlaceChoice = { id: string; name: string; price: number; month: string; owned: boolean; sameMonth: boolean }
 
 const KIND_COLS = ['', 'sm:grid-cols-1', 'sm:grid-cols-2', 'sm:grid-cols-3', 'sm:grid-cols-4', 'sm:grid-cols-5', 'sm:grid-cols-3']
 
 /**
  * `budget`: the month's budget. `spent`: what its other items cost so far. `available`: the month's money before its items.
  * `editing`: an item already in the month, to change instead of adding a new one (as "Edit item" does in the app).
+ * `places`: the properties in the plan, for a vehicle's "Where is it kept?".
  */
-export function DemoItemModal({ month, budget, spent, available, editing, onAdd, onClose }: {
-  month: string; budget: number; spent: number; available: number; editing?: NewItem; onAdd: (item: NewItem) => void; onClose: () => void
+export function DemoItemModal({ month, budget, spent, available, editing, places = [], onAdd, onClose }: {
+  month: string; budget: number; spent: number; available: number; editing?: NewItem; places?: PlaceChoice[]; onAdd: (item: NewItem) => void; onClose: () => void
 }) {
   const kinds = DEFAULT_KINDS
   const [category, setCategory] = useState<Category | null>(editing?.category ?? null)
@@ -104,6 +108,10 @@ export function DemoItemModal({ month, budget, spent, available, editing, onAdd,
   const [linkDraft, setLinkDraft] = useState<LinkDraft | null>(null)
   const [notesOpen, setNotesOpen] = useState(!!editing?.notes || !!editing?.links?.length)
   const [kindsHint, setKindsHint] = useState(false)
+  const [propertyId, setPropertyId] = useState<string | null>(editing?.propertyId && places.some((p) => p.id === editing.propertyId) ? editing.propertyId : null)
+  // Properties already bought by this month come first, the ones still to buy after (as in the app).
+  const owned = places.filter((p) => p.owned)
+  const later = places.filter((p) => !p.owned)
 
   const limit = Math.min(budget > 0 ? budget : Infinity, available)
   const left = limit - spent
@@ -130,7 +138,10 @@ export function DemoItemModal({ month, budget, spent, available, editing, onAdd,
       setLinkDraft({ ...linkDraft!, bad: true, focus: 'url' })
       return
     }
-    onAdd({ name: name.trim(), category: category!, trend: trend!, price: price!, rate: rateNum, notes: notes.trim(), links: allLinks.length ? allLinks : undefined })
+    onAdd({
+      name: name.trim(), category: category!, trend: trend!, price: price!, rate: rateNum, notes: notes.trim(), links: allLinks.length ? allLinks : undefined,
+      propertyId: category === 'vehicle' && propertyId ? propertyId : undefined,
+    })
     onClose()
   }
 
@@ -259,6 +270,51 @@ export function DemoItemModal({ month, budget, spent, available, editing, onAdd,
           </div>
         </Step>
 
+        {/* Vehicles: which property it's kept at (optional) */}
+        {category === 'vehicle' && (
+          <section className="animate-fade">
+            <div className="mb-2.5 flex items-center gap-2.5">
+              <span className={`grid h-6 w-6 place-items-center rounded-full transition ${propertyId ? 'bg-teal-400/20 text-teal-200' : 'bg-white/10 text-zinc-300'}`}>
+                <Home className="h-3.5 w-3.5" />
+              </span>
+              <h3 className="text-sm font-semibold text-zinc-200">Where is it kept?</h3>
+              <span className="rounded-full bg-white/[0.06] px-1.5 py-px text-[10px] font-medium uppercase tracking-wider text-zinc-500">optional</span>
+            </div>
+            {places.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-white/10 px-3 py-3 text-xs text-zinc-500">
+                Add a <span className="text-zinc-300">Land / Property</span> item to any month and you can keep this vehicle there.
+              </p>
+            ) : (
+              <>
+                <p className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" /> {owned.length} yours by {month}
+                  </span>
+                  {later.length > 0 && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-rose-300/70" /> {later.length} not bought yet
+                    </span>
+                  )}
+                </p>
+                <div className="scrollbar-none -mx-1 max-h-64 space-y-1.5 overflow-y-auto px-1 py-0.5" role="radiogroup" aria-label="Where is it kept?">
+                  <PlaceOption on={!propertyId} onClick={() => setPropertyId(null)} title="Not at a property" sub="Leave it unassigned" />
+                  {[...owned, ...later].map((p) => (
+                    <PlaceOption
+                      key={p.id}
+                      on={propertyId === p.id}
+                      onClick={() => setPropertyId(p.id)}
+                      title={p.name}
+                      sub={p.owned ? `${p.sameMonth ? 'Bought this month' : `Yours since ${p.month}`} · ${peso(p.price)}` : `Not bought yet · planned for ${p.month} · ${peso(p.price)}`}
+                      home
+                      status={p.owned ? 'owned' : 'later'}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
         <section>
           <button type="button" onClick={() => setNotesOpen((o) => !o)} aria-expanded={notesOpen} className="group flex w-full items-center gap-2.5 text-left">
             <span className={`grid h-6 w-6 place-items-center rounded-full transition ${notes.trim() || links.length ? 'bg-amber-300/20 text-amber-200' : 'bg-white/10 text-zinc-300'}`}>
@@ -305,6 +361,30 @@ export function DemoItemModal({ month, budget, spent, available, editing, onAdd,
         <button type="submit" hidden />
       </form>
     </Modal>
+  )
+}
+
+/** One choice of where a vehicle is kept (the app's, without the count of other vehicles). */
+function PlaceOption({ on, onClick, title, sub, home, status }: { on: boolean; onClick: () => void; title: string; sub: string; home?: boolean; status?: 'owned' | 'later' }) {
+  const box = on
+    ? 'border-teal-400/60 bg-teal-500/10 ring-2 ring-teal-400/40'
+    : status === 'owned'
+      ? 'border-emerald-400/30 bg-emerald-500/[0.07] hover:border-emerald-400/50 hover:bg-emerald-500/[0.11]'
+      : status === 'later'
+        ? 'border-rose-400/20 bg-rose-500/[0.05] hover:border-rose-400/35 hover:bg-rose-500/[0.08]'
+        : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]'
+  const icon = !home ? 'bg-white/5 text-zinc-500' : status === 'owned' ? 'bg-emerald-400/15 text-emerald-300' : status === 'later' ? 'bg-rose-400/10 text-rose-300/70' : 'bg-white/5 text-zinc-400'
+  return (
+    <button type="button" role="radio" aria-checked={on} onClick={onClick} className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${box}`}>
+      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${icon}`}>{home ? <Home className="h-4 w-4" /> : <span className="text-base leading-none">—</span>}</span>
+      <span className="min-w-0 flex-1">
+        <span className={`block truncate text-sm font-medium ${on ? 'text-white' : status === 'later' ? 'text-zinc-300' : 'text-zinc-100'}`}>{title}</span>
+        <span className={`block truncate text-[11px] ${status === 'owned' ? 'text-emerald-300/80' : status === 'later' ? 'text-rose-200/70' : 'text-zinc-500'}`}>{sub}</span>
+      </span>
+      <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition ${on ? 'border-teal-400 bg-teal-400' : 'border-zinc-600'}`}>
+        {on && <Check className="h-3 w-3 text-black" strokeWidth={3.5} />}
+      </span>
+    </button>
   )
 }
 

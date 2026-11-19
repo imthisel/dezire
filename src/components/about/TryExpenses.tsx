@@ -4,10 +4,12 @@ import { DEFAULT_EXPENSE_CATS, catColor, catIcon, toKey } from '../../lib/expens
 import type { ExpenseCategory } from '../../lib/types'
 import { MoneyField, Toolbar, money, moneyShort } from './TryOverview'
 import { DemoExpenseModal, type NewExpense } from './DemoDialogs'
+import { useDemo } from './demoStore'
 
 /*
  * A playable copy of Expenses on the About page: this month, with the same "Add expense" window, overview, budget,
- * chart by day and "where it went" breakdown as the app. It lives only in this page's memory: nothing is saved anywhere.
+ * chart by day and "where it went" breakdown as the app. As in the app, the budget is this month's budget from the
+ * Planner (the playground above): change it in either place. It lives only in this page's memory: nothing is saved anywhere.
  */
 
 // This month, so "Today" and "Yesterday" mean what they do in the app.
@@ -58,12 +60,16 @@ const dayLabel = (day: number) => new Date(YEAR, MONTH, day).toLocaleDateString(
 
 export function TryExpenses() {
   const [list, setList] = useState<Exp[]>(example)
-  const [budget, setBudget] = useState(120_000)
+  // This month's budget in the Planner playground, as Expenses uses the Planner's budget in the app.
+  const budget = useDemo((s) => s.months[0]?.budget ?? 0)
+  const setBudget = (v: number) => useDemo.getState().update(0, { budget: v })
   const [filter, setFilter] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
 
   const total = sum(list)
   const avg = total / TODAY
+  // Where the month ends up at this rate (as "On pace for" in the app).
+  const pace = avg * DAYS
   const biggest = list.reduce<Exp | null>((b, e) => (!b || e.amount > b.amount ? e : b), null)
   const byCat = useMemo(() => {
     const m = new Map<string, number>()
@@ -85,12 +91,10 @@ export function TryExpenses() {
       <Toolbar
         onReset={() => {
           setList(example())
-          setBudget(120_000)
           setFilter(null)
         }}
         onClear={() => {
           setList([])
-          setBudget(0)
           setFilter(null)
         }}
       />
@@ -103,7 +107,7 @@ export function TryExpenses() {
           <div className="mt-5">
             <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
               <span className="inline-flex items-center gap-1.5 text-zinc-400">
-                <Target className="h-3.5 w-3.5" /> Month’s budget
+                <Target className="h-3.5 w-3.5" /> Month’s budget <span className="text-zinc-500">(from the Planner)</span>
               </span>
               <div className="w-36">
                 <MoneyField value={budget} onChange={(v) => setBudget(v ?? 0)} label="Month's budget" />
@@ -111,25 +115,35 @@ export function TryExpenses() {
             </div>
             {budget > 0 ? (
               <>
-                <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+                <div className="relative h-2 overflow-hidden rounded-full bg-white/[0.06]">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${total > budget ? 'bg-rose-400' : total / budget >= 0.85 ? 'bg-amber-300' : 'bg-brand-400'}`}
+                    className={`h-full rounded-full transition-all duration-500 ${total > budget ? 'bg-rose-400' : total / budget >= 0.85 ? 'bg-amber-300' : 'bg-emerald-400'}`}
                     style={{ width: `${Math.min(100, (total / budget) * 100)}%` }}
                   />
+                  {/* Where it's heading by the end of the month */}
+                  {pace > total && (
+                    <div
+                      className="absolute inset-y-0 rounded-full bg-white/10 transition-all duration-500"
+                      style={{ left: `${Math.min(100, (total / budget) * 100)}%`, width: `${Math.max(0, Math.min(100, (pace / budget) * 100) - Math.min(100, (total / budget) * 100))}%` }}
+                    />
+                  )}
                 </div>
                 <p className={`mt-1.5 text-xs ${total > budget ? 'text-rose-300' : 'text-zinc-400'}`}>
-                  {total > budget ? `${money(total - budget)} over budget` : `${money(budget - total)} left · ${Math.round((total / budget) * 100)}% used`}
+                  {total > budget
+                    ? `${money(total - budget)} over budget`
+                    : `${money(budget - total)} left${pace > budget ? ` · at this pace you'll go ${moneyShort(pace - budget)} over` : ' · on track'}`}
                 </p>
+                <p className="mt-1 text-[11px] text-zinc-500">The same budget as {MONTH_NAME} in the Planner above. Change it in either place.</p>
               </>
             ) : (
-              <p className="text-xs text-zinc-500">Set a budget to see how much is left.</p>
+              <p className="text-xs text-zinc-500">No budget for {MONTH_NAME} yet. Set one here or in the Planner above.</p>
             )}
           </div>
         </div>
         <div className="grid min-w-0 grid-cols-2 gap-2.5 self-start sm:grid-cols-3 lg:grid-cols-3">
           <Stat k="Daily average" v={money(avg)} sub={`over ${TODAY} day${TODAY > 1 ? "s" : ""} so far`} />
-          <Stat k="Expenses" v={String(list.length)} sub={list.length ? `${moneyShort(total / list.length)} each on average` : 'None logged'} />
-          <Stat k="Biggest" v={biggest ? money(biggest.amount) : '—'} sub={biggest ? biggest.name || catOf(biggest.category).label : '—'} className="col-span-2 sm:col-span-1" />
+          <Stat k="On pace for" v={moneyShort(pace)} sub={`by the end of ${MONTH_NAME}`} />
+          <Stat k="Biggest" v={biggest ? money(biggest.amount) : '—'} sub={biggest ? biggest.name || catOf(biggest.category).label : `${list.length} expenses`} className="col-span-2 sm:col-span-1" />
         </div>
         {list.length > 1 && (
           <div className="flex flex-wrap gap-2 border-t border-white/[0.06] pt-4 lg:col-span-2">

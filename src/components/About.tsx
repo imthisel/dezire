@@ -14,6 +14,7 @@ import { LEGAL } from '../lib/legal'
 import { BoardPreview, GoalsFloat, GoalsPreview, MonthOverview, NetWorthFloat, WishListPreview } from './about/Previews'
 import { TryOverview } from './about/TryOverview'
 import { TryExpenses } from './about/TryExpenses'
+import { TrySetups } from './about/TrySetups'
 
 // ---- Actions ----
 
@@ -124,6 +125,7 @@ export function About() {
         <Problem />
         <TryIt />
         <TryItExpenses />
+        <TryItSetups />
         <Verse />
         <Features />
         <PrayAct />
@@ -213,6 +215,7 @@ function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
         <nav aria-label="Main" className="hidden items-center gap-7 text-sm text-zinc-400 lg:flex">
           <a href="#try" className="transition hover:text-white">Try it</a>
           <a href="#try-expenses" className="transition hover:text-white">Expenses</a>
+          <a href="#try-setups" className="transition hover:text-white">Setups</a>
           <a href="#how" className="transition hover:text-white">How it works</a>
           <a href="#pricing" className="transition hover:text-white">Pricing</a>
           <a href="#faq" className="transition hover:text-white">FAQ</a>
@@ -356,6 +359,24 @@ function TryItExpenses() {
         />
         <div className="mt-10">
           <TryExpenses />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function TryItSetups() {
+  return (
+    <section id="try-setups" aria-labelledby="try-setups-title" className="border-t border-white/[0.06] bg-white/[0.012] px-5 sm:px-8 sec">
+      <div className="mx-auto max-w-6xl">
+        <SectionHead
+          id="try-setups-title"
+          eyebrow="Setups"
+          title="Park every car where it belongs."
+          sub="Drag the GT3 RS onto a property. Take one off and it counts as sold. Your totals, what’s still yours and what you sold it for, update as you go."
+        />
+        <div className="mt-10">
+          <TrySetups />
         </div>
       </div>
     </section>

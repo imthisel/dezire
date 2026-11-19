@@ -1,18 +1,18 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { AlertTriangle, Eraser, Plus, RotateCcw, StickyNote, Target, X } from 'lucide-react'
+import { AlertTriangle, Eraser, Home, Plus, RotateCcw, StickyNote, Target, X } from 'lucide-react'
 import { overLimitIds, valueAfter } from '../../lib/calc'
 import { DEFAULT_KINDS, TREND, kindColor, kindIcon } from '../../lib/meta'
-import type { Item, MonthData, Trend } from '../../lib/types'
-import { DemoItemModal } from './DemoDialogs'
+import type { Item, MonthData } from '../../lib/types'
+import { DemoItemModal, type PlaceChoice } from './DemoDialogs'
+import { DEMO_MONTHS, monthLabel, nextId, placedOf, useDemo } from './demoStore'
 
 /*
- * A playable copy of the Overview on the About page: January to March, with the same maths as the app
+ * A playable copy of the Overview on the About page: this month and the next two, with the same maths as the app
  * (net worth goal → goal to make, budget, spent, running totals, items that don't fit shown in red, assets that gain or lose value).
  * It lives only in this page's memory: nothing is saved anywhere, and leaving or refreshing the page starts it over.
  */
 
-const YEAR = 2027
-const NAMES = ['January', 'February', 'March']
+const NAMES = DEMO_MONTHS.map((m) => m.name)
 
 // ---- Money ----
 
@@ -33,37 +33,11 @@ export function moneyShort(n: number) {
 
 const kindOf = (id: string) => DEFAULT_KINDS.find((k) => k.id === id) ?? DEFAULT_KINDS[3]
 
-// ---- The example, and a blank start ----
-
-let lastId = 0
-const newItem = (name: string, category: string, trend: Trend, price: number, rate = 0): Item => ({
-  id: `try-${++lastId}`, name, category, trend, price, rate: trend === 'stable' ? 0 : rate, createdAt: Date.now(),
-})
-
-function example(): MonthData[] {
-  return [
-    {
-      goal: 3_000_000, netWorthGoal: null, budget: 2_500_000, earned: null, notes: 'First quarter. Give first, then spend.',
-      items: [newItem('Rolex Submariner Date', 'status', 'appreciating', 850_000, 5), newItem('Tokyo, 5 nights', 'travel', 'stable', 320_000)],
-    },
-    {
-      goal: 0, netWorthGoal: 6_000_000, budget: 4_000_000, earned: null, notes: '',
-      items: [newItem('Condo down payment, BGC', 'property', 'appreciating', 3_000_000, 6)],
-    },
-    {
-      goal: 30_000_000, netWorthGoal: null, budget: 30_500_000, earned: null, notes: 'The GT3 RS month.',
-      items: [newItem('Porsche 911 GT3 RS', 'vehicle', 'appreciating', 28_500_000, 3), newItem('Hermès Birkin 25', 'status', 'appreciating', 1_600_000, 5)],
-    },
-  ]
-}
-
-const blank = (): MonthData[] => NAMES.map(() => ({ goal: 0, netWorthGoal: null, budget: 0, earned: null, notes: '', items: [] }))
-
 // ---- The maths (the app's computeAll, for three months) ----
 
-type Calc = { goal: number; fromNetWorth: boolean; spent: number; cumEarned: number; cumSpent: number; cash: number; available: number; assets: number; netWorth: number }
+export type Calc = { goal: number; fromNetWorth: boolean; spent: number; cumEarned: number; cumSpent: number; cash: number; available: number; assets: number; netWorth: number }
 
-function compute(months: MonthData[]): Calc[] {
+export function compute(months: MonthData[]): Calc[] {
   const n = months.length
   const assets = new Array<number>(n).fill(0)
   months.forEach((m, i) => m.items.forEach((it) => {
@@ -85,13 +59,13 @@ function compute(months: MonthData[]): Calc[] {
 // ---- The playground ----
 
 export function TryOverview() {
-  const [months, setMonths] = useState<MonthData[]>(example)
+  const months = useDemo((s) => s.months)
+  const update = useDemo((s) => s.update)
   const calc = useMemo(() => compute(months), [months])
-  const update = (i: number, patch: Partial<MonthData>) => setMonths((ms) => ms.map((m, j) => (j === i ? { ...m, ...patch } : m)))
 
   return (
     <div>
-      <Toolbar onReset={() => setMonths(example())} onClear={() => setMonths(blank())} />
+      <Toolbar onReset={useDemo.getState().reset} onClear={useDemo.getState().clear} />
       <div className="-mx-5 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-4 sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0">
         {months.map((m, i) => (
           <SimMonth key={i} i={i} m={m} c={calc[i]} update={update} />
@@ -152,8 +126,11 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
   const over = overLimitIds(m, c.available)
   const left = m.budget - c.spent
   const pct = m.budget > 0 ? c.spent / m.budget : 0
-  const bar = pct > 1 ? 'bg-rose-400' : pct >= 0.85 ? 'bg-amber-300' : 'bg-brand-400'
+  const bar = pct > 1 ? 'bg-rose-400' : pct >= 0.85 ? 'bg-amber-300' : 'bg-emerald-400'
   const name = NAMES[i]
+  const months = useDemo((s) => s.months)
+  const places = placesFor(months, i)
+  const propName = (id?: string) => (id ? months.flatMap((x) => x.items).find((x) => x.id === id && x.category === 'property')?.name : undefined)
   const hasNotes = !!m.notes?.trim()
   const nwShort = m.netWorthGoal !== null ? m.netWorthGoal - c.netWorth : 0
 
@@ -162,7 +139,10 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
       <header className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold tracking-tight text-white">{name}</h3>
-          <p className="text-xs text-zinc-400">{YEAR}</p>
+          <p className="text-xs text-zinc-400">
+            {DEMO_MONTHS[i].year}
+            {i === 0 && <span className="ml-1.5 rounded-full bg-emerald-400/15 px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wider text-emerald-300">This month</span>}
+          </p>
         </div>
         <div className="flex items-start gap-2">
           <button
@@ -269,6 +249,7 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
           <SimItem
             key={it.id}
             it={it}
+            keptAt={it.category === 'vehicle' ? propName(it.propertyId) : undefined}
             over={over.has(it.id)}
             onEdit={() => setEditId(it.id)}
             onRemove={() => update(i, { items: m.items.filter((x) => x.id !== it.id) })}
@@ -291,23 +272,25 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
       </button>
       {adding && (
         <DemoItemModal
-          month={`${name} ${YEAR}`}
+          month={monthLabel(i)}
           budget={m.budget}
           spent={c.spent}
           available={c.available}
+          places={places}
           onClose={() => setAdding(false)}
-          onAdd={(it) => update(i, { items: [...m.items, { ...it, id: `try-${++lastId}`, createdAt: Date.now() }] })}
+          onAdd={(it) => update(i, { items: [...m.items, { ...it, id: nextId(), createdAt: Date.now() }] })}
         />
       )}
       {editing && (
         <DemoItemModal
-          month={`${name} ${YEAR}`}
+          month={monthLabel(i)}
           budget={m.budget}
           spent={c.spent - editing.price}
           available={c.available}
+          places={places.filter((p) => p.id !== editing.id)}
           editing={{ ...editing, notes: editing.notes ?? '' }}
           onClose={() => setEditId(null)}
-          onAdd={(it) => update(i, { items: m.items.map((x) => (x.id === editing.id ? { ...x, ...it, links: it.links } : x)) })}
+          onAdd={(it) => update(i, { items: m.items.map((x) => (x.id === editing.id ? { ...x, ...it, links: it.links, propertyId: it.propertyId } : x)) })}
         />
       )}
     </article>
@@ -332,7 +315,12 @@ function Total({ k, v, cls }: { k: string; v: string; cls: string }) {
   )
 }
 
-function SimItem({ it, over, onEdit, onRemove }: { it: Item; over: boolean; onEdit: () => void; onRemove: () => void }) {
+/** The properties in the plan, for "Where is it kept?": the ones bought by month `i` are yours, the rest not yet. */
+export function placesFor(months: MonthData[], i: number): PlaceChoice[] {
+  return placedOf(months, 'property').map((p) => ({ id: p.item.id, name: p.item.name, price: p.item.price, month: monthLabel(p.month), owned: p.month <= i, sameMonth: p.month === i }))
+}
+
+function SimItem({ it, keptAt, over, onEdit, onRemove }: { it: Item; keptAt?: string; over: boolean; onEdit: () => void; onRemove: () => void }) {
   const k = kindOf(it.category)
   const KindIcon = kindIcon(k)
   const kc = kindColor(k)
@@ -352,6 +340,11 @@ function SimItem({ it, over, onEdit, onRemove }: { it: Item; over: boolean; onEd
           <t.icon className="h-3 w-3 shrink-0" /> {t.label}
           {it.trend !== 'stable' && it.rate > 0 && ` · ${it.rate}%/yr`}
         </span>
+        {keptAt && (
+          <span className="flex items-center gap-1 truncate text-[10.5px] text-teal-200/80">
+            <Home className="h-3 w-3 shrink-0" /> <span className="truncate">Kept at {keptAt}</span>
+          </span>
+        )}
       </span>
       <span className={`shrink-0 text-[12.5px] font-semibold tabular-nums ${over ? 'text-rose-200' : 'text-white'}`}>{moneyShort(it.price)}</span>
       </button>
@@ -371,7 +364,7 @@ function SimItem({ it, over, onEdit, onRemove }: { it: Item; over: boolean; onEd
 function Summary({ months, calc }: { months: MonthData[]; calc: Calc[] }) {
   const last = calc[calc.length - 1]
   const stats = [
-    { k: 'Net worth by March', v: money(last.netWorth), cls: last.netWorth < 0 ? 'text-rose-300' : 'text-brand-200' },
+    { k: `Net worth by ${DEMO_MONTHS[2].short}`, v: money(last.netWorth), cls: last.netWorth < 0 ? 'text-rose-300' : 'text-brand-200' },
     { k: 'Total earned', v: money(last.cumEarned), cls: 'text-emerald-300' },
     { k: 'Total spent', v: money(last.cumSpent), cls: 'text-rose-300' },
     { k: 'Money left', v: money(last.cash), cls: last.cash < 0 ? 'text-rose-300' : 'text-white' },
@@ -379,7 +372,7 @@ function Summary({ months, calc }: { months: MonthData[]; calc: Calc[] }) {
   ]
   return (
     <div className="mt-6 rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-5 sm:p-6">
-      <h3 className="font-semibold text-white">Your first quarter, at a glance</h3>
+      <h3 className="font-semibold text-white">Your next three months, at a glance</h3>
       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((s) => (
           <div key={s.k} className="min-w-0">
@@ -398,7 +391,7 @@ function Summary({ months, calc }: { months: MonthData[]; calc: Calc[] }) {
 
 function NetWorthLine({ calc, goals }: { calc: Calc[]; goals: (number | null)[] }) {
   const values = [0, ...calc.map((c) => c.netWorth)]
-  const labels = ['Start', 'Jan', 'Feb', 'Mar']
+  const labels = ['Start', ...DEMO_MONTHS.map((m) => m.short)]
   const all = [...values, ...goals.filter((g): g is number => g !== null)]
   const max = Math.max(1, ...all)
   const min = Math.min(0, ...all)
