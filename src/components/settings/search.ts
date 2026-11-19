@@ -43,6 +43,8 @@ export const SEARCH: { id: string; section: SettingsSection; title: string; word
   { id: 'clock', section: 'calendar', title: 'Time format', words: '12 24 hour clock am pm military' },
   { id: 'cal-view', section: 'calendar', title: 'Calendar opens on', words: 'day week month 3 days default view' },
   { id: 'event-length', section: 'calendar', title: 'Usual event length', words: 'duration default new minutes hour' },
+  { id: 'school-on-calendar', section: 'calendar', title: 'School deadlines on Calendar', words: 'school link sync show deadlines due homework tasks' },
+  { id: 'calendar-on-school', section: 'calendar', title: 'Calendar on School', words: 'school link sync show hide events tasks' },
 
   { id: 'reminders', section: 'notifications', title: 'Event & task reminders', words: 'notification alert before push' },
   { id: 'reminder-lead', section: 'notifications', title: 'Remind me', words: 'minutes before early time' },

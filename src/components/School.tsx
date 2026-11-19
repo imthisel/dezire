@@ -9,12 +9,13 @@ import { quietly } from '../history'
 import { addDays, todayKey } from '../lib/expenses'
 import { KIND_COLORS } from '../lib/meta'
 import {
-  MAX_COLUMN, addColumn, colColor, dueInfo, findSubject, isDoneRole, moveColumn, moveTask, removeColumn, rollWeek, shortDate, thisWeek, toggleDone,
+  MAX_COLUMN, addColumn, colColor, dueInfo, findSubject, isDoneRole, moveColumn, moveTask, removeColumn, rollWeek, shortDate, thisWeek,
   updateColumn, weekLabel, type ColumnRole, type School as SchoolData, type SchoolColumn, type SchoolTask,
 } from '../lib/school'
 import { card } from './Dashboard'
 import { ColorRow, SubjectsModal } from './SchoolSubjects'
 import { SchoolCalendar } from './SchoolCalendar'
+import { tickSchool as tick } from './CalendarLink'
 import { toast } from '../toast'
 
 // ---- Looks ----
@@ -85,18 +86,6 @@ type Sort = 'due' | 'manual'
 
 const openTask = (id: string) => useStore.getState().openModal({ type: 'school', editId: id })
 const newTask = (column?: string, subject?: string) => useStore.getState().openModal({ type: 'school', column, subject })
-
-function tick(id: string) {
-  let done = false
-  const before = useStore.getState().school
-  useStore.getState().changeSchool((s) => {
-    const r = toggleDone(s, id)
-    done = r.done
-    return r.school
-  })
-  const t = before.tasks.find((x) => x.id === id)
-  if (t && done) toast.undo(`Done: “${t.title}” 🎉`, () => useStore.getState().changeSchool((s) => ({ ...s, tasks: s.tasks.map((x) => (x.id === id ? t : x)) })))
-}
 
 // ---- The page ----
 

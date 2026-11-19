@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
-  AlertCircle, CalendarCheck, CalendarRange, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleCheck, Eye, EyeOff, Inbox, Plus, Repeat, Settings2,
+  AlertCircle, CalendarCheck, CalendarRange, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleCheck, Eye, EyeOff, GraduationCap, Inbox, Plus, Repeat, Settings2,
 } from 'lucide-react'
 import { useStore, useTaskKindOf } from '../store'
 import { MAX_DATE, MIN_DATE, WEEKDAYS, addDays, dayLabel, fromKey, longDate, periodLabel, startOfWeek, todayKey, weekOrder } from '../lib/expenses'
@@ -10,12 +10,14 @@ import {
 import { MONTHS } from '../lib/time'
 import type { Task } from '../lib/types'
 import { useMedia } from '../lib/useMedia'
+import { goTo } from '../nav'
 import { card } from './Dashboard'
 import { Calendar } from './Calendar'
 import { TimeGrid } from './TimeGrid'
 import { TaskKinds } from './TaskKinds'
 import { TaskMenu, openTaskMenu } from './TaskMenu'
 import { toast } from '../toast'
+import { LinkMenu, SchoolDueChip, dueColor, openSchoolTask, tickSchool, useSchoolByDay, type SchoolDue } from './CalendarLink'
 
 type CalView = 'day' | '3day' | 'week' | 'month'
 const VIEWS: { id: CalView; label: string; short: string; key: string }[] = [
@@ -109,6 +111,8 @@ export function Schedule() {
     () => occurrencesIn(shown, view === 'month' ? days[0] : addDays(days[0], -7), days[days.length - 1]),
     [shown, days, view],
   )
+  const schoolInView = useSchoolByDay(days[0], days[days.length - 1])
+  const schoolAround = useSchoolByDay(addDays(today, -120), addDays(today, 365))
   const isNow = days.includes(today) && (view !== 'month' || anchor.slice(0, 7) === today.slice(0, 7))
 
   // Moving to other days glides in from the side it came from; another view fades in.
@@ -151,8 +155,9 @@ export function Schedule() {
     const n = new Map<string, number>()
     const from = addDays(today, -120)
     for (const o of occurrencesIn(shown, from, addDays(today, 365))) if (!o.done) n.set(o.day, (n.get(o.day) ?? 0) + 1)
+    for (const [k, list] of schoolAround) for (const d of list) if (!d.done) n.set(k, (n.get(k) ?? 0) + 1)
     return new Map([...n].map(([k, v]) => [k, `${v} planned`]))
-  }, [shown, today])
+  }, [shown, today, schoolAround])
 
   /** A new event (on the day being looked at) or a new task (asks about a deadline). */
   function newEntry(entry: 'event' | 'todo') {
@@ -173,6 +178,7 @@ export function Schedule() {
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Calendar</h2>
             <p className="truncate text-sm text-zinc-400">Plan your time, and keep track of what's due.</p>
           </div>
+          <LinkMenu from="calendar" />
           <button
             onClick={() => setEditKinds(true)}
             title="Kinds of tasks & colours"
@@ -247,9 +253,9 @@ export function Schedule() {
 
           <div ref={body}>
             {view === 'month' ? (
-              <MonthGrid days={days} month={anchor.slice(0, 7)} occurrences={occurrences} onPickDay={pickDay} />
+              <MonthGrid days={days} month={anchor.slice(0, 7)} occurrences={occurrences} school={schoolInView} onPickDay={pickDay} />
             ) : (
-              <TimeGrid days={days} occurrences={occurrences} onPickDay={pickDay} onShowDay={setAnchor} />
+              <TimeGrid days={days} occurrences={occurrences} school={schoolInView} onPickDay={pickDay} onShowDay={setAnchor} />
             )}
           </div>
         </section>
@@ -261,6 +267,7 @@ export function Schedule() {
           </div>
           <TodayPlan tasks={shown} />
           <TodoList tasks={shown} />
+          <SchoolDueSoon byDay={schoolAround} />
           <KindFilter hidden={hidden} setHidden={setHidden} onEdit={() => setEditKinds(true)} />
         </aside>
       </div>
@@ -287,7 +294,13 @@ function NavBtn({ label, disabled, onClick, children }: { label: string; disable
 
 // ---- Month ----
 
-function MonthGrid({ days, month, occurrences, onPickDay }: { days: string[]; month: string; occurrences: Occurrence[]; onPickDay: (d: string) => void }) {
+function MonthGrid({ days, month, occurrences, school, onPickDay }: {
+  days: string[]
+  month: string
+  occurrences: Occurrence[]
+  school: Map<string, SchoolDue[]>
+  onPickDay: (d: string) => void
+}) {
   const kindOf = useTaskKindOf()
   const today = todayKey()
   const [over, setOver] = useState<string | null>(null)
@@ -318,6 +331,11 @@ function MonthGrid({ days, month, occurrences, onPickDay }: { days: string[]; mo
       <div className="grid grid-cols-7">
         {days.map((d) => {
           const list = byDay.get(d) ?? []
+          // School deadlines first, then the rest, within the same limit.
+          const dues = school.get(d) ?? []
+          const shownDues = dues.slice(0, LIMIT)
+          const rest = list.slice(0, LIMIT - shownDues.length)
+          const extra = list.length + dues.length - shownDues.length - rest.length
           const inMonth = d.startsWith(month)
           const isToday = d === today
           return (
@@ -349,7 +367,10 @@ function MonthGrid({ days, month, occurrences, onPickDay }: { days: string[]; mo
                 {fromKey(d).getDate()}
               </button>
               <div className="pointer-events-none space-y-0.5">
-                {list.slice(0, LIMIT).map((o) => {
+                {shownDues.map((x) => (
+                  <SchoolDueChip key={`s-${x.id}`} d={x} compact />
+                ))}
+                {rest.map((o) => {
                   const c = taskColor(kindOf(o.task.kind))
                   const event = isEvent(o.task)
                   const timed = o.task.start != null
@@ -379,9 +400,9 @@ function MonthGrid({ days, month, occurrences, onPickDay }: { days: string[]; mo
                     </button>
                   )
                 })}
-                {list.length > LIMIT && (
+                {extra > 0 && (
                   <button onClick={() => onPickDay(d)} className="pointer-events-auto w-full truncate px-1 text-left text-[10.5px] font-medium text-zinc-400 hover:text-white">
-                    +{list.length - LIMIT} more
+                    +{extra} more
                   </button>
                 )}
               </div>
@@ -397,6 +418,12 @@ function MonthGrid({ days, month, occurrences, onPickDay }: { days: string[]; mo
 
 function KindFilter({ hidden, setHidden, onEdit }: { hidden: string[]; setHidden: (h: string[]) => void; onEdit: () => void }) {
   const kinds = useStore((s) => s.taskKinds)
+  const schoolOn = useStore((s) => s.prefs.schoolOnCalendar)
+  const school = useStore((s) => s.school)
+  const schoolOpen = useMemo(() => {
+    const open = new Set(school.columns.filter((c) => c.role === 'open').map((c) => c.id))
+    return school.tasks.filter((t) => open.has(t.column)).length
+  }, [school])
   const tasks = useStore((s) => s.tasks)
   const today = todayKey()
   const open = useMemo(() => {
@@ -441,8 +468,93 @@ function KindFilter({ hidden, setHidden, onEdit }: { hidden: string[]; setHidden
           )
         })}
       </ul>
+      {/* School's deadlines, from the School page */}
+      <div className="mt-1.5 border-t border-white/[0.06] pt-1.5">
+        <button
+          onClick={() => useStore.getState().setPrefs({ schoolOnCalendar: !schoolOn })}
+          aria-pressed={schoolOn}
+          title={schoolOn ? 'Hide School deadlines from the calendar' : 'Show School deadlines on the calendar'}
+          className={`group flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition hover:bg-white/5 ${schoolOn ? 'text-zinc-200' : 'text-zinc-500'}`}
+        >
+          <span className={`grid h-4 w-4 shrink-0 place-items-center rounded ${schoolOn ? 'bg-indigo-400' : 'border border-white/15'}`}>
+            {schoolOn && <Check className="h-3 w-3 text-black/70" strokeWidth={3.5} />}
+          </span>
+          <GraduationCap className={`h-3.5 w-3.5 shrink-0 ${schoolOn ? 'text-indigo-300' : ''}`} />
+          <span className="min-w-0 flex-1 truncate">School deadlines</span>
+          {schoolOn && schoolOpen > 0 && <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">{schoolOpen}</span>}
+          {schoolOn ? <Eye className="hidden h-3 w-3 shrink-0 text-zinc-600 group-hover:block" /> : <EyeOff className="h-3 w-3 shrink-0" />}
+        </button>
+        {!schoolOn && <p className="px-2 pb-0.5 text-[11px] leading-snug text-zinc-600">From your School page. Turn on to see them here.</p>}
+      </div>
     </div>
   )
+}
+
+// ---- School, due soon ----
+
+/** Open School tasks that are late or due in the next 7 days (only while School shows on this calendar). */
+function SchoolDueSoon({ byDay }: { byDay: Map<string, SchoolDue[]> }) {
+  const on = useStore((s) => s.prefs.schoolOnCalendar)
+  const today = todayKey()
+  const end = addDays(today, 7)
+  const list = useMemo(
+    () => [...byDay.values()].flat().filter((d) => !d.done && d.due <= end).sort((a, b) => a.due.localeCompare(b.due) || a.subject.localeCompare(b.subject)),
+    [byDay, end],
+  )
+  if (!on) return null
+  const late = list.filter((d) => d.due < today).length
+  return (
+    <div className={`${card} p-3`}>
+      <div className="mb-2 flex items-baseline justify-between px-1">
+        <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+          <GraduationCap className="h-3.5 w-3.5" /> School due soon
+        </span>
+        {late > 0 && <span className="text-xs tabular-nums text-rose-300/90">{late} late</span>}
+      </div>
+      {list.length === 0 ? (
+        <p className="px-1 py-1 text-xs text-zinc-600">Nothing due in the next 7 days. 🌤️</p>
+      ) : (
+        <ul>
+          {list.slice(0, 6).map((d) => {
+            const c = dueColor(d)
+            const isLate = d.due < today
+            return (
+              <li key={d.id} className="flex min-w-0 items-start gap-2.5 rounded-xl px-1.5 py-1.5 transition hover:bg-white/[0.04]">
+                <button
+                  onClick={() => tickSchool(d.id)}
+                  role="checkbox"
+                  aria-checked={false}
+                  aria-label={`Mark “${d.title}” done`}
+                  className={`mt-0.5 grid h-[18px] w-[18px] shrink-0 place-items-center rounded-md border-2 transition hover:bg-white/10 active:scale-90 ${c.ring}`}
+                />
+                <button onClick={() => openSchoolTask(d.id)} className="min-w-0 flex-1 text-left">
+                  <p className="truncate text-sm leading-snug text-zinc-100">{d.title}</p>
+                  <p className={`flex min-w-0 items-center gap-1.5 truncate text-[11.5px] ${isLate ? 'text-rose-300/80' : 'text-zinc-500'}`}>
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${c.dot}`} />
+                    <span className="truncate">
+                      {d.subject} · {isLate ? lateLabel(d.due, today) : dayLabel(d.due, today)}
+                    </span>
+                  </p>
+                </button>
+              </li>
+            )
+          })}
+          {list.length > 6 && (
+            <li>
+              <button onClick={() => goTo('school')} className="w-full px-1.5 py-1 text-left text-xs font-medium text-zinc-400 transition hover:text-white">
+                +{list.length - 6} more on School
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function lateLabel(due: string, today: string) {
+  const n = Math.round((fromKey(today).getTime() - fromKey(due).getTime()) / 86400000)
+  return n === 1 ? 'Due yesterday' : `${n} days late`
 }
 
 // ---- Today's plan ----

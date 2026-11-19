@@ -7,6 +7,7 @@ import {
   DAY_MINUTES, DUE_SPAN, MAX_DURATION, SNAP, byTime, daysBetween, fmtDuration, fmtRange, fmtTime, isEvent, layoutDay, nowMinutes, segmentsOf, snap,
   taskColor, type Occurrence, type Segment,
 } from '../lib/tasks'
+import { SchoolDueChip, type SchoolDue } from './CalendarLink'
 import { openTaskMenu } from './TaskMenu'
 import { toast } from '../toast'
 
@@ -52,6 +53,8 @@ type Press = {
   timer?: ReturnType<typeof setTimeout>
 }
 
+const NO_SCHOOL = new Map<string, SchoolDue[]>()
+
 interface Props {
   /** The days shown, left to right ("YYYY-MM-DD") */
   days: string[]
@@ -61,6 +64,8 @@ interface Props {
   onPickDay: (day: string) => void
   /** Bring `day` into view (a task being stretched has run into it) */
   onShowDay: (day: string) => void
+  /** School deadlines, by day (when they're shown on the calendar) */
+  school?: Map<string, SchoolDue[]>
 }
 
 /**
@@ -69,7 +74,7 @@ interface Props {
  * past 12 AM it carries on into the next day. Right-click a task for its menu.
  * On phones: tap empty space to add, hold a task to move it, drag the handle at its bottom to resize.
  */
-export function TimeGrid({ days, occurrences, onPickDay, onShowDay }: Props) {
+export function TimeGrid({ days, occurrences, onPickDay, onShowDay, school = NO_SCHOOL }: Props) {
   const kindOf = useTaskKindOf()
   const scroller = useRef<HTMLDivElement>(null)
   const cols = useRef<HTMLDivElement>(null)
@@ -371,7 +376,7 @@ export function TimeGrid({ days, occurrences, onPickDay, onShowDay }: Props) {
       </div>
 
       {/* All-day tasks */}
-      <AllDayRow days={days} byDay={byDay} kindOf={kindOf} />
+      <AllDayRow days={days} byDay={byDay} kindOf={kindOf} school={school} />
 
       {/* The 24 hours */}
       <div ref={scroller} className="relative h-[62dvh] min-h-[360px] overflow-y-auto overscroll-contain sm:h-[68dvh] sm:max-h-[860px]">
@@ -679,14 +684,15 @@ function Ghost({ a, b }: { a: number; b: number }) {
 
 /** Tasks with a day but no time, above the hours. */
 function AllDayRow({
-  days, byDay, kindOf,
+  days, byDay, kindOf, school,
 }: {
   days: string[]
   byDay: Map<string, { timed: Segment[]; allDay: Occurrence[] }>
   kindOf: ReturnType<typeof useTaskKindOf>
+  school: Map<string, SchoolDue[]>
 }) {
   const [open, setOpen] = useState(false)
-  const most = Math.max(0, ...days.map((d) => byDay.get(d)!.allDay.length))
+  const most = Math.max(0, ...days.map((d) => byDay.get(d)!.allDay.length + (school.get(d)?.length ?? 0)))
   const LIMIT = 2
   return (
     <div className="flex border-b border-white/[0.07]">
@@ -701,7 +707,12 @@ function AllDayRow({
       <div className="grid min-h-[30px] flex-1 border-l border-white/[0.07]" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
         {days.map((d) => {
           const list = byDay.get(d)!.allDay
-          const shown = open ? list : list.slice(0, LIMIT)
+          const dues = school.get(d) ?? []
+          // School deadlines first, then the rest, within the same limit.
+          const room = open ? Infinity : LIMIT
+          const shownDues = dues.slice(0, room)
+          const shown = list.slice(0, Math.max(0, room - shownDues.length))
+          const extra = list.length + dues.length - shownDues.length - shown.length
           return (
             <div
               key={d}
@@ -709,6 +720,9 @@ function AllDayRow({
               title="Add an all-day event"
               className="min-w-0 cursor-cell space-y-0.5 border-r border-white/[0.05] p-0.5 last:border-r-0"
             >
+              {shownDues.map((x) => (
+                <SchoolDueChip key={`s-${x.id}`} d={x} />
+              ))}
               {shown.map((o) => {
                 const c = taskColor(kindOf(o.task.kind))
                 // A task due that day (any time): ticked off right here.
@@ -750,9 +764,9 @@ function AllDayRow({
                   </button>
                 )
               })}
-              {!open && list.length > LIMIT && (
+              {!open && extra > 0 && (
                 <button onClick={() => setOpen(true)} className="w-full truncate px-1 text-left text-[10.5px] font-medium text-zinc-400 hover:text-white">
-                  +{list.length - LIMIT} more
+                  +{extra} more
                 </button>
               )}
             </div>

@@ -187,6 +187,11 @@ export function CalendarSection() {
           <Select<number> label="Usual event length" value={prefs.eventLength} onChange={(eventLength) => setPrefs({ eventLength })} options={EVENT_LENGTHS.map((m) => ({ id: m, label: fmtDuration(m) }))} />
         </Row>
       </Group>
+
+      <Group title="School" hint="Link your School deadlines and your Calendar, so each shows what's on the other.">
+        <ToggleRow id="school-on-calendar" title="School deadlines on Calendar" hint="Every School task shows on the Calendar page, on the day it's due." on={prefs.schoolOnCalendar} onChange={(schoolOnCalendar) => setPrefs({ schoolOnCalendar })} />
+        <ToggleRow id="calendar-on-school" title="Calendar on School" hint="Your events and tasks show on School's calendar, dashed." on={prefs.calendarOnSchool} onChange={(calendarOnSchool) => setPrefs({ calendarOnSchool })} />
+      </Group>
     </>
   )
 }

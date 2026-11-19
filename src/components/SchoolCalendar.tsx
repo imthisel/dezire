@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
-import { AlarmClock, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Eye, EyeOff, Flame, Plus, StickyNote } from 'lucide-react'
-import { useStore } from '../store'
+import { AlarmClock, CalendarCheck, CalendarDays, CalendarRange, Check, CheckCheck, ChevronLeft, ChevronRight, Circle, CircleCheck, Eye, EyeOff, Flame, Plus, Repeat, StickyNote } from 'lucide-react'
+import { useStore, useTaskKindOf } from '../store'
 import { WEEKDAYS, addDays, daysInMonth, fromKey, longDate, startOfWeek, toKey, weekOrder } from '../lib/expenses'
 import { MONTHS, MONTHS_SHORT } from '../lib/time'
 import { KIND_COLORS } from '../lib/meta'
 import { daysBetween, findSubject, shortDate, type School as SchoolData, type SchoolTask } from '../lib/school'
 import { card } from './Dashboard'
 import { toast } from '../toast'
+import { byTime, fmtTime, isEvent, occurrencesIn, taskColor, type Occurrence } from '../lib/tasks'
+import { LinkMenu } from './CalendarLink'
 
 /*
  * School → Calendar: every task on the day it's due, so a busy week (or a free one) is easy to see.
@@ -31,6 +33,8 @@ const CHIP: Record<string, string> = {
   yellow: 'bg-yellow-400/[0.12] hover:bg-yellow-400/20 text-yellow-50',
   lime: 'bg-lime-500/[0.14] hover:bg-lime-500/25 text-lime-50',
 }
+
+const openCalTask = (id: string) => useStore.getState().openModal({ type: 'task', editId: id })
 
 const subjectColor = (school: SchoolData, name: string) => findSubject(school, name)?.color ?? 'slate'
 const bar = (color: string) => (KIND_COLORS[color] ?? KIND_COLORS.slate).bar
@@ -87,6 +91,8 @@ export function SchoolCalendar({ school, tasks, today, isOpen, onTick }: {
   const [dragId, setDragId] = useState<string | null>(null)
   const [over, setOver] = useState<string | null>(null)
   const showDone = done === 'show'
+  const showCal = useStore((s) => s.prefs.calendarOnSchool)
+  const calTasks = useStore((s) => s.tasks)
 
   // When the page has been open past midnight, follow the new today if it was showing the old one.
   const lastToday = useRef(today)
@@ -128,6 +134,20 @@ export function SchoolCalendar({ school, tasks, today, isOpen, onTick }: {
   }, [mode, day, first])
   const range = { start: days[0], end: days[days.length - 1] }
   const month = first.slice(0, 7)
+
+  /** What's on the Calendar page on the days showing (when it's shown here): events and tasks, by day, in time order. */
+  const calByDay = useMemo(() => {
+    const m = new Map<string, Occurrence[]>()
+    if (!showCal) return m
+    for (const o of occurrencesIn(calTasks, range.start, range.end)) {
+      if (!showDone && o.done) continue
+      const list = m.get(o.day)
+      if (list) list.push(o)
+      else m.set(o.day, [o])
+    }
+    for (const list of m.values()) list.sort(byTime)
+    return m
+  }, [showCal, calTasks, range.start, range.end, showDone])
 
   // Numbers for the period on screen (the whole month, or the week).
   const summary = useMemo(() => {
@@ -236,6 +256,7 @@ export function SchoolCalendar({ school, tasks, today, isOpen, onTick }: {
               Today
             </button>
           ) : null}
+          <LinkMenu from="school" />
           <button
             onClick={() => setDone(showDone ? 'hide' : 'show')}
             aria-pressed={showDone}
@@ -287,6 +308,11 @@ export function SchoolCalendar({ school, tasks, today, isOpen, onTick }: {
           {summary.due > 0 && summary.finished === summary.due && (
             <span className="text-teal-300">All done. Nice work ✨</span>
           )}
+          {showCal && (
+            <span className="ml-auto inline-flex items-center gap-1.5 text-zinc-500">
+              <span className="inline-block h-2 w-2 rounded-full border border-dashed border-zinc-400" /> from your Calendar
+            </span>
+          )}
         </div>
 
         {/* Weekday names */}
@@ -320,6 +346,7 @@ export function SchoolCalendar({ school, tasks, today, isOpen, onTick }: {
                 lastCol={i % 7 === 6}
                 lastRow={i >= days.length - 7}
                 list={byDay.get(k) ?? []}
+                cal={calByDay.get(k) ?? []}
                 isOpen={isOpen}
                 school={school}
                 over={over === k}
@@ -335,6 +362,7 @@ export function SchoolCalendar({ school, tasks, today, isOpen, onTick }: {
                 selected={k === day}
                 last={i === 6}
                 list={byDay.get(k) ?? []}
+                cal={calByDay.get(k) ?? []}
                 over={over === k}
                 onPick={() => go(k)}
                 zone={dropZone(k)}
@@ -346,10 +374,11 @@ export function SchoolCalendar({ school, tasks, today, isOpen, onTick }: {
 
         <p className="hidden border-t border-white/[0.05] px-4 py-2 text-[11px] text-zinc-600 sm:block">
           Drag a task to another day to change its due date · double-click a day to add a task · arrow keys move around
+          {showCal && ' · dashed items are from your Calendar'}
         </p>
       </section>
 
-      <DayPanel day={day} today={today} list={byDay.get(day) ?? []} all={tasks} school={school} isOpen={isOpen} onTick={onTick} onPick={go} hiddenDone={!showDone} />
+      <DayPanel day={day} today={today} list={byDay.get(day) ?? []} cal={calByDay.get(day) ?? []} showCal={showCal} all={tasks} school={school} isOpen={isOpen} onTick={onTick} onPick={go} hiddenDone={!showDone} />
     </div>
   )
 }
@@ -379,7 +408,7 @@ function DayNumber({ k, today, selected, outside, big }: { k: string; today: str
   )
 }
 
-function MonthCell({ k, today, selected, outside, lastCol, lastRow, list, isOpen, school, over, onPick, zone, chip }: {
+function MonthCell({ k, today, selected, outside, lastCol, lastRow, list, cal, isOpen, school, over, onPick, zone, chip }: {
   k: string
   today: string
   selected: boolean
@@ -387,6 +416,7 @@ function MonthCell({ k, today, selected, outside, lastCol, lastRow, list, isOpen
   lastCol: boolean
   lastRow: boolean
   list: SchoolTask[]
+  cal: Occurrence[]
   isOpen: (t: SchoolTask) => boolean
   school: SchoolData
   over: boolean
@@ -397,7 +427,12 @@ function MonthCell({ k, today, selected, outside, lastCol, lastRow, list, isOpen
   const open = list.filter(isOpen)
   const late = k < today && open.length > 0
   const weekend = [0, 6].includes(fromKey(k).getDay())
-  const max = list.length > 3 ? 2 : 3
+  // Room for three lines: School tasks first, then what's on the Calendar.
+  const total = list.length + cal.length
+  const max = total > 3 ? 2 : 3
+  const shownList = list.slice(0, max)
+  const shownCal = cal.slice(0, max - shownList.length)
+  const more = total - shownList.length - shownCal.length
   // Busier days glow a little warmer.
   const heat = Math.min(open.length, 4)
 
@@ -405,7 +440,7 @@ function MonthCell({ k, today, selected, outside, lastCol, lastRow, list, isOpen
     <div
       role="gridcell"
       aria-selected={selected}
-      aria-label={`${longDate(k)}: ${list.length ? `${list.length} task${list.length === 1 ? '' : 's'}` : 'nothing due'}`}
+      aria-label={`${longDate(k)}: ${list.length ? `${list.length} task${list.length === 1 ? '' : 's'}` : 'nothing due'}${cal.length ? `, ${cal.length} on your calendar` : ''}`}
       onClick={onPick}
       onDoubleClick={() => newTaskOn(k)}
       {...zone}
@@ -435,26 +470,32 @@ function MonthCell({ k, today, selected, outside, lastCol, lastRow, list, isOpen
       </div>
 
       {/* Phones: a dot per task */}
-      {list.length > 0 && (
+      {total > 0 && (
         <div className="relative flex flex-wrap items-center justify-center gap-[3px] px-0.5 sm:hidden">
           {list.slice(0, 4).map((t) => (
             <span key={t.id} className={`h-1.5 w-1.5 rounded-full ${bar(subjectColor(school, t.subject))} ${isOpen(t) ? '' : 'opacity-35'}`} />
           ))}
-          {list.length > 4 && <span className="text-[9px] font-semibold leading-none text-zinc-400">+{list.length - 4}</span>}
+          {cal.slice(0, Math.max(0, 4 - list.length)).map((o) => (
+            <CalDot key={`c-${o.task.id}`} o={o} />
+          ))}
+          {total > 4 && <span className="text-[9px] font-semibold leading-none text-zinc-400">+{total - 4}</span>}
         </div>
       )}
 
       {/* Bigger screens: the tasks themselves */}
       <div className="relative hidden min-w-0 flex-col gap-1 sm:flex">
-        {list.slice(0, max).map((t) => (
+        {shownList.map((t) => (
           <Chip key={t.id} {...chip(t)} />
         ))}
-        {list.length > max && (
+        {shownCal.map((o) => (
+          <CalChip key={`c-${o.task.id}`} o={o} />
+        ))}
+        {more > 0 && (
           <button
             onClick={(e) => (e.stopPropagation(), onPick())}
             className="rounded-md px-1.5 py-0.5 text-left text-[11px] font-medium text-zinc-400 transition hover:bg-white/[0.07] hover:text-white"
           >
-            +{list.length - max} more
+            +{more} more
           </button>
         )}
       </div>
@@ -462,12 +503,13 @@ function MonthCell({ k, today, selected, outside, lastCol, lastRow, list, isOpen
   )
 }
 
-function WeekDay({ k, today, selected, last, list, over, onPick, zone, chip }: {
+function WeekDay({ k, today, selected, last, list, cal, over, onPick, zone, chip }: {
   k: string
   today: string
   selected: boolean
   last: boolean
   list: SchoolTask[]
+  cal: Occurrence[]
   over: boolean
   onPick: () => void
   zone: Zone
@@ -503,7 +545,10 @@ function WeekDay({ k, today, selected, last, list, over, onPick, zone, chip }: {
         {list.map((t) => (
           <Chip key={t.id} {...chip(t)} tall />
         ))}
-        {list.length === 0 && <span className="hidden py-6 text-center text-[11px] text-zinc-700 sm:block">—</span>}
+        {cal.map((o) => (
+          <CalChip key={`c-${o.task.id}`} o={o} tall />
+        ))}
+        {list.length === 0 && cal.length === 0 && <span className="hidden py-6 text-center text-[11px] text-zinc-700 sm:block">—</span>}
       </div>
       <button
         onClick={(e) => (e.stopPropagation(), newTaskOn(k))}
@@ -561,10 +606,12 @@ function Chip({ task: t, school, today, open, dragging, onDragStart, onDragEnd, 
 }
 
 /** The picked day: its tasks in full, a way to add one, and what's next after it. */
-function DayPanel({ day, today, list, all, school, isOpen, onTick, onPick, hiddenDone }: {
+function DayPanel({ day, today, list, cal, showCal, all, school, isOpen, onTick, onPick, hiddenDone }: {
   day: string
   today: string
   list: SchoolTask[]
+  cal: Occurrence[]
+  showCal: boolean
   all: SchoolTask[]
   school: SchoolData
   isOpen: (t: SchoolTask) => boolean
@@ -665,6 +712,8 @@ function DayPanel({ day, today, list, all, school, isOpen, onTick, onPick, hidde
         </div>
       )}
 
+      {showCal && <CalDay day={day} cal={cal} />}
+
       {next.length > 0 && (
         <div className="border-t border-white/[0.05] bg-black/10 px-4 py-3">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Coming up</p>
@@ -685,5 +734,98 @@ function DayPanel({ day, today, list, all, school, isOpen, onTick, onPick, hidde
         </div>
       )}
     </aside>
+  )
+}
+
+// ---- From the Calendar page ----
+
+/** "9 AM", "All day", "Due 3 PM" */
+function calWhen(o: Occurrence) {
+  const t = o.task
+  if (t.start == null) return isEvent(t) ? 'All day' : 'Any time'
+  return isEvent(t) ? fmtTime(t.start, true) : `Due ${fmtTime(t.start, true)}`
+}
+
+/** On phones: a ring in the kind's colour (School tasks are filled dots). */
+function CalDot({ o }: { o: Occurrence }) {
+  const c = taskColor(useTaskKindOf()(o.task.kind))
+  return <span className={`h-1.5 w-1.5 rounded-full border ${c.ring} ${o.done ? 'opacity-35' : ''}`} />
+}
+
+/** An event or task from the Calendar page: dashed, so it reads as "also on", not a School deadline. Opens it there. */
+function CalChip({ o, tall }: { o: Occurrence; tall?: boolean }) {
+  const kind = useTaskKindOf()(o.task.kind)
+  const c = taskColor(kind)
+  const t = o.task
+  const event = isEvent(t)
+  return (
+    <button
+      type="button"
+      onClick={(e) => (e.stopPropagation(), openCalTask(t.id))}
+      onDoubleClick={(e) => e.stopPropagation()}
+      title={`${kind.label}: ${t.title} · ${calWhen(o)} (from your Calendar)`}
+      className={`flex w-full min-w-0 items-center gap-1.5 rounded-md border border-dashed border-white/[0.12] bg-black/20 text-left text-zinc-300 transition hover:border-white/25 hover:bg-white/[0.05] hover:text-white ${
+        tall ? 'px-2 py-1.5' : 'px-1.5 py-[2px]'
+      } ${o.done ? 'opacity-45' : ''}`}
+    >
+      {event ? (
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${c.dot}`} />
+      ) : o.done ? (
+        <CircleCheck className={`h-3 w-3 shrink-0 ${c.text}`} />
+      ) : (
+        <Circle className={`h-3 w-3 shrink-0 ${c.text}`} strokeWidth={2.5} />
+      )}
+      <span className="min-w-0 flex-1">
+        {tall && <span className="block truncate text-[10px] tabular-nums text-zinc-500">{calWhen(o)}</span>}
+        <span className={`flex items-center gap-1 font-medium leading-snug ${tall ? 'text-xs' : 'text-[11px]'} ${o.done ? 'line-through decoration-white/40' : ''}`}>
+          {!tall && t.start != null && <span className="shrink-0 tabular-nums text-zinc-500">{fmtTime(t.start, true).replace(' ', '').toLowerCase()}</span>}
+          <span className="truncate">{t.title}</span>
+          {t.repeat && <Repeat className="h-2.5 w-2.5 shrink-0 opacity-60" />}
+        </span>
+      </span>
+    </button>
+  )
+}
+
+/** The picked day's events and tasks from the Calendar page, under its School tasks. */
+function CalDay({ day, cal }: { day: string; cal: Occurrence[] }) {
+  const kindOf = useTaskKindOf()
+  return (
+    <div className="border-t border-white/[0.05] px-4 py-3">
+      <div className="mb-1.5 flex items-center justify-between">
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+          <CalendarCheck className="h-3.5 w-3.5" /> On your calendar
+        </p>
+        <button
+          onClick={() => useStore.getState().openModal({ type: 'task', entry: 'event', date: day })}
+          className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-medium text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
+        >
+          <Plus className="h-3 w-3" /> Event
+        </button>
+      </div>
+      {cal.length === 0 ? (
+        <p className="text-xs text-zinc-600">Nothing else planned. Good day to study.</p>
+      ) : (
+        <ul className="space-y-0.5">
+          {cal.map((o) => {
+            const kind = kindOf(o.task.kind)
+            const c = taskColor(kind)
+            return (
+              <li key={o.task.id}>
+                <button onClick={() => openCalTask(o.task.id)} className={`flex w-full min-w-0 items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition hover:bg-white/[0.04] ${o.done ? 'opacity-50' : ''}`}>
+                  <span className={`h-7 w-1 shrink-0 rounded-full ${c.dot}`} />
+                  <span className="min-w-0 flex-1">
+                    <span className={`block truncate text-sm leading-snug text-zinc-100 ${o.done ? 'line-through' : ''}`}>{o.task.title}</span>
+                    <span className="block truncate text-[11px] tabular-nums text-zinc-500">
+                      {calWhen(o)} · {kind.label}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
   )
 }

@@ -40,6 +40,10 @@ export type Prefs = {
   sideOrder: SideBlock[]
   /** The phone tab bar's tabs, left to right (up to `TAB_MAX`; More follows them) */
   tabBar: TabId[]
+  /** School deadlines also show on the Calendar page */
+  schoolOnCalendar: boolean
+  /** Calendar events and tasks also show on School's calendar */
+  calendarOnSchool: boolean
 }
 
 export type DevicePrefs = {
@@ -78,6 +82,8 @@ export const DEFAULT_PREFS: Prefs = {
   hiddenNav: [],
   sideOrder: ['wants', 'needs', 'plan', 'calendar', 'school', 'expenses'],
   tabBar: ['wants', 'needs', 'school', 'expenses'],
+  schoolOnCalendar: false,
+  calendarOnSchool: true,
 }
 
 export const DEFAULT_DEVICE: DevicePrefs = {
@@ -132,6 +138,8 @@ export function parsePrefs(raw: unknown): Prefs {
     hiddenNav: Array.isArray(r.hiddenNav) ? NAV_IDS.filter((id) => (r.hiddenNav as unknown[]).includes(id)) : d.hiddenNav,
     sideOrder: parseSideOrder(r.sideOrder),
     tabBar: parseTabBar(r.tabBar),
+    schoolOnCalendar: bool(r.schoolOnCalendar, d.schoolOnCalendar),
+    calendarOnSchool: bool(r.calendarOnSchool, d.calendarOnSchool),
   }
 }
 
