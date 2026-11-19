@@ -14,7 +14,6 @@ import { LEGAL } from '../lib/legal'
 import { BoardPreview, GoalsFloat, GoalsPreview, MonthOverview, NetWorthFloat, WishListPreview } from './about/Previews'
 import { TryOverview } from './about/TryOverview'
 import { TryExpenses } from './about/TryExpenses'
-import { RealisticDemo } from './about/RealisticDemo'
 
 // ---- Actions ----
 
@@ -127,7 +126,6 @@ export function About() {
         <TryItExpenses />
         <Verse />
         <Features />
-        <Realistic />
         <PrayAct />
         <Privacy />
         <DownloadSection />
@@ -144,7 +142,6 @@ export function About() {
             <span className="text-zinc-500">© {new Date().getFullYear()}</span>
           </span>
           <nav aria-label="Footer" className="flex flex-wrap justify-center gap-x-6 gap-y-2">
-            <a href="#realistic" className="transition hover:text-white">Realistic</a>
             <a href="#pricing" className="transition hover:text-white">Pricing</a>
             <a href="#faq" className="transition hover:text-white">Questions</a>
             <LegalLinks className="transition hover:text-white" />
@@ -217,7 +214,6 @@ function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           <a href="#try" className="transition hover:text-white">Try it</a>
           <a href="#try-expenses" className="transition hover:text-white">Expenses</a>
           <a href="#how" className="transition hover:text-white">How it works</a>
-          <a href="#realistic" className="transition hover:text-white">Realistic</a>
           <a href="#pricing" className="transition hover:text-white">Pricing</a>
           <a href="#faq" className="transition hover:text-white">FAQ</a>
         </nav>
@@ -437,30 +433,6 @@ function Tile({ title, text, children, className = '', href, cta }: { title: str
         {children}
       </div>
     </article>
-  )
-}
-
-// ---- Realistic ----
-
-function Realistic() {
-  return (
-    <section id="realistic" aria-labelledby="realistic-title" className="border-y border-white/[0.06] bg-white/[0.012] px-5 sm:px-8 sec">
-      <div className="mx-auto max-w-6xl">
-        <div data-reveal className="reveal mx-auto max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">Realistic</p>
-          <h2 id="realistic-title" className="mt-5 font-display font-semibold tracking-[-0.035em] text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
-            Dreams have prices. <span className="text-brand-300">Now you’ll know yours.</span>
-          </h2>
-          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-zinc-300">
-            Choose what you want and when you want it. Dizayr adds it all up and shows what each month has to bring in. A dream becomes a
-            number, and a number becomes a plan.
-          </p>
-        </div>
-        <div data-reveal className="reveal mt-10 sm:mt-12">
-          <RealisticDemo />
-        </div>
-      </div>
-    </section>
   )
 }
 

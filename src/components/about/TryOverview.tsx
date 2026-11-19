@@ -51,8 +51,8 @@ function example(): MonthData[] {
       items: [newItem('Condo down payment, BGC', 'property', 'appreciating', 3_000_000, 6)],
     },
     {
-      goal: 3_500_000, netWorthGoal: null, budget: 1_500_000, earned: null, notes: 'Start saving for the GT3 RS.',
-      items: [newItem('Hermès Birkin 25', 'status', 'appreciating', 1_600_000, 5)],
+      goal: 30_000_000, netWorthGoal: null, budget: 30_500_000, earned: null, notes: 'The GT3 RS month.',
+      items: [newItem('Porsche 911 GT3 RS', 'vehicle', 'appreciating', 28_500_000, 3), newItem('Hermès Birkin 25', 'status', 'appreciating', 1_600_000, 5)],
     },
   ]
 }
@@ -147,6 +147,8 @@ export function MoneyField({ value, onChange, label, nullable, placeholder = '0'
 function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; update: (i: number, patch: Partial<MonthData>) => void }) {
   const [notesOpen, setNotesOpen] = useState(i === 0)
   const [adding, setAdding] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const editing = editId ? m.items.find((x) => x.id === editId) : undefined
   const over = overLimitIds(m, c.available)
   const left = m.budget - c.spent
   const pct = m.budget > 0 ? c.spent / m.budget : 0
@@ -264,7 +266,13 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
 
       <ul className="mt-3 flex flex-1 flex-col gap-1.5">
         {m.items.map((it) => (
-          <SimItem key={it.id} it={it} over={over.has(it.id)} onRemove={() => update(i, { items: m.items.filter((x) => x.id !== it.id) })} />
+          <SimItem
+            key={it.id}
+            it={it}
+            over={over.has(it.id)}
+            onEdit={() => setEditId(it.id)}
+            onRemove={() => update(i, { items: m.items.filter((x) => x.id !== it.id) })}
+          />
         ))}
         {!m.items.length && !adding && <li className="rounded-xl border border-dashed border-white/10 px-3 py-4 text-center text-xs text-zinc-500">Nothing planned yet</li>}
       </ul>
@@ -291,6 +299,17 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
           onAdd={(it) => update(i, { items: [...m.items, { ...it, id: `try-${++lastId}`, createdAt: Date.now() }] })}
         />
       )}
+      {editing && (
+        <DemoItemModal
+          month={`${name} ${YEAR}`}
+          budget={m.budget}
+          spent={c.spent - editing.price}
+          available={c.available}
+          editing={{ ...editing, notes: editing.notes ?? '' }}
+          onClose={() => setEditId(null)}
+          onAdd={(it) => update(i, { items: m.items.map((x) => (x.id === editing.id ? { ...x, ...it, links: it.links } : x)) })}
+        />
+      )}
     </article>
   )
 }
@@ -313,13 +332,14 @@ function Total({ k, v, cls }: { k: string; v: string; cls: string }) {
   )
 }
 
-function SimItem({ it, over, onRemove }: { it: Item; over: boolean; onRemove: () => void }) {
+function SimItem({ it, over, onEdit, onRemove }: { it: Item; over: boolean; onEdit: () => void; onRemove: () => void }) {
   const k = kindOf(it.category)
   const KindIcon = kindIcon(k)
   const kc = kindColor(k)
   const t = TREND[it.trend]
   return (
-    <li className={`group/item flex items-center gap-2.5 rounded-xl border p-2 transition ${over ? 'border-rose-500/40 bg-rose-500/[0.08]' : 'border-white/[0.06] bg-white/[0.025]'}`}>
+    <li className={`group/item flex items-center gap-2.5 rounded-xl border p-2 transition ${over ? 'border-rose-500/40 bg-rose-500/[0.08] hover:border-rose-400/60' : 'border-white/[0.06] bg-white/[0.025] hover:border-white/15 hover:bg-white/[0.05]'}`}>
+      <button type="button" onClick={onEdit} aria-label={`Edit ${it.name}`} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg text-left">
       <span title={k.label} className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${kc.soft} ${kc.text}`}>
         <KindIcon className="h-4 w-4" />
       </span>
@@ -334,6 +354,7 @@ function SimItem({ it, over, onRemove }: { it: Item; over: boolean; onRemove: ()
         </span>
       </span>
       <span className={`shrink-0 text-[12.5px] font-semibold tabular-nums ${over ? 'text-rose-200' : 'text-white'}`}>{moneyShort(it.price)}</span>
+      </button>
       <button
         onClick={onRemove}
         aria-label={`Remove ${it.name}`}

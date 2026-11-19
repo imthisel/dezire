@@ -86,22 +86,23 @@ export type NewItem = { name: string; category: Category; trend: Trend; price: n
 const KIND_COLS = ['', 'sm:grid-cols-1', 'sm:grid-cols-2', 'sm:grid-cols-3', 'sm:grid-cols-4', 'sm:grid-cols-5', 'sm:grid-cols-3']
 
 /**
- * `budget`: the month's budget. `spent`: what its items cost so far. `available`: the month's money before its items.
+ * `budget`: the month's budget. `spent`: what its other items cost so far. `available`: the month's money before its items.
+ * `editing`: an item already in the month, to change instead of adding a new one (as "Edit item" does in the app).
  */
-export function DemoItemModal({ month, budget, spent, available, onAdd, onClose }: {
-  month: string; budget: number; spent: number; available: number; onAdd: (item: NewItem) => void; onClose: () => void
+export function DemoItemModal({ month, budget, spent, available, editing, onAdd, onClose }: {
+  month: string; budget: number; spent: number; available: number; editing?: NewItem; onAdd: (item: NewItem) => void; onClose: () => void
 }) {
   const kinds = DEFAULT_KINDS
-  const [category, setCategory] = useState<Category | null>(null)
-  const [trend, setTrend] = useState<Trend | null>(null)
-  const [name, setName] = useState('')
-  const [price, setPrice] = useState<number | null>(null)
-  const [rate, setRate] = useState('')
-  const [rateTouched, setRateTouched] = useState(false)
-  const [notes, setNotes] = useState('')
-  const [links, setLinks] = useState<ItemLink[]>([])
+  const [category, setCategory] = useState<Category | null>(editing?.category ?? null)
+  const [trend, setTrend] = useState<Trend | null>(editing?.trend ?? null)
+  const [name, setName] = useState(editing?.name ?? '')
+  const [price, setPrice] = useState<number | null>(editing?.price ?? null)
+  const [rate, setRate] = useState(editing ? String(editing.rate) : '')
+  const [rateTouched, setRateTouched] = useState(!!editing)
+  const [notes, setNotes] = useState(editing?.notes ?? '')
+  const [links, setLinks] = useState<ItemLink[]>(editing?.links ?? [])
   const [linkDraft, setLinkDraft] = useState<LinkDraft | null>(null)
-  const [notesOpen, setNotesOpen] = useState(false)
+  const [notesOpen, setNotesOpen] = useState(!!editing?.notes || !!editing?.links?.length)
   const [kindsHint, setKindsHint] = useState(false)
 
   const limit = Math.min(budget > 0 ? budget : Infinity, available)
@@ -135,7 +136,7 @@ export function DemoItemModal({ month, budget, spent, available, onAdd, onClose 
 
   return (
     <Modal
-      title="Add an item"
+      title={editing ? 'Edit item' : 'Add an item'}
       subtitle={month}
       onClose={onClose}
       footer={
@@ -152,7 +153,7 @@ export function DemoItemModal({ month, budget, spent, available, onAdd, onClose 
               disabled={!ready}
               className="h-11 flex-[2] rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-400 px-5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none sm:h-10 sm:flex-none"
             >
-              Add item
+              {editing ? 'Save changes' : 'Add item'}
             </button>
           </div>
         </div>
@@ -284,7 +285,7 @@ export function DemoItemModal({ month, budget, spent, available, onAdd, onClose 
                   e.preventDefault()
                   setLinkDraft(emptyDraft(url))
                 }}
-                autoFocus
+                autoFocus={!editing?.notes && !editing?.links?.length}
                 rows={3}
                 maxLength={2000}
                 placeholder="Anything to remember: where to buy it, the exact model, why you want it…"
@@ -298,7 +299,7 @@ export function DemoItemModal({ month, budget, spent, available, onAdd, onClose 
         {!!price && warning && (
           <div role="alert" className="animate-fade flex gap-3 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
-            <p>{warning} You can still add it.</p>
+            <p>{warning} You can still {editing ? 'save' : 'add'} it.</p>
           </div>
         )}
         <button type="submit" hidden />
