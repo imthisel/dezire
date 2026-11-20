@@ -13,6 +13,7 @@ const input =
 export function GoalAreasModal({ onClose, openId: initial, add: adding }: { onClose: () => void; openId?: string; add?: boolean }) {
   const areas = useGoalAreas()
   const goals = useStore((s) => s.goals)
+  const lifeGoals = useStore((s) => s.life.goals)
   const [openId, setOpenId] = useState<string | null>(initial ?? null)
   /** The area just added: its name box gets focus so it can be renamed straight away */
   const [fresh, setFresh] = useState<string | null>(null)
@@ -20,12 +21,13 @@ export function GoalAreasModal({ onClose, openId: initial, add: adding }: { onCl
   const [dragId, setDragId] = useState<string | null>(null)
   const list = useRef<HTMLUListElement>(null)
 
-  /** How many goals each area has, across every year. */
+  /** How many goals each area has, across every year and the life goals. */
   const counts = useMemo(() => {
     const n = new Map<string, number>()
     for (const year of Object.values(goals)) for (const g of year) n.set(g.area, (n.get(g.area) ?? 0) + 1)
+    for (const g of lifeGoals) n.set(g.area, (n.get(g.area) ?? 0) + 1)
     return n
-  }, [goals])
+  }, [goals, lifeGoals])
   const missing = DEFAULT_GOAL_AREAS.filter((d) => !areas.some((a) => a.id === d.id))
 
   function add() {

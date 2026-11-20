@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from 'react'
 import {
-  ArrowDown, ArrowRight, ArrowUp, Check, Flag, GripVertical, MoreHorizontal, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2, Trophy,
+  ArrowDown, ArrowRight, ArrowUp, Check, Flag, GripVertical, MoreHorizontal, Mountain, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2, Trophy,
 } from 'lucide-react'
 import { MAX_AREA_NAME, useAreaOf, useGoalAreas, useStore } from '../store'
 import { DEFAULT_GOAL_AREAS, areaColor, areaIcon } from '../lib/meta'
@@ -10,6 +10,7 @@ import { card } from './Dashboard'
 import { toast } from '../toast'
 import { goalDrag } from '../dnd'
 import { GoalNote } from './YearNote'
+import { goTo } from '../nav'
 
 const EMPTY: never[] = []
 
@@ -276,6 +277,8 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
   const area = useAreaOf()(goal.area)
   const a = areaColor(area)
   const { updateGoal, removeGoal, openModal } = useStore.getState()
+  // The life goal it works toward, if it's linked to one.
+  const life = useStore((s) => (goal.lifeId ? s.life.goals.find((g) => g.id === goal.lifeId)?.text : undefined))
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(goal.text)
   const [dropAt, setDropAt] = useState<null | 'above' | 'below'>(null)
@@ -383,6 +386,16 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
           }`}
         >
           {goal.text}
+          {life && (
+            <button
+              onClick={() => goTo(`life-${goal.lifeId}`)}
+              title={`Part of your life goal: ${life}`}
+              className="ml-1.5 inline-flex max-w-[14rem] translate-y-[-1px] items-center gap-1 rounded-full bg-violet-500/10 px-1.5 py-px align-middle text-[11px] font-medium text-violet-200 no-underline transition hover:bg-violet-500/20"
+            >
+              <Mountain className="h-3 w-3 shrink-0" />
+              <span className="truncate">{life}</span>
+            </button>
+          )}
         </p>
       )}
 

@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { create } from 'zustand'
 import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware'
-import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, ItemKind, ItemLink, ModeKind, MonthData, NeedItem, NeedsPlan, PlanStep, ModeData, ModeInfo, Result, RunningCosts, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
+import type { Category, Expense, ExpenseCategory, Goal, GoalArea, GoalAreaDef, IncomeSource, Item, LifeGoal, LifePlan, ItemKind, ItemLink, ModeKind, MonthData, NeedItem, NeedsPlan, PlanStep, ModeData, ModeInfo, Result, RunningCosts, SourceKind, SourceStage, Task, TaskKind, TaskType, Trend } from './lib/types'
 import {
   DEFAULT_GOAL_AREAS, DEFAULT_KINDS, GOAL_COLORS, GOAL_ICONS, KIND_COLORS, KIND_ICONS, SOURCE_KINDS, SOURCE_STAGES, UNKNOWN_AREA, UNKNOWN_KIND,
   guessAreaIcon, guessIcon,
@@ -26,7 +26,9 @@ export type ModalState =
   | { type: 'item'; key: string; editId?: string }
   /** `group`: several picked items going together (`id` and `key` are then the first of them). `copy`: starts on Copy. */
   | { type: 'move'; key: string; id: string; group?: string[]; copy?: boolean }
-  | { type: 'goal'; year: number; editId?: string; area?: GoalArea }
+  | { type: 'goal'; year: number; editId?: string; area?: GoalArea; lifeId?: string }
+  /** Add (no `editId`) or edit a life goal. `text` / `area`: what a new one starts with. */
+  | { type: 'life'; editId?: string; text?: string; area?: GoalArea }
   | { type: 'kinds' }
   /** `openId`: the area to show unfolded. `add`: start with the cursor in the new-area box. */
   | { type: 'goalAreas'; openId?: string; add?: boolean }
@@ -44,7 +46,7 @@ export type ModalState =
   | { type: 'pay'; kind: 'wants' | 'needs'; ids: string[]; what?: string }
   | null
 export type PhoneCols = 1 | 2 | 3
-export type View = 'planner' | 'plan' | 'favorites' | 'assets' | 'expenses' | 'calendar' | 'school' | 'grades' | 'help' | 'settings'
+export type View = 'planner' | 'life' | 'plan' | 'favorites' | 'assets' | 'expenses' | 'calendar' | 'school' | 'grades' | 'help' | 'settings'
 /** Assets page: which kind of item, and which years */
 export type AssetCat = 'all' | Category
 /** `month` (0–11) is used by the 'month' mode: one of the year's setups (see `setupMonths`). */
@@ -212,6 +214,40 @@ function migrateMonths(months: unknown) {
 
 const num = (v: unknown) => Math.max(0, Number(v) || 0)
 
+export const EMPTY_LIFE: LifePlan = { vision: '', goals: [] }
+/** Oldest age a life goal can be set for. */
+export const MAX_AGE = 120
+function cleanAge(n: unknown) {
+  if (n == null || n === '') return null
+  const a = Math.round(Number(n))
+  return !Number.isFinite(a) || a < 1 ? null : Math.min(MAX_AGE, a)
+}
+
+/** Cleans up life goals from a backup file, the cloud or this device. Without `areas`, any area is kept as it is. */
+function parseLife(raw: unknown, areas?: GoalAreaDef[]): LifePlan {
+  if (!raw || typeof raw !== 'object') return EMPTY_LIFE
+  const r = raw as Record<string, unknown>
+  const fallback = areas?.[areas.length - 1]?.id
+  const goals = Array.isArray(r.goals)
+    ? r.goals
+        .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object' && typeof x.text === 'string' && !!x.text.trim())
+        .map((x): LifeGoal => {
+          const known = typeof x.area === 'string' && (!areas || areas.some((a) => a.id === x.area))
+          return {
+            id: typeof x.id === 'string' && x.id ? x.id : uid(),
+            text: String(x.text).trim(),
+            why: typeof x.why === 'string' ? x.why : '',
+            area: known ? (x.area as string) : (fallback ?? String(x.area ?? '')),
+            byAge: cleanAge(x.byAge),
+            done: !!x.done,
+            doneAt: x.done ? Number(x.doneAt) || null : null,
+            createdAt: Number(x.createdAt) || Date.now(),
+          }
+        })
+    : []
+  return { vision: typeof r.vision === 'string' ? r.vision : '', goals }
+}
+
 /** Cleans up income plans coming from a backup file or the cloud. */
 function parseSources(list: unknown): IncomeSource[] {
   if (!Array.isArray(list)) return []
@@ -256,6 +292,16 @@ interface State {
   goals: Record<string, Goal[]>
   /** A note for each year's goals, keyed by year ("2027"). Shared by every mode, like the goals. */
   goalNotes: Record<string, string>
+  /** Life goals: the very final ones, and the vision above them */
+  life: LifePlan
+  setLifeVision: (text: string) => void
+  /** Returns the new goal's id */
+  addLifeGoal: (g: Pick<LifeGoal, 'text' | 'area'> & Partial<Pick<LifeGoal, 'why' | 'byAge'>>) => string
+  updateLifeGoal: (id: string, patch: Partial<Pick<LifeGoal, 'text' | 'why' | 'area' | 'byAge' | 'done'>>) => void
+  /** Deletes a life goal; the yearly goals linked to it stay, unlinked. */
+  removeLifeGoal: (id: string) => void
+  /** Moves a life goal to position `to` among `within` (the ids shown together, in order). */
+  moveLifeGoal: (id: string, to: number, within: string[]) => void
   setGoalNote: (year: number, text: string) => void
   /** The areas goals can belong to (always at least one), in the order they're shown */
   goalAreas: GoalAreaDef[]
@@ -420,8 +466,8 @@ interface State {
    */
   setItemsSpent: (ids: string[], on: boolean, pay?: SpendInput) => { count: number; undo: () => void }
 
-  addGoal: (year: number, area: GoalArea, text: string) => void
-  updateGoal: (year: number, id: string, patch: Partial<Pick<Goal, 'text' | 'area' | 'done'>>) => void
+  addGoal: (year: number, area: GoalArea, text: string, lifeId?: string) => void
+  updateGoal: (year: number, id: string, patch: Partial<Pick<Goal, 'text' | 'area' | 'done' | 'lifeId'>>) => void
   removeGoal: (year: number, id: string) => void
   /** Moves a goal into `area`, next to goal `at` (or to the end of that area). */
   moveGoal: (year: number, id: string, area: GoalArea, at?: DropAt) => void
@@ -592,6 +638,63 @@ export const useStore = create<State>()(
       modal: null,
       goals: {},
       goalNotes: {},
+      life: EMPTY_LIFE,
+      setLifeVision: (vision) => set((s) => ({ life: { ...s.life, vision } })),
+      addLifeGoal: (g) => {
+        const goal: LifeGoal = {
+          id: uid(), text: g.text.trim(), why: (g.why ?? '').trim(), area: g.area, byAge: cleanAge(g.byAge), done: false, doneAt: null, createdAt: Date.now(),
+        }
+        set((s) => ({ life: { ...s.life, goals: [...s.life.goals, goal] } }))
+        return goal.id
+      },
+      updateLifeGoal: (id, patch) =>
+        set((s) => ({
+          life: {
+            ...s.life,
+            goals: s.life.goals.map((g) => {
+              if (g.id !== id) return g
+              const next = { ...g, ...patch }
+              if ('byAge' in patch) next.byAge = cleanAge(patch.byAge)
+              if ('text' in patch) next.text = (patch.text ?? '').trim() || g.text
+              if ('why' in patch) next.why = (patch.why ?? '').trim()
+              if ('done' in patch) next.doneAt = patch.done ? (g.done ? g.doneAt : Date.now()) : null
+              return next
+            }),
+          },
+        })),
+      removeLifeGoal: (id) =>
+        set((s) => {
+          // Yearly goals linked to it stay, unlinked (only the years that had one are copied).
+          let goals = s.goals
+          for (const [y, list] of Object.entries(s.goals)) {
+            if (!list.some((g) => g.lifeId === id)) continue
+            if (goals === s.goals) goals = { ...s.goals }
+            goals[y] = list.map((g) => {
+              if (g.lifeId !== id) return g
+              const { lifeId: _gone, ...rest } = g
+              return rest
+            })
+          }
+          return { goals, life: { ...s.life, goals: s.life.goals.filter((g) => g.id !== id) } }
+        }),
+      moveLifeGoal: (id, to, within) =>
+        set((s) => {
+          const list = s.life.goals
+          const goal = list.find((g) => g.id === id)
+          if (!goal) return {}
+          const rest = list.filter((g) => g.id !== id)
+          const others = within.filter((x) => x !== id)
+          let i: number
+          if (to < others.length) i = rest.findIndex((g) => g.id === others[to])
+          else {
+            // After the last one shown together.
+            const last = others.length ? rest.findIndex((g) => g.id === others[others.length - 1]) : -1
+            i = last < 0 ? rest.length : last + 1
+          }
+          if (i < 0) i = rest.length
+          rest.splice(i, 0, goal)
+          return { life: { ...s.life, goals: rest } }
+        }),
       setGoalNote: (year, text) =>
         set((s) => {
           const { [year]: _old, ...rest } = s.goalNotes
@@ -1195,9 +1298,10 @@ export const useStore = create<State>()(
         return { count: changed.length, undo: () => void get().setItemsSpent(changed, !on) }
       },
 
-      addGoal: (year, area, text) =>
+      addGoal: (year, area, text, lifeId) =>
         set((s) => {
-          const goal: Goal = { id: uid(), text: text.trim(), area, done: false, createdAt: Date.now() }
+          const linked = lifeId && s.life.goals.some((l) => l.id === lifeId) ? { lifeId } : {}
+          const goal: Goal = { id: uid(), text: text.trim(), area, done: false, createdAt: Date.now(), ...linked }
           return { goals: { ...s.goals, [year]: [...(s.goals[year] ?? []), goal] } }
         }),
 
@@ -1278,9 +1382,10 @@ export const useStore = create<State>()(
         }),
 
       removeArea: (id, moveTo) => {
-        const { goalAreas, goals } = get()
+        const { goalAreas, goals, life } = get()
         if (goalAreas.length <= 1) return fail('You need at least one goal area.')
-        const used = Object.values(goals).some((list) => list.some((g) => g.area === id))
+        const usedByLife = life.goals.some((g) => g.area === id)
+        const used = usedByLife || Object.values(goals).some((list) => list.some((g) => g.area === id))
         if (used && (!moveTo || moveTo === id || !goalAreas.some((a) => a.id === moveTo))) return fail('Pick an area to move its goals to first.')
         let next = goals
         if (used) {
@@ -1289,7 +1394,11 @@ export const useStore = create<State>()(
             if (list.some((g) => g.area === id)) next[y] = list.map((g) => (g.area === id ? { ...g, area: moveTo! } : g))
           }
         }
-        set({ goalAreas: goalAreas.filter((a) => a.id !== id), goals: next })
+        set({
+          goalAreas: goalAreas.filter((a) => a.id !== id),
+          goals: next,
+          ...(usedByLife ? { life: { ...life, goals: life.goals.map((g) => (g.area === id ? { ...g, area: moveTo! } : g)) } } : {}),
+        })
         return OK
       },
 
@@ -1499,6 +1608,7 @@ export const useStore = create<State>()(
             usdRate?: number
             currency?: unknown
             goals?: Record<string, Partial<Goal>[]>
+            life?: unknown
             goalAreas?: unknown
             areaLabels?: Record<string, unknown>
             sources?: unknown
@@ -1537,8 +1647,10 @@ export const useStore = create<State>()(
                 area: isArea(g.area) ? g.area : goalAreas[goalAreas.length - 1].id,
                 done: !!g.done,
                 createdAt: Number(g.createdAt) || Date.now(),
+                ...(typeof g.lifeId === 'string' && g.lifeId ? { lifeId: g.lifeId } : {}),
               }))
           }
+          const life = parseLife(d.life, goalAreas)
           const birthday = typeof d.birthday === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.birthday) ? d.birthday : null
           // Saves from before Expenses existed don't have them: keep what's here instead of wiping it.
           const cur = get()
@@ -1569,14 +1681,14 @@ export const useStore = create<State>()(
           const modeState = { modes: list, modeId: active, modeData: others, months: inUse.months, layouts: inUse.layouts, setupNotes: inUse.setupNotes, setupFavorites: inUse.setupFavorites, yearNotes: inUse.yearNotes }
           // Saved before settings followed the account: keep what's here.
           const prefs = d.prefs === undefined ? cur.prefs : parsePrefs(d.prefs)
-          set({ ...spending, ...modeState, prefs, kinds, goals, goalNotes: parseYearNotes(d.goalNotes), goalAreas, sources: parseSources(d.sources), birthday, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
+          set({ ...spending, ...modeState, prefs, kinds, goals, life, goalNotes: parseYearNotes(d.goalNotes), goalAreas, sources: parseSources(d.sources), birthday, currency: d.currency && typeof d.currency === 'object' ? parseCurrencies(d.currency) : parseCurrencies({ ...get().currency, alt: { ...get().currency.alt, rate: d.usdRate ?? get().currency.alt.rate } }), clipboard: null })
           return OK
         } catch {
           return fail('Could not read that file.')
         }
       },
 
-      resetAll: () => set({ modes: [mainMode()], modeId: MAIN_MODE, modeData: {}, tasks: [], taskKinds: DEFAULT_TASK_KINDS, school: DEFAULT_SCHOOL, wallet: EMPTY_WALLET, layouts: {}, setupNotes: {}, setupFavorites: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalNotes: {}, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
+      resetAll: () => set({ modes: [mainMode()], modeId: MAIN_MODE, modeData: {}, tasks: [], taskKinds: DEFAULT_TASK_KINDS, school: DEFAULT_SCHOOL, wallet: EMPTY_WALLET, layouts: {}, setupNotes: {}, setupFavorites: {}, expenses: [], expenseCats: DEFAULT_EXPENSE_CATS, places: [], months: {}, kinds: DEFAULT_KINDS, goals: {}, goalNotes: {}, life: EMPTY_LIFE, goalAreas: DEFAULT_GOAL_AREAS, sources: [], birthday: null, yearNotes: {}, clipboard: null, modal: null }),
     }),
     {
       name: 'dizayr-goal-planner-v1',
@@ -1587,6 +1699,7 @@ export const useStore = create<State>()(
         kinds: s.kinds,
         goals: s.goals,
         goalNotes: s.goalNotes,
+        life: s.life,
         goalAreas: s.goalAreas,
         sources: s.sources,
         birthday: s.birthday,
@@ -1660,6 +1773,7 @@ export const useStore = create<State>()(
           device: parseDevice(p.device),
           school: parseSchool(p.school),
           wallet: parseWallet(p.wallet),
+          life: parseLife(p.life),
           blurred: Array.isArray(p.blurred) ? p.blurred.filter((id): id is string => typeof id === 'string') : [],
           peeking: null,
           ...(p.modes ? { modes: p.modes.map((m) => (m.needs ? { ...m, needs: parseNeeds(m.needs) } : m)) } : {}),

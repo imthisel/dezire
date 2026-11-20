@@ -134,6 +134,30 @@ export interface Goal {
   area: GoalArea
   done: boolean
   createdAt: number
+  /** The life goal this yearly goal works toward, if any */
+  lifeId?: string
+}
+
+/** One of the very final goals: what you want your whole life to add up to. */
+export interface LifeGoal {
+  id: string
+  text: string
+  /** Why it matters (optional) */
+  why: string
+  /** The same areas as the yearly goals */
+  area: GoalArea
+  /** The age you want it by (null = someday) */
+  byAge: number | null
+  done: boolean
+  /** When it was marked achieved */
+  doneAt: number | null
+  createdAt: number
+}
+
+/** Life goals, and the one-line vision above them. Shared by every mode, like the yearly goals. */
+export interface LifePlan {
+  vision: string
+  goals: LifeGoal[]
 }
 
 /** What kind of money-maker a plan is. */

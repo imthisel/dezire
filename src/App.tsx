@@ -5,6 +5,7 @@ import { Dashboard } from './components/Dashboard'
 import { YearSection } from './components/YearSection'
 import { MoneyPlan } from './components/MoneyPlan'
 import { Favorites } from './components/Favorites'
+import { LifeGoals, LifeGoalModal } from './components/LifeGoals'
 import { Expenses } from './components/Expenses'
 import { NeedsPage } from './components/NeedsPage'
 import { NeedItemModal } from './components/NeedItemModal'
@@ -105,6 +106,7 @@ function page(view: View, needs: boolean) {
   if (view === 'plan') return <MoneyPlan />
   if (view === 'expenses') return <Expenses />
   if (view === 'favorites') return <Favorites />
+  if (view === 'life') return <LifeGoals />
   if (view === 'assets') return <Assets />
   if (view === 'calendar') return <Schedule />
   if (view === 'school') return <School />
@@ -164,10 +166,11 @@ function Modals() {
       {modal.type === 'school' && <SchoolTaskModal key={modal.editId ?? `new-${modal.column ?? ''}-${modal.due ?? ''}`} {...modal} />}
       {modal.type === 'pay' && <PayModal key={modal.ids.join()} kind={modal.kind} ids={modal.ids} what={modal.what} />}
       {modal.type === 'wallet' && <WalletModal key={`${modal.mode}-${modal.account ?? ''}`} mode={modal.mode} account={modal.account} />}
+      {modal.type === 'life' && <LifeGoalModal key={modal.editId ?? 'new'} editId={modal.editId} text={modal.text} area={modal.area} />}
       {modal.type === 'kinds' && <KindsModal onClose={close} />}
       {modal.type === 'goalAreas' && <GoalAreasModal onClose={close} openId={modal.openId} add={modal.add} />}
       {modal.type === 'goal' && (
-        <GoalModal key={`${modal.year}-${modal.editId ?? modal.area ?? 'new'}`} year={modal.year} editId={modal.editId} area={modal.area} />
+        <GoalModal key={`${modal.year}-${modal.editId ?? modal.area ?? 'new'}`} year={modal.year} editId={modal.editId} area={modal.area} lifeId={modal.lifeId} />
       )}
     </>
   )

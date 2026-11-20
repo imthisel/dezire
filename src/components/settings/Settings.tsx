@@ -26,6 +26,7 @@ const SECTIONS: { id: SettingsSection; label: string; about: string; icon: Lucid
 
 const VIEW_NAMES: Record<View, string> = {
   planner: 'Overview',
+  life: 'Life goals',
   plan: 'Income plan',
   favorites: 'Favorites',
   assets: 'Assets',

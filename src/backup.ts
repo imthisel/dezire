@@ -1,4 +1,4 @@
-import { savedModes, useStore } from './store'
+import { EMPTY_LIFE, savedModes, useStore } from './store'
 import { WEEKDAYS, addDays, fromKey } from './lib/expenses'
 import { linkName } from './lib/links'
 import { starterNeeds } from './lib/needs'
@@ -21,8 +21,8 @@ function download(name: string, text: string, type: string) {
 /** Downloads everything in the account as one file that Restore can read back. */
 export function downloadBackup() {
   const s = useStore.getState()
-  const { kinds, currency, goals, goalNotes, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, school, wallet, prefs } = s
-  const data = { app: 'dizayr', version: 5, exportedAt: new Date().toISOString(), currency, kinds, goals, goalNotes, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, school, wallet, prefs, ...savedModes(s) }
+  const { kinds, currency, goals, goalNotes, life, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, school, wallet, prefs } = s
+  const data = { app: 'dizayr', version: 5, exportedAt: new Date().toISOString(), currency, kinds, goals, goalNotes, life, goalAreas, sources, birthday, expenses, expenseCats, places, tasks, taskKinds, school, wallet, prefs, ...savedModes(s) }
   download(`dizayr-backup-${today()}.json`, JSON.stringify(data, null, 2), 'application/json')
   s.setDevice({ lastBackup: Date.now() })
   toast.success('Backup downloaded.')
@@ -62,7 +62,7 @@ export async function readBackup(file: File): Promise<BackupInfo | null> {
 function keepForUndo() {
   const s = useStore.getState()
   const kept = {
-    months: s.months, kinds: s.kinds, goals: s.goals, goalNotes: s.goalNotes, goalAreas: s.goalAreas, sources: s.sources, birthday: s.birthday, yearNotes: s.yearNotes, currency: s.currency,
+    months: s.months, kinds: s.kinds, goals: s.goals, goalNotes: s.goalNotes, life: s.life, goalAreas: s.goalAreas, sources: s.sources, birthday: s.birthday, yearNotes: s.yearNotes, currency: s.currency,
     expenses: s.expenses, expenseCats: s.expenseCats, places: s.places, layouts: s.layouts, setupNotes: s.setupNotes, setupFavorites: s.setupFavorites,
     modes: s.modes, modeId: s.modeId, modeData: s.modeData, tasks: s.tasks, taskKinds: s.taskKinds, school: s.school, wallet: s.wallet, prefs: s.prefs,
   }
@@ -79,7 +79,7 @@ export function restoreBackup(data: unknown) {
 
 // ---- Clearing ----
 
-export type ClearPart = 'plan' | 'expenses' | 'calendar' | 'school' | 'goals' | 'sources' | 'everything'
+export type ClearPart = 'plan' | 'expenses' | 'calendar' | 'school' | 'goals' | 'life' | 'sources' | 'everything'
 
 /** Clears part of the account, or all of it. It can be undone right after. */
 export function clearData(parts: ClearPart[]) {
@@ -100,7 +100,14 @@ export function clearData(parts: ClearPart[]) {
       ...(parts.includes('calendar') ? { tasks: [] } : {}),
       // Keeps the columns and subjects: only the tasks go.
       ...(parts.includes('school') ? { school: { ...s.school, tasks: [] } } : {}),
+      // Yearly goals linked to cleared life goals just lose the link.
       ...(parts.includes('goals') ? { goals: {}, goalNotes: {} } : {}),
+      ...(parts.includes('life')
+        ? {
+            life: EMPTY_LIFE,
+            ...(parts.includes('goals') ? {} : { goals: Object.fromEntries(Object.entries(s.goals).map(([y, l]) => [y, l.map(({ lifeId: _l, ...g }) => g)])) }),
+          }
+        : {}),
       ...(parts.includes('sources') ? { sources: [] } : {}),
     })
   }

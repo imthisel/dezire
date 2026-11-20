@@ -3,7 +3,7 @@ import { useStore, type AssetCat, type View } from './store'
 import { useSchoolView } from './lib/schoolView'
 
 /** Places the sidebar and the phone tab bar can jump to. Also `wallet` (Your money, on the Expenses page), `month-<key>`, `assets-<category>`, and on the Income plan page `plan-add` and `source-<id>`. */
-export type Section = 'overview' | 'years' | 'goals' | 'favorites' | 'assets' | 'plan' | 'expenses' | 'calendar' | 'school' | 'school-calendar' | 'grades' | 'help' | 'settings'
+export type Section = 'overview' | 'years' | 'goals' | 'life' | 'favorites' | 'assets' | 'plan' | 'expenses' | 'calendar' | 'school' | 'school-calendar' | 'grades' | 'help' | 'settings'
 
 export const PLANNER_SECTIONS = ['overview', 'years', 'goals'] as const
 
@@ -23,6 +23,8 @@ const viewOf = (id: string): View =>
     ? 'help'
     : id === 'favorites'
     ? 'favorites'
+    : id === 'life' || id.startsWith('life-')
+    ? 'life'
     : id.startsWith('assets')
       ? 'assets'
       : id.startsWith('plan') || id.startsWith('source-')
@@ -55,8 +57,8 @@ export function goTo(id: string) {
   if (id.startsWith('assets')) s.setAssetCat((id.slice('assets-'.length) || favoriteAssets()) as AssetCat)
   s.setDrawer(false)
   whenShown(view, id, () => {
-    // A folded income plan (or the closed "add" picker) opens before it's scrolled to.
-    if (id.startsWith('source-') || id === 'plan-add') window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: id }))
+    // A folded income plan (or the closed "add" picker, or a reached life goal) opens before it's scrolled to.
+    if (id.startsWith('source-') || id === 'plan-add' || id.startsWith('life-')) window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: id }))
     scrollTo(id, switched)
   })
 }
@@ -64,7 +66,7 @@ export function goTo(id: string) {
 /** Sent on `window` with the section id, so a folded part of the page can open itself before it's scrolled to. */
 export const OPEN_EVENT = 'dz-open-section'
 
-const atTop = (id: string) => id === 'overview' || id === 'plan' || id === 'favorites' || id === 'expenses' || id === 'calendar' || id === 'school' || id === 'school-calendar' || id === 'grades' || id === 'help' || id.startsWith('assets')
+const atTop = (id: string) => id === 'overview' || id === 'life' || id === 'plan' || id === 'favorites' || id === 'expenses' || id === 'calendar' || id === 'school' || id === 'school-calendar' || id === 'grades' || id === 'help' || id.startsWith('assets')
 
 /**
  * Runs `then` once page `view` is on screen (pages are built in the background, see `Pages` in App) and the section

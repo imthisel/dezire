@@ -55,12 +55,13 @@ const ARTICLES: Article[] = [
     id: 'what',
     topic: 'start',
     title: 'What you can do with Dizayr',
-    words: 'overview features wants needs expenses money income plan earning school calendar',
+    words: 'overview features wants needs expenses money income plan earning life goals vision school calendar',
     body: (
       <>
         <p>Dizayr keeps your plans and your real money in one place:</p>
         <ul>
           <li>{b('Wants')}: things you're saving up for, planned month by month, with goals and budgets.</li>
+          <li>{b('Life goals')}: the very final ones, what you want your whole life to add up to. Link yearly goals to them to see each one move.</li>
           <li>{b('Needs')}: everyday essentials, budgeted week by week.</li>
           <li>{b('Expenses')}: what you actually spent. Each one comes off {b('Your money')}, split into accounts like Cash and Bank.</li>
           <li>{b('Income plan')}: the ways you earn, their goals and next steps.</li>

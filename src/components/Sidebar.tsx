@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
-import { ArrowDown, ArrowUp, Award, CalendarCheck, CalendarDays, ChevronDown, Download, Eye, EyeOff, Flag, Gem, GraduationCap, GripVertical, LifeBuoy, Wallet, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, SlidersHorizontal, Sparkles, Star, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Award, CalendarCheck, CalendarDays, ChevronDown, Download, Eye, EyeOff, Flag, Gem, GraduationCap, GripVertical, LifeBuoy, Wallet, LayoutDashboard, Mountain, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, SlidersHorizontal, Sparkles, Star, X } from 'lucide-react'
 import { modeKind } from '../lib/needs'
 import { CopyModeModal, ModesModal, enterKind, lastMode, modeFor } from './Modes'
 import type { ModeKind } from '../lib/types'
@@ -39,6 +39,8 @@ export function Sidebar() {
   const sidebar = useStore((s) => s.sidebar)
   const drawer = useStore((s) => s.drawer)
   const sources = useStore((s) => s.sources)
+  // Life goals still to reach.
+  const lifeLeft = useStore((s) => s.life.goals.filter((g) => !g.done).length)
   const favorites = useStore((s) => Object.values(s.months).reduce((n, m) => n + m.items.filter((i) => i.favorite).length, 0))
   const assetCat = useStore((s) => s.assetCat)
   const assetFavorite = useStore((s) => s.assetFavorite)
@@ -122,6 +124,9 @@ export function Sidebar() {
           <KindSection kind="wants" on={!needsMode} mode={wantsName}>
             <Link icon={LayoutDashboard} label="Overview" on={inWants && active === 'overview'} onClick={() => wants('overview')} />
             <Link icon={CalendarDays} label="Months" on={inWants && active === 'years'} onClick={() => wants('years')} />
+            {!hiddenNav.includes('life') && (
+              <Link icon={Mountain} label="Life goals" on={inWants && active === 'life'} onClick={() => wants('life')} badge={lifeLeft || undefined} iconCls="text-violet-300" />
+            )}
             <Link icon={Flag} label="Yearly goals" on={inWants && active === 'goals'} onClick={() => wants('goals')} />
             {!hiddenNav.includes('favorites') && <Link
               icon={Star}
@@ -657,6 +662,7 @@ function Block({ id, index, dragId, setDragId, children }: { id: SideBlock; inde
 const HIDEABLE: Partial<Record<SideBlock, NavId>> = { plan: 'plan', calendar: 'calendar', school: 'school', expenses: 'expenses' }
 /** Parts inside Wants that can be taken out too. */
 const WANTS_PARTS: { id: NavId; label: string; icon: typeof Flag; tint: string }[] = [
+  { id: 'life', label: 'Life goals', icon: Mountain, tint: 'bg-violet-400/15 text-violet-200' },
   { id: 'favorites', label: 'Favorites', icon: Star, tint: 'bg-amber-400/15 text-amber-200' },
   { id: 'assets', label: 'Assets', icon: Gem, tint: 'bg-cyan-400/15 text-cyan-200' },
 ]

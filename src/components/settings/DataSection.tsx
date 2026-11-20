@@ -24,6 +24,7 @@ export function DataSection() {
   const tasks = useStore((s) => s.tasks.length)
   const goals = useStore((s) => Object.values(s.goals).reduce((n, l) => n + l.length, 0))
   const sources = useStore((s) => s.sources.length)
+  const lifeGoals = useStore((s) => s.life.goals.length)
   const modes = useStore((s) => s.modes.length)
   const items = useMemo(() => Object.values(months).reduce((n, m) => n + m.items.length, 0), [months])
   const file = useRef<HTMLInputElement>(null)
@@ -79,6 +80,7 @@ export function DataSection() {
             ['Expenses', expenses],
             ['Events & tasks', tasks],
             ['Yearly goals', goals],
+            ['Life goals', lifeGoals],
             ['Income plans', sources],
             ['Modes', modes],
           ].map(([label, n]) => (
@@ -95,7 +97,7 @@ export function DataSection() {
       </Group>
 
       {restoring && <RestoreModal info={restoring} onClose={() => setRestoring(null)} />}
-      {clearing && <ClearModal items={items} expenses={expenses} tasks={tasks} goals={goals} sources={sources} onClose={() => setClearing(false)} />}
+      {clearing && <ClearModal items={items} expenses={expenses} tasks={tasks} goals={goals} lifeGoals={lifeGoals} sources={sources} onClose={() => setClearing(false)} />}
     </>
   )
 }
@@ -142,7 +144,7 @@ function RestoreModal({ info, onClose }: { info: BackupInfo; onClose: () => void
 
 const CONFIRM_WORD = 'DELETE'
 
-function ClearModal({ items, expenses, tasks, goals, sources, onClose }: { items: number; expenses: number; tasks: number; goals: number; sources: number; onClose: () => void }) {
+function ClearModal({ items, expenses, tasks, goals, lifeGoals, sources, onClose }: { items: number; expenses: number; tasks: number; goals: number; lifeGoals: number; sources: number; onClose: () => void }) {
   const modeName = useStore((s) => s.modes.find((m) => m.id === s.modeId)?.name ?? 'Main')
   const needsMode = useStore(inNeedsMode)
   const [picked, setPicked] = useState<ClearPart[]>([])
@@ -158,6 +160,7 @@ function ClearModal({ items, expenses, tasks, goals, sources, onClose }: { items
     { id: 'expenses', title: 'Expenses', hint: `${plural(expenses, 'expense')} and your money tracker` },
     { id: 'calendar', title: 'Calendar & tasks', hint: plural(tasks, 'entry').replace('entrys', 'entries') },
     { id: 'school', title: 'School tasks', hint: `${plural(schoolTasks, 'task')} · your columns and subjects stay` },
+    { id: 'life', title: 'Life goals', hint: `${plural(lifeGoals, 'goal')} and your life vision` },
     { id: 'goals', title: 'Yearly goals', hint: plural(goals, 'goal') },
     { id: 'sources', title: 'Income plans', hint: plural(sources, 'plan') },
     { id: 'everything', title: 'Everything', hint: 'All of the above in every mode, your lists and your birthday' },

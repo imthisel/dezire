@@ -5,6 +5,7 @@ import { useStore, type PhoneCols } from '../../store'
 import { ActionRow, Group, Row, Segmented, Select, ToggleRow } from './ui'
 
 const NAV_LABELS: Record<NavId, { label: string; hint: string }> = {
+  life: { label: 'Life goals', hint: 'The very final goals, for your whole life' },
   favorites: { label: 'Favorites', hint: 'The items you starred' },
   calendar: { label: 'Calendar', hint: 'Events and tasks' },
   school: { label: 'School', hint: 'Subjects, deadlines, grades and a board of what’s done' },
@@ -16,6 +17,7 @@ const NAV_LABELS: Record<NavId, { label: string; hint: string }> = {
 const START_PAGES: { id: StartPage; label: string }[] = [
   { id: 'last', label: 'Where I left off' },
   { id: 'planner', label: 'Overview' },
+  { id: 'life', label: 'Life goals' },
   { id: 'calendar', label: 'Calendar' },
   { id: 'school', label: 'School' },
   { id: 'grades', label: 'Grades' },

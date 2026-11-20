@@ -709,7 +709,7 @@ export function useModeGuard() {
   const { current, mainId } = useModes()
   const view = useStore((s) => s.view)
   useEffect(() => {
-    if (current.kind === 'needs' && (view === 'assets' || view === 'favorites' || view === 'plan')) useStore.getState().setView('planner')
+    if (current.kind === 'needs' && (view === 'life' || view === 'assets' || view === 'favorites' || view === 'plan')) useStore.getState().setView('planner')
   }, [current.kind, view])
   useEffect(() => {
     if (!current.locked) return

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Award, CalendarCheck, Flag, Gem, GraduationCap, Menu, Receipt, Rocket, ShoppingBasket, Sparkles, Star } from 'lucide-react'
+import { Award, CalendarCheck, Flag, Gem, Mountain, GraduationCap, Menu, Receipt, Rocket, ShoppingBasket, Sparkles, Star } from 'lucide-react'
 import { goTo, useActiveSection } from '../nav'
 import { inNeedsMode, useStore } from '../store'
 import type { NavId, TabId } from '../lib/prefs'
@@ -9,6 +9,7 @@ import { CopyModeModal, ModesModal, enterKind } from './Modes'
 export const TAB_LOOK: Record<TabId, { label: string; icon: typeof Flag; hint: string }> = {
   wants: { label: 'Wants', icon: Sparkles, hint: 'Your Wants overview' },
   needs: { label: 'Needs', icon: ShoppingBasket, hint: 'Your everyday budget' },
+  life: { label: 'Life', icon: Mountain, hint: 'Your life goals' },
   school: { label: 'School', icon: GraduationCap, hint: 'Subjects and deadlines' },
   grades: { label: 'Grades', icon: Award, hint: 'Your grade tracker' },
   expenses: { label: 'Expenses', icon: Receipt, hint: 'Money spent, day by day' },
@@ -19,7 +20,7 @@ export const TAB_LOOK: Record<TabId, { label: string; icon: typeof Flag; hint: s
 }
 
 /** The setting that takes a tab's page out of the menus (a hidden page doesn't get a tab either). */
-const HIDDEN_BY: Partial<Record<TabId, NavId>> = { school: 'school', grades: 'school', expenses: 'expenses', calendar: 'calendar', assets: 'assets', favorites: 'favorites', plan: 'plan' }
+const HIDDEN_BY: Partial<Record<TabId, NavId>> = { life: 'life', school: 'school', grades: 'school', expenses: 'expenses', calendar: 'calendar', assets: 'assets', favorites: 'favorites', plan: 'plan' }
 
 /** Bottom tab bar on phones: the tabs chosen in Settings → Layout (Wants, Needs, School, Expenses by default), then More for the rest. */
 export function MobileNav() {
@@ -43,7 +44,7 @@ export function MobileNav() {
       else setModal('needs')
     } else if (id === 'wants') enterKind('wants') && goTo('overview')
     // These pages belong to Wants, as in the side menu.
-    else if (id === 'assets' || id === 'favorites' || id === 'plan') enterKind('wants') && goTo(id)
+    else if (id === 'life' || id === 'assets' || id === 'favorites' || id === 'plan') enterKind('wants') && goTo(id)
     else goTo(id)
   }
 

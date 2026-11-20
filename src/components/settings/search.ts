@@ -24,7 +24,7 @@ export const SEARCH: { id: string; section: SettingsSection; title: string; word
   { id: 'hide-currency', section: 'layout', title: 'Currency button', words: 'hide header exchange' },
   { id: 'hide-modes', section: 'layout', title: 'Wants and Needs buttons', words: 'hide header switch' },
   { id: 'privacy-button', section: 'layout', title: 'Hide amounts button', words: 'eye header privacy' },
-  { id: 'nav', section: 'layout', title: 'Side menu & tab bar', words: 'hide pages favorites calendar expenses assets money income plan navigation sidebar' },
+  { id: 'nav', section: 'layout', title: 'Side menu & tab bar', words: 'hide pages life goals favorites calendar expenses assets money income plan navigation sidebar' },
   { id: 'tab-bar', section: 'layout', title: 'Tab bar on phones', words: 'bottom tabs mobile navigation wants needs school expenses more order' },
   { id: 'sidebar', section: 'layout', title: 'Show the side menu', words: 'sidebar wide screens docked' },
   { id: 'start-page', section: 'layout', title: 'Open the app on', words: 'start home landing first page default' },

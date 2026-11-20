@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Check, CornerDownLeft, SlidersHorizontal } from 'lucide-react'
+import { Check, CornerDownLeft, Mountain, SlidersHorizontal } from 'lucide-react'
 import { useAreaOf, useGoalAreas, useStore } from '../store'
 import { areaColor, areaIcon, goalPlaceholder } from '../lib/meta'
 import type { GoalArea } from '../lib/types'
@@ -9,7 +9,7 @@ import { toast } from '../toast'
 
 const EMPTY: never[] = []
 
-export function GoalModal({ year, editId, area: preset }: { year: number; editId?: string; area?: GoalArea }) {
+export function GoalModal({ year, editId, area: preset, lifeId: presetLife }: { year: number; editId?: string; area?: GoalArea; lifeId?: string }) {
   const close = useStore((s) => s.closeModal)
   const goals = useStore((s) => s.goals[year] ?? EMPTY)
   const areas = useGoalAreas()
@@ -19,6 +19,12 @@ export function GoalModal({ year, editId, area: preset }: { year: number; editId
 
   const [area, setArea] = useState<GoalArea | null>(editing?.area ?? preset ?? null)
   const [text, setText] = useState(editing?.text ?? '')
+  // The life goal it works toward (optional). Only ones still to reach are offered, plus the one it's already linked to.
+  const lifeGoals = useStore((s) => s.life.goals)
+  const [lifeId, setLifeId] = useState<string | null>(editing?.lifeId ?? presetLife ?? null)
+  const lifeShown = lifeGoals.filter((g) => !g.done || g.id === lifeId)
+  // Life goals in the picked area first.
+  const lifeSorted = area ? [...lifeShown.filter((g) => g.area === area), ...lifeShown.filter((g) => g.area !== area)] : lifeShown
   const [added, setAdded] = useState(0)
   const [managing, setManaging] = useState(false)
   const stopManaging = useCallback(() => setManaging(false), [])
@@ -36,11 +42,11 @@ export function GoalModal({ year, editId, area: preset }: { year: number; editId
     if (!ready) return
     const s = useStore.getState()
     if (editing) {
-      s.updateGoal(year, editing.id, { text: text.trim(), area: area! })
+      s.updateGoal(year, editing.id, { text: text.trim(), area: area!, lifeId: lifeId ?? undefined })
       toast.success(editing.area === area ? 'Goal updated.' : `Goal moved to ${label(area!)}.`)
       return close()
     }
-    s.addGoal(year, area!, text)
+    s.addGoal(year, area!, text, lifeId ?? undefined)
     if (another) {
       setText('')
       setAdded((n) => n + 1)
@@ -179,6 +185,33 @@ export function GoalModal({ year, editId, area: preset }: { year: number; editId
             </div>
           )}
         </Step>
+
+        {lifeSorted.length > 0 && (
+          <Step n={3} title="Part of a life goal?" done={!!lifeId} action={<span className="text-xs text-zinc-500">Optional</span>}>
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Life goal it works toward">
+              {lifeSorted.map((g) => {
+                const on = lifeId === g.id
+                const a = areaColor(areaOf(g.area))
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setLifeId(on ? null : g.id)}
+                    className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1.5 text-left text-sm transition ${
+                      on ? `${a.border} ${a.bg} text-white ring-1 ${a.ring}` : 'border-white/10 text-zinc-400 hover:border-white/20 hover:text-zinc-200'
+                    }`}
+                  >
+                    <Mountain className={`h-3.5 w-3.5 shrink-0 ${on ? a.text : ''}`} />
+                    <span className="truncate">{g.text}</span>
+                  </button>
+                )
+              })}
+            </div>
+            <p className="mt-2 text-xs text-zinc-500">Linked goals show under that life goal, so you can see it move year by year.</p>
+          </Step>
+        )}
       </div>
       {managing && <GoalAreasModal onClose={stopManaging} />}
     </Modal>
