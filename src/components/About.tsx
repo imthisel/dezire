@@ -18,6 +18,7 @@ import { TryExpenses } from './about/TryExpenses'
 import { TrySetups } from './about/TrySetups'
 import { TryAssets } from './about/TryAssets'
 import { BrandLogo } from './BrandLogo'
+import { ContactButton } from './EmailContact'
 
 // ---- Actions ----
 
@@ -650,7 +651,7 @@ function Footer() {
   const cols: { title: string; links: [string, string][] }[] = [
     { title: 'Product', links: [['Try it now', '#try'], ['How it works', '#how'], ['Download', '#download'], ['Pricing', '#pricing']] },
     { title: 'Trust', links: [['Security', '#security'], ['Privacy Policy', '/privacy'], ['Terms', '/terms'], ['Refunds', '/refunds']] },
-    { title: 'Support', links: [['Questions', '#faq'], ['Contact us', `mailto:${LEGAL.email}`]] },
+    { title: 'Support', links: [['Questions', '#faq'], ['Contact us', 'contact']] },
   ]
   return (
     <footer className="border-t border-white/[0.06] px-5 pb-10 pt-16 text-sm text-zinc-400 sm:px-8">
@@ -670,7 +671,13 @@ function Footer() {
             <ul className="mt-4 space-y-2.5">
               {c.links.map(([t, href]) => (
                 <li key={t}>
-                  <a href={href} className={link}>{t}</a>
+                  {href === 'contact' ? (
+                    <ContactButton className={link}>{t}</ContactButton>
+                  ) : (
+                    <a href={href} className={link}>
+                      {t}
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>
@@ -993,9 +1000,7 @@ function Faq() {
           </div>
           <p className="mt-6 text-sm text-zinc-400">
             Still wondering?{' '}
-            <a href={`mailto:${LEGAL.email}`} className="text-brand-200 underline decoration-brand-300/40 underline-offset-4 hover:text-brand-100">
-              Write to us
-            </a>
+            <ContactButton className="text-brand-200 underline decoration-brand-300/40 underline-offset-4 hover:text-brand-100">Write to us</ContactButton>
             . We read every message.
           </p>
         </div>

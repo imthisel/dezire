@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react'
 import { LEGAL, type LegalPage } from '../lib/legal'
 import { PLANS, TRIAL_DAYS, dollars } from '../lib/plans'
 import { BrandLogo } from './BrandLogo'
+import { ContactButton } from './EmailContact'
 
 /**
  * Terms of Service, Privacy Policy and Refund Policy (/terms, /privacy, /refunds). Open to everyone, signed in or not.
@@ -69,7 +70,7 @@ export function LegalLinks({ className = '' }: { className?: string }) {
       <a href="/terms" className={className}>Terms</a>
       <a href="/privacy" className={className}>Privacy</a>
       <a href="/refunds" className={className}>Refunds</a>
-      <a href={`mailto:${LEGAL.email}`} className={className}>Contact</a>
+      <ContactButton className={className}>Contact</ContactButton>
     </>
   )
 }
@@ -89,7 +90,8 @@ function LegalFooter() {
   )
 }
 
-const Mail = () => <a href={`mailto:${LEGAL.email}`}>{LEGAL.email}</a>
+/** The support address in the policy text: opens the contact panel (copy it, or write in Gmail / Outlook / the email app). */
+const Mail = () => <ContactButton className="underline underline-offset-2">{LEGAL.email}</ContactButton>
 const PADDLE_BUYER_TERMS = 'https://www.paddle.com/legal/checkout-buyer-terms'
 const PADDLE_PRIVACY = 'https://www.paddle.com/legal/privacy'
 const PADDLE_ORDERS = 'https://paddle.net'
