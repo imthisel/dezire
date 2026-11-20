@@ -8,7 +8,7 @@ import { daysBetween, findSubject, shortDate, type School as SchoolData, type Sc
 import { card } from './Dashboard'
 import { toast } from '../toast'
 import { byTime, fmtTime, isEvent, occurrencesIn, taskColor, type Occurrence } from '../lib/tasks'
-import { LinkMenu } from './CalendarLink'
+import { LinkToggle } from './CalendarLink'
 
 /*
  * School → Calendar: every task on the day it's due, so a busy week (or a free one) is easy to see.
@@ -91,7 +91,8 @@ export function SchoolCalendar({ school, tasks, today, isOpen, onTick }: {
   const [dragId, setDragId] = useState<string | null>(null)
   const [over, setOver] = useState<string | null>(null)
   const showDone = done === 'show'
-  const showCal = useStore((s) => s.prefs.calendarOnSchool)
+  // Time's to-dos, when switched on here (events stay on Time's Calendar).
+  const showCal = useStore((s) => s.prefs.timeTasksOnSchool)
   const calTasks = useStore((s) => s.tasks)
 
   // When the page has been open past midnight, follow the new today if it was showing the old one.
@@ -135,12 +136,12 @@ export function SchoolCalendar({ school, tasks, today, isOpen, onTick }: {
   const range = { start: days[0], end: days[days.length - 1] }
   const month = first.slice(0, 7)
 
-  /** What's on the Calendar page on the days showing (when it's shown here): events and tasks, by day, in time order. */
+  /** Time's to-dos on the days showing (when switched on here), by day, in time order. */
   const calByDay = useMemo(() => {
     const m = new Map<string, Occurrence[]>()
     if (!showCal) return m
     for (const o of occurrencesIn(calTasks, range.start, range.end)) {
-      if (!showDone && o.done) continue
+      if (isEvent(o.task) || (!showDone && o.done)) continue
       const list = m.get(o.day)
       if (list) list.push(o)
       else m.set(o.day, [o])
@@ -256,7 +257,7 @@ export function SchoolCalendar({ school, tasks, today, isOpen, onTick }: {
               Today
             </button>
           ) : null}
-          <LinkMenu from="school" />
+          <LinkToggle from="school" />
           <button
             onClick={() => setDone(showDone ? 'hide' : 'show')}
             aria-pressed={showDone}
@@ -310,7 +311,7 @@ export function SchoolCalendar({ school, tasks, today, isOpen, onTick }: {
           )}
           {showCal && (
             <span className="ml-auto inline-flex items-center gap-1.5 text-zinc-500">
-              <span className="inline-block h-2 w-2 rounded-full border border-dashed border-zinc-400" /> from your Calendar
+              <span className="inline-block h-2 w-2 rounded-full border border-dashed border-zinc-400" /> your tasks from Time
             </span>
           )}
         </div>
@@ -374,7 +375,7 @@ export function SchoolCalendar({ school, tasks, today, isOpen, onTick }: {
 
         <p className="hidden border-t border-white/[0.05] px-4 py-2 text-[11px] text-zinc-600 sm:block">
           Drag a task to another day to change its due date · double-click a day to add a task · arrow keys move around
-          {showCal && ' · dashed items are from your Calendar'}
+          {showCal && ' · dashed items are your tasks from Time'}
         </p>
       </section>
 
@@ -440,7 +441,7 @@ function MonthCell({ k, today, selected, outside, lastCol, lastRow, list, cal, i
     <div
       role="gridcell"
       aria-selected={selected}
-      aria-label={`${longDate(k)}: ${list.length ? `${list.length} task${list.length === 1 ? '' : 's'}` : 'nothing due'}${cal.length ? `, ${cal.length} on your calendar` : ''}`}
+      aria-label={`${longDate(k)}: ${list.length ? `${list.length} task${list.length === 1 ? '' : 's'}` : 'nothing due'}${cal.length ? `, ${cal.length} from Time` : ''}`}
       onClick={onPick}
       onDoubleClick={() => newTaskOn(k)}
       {...zone}
@@ -752,7 +753,7 @@ function CalDot({ o }: { o: Occurrence }) {
   return <span className={`h-1.5 w-1.5 rounded-full border ${c.ring} ${o.done ? 'opacity-35' : ''}`} />
 }
 
-/** An event or task from the Calendar page: dashed, so it reads as "also on", not a School deadline. Opens it there. */
+/** A to-do from Time: dashed, so it reads as "also on", not a School deadline. Opens it there. */
 function CalChip({ o, tall }: { o: Occurrence; tall?: boolean }) {
   const kind = useTaskKindOf()(o.task.kind)
   const c = taskColor(kind)
@@ -787,24 +788,24 @@ function CalChip({ o, tall }: { o: Occurrence; tall?: boolean }) {
   )
 }
 
-/** The picked day's events and tasks from the Calendar page, under its School tasks. */
+/** The picked day's to-dos from Time, under its School tasks. */
 function CalDay({ day, cal }: { day: string; cal: Occurrence[] }) {
   const kindOf = useTaskKindOf()
   return (
     <div className="border-t border-white/[0.05] px-4 py-3">
       <div className="mb-1.5 flex items-center justify-between">
         <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-          <CalendarCheck className="h-3.5 w-3.5" /> On your calendar
+          <CalendarCheck className="h-3.5 w-3.5" /> Your tasks from Time
         </p>
         <button
-          onClick={() => useStore.getState().openModal({ type: 'task', entry: 'event', date: day })}
+          onClick={() => useStore.getState().openModal({ type: 'task', entry: 'todo', date: day })}
           className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-medium text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
         >
-          <Plus className="h-3 w-3" /> Event
+          <Plus className="h-3 w-3" /> Task
         </button>
       </div>
       {cal.length === 0 ? (
-        <p className="text-xs text-zinc-600">Nothing else planned. Good day to study.</p>
+        <p className="text-xs text-zinc-600">No other tasks this day. Good day to study.</p>
       ) : (
         <ul className="space-y-0.5">
           {cal.map((o) => {

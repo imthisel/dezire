@@ -20,6 +20,7 @@ import { installApp, useApp } from '../appUpdate'
 import { PremiumCard } from './Plans'
 import { openHelp } from './Help'
 import { useUnreadReplies } from '../lib/feedback'
+import { useSchoolView } from '../lib/schoolView'
 import type { IncomeSource } from '../lib/types'
 
 /** Wide screens keep the sidebar docked on the left; smaller ones slide it over the page. */
@@ -50,6 +51,7 @@ export function Sidebar() {
     .split(',')
     .map(Number)
   const active = useActiveSection()
+  const schoolView = useSchoolView((s) => s.view)
   const f = useFmt()
   // This month's spending, shown next to Expenses.
   const month = todayKey().slice(0, 7)
@@ -271,10 +273,19 @@ export function Sidebar() {
             <Link
               icon={GraduationCap}
               label="Tasks"
-              on={active === 'school'}
-              onClick={() => goTo('school')}
+              on={active === 'school' && schoolView !== 'calendar'}
+              onClick={() => {
+                useSchoolView.getState().showTasks()
+                goTo('school')
+              }}
               note={schoolLate > 0 ? `${schoolLate} late` : schoolSoon > 0 ? `${schoolSoon} due soon` : undefined}
               noteTitle={schoolLate > 0 ? 'School tasks past their due date' : 'School tasks due in the next 3 days'}
+            />
+            <Link
+              icon={CalendarDays}
+              label="Calendar"
+              on={active === 'school' && schoolView === 'calendar'}
+              onClick={() => goTo('school-calendar')}
             />
             <Link
               icon={Award}

@@ -1,8 +1,9 @@
 import { useEffect, useState, type MouseEvent } from 'react'
 import { useStore, type AssetCat, type View } from './store'
+import { useSchoolView } from './lib/schoolView'
 
 /** Places the sidebar and the phone tab bar can jump to. Also `wallet` (Your money, on the Expenses page), `month-<key>`, `assets-<category>`, and on the Money plan page `plan-add` and `source-<id>`. */
-export type Section = 'overview' | 'years' | 'goals' | 'favorites' | 'assets' | 'plan' | 'expenses' | 'calendar' | 'school' | 'grades' | 'help' | 'settings'
+export type Section = 'overview' | 'years' | 'goals' | 'favorites' | 'assets' | 'plan' | 'expenses' | 'calendar' | 'school' | 'school-calendar' | 'grades' | 'help' | 'settings'
 
 export const PLANNER_SECTIONS = ['overview', 'years', 'goals'] as const
 
@@ -14,7 +15,7 @@ const viewOf = (id: string): View =>
     ? 'expenses'
     : id === 'calendar'
     ? 'calendar'
-    : id === 'school'
+    : id === 'school' || id === 'school-calendar'
     ? 'school'
     : id === 'grades'
     ? 'grades'
@@ -49,12 +50,14 @@ export function goTo(id: string) {
   const view = viewOf(id)
   const switched = s.view !== view
   if (switched) s.setView(view)
+  // School's calendar is the School page shown as a calendar.
+  if (id === 'school-calendar') useSchoolView.getState().setView('calendar')
   if (id.startsWith('assets')) s.setAssetCat((id.slice('assets-'.length) || favoriteAssets()) as AssetCat)
   s.setDrawer(false)
   whenShown(view, id, () => scrollTo(id, switched))
 }
 
-const atTop = (id: string) => id === 'overview' || id === 'plan' || id === 'favorites' || id === 'expenses' || id === 'calendar' || id === 'school' || id === 'grades' || id === 'help' || id.startsWith('assets')
+const atTop = (id: string) => id === 'overview' || id === 'plan' || id === 'favorites' || id === 'expenses' || id === 'calendar' || id === 'school' || id === 'school-calendar' || id === 'grades' || id === 'help' || id.startsWith('assets')
 
 /**
  * Runs `then` once page `view` is on screen (pages are built in the background, see `Pages` in App) and the section

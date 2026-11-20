@@ -17,7 +17,7 @@ import { TimeGrid } from './TimeGrid'
 import { TaskKinds } from './TaskKinds'
 import { TaskMenu, openTaskMenu } from './TaskMenu'
 import { toast } from '../toast'
-import { LinkMenu, SchoolDueChip, dueColor, openSchoolTask, tickSchool, useSchoolByDay, type SchoolDue } from './CalendarLink'
+import { LinkToggle, SchoolDueChip, dueColor, openSchoolTask, tickSchool, useSchoolByDay, type SchoolDue } from './CalendarLink'
 
 type CalView = 'day' | '3day' | 'week' | 'month'
 const VIEWS: { id: CalView; label: string; short: string; key: string }[] = [
@@ -178,7 +178,10 @@ export function Schedule() {
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Calendar</h2>
             <p className="truncate text-sm text-zinc-400">Plan your time, and keep track of what's due.</p>
           </div>
-          <LinkMenu from="calendar" />
+          {/* School tasks on this calendar: the same switch School's calendar has for Time tasks (on phones it sits by the views) */}
+          <div className="hidden sm:block">
+            <LinkToggle from="calendar" />
+          </div>
           <button
             onClick={() => setEditKinds(true)}
             title="Kinds of tasks & colours"
@@ -229,7 +232,8 @@ export function Schedule() {
             <h3 key={`${view}-${days[0]}`} className="animate-tick min-w-0 flex-1 truncate text-[15px] font-semibold text-white sm:text-lg">
               {titleOf(view, anchor, days)}
             </h3>
-            <div role="tablist" aria-label="Show" className="relative grid w-full grid-cols-4 rounded-xl border border-white/10 bg-white/[0.03] p-1 sm:w-auto">
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+            <div role="tablist" aria-label="Show" className="relative grid flex-1 grid-cols-4 rounded-xl border border-white/10 bg-white/[0.03] p-1 sm:flex-none">
               <span
                 aria-hidden
                 className="absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/4)] rounded-lg bg-indigo-500/25 ring-1 ring-indigo-400/40 transition-transform duration-300 ease-[cubic-bezier(0.34,1.3,0.64,1)]"
@@ -248,6 +252,10 @@ export function Schedule() {
                   <span className="hidden sm:inline">{v.label}</span>
                 </button>
               ))}
+            </div>
+            <div className="sm:hidden">
+              <LinkToggle from="calendar" />
+            </div>
             </div>
           </div>
 
@@ -473,14 +481,14 @@ function KindFilter({ hidden, setHidden, onEdit }: { hidden: string[]; setHidden
         <button
           onClick={() => useStore.getState().setPrefs({ schoolOnCalendar: !schoolOn })}
           aria-pressed={schoolOn}
-          title={schoolOn ? 'Hide School deadlines from the calendar' : 'Show School deadlines on the calendar'}
+          title={schoolOn ? 'Hide School tasks from the calendar' : 'Show School tasks on the calendar'}
           className={`group flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition hover:bg-white/5 ${schoolOn ? 'text-zinc-200' : 'text-zinc-500'}`}
         >
           <span className={`grid h-4 w-4 shrink-0 place-items-center rounded ${schoolOn ? 'bg-indigo-400' : 'border border-white/15'}`}>
             {schoolOn && <Check className="h-3 w-3 text-black/70" strokeWidth={3.5} />}
           </span>
           <GraduationCap className={`h-3.5 w-3.5 shrink-0 ${schoolOn ? 'text-indigo-300' : ''}`} />
-          <span className="min-w-0 flex-1 truncate">School deadlines</span>
+          <span className="min-w-0 flex-1 truncate">School tasks</span>
           {schoolOn && schoolOpen > 0 && <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">{schoolOpen}</span>}
           {schoolOn ? <Eye className="hidden h-3 w-3 shrink-0 text-zinc-600 group-hover:block" /> : <EyeOff className="h-3 w-3 shrink-0" />}
         </button>

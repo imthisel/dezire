@@ -42,8 +42,8 @@ export type Prefs = {
   tabBar: TabId[]
   /** School deadlines also show on the Calendar page */
   schoolOnCalendar: boolean
-  /** Calendar events and tasks also show on School's calendar */
-  calendarOnSchool: boolean
+  /** Time's to-dos also show on School's calendar (events stay on Time's Calendar) */
+  timeTasksOnSchool: boolean
 }
 
 export type DevicePrefs = {
@@ -83,7 +83,7 @@ export const DEFAULT_PREFS: Prefs = {
   sideOrder: ['wants', 'needs', 'plan', 'calendar', 'school', 'expenses'],
   tabBar: ['wants', 'needs', 'school', 'expenses'],
   schoolOnCalendar: false,
-  calendarOnSchool: true,
+  timeTasksOnSchool: false,
 }
 
 export const DEFAULT_DEVICE: DevicePrefs = {
@@ -139,7 +139,7 @@ export function parsePrefs(raw: unknown): Prefs {
     sideOrder: parseSideOrder(r.sideOrder),
     tabBar: parseTabBar(r.tabBar),
     schoolOnCalendar: bool(r.schoolOnCalendar, d.schoolOnCalendar),
-    calendarOnSchool: bool(r.calendarOnSchool, d.calendarOnSchool),
+    timeTasksOnSchool: bool(r.timeTasksOnSchool, d.timeTasksOnSchool),
   }
 }
 

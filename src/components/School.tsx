@@ -17,6 +17,7 @@ import { ColorRow, SubjectsModal } from './SchoolSubjects'
 import { SchoolCalendar } from './SchoolCalendar'
 import { tickSchool as tick } from './CalendarLink'
 import { toast } from '../toast'
+import { useSchoolView } from '../lib/schoolView'
 
 // ---- Looks ----
 
@@ -92,7 +93,8 @@ const newTask = (column?: string, subject?: string) => useStore.getState().openM
 export function School() {
   const school = useStore((s) => s.school)
   const today = useToday()
-  const [view, setView] = useLocal('dizayr-school-view', 'board', ['board', 'list', 'calendar'] as const)
+  const view = useSchoolView((s) => s.view)
+  const setView = useSchoolView((s) => s.setView)
   const [sort, setSort] = useLocal<Sort>('dizayr-school-sort', 'due', ['due', 'manual'] as const)
   const [subject, setSubject] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -297,10 +299,10 @@ export function School() {
         </div>
       )}
 
-      {view === 'board' || school.tasks.length === 0 ? (
-        <Board school={school} tasks={shown} today={today} sort={sort} filtering={filtering} />
-      ) : view === 'calendar' ? (
+      {view === 'calendar' ? (
         <SchoolCalendar school={school} tasks={shown} today={today} isOpen={isOpen} onTick={tick} />
+      ) : view === 'board' || school.tasks.length === 0 ? (
+        <Board school={school} tasks={shown} today={today} sort={sort} filtering={filtering} />
       ) : (
         <ListView school={school} tasks={shown} today={today} isOpen={isOpen} />
       )}
