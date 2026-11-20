@@ -21,8 +21,10 @@ export function Header() {
   // Tablets and phones give the tools their own rows; with everything hidden those rows go too.
   const anyTool = !prefs.hideCurrency || !prefs.hideBackup || !prefs.hideReset || prefs.privacyButton
 
+  const range = useStore((s) => s.yearRange).replace('-', ' – ')
+
   function reset() {
-    if (confirm('Delete ALL money goals, budgets, items, expenses, yearly goals, money plans, tasks, year and setup notes and your birthday from 2026–2040? You can undo this right after.')) {
+    if (confirm('Delete ALL money goals, budgets, items, expenses, yearly goals, money plans, tasks, year and setup notes and your birthday? You can undo this right after.')) {
       const s = useStore.getState()
       const before = { ...s }
       s.resetAll()
@@ -95,8 +97,8 @@ export function Header() {
           <div className="min-w-0">
             <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">Dizayr</h1>
             <p className="truncate text-xs text-zinc-400">
-              <span className="sm:hidden">{needs ? `${symbol} everyday budget` : `${symbol} planner · 2026 – 2040`}</span>
-              <span className="hidden sm:inline">{needs ? <>Everyday budget in {symbol}</> : <>Goals, budgets &amp; net worth in {symbol} · 2026 – 2040</>}</span>
+              <span className="sm:hidden">{needs ? `${symbol} everyday budget` : `${symbol} planner · ${range}`}</span>
+              <span className="hidden sm:inline">{needs ? <>Everyday budget in {symbol}</> : <>Goals, budgets &amp; net worth in {symbol} · {range}</>}</span>
             </p>
           </div>
           </a>

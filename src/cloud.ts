@@ -175,6 +175,9 @@ async function connect(user: User) {
     if (snap.exists()) apply(snap.data().data)
     // First sign-in: whatever was already in this browser becomes the account's starting data.
     else {
+      // A new account's years start now (or at the earliest month already planned here), not at Dizayr's first year.
+      const planned = Object.keys(useStore.getState().months).map((k) => Number(k.slice(0, 4))).filter((y) => y > 0)
+      quietly(() => unstamped(() => useStore.getState().setPrefs({ yearStart: Math.min(new Date().getFullYear(), ...planned) })))
       await setDoc(ref, { data: snapshot(), clientId, updatedAt: serverTimestamp() })
       setOwner(user.uid)
     }

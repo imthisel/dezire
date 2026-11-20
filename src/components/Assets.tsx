@@ -436,7 +436,7 @@ function PeriodPicker({ period, setups, birthSet }: { period: AssetPeriod; setup
     { id: 'month', label: 'Setups', icon: CalendarCheck },
   ]
   const thisYear = currentYear()
-  // Every setup from 2026 to 2040, in order; the arrows step through them.
+  // Every setup across the years covered, in order; the arrows step through them.
   const all = YEARS.flatMap((y) => setups.map((m) => indexOf(y, m)))
   const at = indexOf(period.from, period.month)
   const pos = all.indexOf(at)

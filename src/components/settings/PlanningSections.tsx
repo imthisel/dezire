@@ -11,6 +11,8 @@ import { CurrencyFields, Presets, RateInput, Switch } from '../CurrencyMenu'
 import { PERIOD_KEY } from '../Expenses'
 import { VIEW_KEY } from '../Schedule'
 import { ActionRow, Button, Group, Row, Segmented, Select, ToggleRow } from './ui'
+import { YearFields, setYears } from '../YearRange'
+import { MAX_SPAN, resolveRange } from '../../lib/time'
 
 /** A choice the pages remember in this browser themselves (the calendar's view, the expense period). */
 function useRemembered<T extends string>(key: string, fallback: T, encode: (v: T) => string, decode: (raw: string) => unknown, ok: (v: unknown) => boolean) {
@@ -141,8 +143,21 @@ export function CalendarSection() {
   const wide = useMedia('(min-width: 640px)')
   const [view, setView] = useRemembered<CalView>(VIEW_KEY, wide ? 'week' : '3day', (v) => JSON.stringify(v), (raw) => JSON.parse(raw), (v) => ['day', '3day', 'week', 'month'].includes(v as string))
 
+  const start = resolveRange(prefs.yearStart, prefs.yearEnd).start
+
   return (
     <>
+      <Group title="Your years" hint="The years your plan covers, on every page. Saved with your account, and changes right away (with Undo).">
+        <div id="set-years" className="scroll-mt-4 px-4 py-4">
+          <YearFields
+            start={start}
+            end={prefs.yearEnd}
+            onStart={(s) => setYears(s, prefs.yearEnd > 0 && (prefs.yearEnd < s || prefs.yearEnd > s + MAX_SPAN - 1) ? 0 : prefs.yearEnd)}
+            onEnd={(e) => setYears(start, e)}
+          />
+        </div>
+      </Group>
+
       <Group title="Dates & times" hint="Also used for the weeks on your Expenses page.">
         <Row id="week-start" title="Week starts on">
           <Segmented<WeekStart>

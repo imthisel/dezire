@@ -329,7 +329,7 @@ export function MonthCard({ index }: { index: number }) {
 
       {open && (
         <>
-      {/* Running totals (everything from Jan 2026 up to this month) */}
+      {/* Running totals (everything from the first month of the plan up to this month) */}
       <div className="mt-3 grid grid-cols-3 divide-x divide-white/[0.06] rounded-xl border border-white/[0.06] bg-black/20">
         <Total k="Total earned" v={f(c.cumEarned, true)} usd={u(c.cumEarned, true)} cls="text-emerald-300" />
         <Total k="Total spent" v={f(c.cumSpent, true)} usd={u(c.cumSpent, true)} cls="text-red-300" />

@@ -40,6 +40,7 @@ export const SEARCH: { id: string; section: SettingsSection; title: string; word
   { id: 'expense-period', section: 'money', title: 'Expenses opens on', words: 'week month year period default' },
 
   { id: 'week-start', section: 'calendar', title: 'Week starts on', words: 'sunday monday saturday first day' },
+  { id: 'years', section: 'calendar', title: 'Your years', words: 'start end year range 2040 2050 plan until how long future past automatic' },
   { id: 'clock', section: 'calendar', title: 'Time format', words: '12 24 hour clock am pm military' },
   { id: 'cal-view', section: 'calendar', title: 'Calendar opens on', words: 'day week month 3 days default view' },
   { id: 'event-length', section: 'calendar', title: 'Usual event length', words: 'duration default new minutes hour' },

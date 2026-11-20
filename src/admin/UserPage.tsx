@@ -197,9 +197,9 @@ function OverviewTab({ user, reload }: { user: UserDetail; reload: () => Promise
           ) : (
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.06] sm:grid-cols-3">
               <Mini label="Dreams & items" value={main.dreams} sub={`${fmt(main.dreamsValue, sym, true)} in total`} />
-              <Mini label="Net worth by 2040" value={fmt(main.netWorth, sym, true)} sub="Main plan" />
+              <Mini label="Net worth, last month" value={fmt(main.netWorth, sym, true)} sub="Main plan" />
               <Mini label="Goals done" value={`${goals.done}/${goals.total}`} sub={goals.total ? `${Math.round((goals.done / goals.total) * 100)}% complete` : 'None set'} />
-              <Mini label="Months planned" value={main.monthsPlanned} sub="of 180 (2026–2040)" />
+              <Mini label="Months planned" value={main.monthsPlanned} sub="with plans" />
               <Mini label="Money plans" value={plan.sources.length} sub={`${plan.sources.filter((s) => s.stage === 'running').length} already earning`} />
               <Mini label="Modes" value={plan.modes.length} sub={plan.modes.map((m) => m.name).join(', ')} />
             </div>

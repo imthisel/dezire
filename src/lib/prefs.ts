@@ -1,3 +1,5 @@
+import { FIRST_YEAR, MIN_START } from './time'
+
 /**
  * Settings. Two kinds, because some choices belong to the person and some to the screen in front of them:
  * - `Prefs` follow the account: saved with the plan and the same on every device.
@@ -44,6 +46,10 @@ export type Prefs = {
   schoolOnCalendar: boolean
   /** Time's to-dos also show on School's calendar (events stay on Time's Calendar) */
   timeTasksOnSchool: boolean
+  /** The first year your plan covers. Accounts from before this setting start in 2026; new ones in the year they began. */
+  yearStart: number
+  /** The last year your plan covers. 0 = automatic: always `AUTO_AHEAD` years after the current one (see lib/time). */
+  yearEnd: number
 }
 
 export type DevicePrefs = {
@@ -84,6 +90,8 @@ export const DEFAULT_PREFS: Prefs = {
   tabBar: ['wants', 'needs', 'school', 'expenses'],
   schoolOnCalendar: false,
   timeTasksOnSchool: false,
+  yearStart: FIRST_YEAR,
+  yearEnd: 0,
 }
 
 export const DEFAULT_DEVICE: DevicePrefs = {
@@ -118,6 +126,7 @@ const START_PAGES: StartPage[] = ['last', 'planner', 'calendar', 'school', 'grad
 
 const bool = (v: unknown, fallback: boolean) => (typeof v === 'boolean' ? v : fallback)
 const oneOf = <T,>(v: unknown, list: readonly T[], fallback: T) => (list.includes(v as T) ? (v as T) : fallback)
+const year = (v: unknown, lo: number, hi: number, fallback: number) => (typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi ? v : fallback)
 const record = (raw: unknown) => (raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {})
 
 /** Cleans up account settings from a backup file, the cloud or this browser. Anything missing gets its default. */
@@ -140,6 +149,8 @@ export function parsePrefs(raw: unknown): Prefs {
     tabBar: parseTabBar(r.tabBar),
     schoolOnCalendar: bool(r.schoolOnCalendar, d.schoolOnCalendar),
     timeTasksOnSchool: bool(r.timeTasksOnSchool, d.timeTasksOnSchool),
+    yearStart: year(r.yearStart, MIN_START, 9999, d.yearStart),
+    yearEnd: r.yearEnd === 0 ? 0 : year(r.yearEnd, MIN_START, 9999, d.yearEnd),
   }
 }
 

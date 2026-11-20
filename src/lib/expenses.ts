@@ -6,7 +6,7 @@ import {
 import { live } from './prefs'
 import type { Expense, ExpenseCategory } from './types'
 import { KIND_COLORS } from './meta'
-import { END_YEAR, MONTHS, MONTHS_SHORT, START_YEAR } from './time'
+import { MAX_DATE, MIN_DATE, MONTHS, MONTHS_SHORT } from './time'
 
 // ---- Categories ----
 
@@ -136,8 +136,8 @@ export function uniq(list: string[]) {
 
 // ---- Dates (always the user's own local calendar days, as "YYYY-MM-DD") ----
 
-export const MIN_DATE = `${START_YEAR}-01-01`
-export const MAX_DATE = `${END_YEAR}-12-31`
+// The first and last day you can pick: they follow the years you chose (see lib/time).
+export { MIN_DATE, MAX_DATE }
 export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export const WEEKDAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 

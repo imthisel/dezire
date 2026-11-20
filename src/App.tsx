@@ -128,14 +128,16 @@ const Pages = memo(function Pages() {
   const view = useStore((s) => s.view)
   const needs = useStore(inNeedsMode)
   const shown = useDeferredValue(view)
-  const content = useMemo(() => page(shown, needs), [shown, needs])
+  // A new set of years (Settings, or the year turning over) rebuilds the page, so every year list and total follows it.
+  const years = useStore((s) => s.yearRange)
+  const content = useMemo(() => page(shown, needs), [shown, needs, years])
   return (
     <main
       data-view={shown}
       aria-busy={view !== shown}
       className={`mx-auto max-w-[1440px] px-4 pb-16 transition-opacity duration-150 sm:px-6 sm:pb-32 lg:px-8 ${view !== shown ? 'opacity-50' : ''}`}
     >
-      <div key={`${shown}-${needs}`} className="animate-page space-y-6 sm:space-y-8">
+      <div key={`${shown}-${needs}-${years}`} className="animate-page space-y-6 sm:space-y-8">
         {content}
       </div>
     </main>

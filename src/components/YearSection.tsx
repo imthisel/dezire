@@ -11,6 +11,7 @@ import { autoScrolling } from '../autoscroll'
 import { BirthdayNote } from './Birthday'
 import { YearNote } from './YearNote'
 import { MonthTile } from './Tiles'
+import { YearsButton } from './YearRange'
 import { ZoomControl } from './Zoom'
 import { PHONE_GRID, useCols } from '../zoom'
 import { useBoxSelect } from '../selection'
@@ -212,6 +213,8 @@ function YearTabs() {
         >
           <ChevronRight className="h-4 w-4" />
         </button>
+        {/* Which years there are: change the start or end right here */}
+        <YearsButton />
       </div>
     </div>
   )

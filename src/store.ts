@@ -7,7 +7,7 @@ import {
   guessAreaIcon, guessIcon,
 } from './lib/meta'
 import { DEFAULT_CURRENCIES, fmt, fmtAlt, parseCurrencies, type AltCurrency, type Currencies, type Currency } from './lib/money'
-import { currentYear, labelOfKey, END_YEAR, START_YEAR, indexOf, indexOfKey, keyOf } from './lib/time'
+import { currentYear, labelOfKey, END_YEAR, START_YEAR, indexOf, indexOfKey, keyOf, resolveRange, setYearRange, clampYear } from './lib/time'
 import { computeAll, spendLimit, type MonthCalc } from './lib/calc'
 import { cleanRunning } from './lib/running'
 import {
@@ -246,6 +246,8 @@ interface State {
   /** Main currency (what amounts are in) and the alternative one they're also shown in */
   currency: Currencies
   year: number
+  /** The years the planner covers right now, as "2026-2040" (see lib/time; follows Settings and the real date). Pages redraw when it changes. */
+  yearRange: string
   /** Overview shows the whole plan, or only the selected year */
   dashMode: 'plan' | 'year'
   clipboard: Clip | null
@@ -584,6 +586,7 @@ export const useStore = create<State>()(
       expenseCats: DEFAULT_EXPENSE_CATS,
       places: [],
       year: currentYear(),
+      yearRange: `${START_YEAR}-${END_YEAR}`,
       dashMode: 'plan',
       clipboard: null,
       modal: null,
@@ -1666,6 +1669,35 @@ export const useStore = create<State>()(
   ),
 )
 
+// ---- The years covered ----
+
+/**
+ * Puts the planner on the years from your settings, as they stand on today's date: the range always holds the current
+ * year, and "automatic" ends 14 years after it. Runs whenever settings change (here or synced from another device), when
+ * the app comes back into view, and every hour, so New Year moves it along even with the app left open.
+ */
+function syncYears() {
+  const { prefs } = useStore.getState()
+  const r = resolveRange(prefs.yearStart, prefs.yearEnd)
+  if (!setYearRange(r.start, r.end)) return
+  useStore.setState((s) => {
+    const p = s.assetPeriod
+    return {
+      yearRange: `${r.start}-${r.end}`,
+      year: clampYear(s.year),
+      assetPeriod: { ...p, from: clampYear(Math.min(p.from, p.to)), to: clampYear(Math.max(p.from, p.to)) },
+    }
+  })
+}
+syncYears()
+useStore.subscribe((s, prev) => {
+  if (s.prefs.yearStart !== prev.prefs.yearStart || s.prefs.yearEnd !== prev.prefs.yearEnd) syncYears()
+})
+if (typeof window !== 'undefined') {
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && syncYears())
+  setInterval(syncYears, 60 * 60 * 1000)
+}
+
 /** Cleans up month-by-month vehicle arrangements from a backup file or the cloud. */
 function parseLayouts(raw: unknown): Layouts {
   const out: Layouts = {}
@@ -1982,17 +2014,21 @@ export function useParking(monthKey: string | null, setups: number[]): Parking |
   )
 }
 
-/** Running totals for every month 2026–2040, recomputed only when data changes. */
+/** Running totals for every month of the years covered, recomputed only when the data or the years change. */
 let planCacheKey: unknown = null
+let planCacheYears = ''
 let planCache: MonthCalc[] = []
 function planOf(months: Record<string, MonthData>) {
-  if (months !== planCacheKey) {
+  const years = `${START_YEAR}-${END_YEAR}`
+  if (months !== planCacheKey || years !== planCacheYears) {
     planCacheKey = months
+    planCacheYears = years
     planCache = computeAll(months)
   }
   return planCache
 }
 export function usePlan() {
+  useStore((s) => s.yearRange)
   return planOf(useStore((s) => s.months))
 }
 

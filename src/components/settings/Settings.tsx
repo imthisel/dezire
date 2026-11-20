@@ -16,7 +16,7 @@ const SECTIONS: { id: SettingsSection; label: string; about: string; icon: Lucid
   { id: 'appearance', label: 'Appearance', about: 'Colour, text size and motion', icon: Palette, show: () => <AppearanceSection /> },
   { id: 'layout', label: 'Layout', about: 'Header buttons, menu and start page', icon: LayoutPanelLeft, show: () => <LayoutSection /> },
   { id: 'money', label: 'Money', about: 'Currencies and exchange rate', icon: Wallet, show: () => <MoneySection /> },
-  { id: 'calendar', label: 'Calendar', about: 'Week start, time format and events', icon: CalendarCheck, show: () => <CalendarSection /> },
+  { id: 'calendar', label: 'Calendar', about: 'Your years, week start, time format and events', icon: CalendarCheck, show: () => <CalendarSection /> },
   { id: 'notifications', label: 'Notifications', about: 'Reminders and warnings', icon: Bell, show: () => <NotificationsSection /> },
   { id: 'privacy', label: 'Privacy', about: 'Hide your amounts from others', icon: EyeOff, show: () => <PrivacySection /> },
   { id: 'lists', label: 'Your lists', about: 'Kinds, categories, places and modes', icon: ListTree, show: () => <ListsSection /> },

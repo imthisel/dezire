@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { ChevronsLeftRight } from 'lucide-react'
 import { useFmt, usePlan, useStore, useAlt } from '../store'
-import { START_YEAR, TOTAL_MONTHS, YEARS, currentIndex, labelOf } from '../lib/time'
+import { END_YEAR, START_YEAR, TOTAL_MONTHS, YEARS, currentIndex, labelOf } from '../lib/time'
 
 const H = 260
 const PAD = { l: 60, r: 16, t: 16, b: 30 }
@@ -17,7 +17,7 @@ function niceStep(raw: number) {
 }
 
 /**
- * Single-series net worth line (Jan 2026 → Dec 2040) with crosshair tooltip. Click to jump to a year.
+ * Single-series net worth line (January of the first year → December of the last) with crosshair tooltip. Click to jump to a year.
  * On narrow screens it becomes a horizontally scrollable chart with a pinned value axis.
  */
 export function NetWorthChart() {
@@ -97,7 +97,7 @@ export function NetWorthChart() {
       onPointerLeave={(e) => e.pointerType === 'mouse' && setHover(null)}
       onClick={(e) => setYear(START_YEAR + Math.floor(pick(e) / 12))}
       role="img"
-      aria-label="Net worth over time from 2026 to 2040"
+      aria-label={`Net worth over time from ${START_YEAR} to ${END_YEAR}`}
     >
       <defs>
         <linearGradient id="nw-fill" x1="0" y1="0" x2="0" y2="1">

@@ -11,6 +11,7 @@ import { EXAMPLE_REVIEWS, REVIEWS, type Review } from '../content/reviews'
 import { DownloadSection } from './AppInstall'
 import { ContactDialog } from './Help'
 import { LEGAL } from '../lib/legal'
+import { MAX_SPAN } from '../lib/time'
 import { BoardPreview, GoalsFloat, GoalsPreview, MonthOverview, NetWorthFloat, WishListPreview } from './about/Previews'
 import { TryOverview } from './about/TryOverview'
 import { TryExpenses } from './about/TryExpenses'
@@ -552,7 +553,7 @@ function TrustBar() {
 
 function Numbers() {
   const stats = [
-    { v: '15', unit: 'years', k: 'Planned ahead, 2026 to 2040, month by month' },
+    { v: String(MAX_SPAN), unit: 'years', k: 'Planned ahead month by month, from any year you choose' },
     { v: '0', unit: 'ads', k: 'Ever. Your plan is never sold or shared' },
     { v: String(LEGAL.refundDays), unit: 'days', k: 'Full money-back guarantee, no questions asked' },
     { v: '24/7', unit: '', k: 'On every device, synced, even offline' },
@@ -820,7 +821,7 @@ export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; co
           <h2 id="pricing-title" className="mt-5 font-display text-[2.5rem] font-semibold leading-[1.04] tracking-[-0.035em] text-white sm:text-[3.2rem]">
             Less than a coffee a month.
           </h2>
-          <p className="mt-4 text-lg text-zinc-300">One plan, everything included. Every feature, every device, every year to 2040.</p>
+          <p className="mt-4 text-lg text-zinc-300">One plan, everything included. Every feature, every device, as many years ahead as you want.</p>
           {!user && signin && (
             <div className="mt-7 rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-5">
               <p className="text-[15px] text-zinc-300">
@@ -848,7 +849,7 @@ function PlanCard({
 }: { plan: Plan; featured: boolean; current: boolean; disabled: boolean; upgrade?: boolean; brand: boolean }) {
   const [busy, setBusy] = useState(false)
   const signedIn = useCloud((s) => !!s.user)
-  const included = [...plan.perks, 'Every other feature included', 'Plans from 2026 to 2040', 'All your devices, synced', 'Works offline']
+  const included = [...plan.perks, 'Every other feature included', `Plan up to ${MAX_SPAN} years ahead`, 'All your devices, synced', 'Works offline']
   const look = brand
     ? {
         card: featured

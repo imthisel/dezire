@@ -16,7 +16,7 @@ interface Props {
 const pad = (n: number) => String(n).padStart(2, '0')
 
 /**
- * A month-at-a-time calendar that follows the real one (leap years, month lengths, weekdays) from 2026 to 2040.
+ * A month-at-a-time calendar that follows the real one (leap years, month lengths, weekdays) across the years your plan covers.
  * Tap the title to jump to any month or year; swipe or use the arrows to change month; arrow keys move the day.
  */
 export function Calendar({ value, onChange, marks, min = MIN_DATE, max = MAX_DATE }: Props) {
