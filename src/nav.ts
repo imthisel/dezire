@@ -54,8 +54,15 @@ export function goTo(id: string) {
   if (id === 'school-calendar') useSchoolView.getState().setView('calendar')
   if (id.startsWith('assets')) s.setAssetCat((id.slice('assets-'.length) || favoriteAssets()) as AssetCat)
   s.setDrawer(false)
-  whenShown(view, id, () => scrollTo(id, switched))
+  whenShown(view, id, () => {
+    // A folded money plan (or the closed "add" picker) opens before it's scrolled to.
+    if (id.startsWith('source-') || id === 'plan-add') window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: id }))
+    scrollTo(id, switched)
+  })
 }
+
+/** Sent on `window` with the section id, so a folded part of the page can open itself before it's scrolled to. */
+export const OPEN_EVENT = 'dz-open-section'
 
 const atTop = (id: string) => id === 'overview' || id === 'plan' || id === 'favorites' || id === 'expenses' || id === 'calendar' || id === 'school' || id === 'school-calendar' || id === 'grades' || id === 'help' || id.startsWith('assets')
 
