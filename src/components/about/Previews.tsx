@@ -1,5 +1,4 @@
-import { Fragment } from 'react'
-import { Car, Check, Mountain, Minus, Plane, ShoppingBag, TrendingDown, TrendingUp, Watch, type LucideIcon } from 'lucide-react'
+import { Building2, Car, Check, Fuel, Minus, Plane, ShoppingBag, ShoppingCart, TrendingDown, TrendingUp, UtensilsCrossed, Watch, Waves, type LucideIcon } from 'lucide-react'
 import { SOURCE_KIND, SOURCE_STAGE } from '../../lib/meta'
 import type { SourceKind, SourceStage } from '../../lib/types'
 
@@ -187,58 +186,112 @@ export function NetWorthFloat() {
 
 // ---- Feature previews ----
 
-/** Life goals as the app's "By age" view: a reached one, where you are now, and what's still ahead. */
-export function LifeGoalsPreview() {
-  const rows: { age: number | null; t: string; meta: string; done?: boolean; linked?: [number, number] }[] = [
-    { age: 25, t: 'Debt-free, every peso', meta: 'Reached · March 2025', done: true },
-    { age: 32, t: 'Own our home outright', meta: '2032 · 6 years left', linked: [2, 3] },
-    { age: 40, t: 'A business that runs without me', meta: '2040 · 14 years left', linked: [1, 4] },
-    { age: 50, t: 'Financially free', meta: '2050 · 24 years left' },
-    { age: null, t: 'Take the whole family to Jerusalem', meta: 'Someday' },
+/** Wants: everything you dream of, priced and given a month, under the net worth you're going for. */
+export function DreamsPreview() {
+  const now = 486_200_000
+  const target = 1_000_000_000
+  const dreams: { t: string; when: string; price: number; icon: LucideIcon; kind: Kind }[] = [
+    { t: 'Beachfront villa in Siargao', when: 'Dec 2030', price: 38_000_000, icon: Waves, kind: 'property' },
+    { t: 'Porsche 911 GT3 RS', when: 'Jun 2028', price: 28_500_000, icon: Car, kind: 'vehicle' },
+    { t: 'Patek Philippe Nautilus', when: 'Jun 2028', price: 10_000_000, icon: Watch, kind: 'status' },
+    { t: 'BGC penthouse for Mom and Dad', when: 'Mar 2032', price: 85_000_000, icon: Building2, kind: 'property' },
+  ]
+  const total = dreams.reduce((n, d) => n + d.price, 0)
+  return (
+    <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-3.5">
+      <div className="rounded-xl border border-brand-300/25 bg-brand-300/[0.07] p-3">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-brand-200">Net worth to reach · 2035</p>
+            <p className="text-lg font-semibold tabular-nums text-white">{peso(target)}</p>
+          </div>
+          <span className="shrink-0 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-300">
+            {Math.round((now / target) * 100)}% there
+          </span>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/5">
+          <div className="bar-grow h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-200" style={{ width: `${(now / target) * 100}%` }} />
+        </div>
+      </div>
+      <ul className="mt-3 space-y-1.5">
+        {dreams.map((d) => (
+          <li key={d.t} className="flex items-center gap-2.5 rounded-lg bg-white/[0.03] px-2.5 py-1.5">
+            <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ring-1 ring-inset ${TINT[d.kind]}`}>
+              <d.icon className="h-3.5 w-3.5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[12.5px] font-semibold text-white">{d.t}</span>
+              <span className="block text-[10.5px] text-zinc-400">{d.when}</span>
+            </span>
+            <span className="shrink-0 text-[12.5px] font-semibold tabular-nums text-white">{pesoShort(d.price)}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2.5 flex items-center justify-between gap-2 px-1 text-[11px] text-zinc-400">
+        <span>{dreams.length} dreams, each with a month</span>
+        <span className="font-semibold tabular-nums text-zinc-200">{pesoShort(total)}</span>
+      </p>
+    </div>
+  )
+}
+
+/** Expenses: this month against the budget, where it went, and the latest few. */
+export function ExpensesPreview() {
+  const budget = 180_000
+  const cats: { label: string; amount: number; bar: string }[] = [
+    { label: 'Shopping', amount: 48_500, bar: 'bg-fuchsia-400' },
+    { label: 'Bills', amount: 43_400, bar: 'bg-sky-400' },
+    { label: 'Tithe', amount: 20_000, bar: 'bg-amber-300' },
+    { label: 'Groceries', amount: 11_600, bar: 'bg-emerald-400' },
+    { label: 'Everything else', amount: 17_699, bar: 'bg-zinc-500' },
+  ]
+  const spent = cats.reduce((n, c) => n + c.amount, 0)
+  const left = budget - spent
+  const recent: { t: string; where: string; amount: number; icon: LucideIcon; tint: string }[] = [
+    { t: 'Groceries', where: 'S&R · Today', amount: 5_400, icon: ShoppingCart, tint: 'bg-emerald-400/10 text-emerald-200 ring-emerald-300/15' },
+    { t: 'Fuel', where: 'Shell · Yesterday', amount: 3_200, icon: Fuel, tint: 'bg-cyan-400/10 text-cyan-200 ring-cyan-300/15' },
+    { t: 'Dinner', where: 'Manam · Nov 13', amount: 5_600, icon: UtensilsCrossed, tint: 'bg-orange-400/10 text-orange-200 ring-orange-300/15' },
   ]
   return (
     <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-3.5">
-      <p className="font-verse text-[15px] italic leading-snug text-zinc-200">“A life of faith, family and freedom.”</p>
-      <ol className="relative mt-3 space-y-2 pl-9">
-        <span aria-hidden className="absolute bottom-3 left-[13px] top-3 w-px bg-gradient-to-b from-violet-400/40 via-violet-400/20 to-transparent" />
-        {rows.map((r, i) => (
-          <Fragment key={r.t}>
-          {i === 1 && (
-            <li className="relative flex h-4 items-center text-[10.5px] font-semibold uppercase tracking-wider text-emerald-300">
-              <span className="absolute -left-[27px] h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_3px_#0a0b0e,0_0_10px_1px_rgb(52_211_153/0.55)]" />
-              You’re here · 26
-            </li>
-          )}
-          <li className="relative">
-            <span
-              className={`absolute -left-9 top-1 grid h-[27px] w-[27px] place-items-center rounded-full border text-[10px] font-bold tabular-nums ${
-                r.done
-                  ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-200'
-                  : r.age === null
-                    ? 'border-white/10 bg-white/[0.04] text-zinc-400'
-                    : 'border-violet-400/40 bg-violet-500/15 text-violet-100'
-              }`}
-            >
-              {r.done ? <Check className="h-3 w-3" strokeWidth={3.5} /> : (r.age ?? '∞')}
-            </span>
-            <div className="rounded-lg bg-white/[0.03] px-2.5 py-1.5">
-              <p className={`truncate text-[12.5px] font-semibold ${r.done ? 'text-zinc-400 line-through decoration-zinc-600' : 'text-white'}`}>{r.t}</p>
-              <p className="flex items-center gap-2 text-[10.5px] text-zinc-400">
-                <span className="truncate">{r.meta}</span>
-                {r.linked && (
-                  <span className="ml-auto flex shrink-0 items-center gap-1.5 tabular-nums text-violet-200">
-                    <span className="h-1 w-8 overflow-hidden rounded-full bg-white/10">
-                      <span className="block h-full rounded-full bg-violet-400" style={{ width: `${(r.linked[0] / r.linked[1]) * 100}%` }} />
-                    </span>
-                    {r.linked[0]}/{r.linked[1]} yearly
-                  </span>
-                )}
-              </p>
-            </div>
-          </li>
-          </Fragment>
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">Spent in November</p>
+          <p className="text-lg font-semibold tabular-nums text-white">{peso(spent)}</p>
+        </div>
+        <p className="shrink-0 text-right text-[10.5px] leading-tight text-zinc-400">
+          <span className="block font-semibold tabular-nums text-emerald-300">{peso(left)} left</span>
+          of {pesoShort(budget)} budget
+        </p>
+      </div>
+      <div className="mt-2.5 flex h-2 gap-px overflow-hidden rounded-full bg-white/5">
+        {cats.map((c) => (
+          <span key={c.label} className={c.bar} style={{ width: `${(c.amount / budget) * 100}%` }} />
         ))}
-      </ol>
+      </div>
+      <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10.5px]">
+        {cats.slice(0, 4).map((c) => (
+          <li key={c.label} className="flex min-w-0 items-center gap-1.5">
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${c.bar}`} />
+            <span className="truncate text-zinc-400">{c.label}</span>
+            <span className="ml-auto shrink-0 tabular-nums text-zinc-200">{pesoShort(c.amount)}</span>
+          </li>
+        ))}
+      </ul>
+      <ul className="mt-3 space-y-1.5">
+        {recent.map((r) => (
+          <li key={r.t} className="flex items-center gap-2.5 rounded-lg bg-white/[0.03] px-2.5 py-1.5">
+            <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ring-1 ring-inset ${r.tint}`}>
+              <r.icon className="h-3.5 w-3.5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[12.5px] font-semibold text-white">{r.t}</span>
+              <span className="block truncate text-[10.5px] text-zinc-400">{r.where}</span>
+            </span>
+            <span className="shrink-0 text-[12.5px] font-semibold tabular-nums text-white">{peso(r.amount)}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -336,79 +389,6 @@ export function ListsPreview() {
           )
         })}
       </ul>
-    </div>
-  )
-}
-
-/** This year's goals: rings by area, then the goals themselves, each tagged with the life goal it moves. */
-export function GoalsPreview() {
-  const goals: { t: string; area: string; life: string; done?: boolean }[] = [
-    { t: 'Pay ₱1.8M more off the house', area: 'Status', life: 'Own our home outright', done: true },
-    { t: 'Hire a manager for the roastery', area: 'Status', life: 'A business that runs without me' },
-    { t: 'Invest ₱150K every month', area: 'Mind', life: 'Financially free' },
-    { t: 'Book the Jerusalem trip for 2027', area: 'Identity', life: 'Take the whole family to Jerusalem', done: true },
-  ]
-  return (
-    <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-3.5">
-      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">2026 goals</p>
-      <GoalRings />
-      <ul className="mt-3.5 space-y-1.5">
-        {goals.map((g) => (
-          <li key={g.t} className="flex items-start gap-2.5 rounded-lg bg-white/[0.03] px-2.5 py-2">
-            <span className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full ${g.done ? 'bg-brand-500' : 'border border-brand-300/60'}`}>
-              {g.done && <Check className="h-2.5 w-2.5 text-white" strokeWidth={4} />}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className={`block truncate text-[12.5px] font-medium ${g.done ? 'text-zinc-400 line-through decoration-zinc-600' : 'text-white'}`}>{g.t}</span>
-              <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[10.5px] text-violet-200">
-                <Mountain className="h-3 w-3 shrink-0" /> <span className="truncate">{g.life}</span>
-              </span>
-            </span>
-            <span className="shrink-0 text-[10.5px] text-zinc-500">{g.area}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-function GoalRings() {
-  const areas: [string, number, number][] = [
-    ['Mind', 2, 3],
-    ['Body', 3, 4],
-    ['Status', 1, 2],
-    ['Identity', 4, 4],
-  ]
-  const r = 18
-  const c = 2 * Math.PI * r
-  return (
-    <div className="grid grid-cols-4 gap-2">
-      {areas.map(([name, done, of]) => (
-        <div key={name} className="flex flex-col items-center gap-1.5">
-          <span className="relative grid h-12 w-12 place-items-center">
-            <svg viewBox="0 0 44 44" className="absolute inset-0 -rotate-90" aria-hidden>
-              <circle cx="22" cy="22" r={r} fill="none" stroke="rgb(255 255 255 / 0.07)" strokeWidth="3.5" />
-              <circle
-                cx="22"
-                cy="22"
-                r={r}
-                fill="none"
-                stroke="var(--color-brand-300)"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                strokeDasharray={c}
-                strokeDashoffset={c * (1 - done / of)}
-                className="ring-draw"
-                style={{ ['--c' as string]: c }}
-              />
-            </svg>
-            <span className="text-[11px] font-semibold tabular-nums text-white">
-              {done}/{of}
-            </span>
-          </span>
-          <span className="text-[10.5px] text-zinc-400">{name}</span>
-        </div>
-      ))}
     </div>
   )
 }

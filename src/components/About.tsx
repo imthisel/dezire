@@ -12,7 +12,7 @@ import { DownloadSection } from './AppInstall'
 import { ContactDialog } from './Help'
 import { LEGAL } from '../lib/legal'
 import { MAX_SPAN } from '../lib/time'
-import { GoalsFloat, GoalsPreview, IncomePreview, LifeGoalsPreview, MonthOverview, NetWorthFloat } from './about/Previews'
+import { DreamsPreview, ExpensesPreview, GoalsFloat, IncomePreview, MonthOverview, NetWorthFloat } from './about/Previews'
 import { TryOverview } from './about/TryOverview'
 import { TryExpenses } from './about/TryExpenses'
 import { TrySetups } from './about/TrySetups'
@@ -441,35 +441,44 @@ function Verse() {
 
 // ---- What you can do ----
 
+/** Opens a tab of "Try it now" (the link itself scrolls there). */
+const tryTab = (tab: TryTab) => () => window.dispatchEvent(new CustomEvent<TryTab>(TRY_EVENT, { detail: tab }))
+
 function Features() {
   return (
     <section id="features" aria-labelledby="features-title" className="mx-auto max-w-6xl px-5 sm:px-8 sec">
       <SectionHead
         id="features-title"
         eyebrow="What you can do"
-        title="Your whole life, planned down to this month."
-        sub="Start with where you want to end up. Dizayr breaks it into this year’s goals, then into the money and the next step that get you there."
+        title="Dream big. Then make it real."
+        sub="Write down everything you want, see where your money goes today, and know exactly where the rest will come from."
       />
       <div className="mt-10 sm:mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Tile
-          title="Know where your life is going."
-          text="Write the goals for your whole life and the age you want each one by. Dizayr shows the year, and how many years you have left."
+          title="List everything you want. Don’t hold back."
+          text="The house, the car, the trips, the life you’d live if money weren’t the question. Give each one a price and a month, then set the net worth you’re going for. Make it big."
+          href="#try"
+          cta="Try it now"
+          onCta={tryTab('wants')}
         >
-          <LifeGoalsPreview />
+          <DreamsPreview />
         </Tile>
         <Tile
-          title="Make this year count toward it."
-          text="Set yearly goals for mind, body, status and who you’re becoming, each linked to the life goal it moves forward."
+          title="See where every peso goes."
+          text="Log what you spend in seconds. Your budget, what’s left for the month, and where it all went update as you go, so you always know where you stand."
+          href="#try"
+          cta="Try it now"
+          onCta={tryTab('expenses')}
         >
-          <GoalsPreview />
+          <ExpensesPreview />
         </Tile>
         <Tile
           className="md:col-span-2 lg:col-span-1"
           title="Know where the money comes from."
           text="Plan every way you earn, see how much of your goal each one covers, and always know the next step."
           href="#try"
-          cta="Try the Income plan"
-          onCta={() => window.dispatchEvent(new CustomEvent<TryTab>(TRY_EVENT, { detail: 'income' }))}
+          cta="Try it now"
+          onCta={tryTab('income')}
         >
           <IncomePreview />
         </Tile>
@@ -482,7 +491,7 @@ function Tile({ title, text, children, className = '', href, cta, onCta }: { tit
   return (
     <article
       data-reveal
-      className={`reveal group flex flex-col justify-between gap-8 rounded-[28px] border border-white/[0.07] bg-[#0b0c10] p-6 transition-colors duration-500 hover:border-white/[0.14] sm:p-7 ${className}`}
+      className={`reveal group flex min-w-0 flex-col justify-between gap-8 rounded-[28px] border border-white/[0.07] bg-[#0b0c10] p-6 transition-colors duration-500 hover:border-white/[0.14] sm:p-7 ${className}`}
     >
       <div>
         <h3 className="text-xl font-semibold tracking-tight text-white">{title}</h3>
