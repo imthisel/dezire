@@ -87,7 +87,7 @@ export function Sidebar() {
   const hiddenNav = useStore((s) => s.prefs.hiddenNav)
   const newReplies = useUnreadReplies()
   const needsMode = useStore(inNeedsMode)
-  // Money plans can be put in order by dragging them in the list below.
+  // Income plans can be put in order by dragging them in the list below.
   const [dragSource, setDragSource] = useState<string | null>(null)
   // The blocks themselves can be put in any order (drag one by its grip), or hidden: both from "Customize menu".
   const sideOrder = useStore((s) => s.prefs.sideOrder)
@@ -211,7 +211,7 @@ export function Sidebar() {
             mode={sources.length ? `${sources.length} ${sources.length === 1 ? 'way' : 'ways'} to earn` : 'Making the money'}
             defaultOpen
           >
-            <Link icon={Rocket} label="Money plan" on={inWants && active === 'plan'} onClick={() => wants('plan')} badge={sources.length || undefined} />
+            <Link icon={Rocket} label="Income plan" on={inWants && active === 'plan'} onClick={() => wants('plan')} badge={sources.length || undefined} />
             {sources.length > 0 && (
               <ul className="ml-[1.4rem] mt-1 space-y-0.5 border-l border-white/[0.07] pl-2">
                 {sources.map((s, i) => (
@@ -223,7 +223,7 @@ export function Sidebar() {
               onClick={() => wants('plan-add')}
               className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
             >
-              <Plus className="h-4 w-4" /> Add a way to earn
+              <Plus className="h-4 w-4" /> Add an income source
             </button>
           </KindSection>
         ),
@@ -444,13 +444,13 @@ export function Sidebar() {
 }
 
 
-/** The sidebar's fold-open blocks: Wants and Needs, the Money plan (which serves both), Time, School, and Spending. */
+/** The sidebar's fold-open blocks: Wants and Needs, the Income plan (which serves both), Time, School, and Spending. */
 type FoldKind = ModeKind | 'plan' | 'time' | 'school' | 'money'
 
 const KIND_LOOK: Record<FoldKind, { title: string; icon: typeof Flag; chip: string; box: string; dot: string }> = {
   wants: { title: 'Wants', icon: Sparkles, chip: 'bg-gradient-to-br from-indigo-400 to-indigo-600', box: 'border-indigo-400/20 bg-indigo-500/[0.04]', dot: 'bg-indigo-400' },
   needs: { title: 'Needs', icon: ShoppingBasket, chip: 'bg-gradient-to-br from-emerald-400 to-teal-500', box: 'border-emerald-400/20 bg-emerald-500/[0.04]', dot: 'bg-emerald-400' },
-  plan: { title: 'Money plan', icon: Rocket, chip: 'bg-gradient-to-br from-amber-400 to-orange-500', box: 'border-amber-400/20 bg-amber-500/[0.04]', dot: 'bg-amber-400' },
+  plan: { title: 'Income plan', icon: Rocket, chip: 'bg-gradient-to-br from-amber-400 to-orange-500', box: 'border-amber-400/20 bg-amber-500/[0.04]', dot: 'bg-amber-400' },
   time: { title: 'Time', icon: CalendarCheck, chip: 'bg-gradient-to-br from-sky-400 to-blue-500', box: 'border-sky-400/20 bg-sky-500/[0.04]', dot: 'bg-sky-400' },
   school: { title: 'School', icon: GraduationCap, chip: 'bg-gradient-to-br from-violet-400 to-indigo-500', box: 'border-violet-400/20 bg-violet-500/[0.04]', dot: 'bg-violet-400' },
   money: { title: 'Spending', icon: Receipt, chip: 'bg-gradient-to-br from-rose-400 to-pink-500', box: 'border-rose-400/20 bg-rose-500/[0.04]', dot: 'bg-rose-400' },
@@ -474,7 +474,7 @@ function saveOpen(kind: FoldKind, open: boolean) {
 }
 
 /**
- * Wants, Needs, the Money plan, Time, School or Spending: a block that folds open and shut from its header, so the sidebar stays tidy.
+ * Wants, Needs, the Income plan, Time, School or Spending: a block that folds open and shut from its header, so the sidebar stays tidy.
  * Tinted when it's the one in use, with a short line under the title. Moving into a block opens it.
  */
 function KindSection({ kind, on, mode, defaultOpen = false, children }: { kind: FoldKind; on: boolean; mode?: string; defaultOpen?: boolean; children: ReactNode }) {
@@ -548,7 +548,7 @@ function SubGroup({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-/** One money plan in the sidebar: click to jump to it; hold and drag up or down to put the plans in order. */
+/** One income plan in the sidebar: click to jump to it; hold and drag up or down to put the plans in order. */
 function SourceLink({ source: s, index, dragId, setDragId }: { source: IncomeSource; index: number; dragId: string | null; setDragId: (id: string | null) => void }) {
   const f = useFmt()
   const k = SOURCE_KIND[s.kind]
@@ -620,7 +620,7 @@ function Link({ icon: Icon, label, on, onClick, badge, iconCls, note, noteTitle 
 const BLOCK_LOOK: Record<SideBlock, { label: string; icon: typeof Flag; tint: string }> = {
   wants: { label: 'Wants', icon: Sparkles, tint: 'bg-gradient-to-br from-indigo-400 to-indigo-600 text-white' },
   needs: { label: 'Needs', icon: ShoppingBasket, tint: 'bg-gradient-to-br from-emerald-400 to-teal-500 text-white' },
-  plan: { label: 'Money plan', icon: Rocket, tint: 'bg-gradient-to-br from-amber-400 to-orange-500 text-white' },
+  plan: { label: 'Income plan', icon: Rocket, tint: 'bg-gradient-to-br from-amber-400 to-orange-500 text-white' },
   calendar: { label: 'Time', icon: CalendarCheck, tint: 'bg-gradient-to-br from-sky-400 to-blue-500 text-white' },
   school: { label: 'School', icon: GraduationCap, tint: 'bg-gradient-to-br from-violet-400 to-indigo-500 text-white' },
   expenses: { label: 'Spending', icon: Receipt, tint: 'bg-gradient-to-br from-rose-400 to-pink-500 text-white' },

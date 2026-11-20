@@ -2,7 +2,7 @@ import { useEffect, useState, type MouseEvent } from 'react'
 import { useStore, type AssetCat, type View } from './store'
 import { useSchoolView } from './lib/schoolView'
 
-/** Places the sidebar and the phone tab bar can jump to. Also `wallet` (Your money, on the Expenses page), `month-<key>`, `assets-<category>`, and on the Money plan page `plan-add` and `source-<id>`. */
+/** Places the sidebar and the phone tab bar can jump to. Also `wallet` (Your money, on the Expenses page), `month-<key>`, `assets-<category>`, and on the Income plan page `plan-add` and `source-<id>`. */
 export type Section = 'overview' | 'years' | 'goals' | 'favorites' | 'assets' | 'plan' | 'expenses' | 'calendar' | 'school' | 'school-calendar' | 'grades' | 'help' | 'settings'
 
 export const PLANNER_SECTIONS = ['overview', 'years', 'goals'] as const
@@ -55,7 +55,7 @@ export function goTo(id: string) {
   if (id.startsWith('assets')) s.setAssetCat((id.slice('assets-'.length) || favoriteAssets()) as AssetCat)
   s.setDrawer(false)
   whenShown(view, id, () => {
-    // A folded money plan (or the closed "add" picker) opens before it's scrolled to.
+    // A folded income plan (or the closed "add" picker) opens before it's scrolled to.
     if (id.startsWith('source-') || id === 'plan-add') window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: id }))
     scrollTo(id, switched)
   })
@@ -93,7 +93,7 @@ export function goToMonth(key: string) {
   goTo(`month-${key}`)
 }
 
-/** The section currently on screen: 'plan' on the Money plan page, otherwise whichever planner section is being read. */
+/** The section currently on screen: 'plan' on the Income plan page, otherwise whichever planner section is being read. */
 export function useActiveSection(): Section {
   const view = useStore((s) => s.view)
   const [current, setCurrent] = useState<Section>('overview')

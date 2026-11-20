@@ -10,7 +10,7 @@ const NAV_LABELS: Record<NavId, { label: string; hint: string }> = {
   school: { label: 'School', hint: 'Subjects, deadlines, grades and a board of what’s done' },
   expenses: { label: 'Expenses', hint: 'Money spent, day by day' },
   assets: { label: 'Assets', hint: 'What you own, and vehicle setups' },
-  plan: { label: 'Money plan', hint: 'The ways you’ll make the money' },
+  plan: { label: 'Income plan', hint: 'The ways you earn, and their goals' },
 }
 
 const START_PAGES: { id: StartPage; label: string }[] = [
@@ -22,7 +22,7 @@ const START_PAGES: { id: StartPage; label: string }[] = [
   { id: 'expenses', label: 'Expenses' },
   { id: 'assets', label: 'Assets' },
   { id: 'favorites', label: 'Favorites' },
-  { id: 'plan', label: 'Money plan' },
+  { id: 'plan', label: 'Income plan' },
 ]
 
 const CHARTS = [

@@ -212,7 +212,7 @@ function migrateMonths(months: unknown) {
 
 const num = (v: unknown) => Math.max(0, Number(v) || 0)
 
-/** Cleans up money plans coming from a backup file or the cloud. */
+/** Cleans up income plans coming from a backup file or the cloud. */
 function parseSources(list: unknown): IncomeSource[] {
   if (!Array.isArray(list)) return []
   return list
@@ -268,7 +268,7 @@ interface State {
   moveArea: (id: string, to: number) => void
   /** Deletes an area. Its goals (in every year) move to area `moveTo` (needed when it has any). The last area can't be deleted. */
   removeArea: (id: string, moveTo?: string) => Result
-  /** Money plan: the ways I'm going to make the money */
+  /** Income plan: the ways I'm going to make the money */
   sources: IncomeSource[]
   /** The kinds items can be (always at least one), in the order they're shown */
   kinds: ItemKind[]
@@ -358,7 +358,7 @@ interface State {
 
   /**
    * Modes: separate versions of the plan, each with its own months (goals, budgets, items, so its own net worth and
-   * assets), its own setups and its own year notes. Everything else (calendar, expenses, goals, money plan…) is shared.
+   * assets), its own setups and its own year notes. Everything else (calendar, expenses, goals, income plan…) is shared.
    * The first of each kind is its main one (for Wants, always id 'main'; see `setMainMode`). `months`, `layouts`, `setupNotes`
    * and `yearNotes` above hold the mode in use; `modeData` holds the others.
    */

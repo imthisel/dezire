@@ -17,6 +17,7 @@ import { TryOverview } from './about/TryOverview'
 import { TryExpenses } from './about/TryExpenses'
 import { TrySetups } from './about/TrySetups'
 import { TryAssets } from './about/TryAssets'
+import { TryIncome } from './about/TryIncome'
 import { BrandLogo } from './BrandLogo'
 import { ContactButton } from './EmailContact'
 
@@ -327,16 +328,17 @@ function Problem() {
 
 // ---- Try it ----
 
-type TryTab = 'wants' | 'assets' | 'expenses' | 'setups'
+type TryTab = 'wants' | 'assets' | 'income' | 'expenses' | 'setups'
 const TRY_TABS: { id: TryTab; label: string; sub: string }[] = [
   { id: 'wants', label: 'Wants', sub: 'Plan three months: set a goal, a budget, a net worth to reach, and add what you want.' },
   { id: 'assets', label: 'Assets', sub: 'Everything you plan to own, what it costs, and what it’ll be worth years from now.' },
+  { id: 'income', label: 'Income', sub: 'Every way you earn, whether it covers the month’s goal, and the next step for each.' },
   { id: 'expenses', label: 'Expenses', sub: 'Your money on hand, and every expense coming off it. Budget and breakdown update as you log.' },
   { id: 'setups', label: 'Setups', sub: 'Drag the GT3 RS onto a property. Take one off and it counts as sold.' },
 ]
 
 /**
- * "Try it now": the playgrounds (Wants, Assets, Expenses, Setups) as tabs in one section, shown at the same size as in
+ * "Try it now": the playgrounds (Wants, Assets, Income, Expenses, Setups) as tabs in one section, shown at the same size as in
  * the app. They share one plan, so a change in one shows in the others.
  */
 function TryItNow() {
@@ -389,6 +391,7 @@ function TryItNow() {
           <div key={tab} className="animate-fade">
             {tab === 'wants' && <TryOverview part="plan" />}
             {tab === 'assets' && <TryAssets onOpenMonth={() => setTab('wants')} />}
+            {tab === 'income' && <TryIncome />}
             {tab === 'expenses' && <TryExpenses />}
             {tab === 'setups' && <TrySetups />}
           </div>

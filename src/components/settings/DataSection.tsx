@@ -79,7 +79,7 @@ export function DataSection() {
             ['Expenses', expenses],
             ['Events & tasks', tasks],
             ['Yearly goals', goals],
-            ['Money plans', sources],
+            ['Income plans', sources],
             ['Modes', modes],
           ].map(([label, n]) => (
             <div key={label} className="bg-[#0b0c11] px-4 py-3">
@@ -159,7 +159,7 @@ function ClearModal({ items, expenses, tasks, goals, sources, onClose }: { items
     { id: 'calendar', title: 'Calendar & tasks', hint: plural(tasks, 'entry').replace('entrys', 'entries') },
     { id: 'school', title: 'School tasks', hint: `${plural(schoolTasks, 'task')} · your columns and subjects stay` },
     { id: 'goals', title: 'Yearly goals', hint: plural(goals, 'goal') },
-    { id: 'sources', title: 'Money plans', hint: plural(sources, 'plan') },
+    { id: 'sources', title: 'Income plans', hint: plural(sources, 'plan') },
     { id: 'everything', title: 'Everything', hint: 'All of the above in every mode, your lists and your birthday' },
   ]
 

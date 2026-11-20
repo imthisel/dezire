@@ -220,7 +220,7 @@ export const guessAreaIcon = (name: string) => {
 export const areaIcon = (a: GoalAreaDef) => GOAL_ICONS[a.icon] ?? Sparkles
 export const areaColor = (a: GoalAreaDef) => GOAL_COLORS[a.color] ?? GOAL_COLORS.slate
 
-/** Ways of making money, for the Money plan page. `calc` = the "how many sales do I need" math makes sense for it. */
+/** Ways of making money, for the Income plan page. `calc` = the "how many sales do I need" math makes sense for it. */
 export const SOURCE_KINDS: SourceKind[] = ['business', 'freelance', 'online', 'job', 'invest', 'other']
 
 export const SOURCE_KIND: Record<

@@ -239,14 +239,14 @@ export function GoalsTab({ plan }: { plan: Plan }) {
   )
 }
 
-// ---------------------------------------------------------------- money plans
+// ---------------------------------------------------------------- income plans
 
 export function MoneyTab({ plan }: { plan: Plan }) {
   const sym = plan.currency.main.symbol
   if (!plan.sources.length)
     return (
       <Card>
-        <Empty icon={Rocket} title="No money plans yet" text="Ways of making money they’re planning (a business, a job, freelancing…)." />
+        <Empty icon={Rocket} title="No income plans yet" text="Ways of making money they’re planning (a business, a job, freelancing…)." />
       </Card>
     )
   return (

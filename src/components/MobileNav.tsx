@@ -15,7 +15,7 @@ export const TAB_LOOK: Record<TabId, { label: string; icon: typeof Flag; hint: s
   calendar: { label: 'Calendar', icon: CalendarCheck, hint: 'Events and tasks' },
   assets: { label: 'Assets', icon: Gem, hint: 'What you own' },
   favorites: { label: 'Favorites', icon: Star, hint: 'The items you starred' },
-  plan: { label: 'Plan', icon: Rocket, hint: 'Your money plan' },
+  plan: { label: 'Income', icon: Rocket, hint: 'Your income plan' },
 }
 
 /** The setting that takes a tab's page out of the menus (a hidden page doesn't get a tab either). */

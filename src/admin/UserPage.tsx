@@ -116,7 +116,7 @@ export function UserPage({ uid }: { uid: string }) {
           { id: 'overview', label: 'Overview', icon: UserCheck },
           { id: 'dreams', label: 'Dreams & items', icon: Gem, count: counts?.dreams },
           { id: 'goals', label: 'Goals', icon: Target, count: counts?.goals },
-          { id: 'money', label: 'Money plans', icon: Rocket, count: counts?.money },
+          { id: 'money', label: 'Income plans', icon: Rocket, count: counts?.money },
           { id: 'spending', label: 'Spending', icon: Receipt, count: counts?.spending },
           { id: 'calendar', label: 'Calendar', icon: CalendarDays, count: counts?.calendar },
           { id: 'notes', label: 'Notes', icon: NotebookPen },
@@ -200,7 +200,7 @@ function OverviewTab({ user, reload }: { user: UserDetail; reload: () => Promise
               <Mini label="Net worth, last month" value={fmt(main.netWorth, sym, true)} sub="Main plan" />
               <Mini label="Goals done" value={`${goals.done}/${goals.total}`} sub={goals.total ? `${Math.round((goals.done / goals.total) * 100)}% complete` : 'None set'} />
               <Mini label="Months planned" value={main.monthsPlanned} sub="with plans" />
-              <Mini label="Money plans" value={plan.sources.length} sub={`${plan.sources.filter((s) => s.stage === 'running').length} already earning`} />
+              <Mini label="Income plans" value={plan.sources.length} sub={`${plan.sources.filter((s) => s.stage === 'running').length} already earning`} />
               <Mini label="Modes" value={plan.modes.length} sub={plan.modes.map((m) => m.name).join(', ')} />
             </div>
           )}

@@ -25,7 +25,7 @@ export function Header() {
   const range = useStore((s) => s.yearRange).replace('-', ' – ')
 
   function reset() {
-    if (confirm('Delete ALL money goals, budgets, items, expenses, yearly goals, money plans, tasks, year and setup notes and your birthday? You can undo this right after.')) {
+    if (confirm('Delete ALL money goals, budgets, items, expenses, yearly goals, income plans, tasks, year and setup notes and your birthday? You can undo this right after.')) {
       const s = useStore.getState()
       const before = { ...s }
       s.resetAll()

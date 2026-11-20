@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Calculator, Check, ChevronDown, GripVertical, Lightbulb, ListChecks, NotebookPen, Plus, Rocket, Target, Trash2, Wand2, X } from 'lucide-react'
-import { useFmt, usePlan, useStore, useAlt } from '../store'
+import { useFmt, usePlan, useStore, useAlt, type SourcePatch } from '../store'
 import { SOURCE_KIND, SOURCE_KINDS, SOURCE_STAGE, SOURCE_STAGES } from '../lib/meta'
 import { currentIndex, labelOf } from '../lib/time'
-import type { IncomeSource, SourceKind } from '../lib/types'
+import type { IncomeSource, PlanStep, SourceKind } from '../lib/types'
 import { MoneyInput } from './MoneyInput'
 import { card } from './Dashboard'
 import { toast } from '../toast'
@@ -18,6 +18,39 @@ const WEEKS_PER_MONTH = 52 / 12
  * only what matters (does the plan cover this month's goal, and what to do next), and the extra parts of a plan
  * (money math, ideas, notes) open only when asked for.
  */
+
+/**
+ * Where the page reads and writes its plans. The app passes the real store; the About page's "Try it now" passes its
+ * own copy kept in memory, so the playground is this very page.
+ */
+export type IncomeData = {
+  sources: IncomeSource[]
+  addSource: (kind: SourceKind) => string
+  updateSource: (id: string, patch: SourcePatch) => void
+  removeSource: (id: string) => void
+  moveSource: (id: string, to: number) => void
+  addStep: (sourceId: string, text: string) => void
+  updateStep: (sourceId: string, stepId: string, patch: Partial<Omit<PlanStep, 'id'>>) => void
+  removeStep: (sourceId: string, stepId: string) => void
+  moveStep: (sourceId: string, stepId: string, to: number) => void
+}
+export type IncomeApi = {
+  /** Reads the plans (a hook) */
+  use: <T>(pick: (d: IncomeData) => T) => T
+  /** The plans and actions right now (not a hook) */
+  get: () => IncomeData
+  /** This month's "Goal to make", to compare against */
+  goal: { label: string; value: number; set: (n: number) => void }
+  fmt: (n: number, compact?: boolean) => string
+  /** The second currency, if shown */
+  alt: ((n: number, compact?: boolean) => string) | null
+  /** Remember which plans are open on this device */
+  remember: boolean
+  /** Start with the first plan open (the About page's playground) */
+  openFirst?: boolean
+}
+const IncomeCtx = createContext<IncomeApi | null>(null)
+const useApi = () => useContext(IncomeCtx)!
 
 // Which plans are open, remembered on this device. Not set = the default (open only when it's the only plan).
 const OPEN_KEY = 'dz-plan-open'
@@ -47,8 +80,45 @@ function useOpenOn(id: string, open: () => void) {
   }, [id])
 }
 
+/** The Income plan page, on the real store. */
 export function MoneyPlan() {
-  const sources = useStore((s) => s.sources)
+  const fmt = useFmt()
+  const alt = useAlt()
+  const plan = usePlan()
+  const today = currentIndex()
+  const month = plan[today]
+  const api = useMemo<IncomeApi>(
+    () => ({
+      use: (pick) => useStore(pick),
+      get: () => useStore.getState(),
+      goal: { label: labelOf(today), value: month.goal, set: (n) => useStore.getState().setMonthField(month.key, 'goal', n) },
+      fmt,
+      alt,
+      remember: true,
+    }),
+    [fmt, alt, today, month.goal, month.key],
+  )
+  return (
+    <IncomeCtx.Provider value={api}>
+      <IncomePlanView />
+    </IncomeCtx.Provider>
+  )
+}
+
+/** The page itself, on whatever data it's given (see IncomeApi). */
+export function IncomePlanView({ api }: { api?: IncomeApi }) {
+  if (api)
+    return (
+      <IncomeCtx.Provider value={api}>
+        <IncomePlanView />
+      </IncomeCtx.Provider>
+    )
+  return <IncomePlanPage />
+}
+
+function IncomePlanPage() {
+  const api = useApi()
+  const sources = api.use((s) => s.sources)
   const [fresh, setFresh] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
 
@@ -85,8 +155,8 @@ export function MoneyPlan() {
   }, [folded])
 
   function add(kind: SourceKind) {
-    const id = useStore.getState().addSource(kind)
-    saveOpen(id, true)
+    const id = api.get().addSource(kind)
+    if (api.remember) saveOpen(id, true)
     setFresh(id)
     requestAnimationFrame(() => document.getElementById(`source-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
@@ -102,8 +172,8 @@ export function MoneyPlan() {
             <Rocket className="h-5 w-5 text-white" strokeWidth={2.5} />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Money plan</h2>
-            <p className="text-sm text-zinc-400">How you're going to make the money. Fill in only what helps.</p>
+            <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Income plan</h2>
+            <p className="text-sm text-zinc-400">Every way you earn, what each should bring in, and what to do next.</p>
           </div>
         </div>
         {empty ? <HowItWorks /> : <Summary sources={sources} />}
@@ -131,7 +201,7 @@ export function MoneyPlan() {
 
 function HowItWorks() {
   const steps = [
-    { icon: Plus, title: 'Add a way to earn', text: 'A business, a job, freelancing, anything.' },
+    { icon: Plus, title: 'Add an income source', text: 'A business, a job, freelancing, anything.' },
     { icon: Target, title: 'Set a goal for it', text: 'How much you want it to make each month.' },
     { icon: ListChecks, title: 'Write the next steps', text: 'Small things you can do this week. Tick them off.' },
   ]
@@ -155,12 +225,8 @@ function HowItWorks() {
  * are already earning, solid) from what's still being built (faded), one piece per plan.
  */
 function Summary({ sources }: { sources: IncomeSource[] }) {
-  const f = useFmt()
-  const u = useAlt()
-  const plan = usePlan()
-  const today = currentIndex()
-  const month = plan[today]
-  const target = month.goal
+  const { fmt: f, alt: u, goal } = useApi()
+  const target = goal.value
   const total = sources.reduce((s, x) => s + x.monthlyGoal, 0)
   const earning = sources.filter((s) => s.stage === 'running').reduce((s, x) => s + x.monthlyGoal, 0)
   const scale = Math.max(target, total)
@@ -180,7 +246,7 @@ function Summary({ sources }: { sources: IncomeSource[] }) {
           <p className="text-xs tabular-nums text-zinc-500">
             {total > 0 ? (
               <>
-                {f(total * 12)} a year<span className="alt-i">&nbsp;· ≈ {u(total)} a month</span>
+                {f(total * 12)} a year{u && <span className="alt-i">&nbsp;· ≈ {u(total)} a month</span>}
               </>
             ) : (
               'Give a plan a monthly goal to see it here.'
@@ -188,7 +254,7 @@ function Summary({ sources }: { sources: IncomeSource[] }) {
           </p>
         </div>
         <div className="sm:text-right">
-          <p className="text-xs font-medium text-zinc-500">Goal for {labelOf(today)}</p>
+          <p className="text-xs font-medium text-zinc-500">Goal for {goal.label}</p>
           <p className="mt-0.5 text-lg font-semibold tabular-nums text-zinc-200">{target > 0 ? f(target) : 'Not set'}</p>
           {pct !== null && <p className={`text-xs font-medium tabular-nums ${pct >= 100 ? 'text-emerald-300' : 'text-amber-200'}`}>{pct}% covered</p>}
         </div>
@@ -242,8 +308,8 @@ function Summary({ sources }: { sources: IncomeSource[] }) {
         {target <= 0 && total > 0 && (
           <button
             onClick={() => {
-              useStore.getState().setMonthField(month.key, 'goal', total)
-              toast.success(`${labelOf(today)}'s goal set to ${f(total)}.`)
+              goal.set(total)
+              toast.success(`${goal.label}'s goal set to ${f(total)}.`)
             }}
             className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1 font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
           >
@@ -257,7 +323,8 @@ function Summary({ sources }: { sources: IncomeSource[] }) {
 
 /** The one thing to do next for each plan, all in one place, so there's no digging through cards. */
 function NextUp({ sources }: { sources: IncomeSource[] }) {
-  const { updateStep } = useStore.getState()
+  const api = useApi()
+  const { updateStep } = api.get()
   const next = sources.flatMap((s) => {
     const step = s.steps.find((x) => !x.done)
     return step ? [{ s, step }] : []
@@ -347,7 +414,7 @@ function AddPlan({ first, onAdd }: { first: boolean; onAdd: (k: SourceKind) => v
         <>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h3 className="text-base font-semibold text-white">{first ? 'How will you make money?' : 'Add another way to earn'}</h3>
+              <h3 className="text-base font-semibold text-white">{first ? 'How will you make money?' : 'Add another income source'}</h3>
               <p className="mt-0.5 text-sm text-zinc-500">Pick the one that fits best. You can change it later.</p>
             </div>
             {!first && (
@@ -385,7 +452,7 @@ function AddPlan({ first, onAdd }: { first: boolean; onAdd: (k: SourceKind) => v
           onClick={() => setOpen(true)}
           className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 text-sm font-medium text-zinc-300 transition hover:border-indigo-400/50 hover:bg-indigo-500/[0.06] hover:text-white"
         >
-          <Plus className="h-4 w-4" /> Add another way to earn
+          <Plus className="h-4 w-4" /> Add another income source
         </button>
       )}
     </section>
@@ -404,21 +471,22 @@ type CardProps = {
 }
 
 function SourceCard({ source: s, index, total, autoFocus, folded, dragId, setDragId }: CardProps) {
-  const f = useFmt()
-  const [open, setOpenState] = useState(() => readOpen()[s.id] ?? (total === 1 || autoFocus))
+  const api = useApi()
+  const f = api.fmt
+  const [open, setOpenState] = useState(() => (api.remember ? readOpen()[s.id] : undefined) ?? (total === 1 || autoFocus || (!!api.openFirst && index === 0)))
   const setOpen = (o: boolean) => {
     setOpenState(o)
-    saveOpen(s.id, o)
+    if (api.remember) saveOpen(s.id, o)
   }
   useOpenOn(`source-${s.id}`, () => setOpen(true))
   const shown = open && !folded
   const k = SOURCE_KIND[s.kind]
   const st = SOURCE_STAGE[s.stage]
-  const { updateSource, removeSource, moveSource } = useStore.getState()
+  const { updateSource, removeSource, moveSource } = api.get()
   const sort = useSortable({
     id: s.id,
     index,
-    ids: () => useStore.getState().sources.map((x) => x.id),
+    ids: () => api.get().sources.map((x) => x.id),
     dragId,
     setDragId,
     onMove: moveSource,
@@ -569,8 +637,7 @@ function SourceCard({ source: s, index, total, autoFocus, folded, dragId, setDra
 }
 
 function Goal({ s, set }: { s: IncomeSource; set: (p: Partial<IncomeSource>) => void }) {
-  const f = useFmt()
-  const u = useAlt()
+  const { fmt: f, alt: u } = useApi()
   return (
     <Part title="Goal to make from this">
       <div className="flex items-center gap-2">
@@ -581,7 +648,7 @@ function Goal({ s, set }: { s: IncomeSource; set: (p: Partial<IncomeSource>) => 
         {s.monthlyGoal > 0 ? (
           <>
             That's <span className="font-medium text-zinc-300">{f(s.monthlyGoal * 12)}</span> a year, or {f(Math.round(s.monthlyGoal / WEEKS_PER_MONTH))} a week
-            <span className="alt-i">&nbsp;· ≈ {u(s.monthlyGoal)} a month</span>
+            {u && <span className="alt-i">&nbsp;· ≈ {u(s.monthlyGoal)} a month</span>}
           </>
         ) : (
           'How much you want it to bring in each month.'
@@ -593,7 +660,7 @@ function Goal({ s, set }: { s: IncomeSource; set: (p: Partial<IncomeSource>) => 
 
 /** Turns a monthly goal into "how many sales is that", the easiest number to act on. Opens when asked, or once a price is in. */
 function MoneyMath({ s, set }: { s: IncomeSource; set: (p: Partial<IncomeSource>) => void }) {
-  const f = useFmt()
+  const f = useApi().fmt
   const [asked, setAsked] = useState(false)
   const [one, many] = SOURCE_KIND[s.kind].unit
   const profit = s.price - s.costPerSale
@@ -677,7 +744,8 @@ function Steps({ s }: { s: IncomeSource }) {
   const [showIdeas, setShowIdeas] = useState(false)
   const input = useRef<HTMLInputElement>(null)
   const [dragId, setDragId] = useState<string | null>(null)
-  const { addStep, updateStep, removeStep, moveStep } = useStore.getState()
+  const api = useApi()
+  const { addStep, updateStep, removeStep, moveStep } = api.get()
   const done = s.steps.filter((x) => x.done).length
   const have = new Set(s.steps.map((x) => x.text.toLowerCase()))
   const ideas = SOURCE_KIND[s.kind].steps.filter((x) => !have.has(x.toLowerCase()))
@@ -709,7 +777,7 @@ function Steps({ s }: { s: IncomeSource }) {
                 id={x.id}
                 index={i}
                 sortable={s.steps.length > 1}
-                ids={() => useStore.getState().sources.find((y) => y.id === s.id)?.steps.map((y) => y.id) ?? []}
+                ids={() => api.get().sources.find((y) => y.id === s.id)?.steps.map((y) => y.id) ?? []}
                 dragId={dragId}
                 setDragId={setDragId}
                 onMove={(id, to) => moveStep(s.id, id, to)}
