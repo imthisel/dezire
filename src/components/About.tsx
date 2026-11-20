@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import {
   ArrowRight, BadgeCheck, Check, ChevronDown, Cloud, CreditCard, Download, EyeOff, Fingerprint, KeyRound, Loader2, Lock, LogOut, Quote, Server,
-  ShieldCheck, Smartphone, Star, Target,
+  ShieldCheck, Smartphone, Star,
 } from 'lucide-react'
 import { signIn, signOut, useCloud } from '../cloud'
 import { forgetIntent, openBilling, openCheckout, rememberIntent, upgradeToYearly, useAccess } from '../billing'
@@ -17,6 +17,7 @@ import { TryOverview } from './about/TryOverview'
 import { TryExpenses } from './about/TryExpenses'
 import { TrySetups } from './about/TrySetups'
 import { TryAssets } from './about/TryAssets'
+import { BrandLogo } from './BrandLogo'
 
 // ---- Actions ----
 
@@ -157,11 +158,7 @@ function Glow() {
 }
 
 function Logo({ size = 'h-9 w-9' }: { size?: string }) {
-  return (
-    <span className={`grid ${size} shrink-0 place-items-center rounded-xl border border-brand-300/30 bg-gradient-to-b from-[#111a30] to-[#0a0f1c] shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]`}>
-      <Target className="h-1/2 w-1/2 text-brand-200" strokeWidth={2.25} />
-    </span>
-  )
+  return <BrandLogo className={`${size} drop-shadow-[0_6px_18px_rgb(58_109_240/0.35)]`} />
 }
 
 const primaryBtn =

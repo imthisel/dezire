@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
-import { ArrowDown, ArrowUp, Award, CalendarCheck, CalendarDays, ChevronDown, Download, Eye, EyeOff, Flag, Gem, GraduationCap, GripVertical, LifeBuoy, Wallet, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, SlidersHorizontal, Sparkles, Star, Target, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Award, CalendarCheck, CalendarDays, ChevronDown, Download, Eye, EyeOff, Flag, Gem, GraduationCap, GripVertical, LifeBuoy, Wallet, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, SlidersHorizontal, Sparkles, Star, X } from 'lucide-react'
 import { modeKind } from '../lib/needs'
 import { CopyModeModal, ModesModal, enterKind, lastMode, modeFor } from './Modes'
 import type { ModeKind } from '../lib/types'
@@ -22,6 +22,7 @@ import { openHelp } from './Help'
 import { useUnreadReplies } from '../lib/feedback'
 import { useSchoolView } from '../lib/schoolView'
 import type { IncomeSource } from '../lib/types'
+import { BrandLogo } from './BrandLogo'
 
 /** Wide screens keep the sidebar docked on the left; smaller ones slide it over the page. */
 export const useDocked = () => useMedia('(min-width: 1024px)')
@@ -368,9 +369,7 @@ export function Sidebar() {
             title="Go to Overview"
             className="flex items-center gap-2.5 rounded-xl transition hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
           >
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-indigo-400 to-emerald-400">
-              <Target className="h-4 w-4 text-white" strokeWidth={2.5} />
-            </span>
+            <BrandLogo className="h-8 w-8" />
             <span className="font-bold tracking-tight text-white">Dizayr</span>
           </a>
           <button

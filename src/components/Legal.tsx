@@ -1,7 +1,8 @@
 import { useEffect, type ReactNode } from 'react'
-import { ArrowLeft, Target } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { LEGAL, type LegalPage } from '../lib/legal'
 import { PLANS, TRIAL_DAYS, dollars } from '../lib/plans'
+import { BrandLogo } from './BrandLogo'
 
 /**
  * Terms of Service, Privacy Policy and Refund Policy (/terms, /privacy, /refunds). Open to everyone, signed in or not.
@@ -25,9 +26,7 @@ export function Legal({ page }: { page: LegalPage }) {
       <header className="relative border-b border-white/[0.06]">
         <div className="mx-auto flex h-16 max-w-3xl items-center justify-between gap-4 px-5 sm:px-8">
           <a href="/about" className="flex items-center gap-2.5" aria-label="Dizayr home">
-            <span className="grid h-8 w-8 place-items-center rounded-xl border border-brand-300/30 bg-gradient-to-b from-[#111a30] to-[#0a0f1c]">
-              <Target className="h-4 w-4 text-brand-200" strokeWidth={2.25} />
-            </span>
+            <BrandLogo className="h-8 w-8" />
             <span className="font-semibold text-white">Dizayr</span>
           </a>
           <a href="/about" className="inline-flex items-center gap-1.5 text-sm text-zinc-400 transition hover:text-white">

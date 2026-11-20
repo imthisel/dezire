@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Download, Eye, EyeOff, Menu, PanelLeftClose, PanelLeftOpen, RotateCcw, Target, Upload } from 'lucide-react'
+import { Download, Eye, EyeOff, Menu, PanelLeftClose, PanelLeftOpen, RotateCcw, Upload } from 'lucide-react'
 import { inNeedsMode, useStore } from '../store'
 import { downloadBackup, readBackup, restoreBackup } from '../backup'
 import { goHome } from '../nav'
@@ -9,6 +9,7 @@ import { CurrencyMenu } from './CurrencyMenu'
 import { ModeSwitcher } from './Modes'
 import { PremiumBadge } from './Plans'
 import { toggleSidebar, useDocked } from './Sidebar'
+import { BrandLogo } from './BrandLogo'
 
 export function Header() {
   const docked = useDocked()
@@ -91,9 +92,7 @@ export function Header() {
             title="Go to Overview"
             className="flex min-w-0 items-center gap-3 rounded-2xl transition hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
           >
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-indigo-400 to-emerald-400 shadow-lg shadow-indigo-500/20 sm:h-11 sm:w-11">
-            <Target className="h-5 w-5 text-white sm:h-6 sm:w-6" strokeWidth={2.5} />
-          </div>
+          <BrandLogo className="h-10 w-10 drop-shadow-[0_6px_18px_rgb(58_109_240/0.3)] sm:h-11 sm:w-11" />
           <div className="min-w-0">
             <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">Dizayr</h1>
             <p className="truncate text-xs text-zinc-400">

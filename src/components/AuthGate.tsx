@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Loader2, Target } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { firebaseConfigured } from '../lib/firebase'
 import { retryLoad, startCloud, useCloud } from '../cloud'
 import { useAccess } from '../billing'
@@ -7,6 +7,7 @@ import { About, TrialEnded } from './About'
 import { watchMine } from '../lib/feedback'
 import { legalPageAt } from '../lib/legal'
 import { Legal } from './Legal'
+import { BrandLogo } from './BrandLogo'
 
 /**
  * Shows the app only to a signed-in account that may use it (free trial, a plan, or lifetime) once its data has loaded.
@@ -46,9 +47,7 @@ function Shell({ children }: { children: ReactNode }) {
 
 function Logo({ size = 'h-14 w-14' }: { size?: string }) {
   return (
-    <div className={`mx-auto grid ${size} place-items-center rounded-2xl bg-gradient-to-br from-indigo-400 to-emerald-400 shadow-lg shadow-indigo-500/25`}>
-      <Target className="h-1/2 w-1/2 text-white" strokeWidth={2.5} />
-    </div>
+    <BrandLogo className={`mx-auto ${size} drop-shadow-[0_8px_24px_rgb(58_109_240/0.35)]`} />
   )
 }
 
