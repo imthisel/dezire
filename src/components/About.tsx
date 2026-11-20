@@ -16,7 +16,7 @@ import { BoardPreview, GoalsFloat, GoalsPreview, MonthOverview, NetWorthFloat, W
 import { TryOverview } from './about/TryOverview'
 import { TryExpenses } from './about/TryExpenses'
 import { TrySetups } from './about/TrySetups'
-import { FitScreen } from './about/FitScreen'
+import { TryAssets } from './about/TryAssets'
 
 // ---- Actions ----
 
@@ -329,17 +329,17 @@ function Problem() {
 
 // ---- Try it ----
 
-type TryTab = 'wants' | 'glance' | 'expenses' | 'setups'
+type TryTab = 'wants' | 'assets' | 'expenses' | 'setups'
 const TRY_TABS: { id: TryTab; label: string; sub: string }[] = [
   { id: 'wants', label: 'Wants', sub: 'Plan three months: set a goal, a budget, a net worth to reach, and add what you want.' },
-  { id: 'glance', label: 'At a glance', sub: 'Your three months, totalled and charted. Change anything under Wants and it follows.' },
-  { id: 'expenses', label: 'Expenses', sub: 'Log what you spent. Your budget, daily average and where it went update in an instant.' },
+  { id: 'assets', label: 'Assets', sub: 'Everything you plan to own, what it costs, and what it’ll be worth years from now.' },
+  { id: 'expenses', label: 'Expenses', sub: 'Your money on hand, and every expense coming off it. Budget and breakdown update as you log.' },
   { id: 'setups', label: 'Setups', sub: 'Drag the GT3 RS onto a property. Take one off and it counts as sold.' },
 ]
 
 /**
- * "Try it now": the playgrounds (Wants, its summary, Expenses, Setups) as tabs in one section that fills one screen.
- * They share one plan, so a change in one shows in the others. Each is scaled to fit the screen (see FitScreen).
+ * "Try it now": the playgrounds (Wants, Assets, Expenses, Setups) as tabs in one section, shown at the same size as in
+ * the app. They share one plan, so a change in one shows in the others.
  */
 function TryItNow() {
   const [tab, setTab] = useState<TryTab>('wants')
@@ -355,14 +355,14 @@ function TryItNow() {
   }
   return (
     <section id="try" aria-labelledby="try-title" className="screen border-t border-white/[0.06] bg-white/[0.012] px-5 sm:px-8">
-      <div data-fit-root className="mx-auto w-full max-w-6xl">
+      <div className="mx-auto w-full max-w-7xl">
         <div className="flex flex-col items-center gap-5 text-center lg:flex-row lg:items-end lg:justify-between lg:gap-10 lg:text-left">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">Try it now · no sign-up</p>
             <h2 id="try-title" className="mt-3 font-display text-[2.2rem] font-semibold leading-[1.05] tracking-[-0.035em] text-white sm:text-[2.8rem]">
               The real app, right here.
             </h2>
-            <p key={tab} className="animate-fade mt-2 max-w-xl text-[15px] text-zinc-300 sm:text-base [@media(min-width:1024px)_and_(max-height:700px)]:hidden">{active.sub}</p>
+            <p key={tab} className="animate-fade mt-2 max-w-xl text-[15px] text-zinc-300 sm:text-base">{active.sub}</p>
           </div>
           <div role="tablist" aria-label="Try it now" className="flex shrink-0 flex-wrap justify-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.03] p-1">
             {TRY_TABS.map((t, i) => (
@@ -388,12 +388,12 @@ function TryItNow() {
           </div>
         </div>
         <div id="try-panel" role="tabpanel" aria-labelledby={`try-tab-${tab}`} className="mt-6">
-          <FitScreen key={tab}>
+          <div key={tab} className="animate-fade">
             {tab === 'wants' && <TryOverview part="plan" />}
-            {tab === 'glance' && <TryOverview part="glance" />}
+            {tab === 'assets' && <TryAssets onOpenMonth={() => setTab('wants')} />}
             {tab === 'expenses' && <TryExpenses />}
             {tab === 'setups' && <TrySetups />}
-          </FitScreen>
+          </div>
         </div>
       </div>
     </section>

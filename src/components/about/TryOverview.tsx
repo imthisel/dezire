@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { AlertTriangle, Eraser, Home, Plus, RotateCcw, StickyNote, Target, X } from 'lucide-react'
+import { AlertTriangle, Eraser, Home, Plus, RotateCcw, Star, StickyNote, Target, X } from 'lucide-react'
 import { overLimitIds, valueAfter } from '../../lib/calc'
 import { DEFAULT_KINDS, TREND, kindColor, kindIcon } from '../../lib/meta'
 import type { Item, MonthData } from '../../lib/types'
@@ -136,11 +136,11 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
   const nwShort = m.netWorthGoal !== null ? m.netWorthGoal - c.netWorth : 0
 
   return (
-    <article className="flex w-[88%] shrink-0 snap-center flex-col rounded-[22px] border border-white/[0.08] bg-[#0b0c10] p-4 sm:w-[60%] sm:p-5 lg:w-auto">
-      <header className="flex items-start justify-between gap-3">
+    <article className="flex w-[88%] shrink-0 snap-center flex-col rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:w-[60%] lg:w-auto">
+      <header className="mb-3 flex items-start justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold tracking-tight text-white">{name}</h3>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-zinc-500">
             {DEMO_MONTHS[i].year}
             {i === 0 && <span className="ml-1.5 rounded-full bg-emerald-400/15 px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wider text-emerald-300">This month</span>}
           </p>
@@ -157,7 +157,7 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
             {hasNotes && !notesOpen && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-300 ring-2 ring-[#0b0c10]" />}
           </button>
           <div className="text-right">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">Net worth</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Net worth</p>
             <p key={Math.round(c.netWorth)} className={`animate-tick text-sm font-semibold tabular-nums ${c.netWorth < 0 ? 'text-rose-300' : 'text-brand-200'}`}>
               {money(c.netWorth)}
             </p>
@@ -166,7 +166,7 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
       </header>
 
       {notesOpen && (
-        <div className="animate-fade mt-3 rounded-xl border border-amber-200/15 bg-amber-200/[0.035] p-2.5">
+        <div className="animate-fade mb-3 rounded-xl border border-amber-200/15 bg-amber-200/[0.035] p-2.5">
           <textarea
             data-plain
             value={m.notes ?? ''}
@@ -180,7 +180,7 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
       )}
 
       {/* Net worth goal: when set, it works out the goal to make */}
-      <div className={`mt-3 flex items-center gap-2.5 rounded-xl border p-2 pl-2.5 ${m.netWorthGoal !== null ? 'border-brand-400/30 bg-brand-500/[0.08]' : 'border-white/[0.06] bg-black/15'}`}>
+      <div className={`mb-2 flex items-center gap-2.5 rounded-xl border p-2 pl-2.5 ${m.netWorthGoal !== null ? 'border-brand-400/30 bg-brand-500/[0.08]' : 'border-white/[0.06] bg-black/15'}`}>
         <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${m.netWorthGoal !== null ? 'bg-brand-500/20 text-brand-200' : 'bg-white/5 text-zinc-500'}`}>
           <Target className="h-4 w-4" />
         </span>
@@ -194,12 +194,12 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
                 : `Needs ${moneyShort(c.goal)} made`}
           </p>
         </div>
-        <div className="w-32 shrink-0">
+        <div className="w-32 shrink-0 sm:w-36">
           <MoneyField value={m.netWorthGoal} nullable placeholder="Not set" onChange={(v) => update(i, { netWorthGoal: v })} label={`${name} net worth goal`} />
         </div>
       </div>
 
-      <div className="mt-2 grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <Field label="Goal to make">
           {c.fromNetWorth ? (
             <p
@@ -215,7 +215,7 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
         <Field label="Budget">
           <MoneyField value={m.budget} onChange={(v) => update(i, { budget: v ?? 0 })} label={`${name} budget`} />
         </Field>
-        <Field label="Spent">
+        <Field label="Spent" hint="this month">
           <p className={`flex h-9 items-center truncate rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 text-[13px] font-semibold tabular-nums ${left < 0 && m.budget > 0 ? 'text-rose-300' : 'text-zinc-300'}`}>
             {money(c.spent)}
           </p>
@@ -223,13 +223,13 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
       </div>
 
       <div className="mt-3">
-        <div className="mb-1.5 flex items-center justify-between gap-3 text-[11px]">
+        <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
           <span className="text-zinc-400">
-            Spent <span className="font-medium tabular-nums text-zinc-200">{moneyShort(c.spent)}</span>
-            {m.budget > 0 && <> of {moneyShort(m.budget)}</>}
+            Spent <span className="font-medium tabular-nums text-zinc-200">{money(c.spent)}</span>
+            {m.budget > 0 && <span className="text-zinc-500"> of {money(m.budget)}</span>}
           </span>
           {m.budget > 0 ? (
-            <span className={`font-medium tabular-nums ${left < 0 ? 'text-rose-300' : 'text-zinc-200'}`}>{left < 0 ? `${money(-left)} over` : `${money(left)} left`}</span>
+            <span className={`font-medium tabular-nums ${left < 0 ? 'text-rose-300' : 'text-zinc-300'}`}>{left < 0 ? `${money(-left)} over` : `${money(left)} left`}</span>
           ) : (
             <span className="text-zinc-500">No budget yet</span>
           )}
@@ -239,7 +239,7 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 divide-x divide-white/[0.06] rounded-xl border border-white/[0.06] bg-black/25">
+      <div className="mt-3 grid grid-cols-3 divide-x divide-white/[0.06] rounded-xl border border-white/[0.06] bg-black/20">
         <Total k="Total earned" v={moneyShort(c.cumEarned)} cls="text-emerald-300" />
         <Total k="Total spent" v={moneyShort(c.cumSpent)} cls="text-rose-300" />
         <Total k="Money left" v={moneyShort(c.cash)} cls={c.cash < 0 ? 'text-rose-300' : 'text-white'} />
@@ -254,9 +254,12 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
             over={over.has(it.id)}
             onEdit={() => setEditId(it.id)}
             onRemove={() => update(i, { items: m.items.filter((x) => x.id !== it.id) })}
+            onStar={() => update(i, { items: m.items.map((x) => (x.id === it.id ? { ...x, favorite: !x.favorite } : x)) })}
           />
         ))}
-        {!m.items.length && !adding && <li className="rounded-xl border border-dashed border-white/10 px-3 py-4 text-center text-xs text-zinc-500">Nothing planned yet</li>}
+        {!m.items.length && !adding && (
+          <li className="grid flex-1 place-items-center rounded-xl border border-dashed border-white/[0.08] py-4 text-center text-xs text-zinc-500">No items yet · add one</li>
+        )}
       </ul>
 
       {over.size > 0 && (
@@ -267,9 +270,9 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
 
       <button
         onClick={() => setAdding(true)}
-        className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 text-sm font-medium text-zinc-300 transition hover:border-brand-400/50 hover:bg-brand-500/[0.06] hover:text-white"
+        className="mt-3 inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-sm font-medium text-zinc-200 transition hover:border-brand-400/40 hover:bg-brand-500/10 hover:text-white"
       >
-        <Plus className="h-4 w-4" /> Add an item
+        <Plus className="h-4 w-4" /> Add item
       </button>
       {adding && (
         <DemoItemModal
@@ -298,10 +301,13 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
   )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
-      <p className="mb-1 truncate text-[10px] font-medium uppercase tracking-wider text-zinc-400">{label}</p>
+      <p className="mb-1 flex items-center justify-between gap-1 truncate text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+        {label}
+        {hint && <span className="normal-case tracking-normal text-zinc-600">{hint}</span>}
+      </p>
       {children}
     </div>
   )
@@ -309,9 +315,9 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function Total({ k, v, cls }: { k: string; v: string; cls: string }) {
   return (
-    <div className="min-w-0 px-1.5 py-2 text-center">
-      <p className="truncate text-[9.5px] uppercase tracking-wider text-zinc-400">{k}</p>
-      <p className={`mt-0.5 truncate text-[13px] font-semibold tabular-nums ${cls}`}>{v}</p>
+    <div className="min-w-0 px-2.5 py-2">
+      <p className="truncate text-[10px] font-medium uppercase tracking-wider text-zinc-500">{k}</p>
+      <p className={`truncate text-sm font-semibold tabular-nums ${cls}`}>{v}</p>
     </div>
   )
 }
@@ -321,34 +327,44 @@ export function placesFor(months: MonthData[], i: number): PlaceChoice[] {
   return placedOf(months, 'property').map((p) => ({ id: p.item.id, name: p.item.name, price: p.item.price, month: monthLabel(p.month), owned: p.month <= i, sameMonth: p.month === i }))
 }
 
-function SimItem({ it, keptAt, over, onEdit, onRemove }: { it: Item; keptAt?: string; over: boolean; onEdit: () => void; onRemove: () => void }) {
+function SimItem({ it, keptAt, over, onEdit, onRemove, onStar }: { it: Item; keptAt?: string; over: boolean; onEdit: () => void; onRemove: () => void; onStar: () => void }) {
   const k = kindOf(it.category)
   const KindIcon = kindIcon(k)
   const kc = kindColor(k)
   const t = TREND[it.trend]
   return (
-    <li className={`group/item flex items-center gap-2.5 rounded-xl border p-2 transition ${over ? 'border-rose-500/40 bg-rose-500/[0.08] hover:border-rose-400/60' : 'border-white/[0.06] bg-white/[0.025] hover:border-white/15 hover:bg-white/[0.05]'}`}>
+    <li className={`group/item relative flex items-center gap-2.5 overflow-hidden rounded-xl border py-2 pl-2.5 pr-1.5 transition ${over ? 'border-rose-500/40 bg-rose-500/[0.08] hover:border-rose-400/60' : it.favorite ? 'border-brand-400/30 bg-brand-500/[0.07]' : 'border-white/[0.06] bg-white/[0.025] hover:border-white/15 hover:bg-white/[0.05]'}`}>
+      {it.favorite && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-200 to-amber-400" />}
       <button type="button" onClick={onEdit} aria-label={`Edit ${it.name}`} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg text-left">
       <span title={k.label} className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${kc.soft} ${kc.text}`}>
         <KindIcon className="h-4 w-4" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
-          <span className="truncate text-[12.5px] font-semibold text-white">{it.name}</span>
+          <span className={`truncate text-sm font-medium ${over ? 'text-rose-200' : 'text-zinc-100'}`}>{it.name}</span>
           {(it.notes?.trim() || it.links?.length) && <StickyNote aria-label="Has notes" className="h-3 w-3 shrink-0 text-amber-200/80" />}
         </span>
-        <span title={it.notes?.trim() || undefined} className={`flex items-center gap-1 truncate text-[10.5px] ${t.text}`}>
+        <span title={it.notes?.trim() || undefined} className={`flex items-center gap-1 truncate text-[11px] ${t.text}`}>
           <t.icon className="h-3 w-3 shrink-0" /> {t.label}
-          {it.trend !== 'stable' && it.rate > 0 && ` · ${it.rate}%/yr`}
+          {it.trend !== 'stable' && it.rate > 0 && <span className="opacity-80">· {it.rate}%/yr</span>}
+          <span className="truncate text-zinc-500">· {k.label}</span>
         </span>
         {keptAt && (
-          <span className="flex items-center gap-1 truncate text-[10.5px] text-teal-200/80">
+          <span className="flex items-center gap-1 truncate text-[11px] text-teal-200/80">
             <Home className="h-3 w-3 shrink-0" /> <span className="truncate">Kept at {keptAt}</span>
           </span>
         )}
       </span>
-      <span className={`shrink-0 text-[12.5px] font-semibold tabular-nums ${over ? 'text-rose-200' : 'text-white'}`}>{moneyShort(it.price)}</span>
       </button>
+      <button
+        onClick={onStar}
+        aria-pressed={!!it.favorite}
+        aria-label={it.favorite ? `Remove ${it.name} from Favorites` : `Add ${it.name} to Favorites`}
+        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition active:scale-90 ${it.favorite ? 'text-amber-300 hover:bg-amber-300/10' : 'text-zinc-600 hover:bg-white/10 hover:text-amber-300'}`}
+      >
+        <Star className={`h-4 w-4 ${it.favorite ? 'fill-amber-300' : ''}`} strokeWidth={it.favorite ? 2 : 1.75} />
+      </button>
+      <span className={`shrink-0 text-right text-sm font-semibold tabular-nums ${over ? 'text-rose-300' : 'text-zinc-100'}`}>{money(it.price)}</span>
       <button
         onClick={onRemove}
         aria-label={`Remove ${it.name}`}

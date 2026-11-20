@@ -429,7 +429,7 @@ function Info({ k, v, cls = 'text-zinc-100' }: { k: string; v: string; cls?: str
 
 // ---- Add expense ----
 
-export type NewExpense = { date: string; amount: number; name: string; category: string; place: string; notes: string }
+export type NewExpense = { date: string; amount: number; name: string; category: string; place: string; notes: string; account?: string }
 
 const field =
   'h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base text-zinc-100 outline-none transition placeholder:text-zinc-600 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm'
@@ -438,9 +438,12 @@ const field =
  * `today`: the day the playground treats as today. `min`/`max`: the days that can be picked.
  * `past`: expenses already in the playground, for the same suggestions the app makes from your history.
  */
-export function DemoExpenseModal({ today, min, max, past, onAdd, onClose }: {
+export function DemoExpenseModal({ today, min, max, past, onAdd, onClose, accounts }: {
   today: string; min: string; max: string; past: NewExpense[]; onAdd: (e: NewExpense) => void; onClose: () => void
+  /** Money on hand: the accounts it can be paid from (the first is picked to start with). */
+  accounts?: { id: string; name: string }[]
 }) {
+  const [account, setAccount] = useState(accounts?.[0]?.id ?? '')
   const [amount, setAmount] = useState<number | null>(null)
   const [date, setDate] = useState(today)
   const [name, setName] = useState('')
@@ -457,7 +460,7 @@ export function DemoExpenseModal({ today, min, max, past, onAdd, onClose }: {
 
   function save(again: boolean) {
     if (!ok) return amountBox.current?.querySelector('input')?.focus()
-    onAdd({ date, amount: amount!, name: name.trim(), category, place: place.trim(), notes: notesOpen ? notes.trim() : '' })
+    onAdd({ date, amount: amount!, name: name.trim(), category, place: place.trim(), notes: notesOpen ? notes.trim() : '', ...(account ? { account } : {}) })
     if (!again) return onClose()
     setAmount(null)
     setName('')
@@ -552,6 +555,17 @@ export function DemoExpenseModal({ today, min, max, past, onAdd, onClose }: {
           <NameField name={name} setName={setName} category={category} setCategory={setCategory} amount={amount} setAmount={setAmount} place={place} setPlace={setPlace} past={past} />
           <CategoryField category={category} setCategory={setCategory} name={name} setName={setName} />
           <PlaceField place={place} setPlace={setPlace} past={past} />
+          {accounts && accounts.length > 1 && (
+            <Section label="Paid from">
+              <div className="flex flex-wrap gap-1.5">
+                {accounts.map((a) => (
+                  <Chip key={a.id} on={account === a.id} onClick={() => setAccount(a.id)}>
+                    {a.name}
+                  </Chip>
+                ))}
+              </div>
+            </Section>
+          )}
 
           {notesOpen ? (
             <Section label="Notes" onClear={() => (setNotes(''), setNotesOpen(false))}>

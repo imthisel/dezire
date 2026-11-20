@@ -5,11 +5,13 @@ import type { ExpenseCategory } from '../../lib/types'
 import { MoneyField, Toolbar, money, moneyShort } from './TryOverview'
 import { DemoExpenseModal, type NewExpense } from './DemoDialogs'
 import { useDemo } from './demoStore'
+import { TryMoney, exampleWallet } from './TryMoney'
+import { walletState, type Wallet } from '../../lib/wallet'
 
 /*
- * A playable copy of Expenses on the About page: this month, with the same "Add expense" window, overview, budget,
- * chart by day and "where it went" breakdown as the app. As in the app, the budget is this month's budget from the
- * Planner (the playground above): change it in either place. It lives only in this page's memory: nothing is saved anywhere.
+ * A playable copy of Expenses on the About page: this month, with Your money (money on hand, which every expense comes
+ * off), and the same "Add expense" window, overview, budget, chart by day and "where it went" breakdown as the app. As in
+ * the app, the budget is this month's budget under Wants: change it in either place. It lives only in this page's memory.
  */
 
 // This month, so "Today" and "Yesterday" mean what they do in the app.
@@ -24,29 +26,29 @@ const WEEKDAYS = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', '
 const keyOf = (day: number) => toKey(new Date(YEAR, MONTH, day))
 const dayOf = (key: string) => Number(key.slice(8, 10))
 
-type Exp = NewExpense & { id: string }
+type Exp = NewExpense & { id: string; createdAt: number }
 
 let lastId = 0
-const withId = (e: NewExpense): Exp => ({ ...e, id: `try-e${++lastId}` })
+const withId = (e: NewExpense, createdAt = Date.now() + lastId): Exp => ({ ...e, id: `try-e${++lastId}`, createdAt })
 /** An example expense, spread over the days of the month that have passed so far (day 1–31 is squeezed into 1–today). */
-const exp = (day: number, amount: number, name: string, category: string, place = ''): Exp =>
-  withId({ date: keyOf(Math.max(1, Math.ceil((day / 31) * TODAY))), amount, name, category, place, notes: '' })
+const exp = (day: number, amount: number, name: string, category: string, place = '', account = 'cash'): Exp =>
+  withId({ date: keyOf(Math.max(1, Math.ceil((day / 31) * TODAY))), amount, name, category, place, notes: '', account }, 10 + lastId)
 
 function example(): Exp[] {
   return [
     exp(1, 20_000, 'Tithe', 'other', 'Church'),
-    exp(1, 35_000, 'Rent', 'bills'),
-    exp(2, 6_200, 'Groceries', 'groceries', 'S&R'),
+    exp(1, 35_000, 'Rent', 'bills', '', 'bank'),
+    exp(2, 6_200, 'Groceries', 'groceries', 'S&R', 'gcash'),
     exp(3, 280, 'Coffee', 'food', 'Starbucks'),
-    exp(5, 3_500, 'Gym', 'health', 'Anytime Fitness'),
+    exp(5, 3_500, 'Gym', 'health', 'Anytime Fitness', 'gcash'),
     exp(6, 1_850, 'Lunch', 'food', 'Mendokoro Ramenba'),
     exp(8, 420, 'Grab / Taxi', 'transport'),
-    exp(9, 8_400, 'Electricity', 'bills', 'Meralco'),
-    exp(12, 549, 'Subscriptions', 'fun', 'Netflix'),
+    exp(9, 8_400, 'Electricity', 'bills', 'Meralco', 'bank'),
+    exp(12, 549, 'Subscriptions', 'fun', 'Netflix', 'bank'),
     exp(13, 5_600, 'Dinner', 'food', 'Manam'),
     exp(15, 3_200, 'Fuel', 'transport', 'Shell'),
-    exp(16, 48_500, 'Loro Piana Summer Walk', 'shopping', 'Loro Piana Greenbelt'),
-    exp(20, 5_400, 'Groceries', 'groceries', 'S&R'),
+    exp(16, 48_500, 'Loro Piana Summer Walk', 'shopping', 'Loro Piana Greenbelt', 'bank'),
+    exp(20, 5_400, 'Groceries', 'groceries', 'S&R', 'gcash'),
     exp(21, 2_300, 'Night out', 'fun'),
   ]
 }
@@ -65,6 +67,10 @@ export function TryExpenses() {
   const setBudget = (v: number) => useDemo.getState().update(0, { budget: v })
   const [filter, setFilter] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  // Money on hand: counted on the 1st, every expense comes off the account that paid.
+  const [wallet, setWallet] = useState<Wallet>(() => exampleWallet(keyOf(1), keyOf(Math.max(1, Math.ceil((15 / 31) * TODAY)))))
+  const money0 = useMemo(() => walletState(wallet, list, keyOf(TODAY)), [wallet, list])
+  const payFrom = money0?.accounts.map((a) => ({ id: a.account.id, name: a.account.name }))
 
   const total = sum(list)
   const avg = total / TODAY
@@ -91,22 +97,26 @@ export function TryExpenses() {
       <Toolbar
         onReset={() => {
           setList(example())
+          setWallet(exampleWallet(keyOf(1), keyOf(Math.max(1, Math.ceil((15 / 31) * TODAY)))))
           setFilter(null)
         }}
         onClear={() => {
           setList([])
+          setWallet((w) => ({ ...w, entries: w.entries.filter((e) => e.kind === 'set').map((e) => ({ ...e, amount: 0 })) }))
           setFilter(null)
         }}
       />
 
-      {/* Wide screens: overview | list | charts, side by side, so the whole playground fits one screen. */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr_1.05fr]">
-      <div className="flex min-w-0 flex-col gap-4">
+      {/* Your money: right under the title, as in the app, since every expense below changes it. */}
+      <div className="mt-4">
+        <TryMoney state={money0} wallet={wallet} setWallet={setWallet} today={keyOf(TODAY)} onSpent={() => setAdding(true)} />
+      </div>
+
       {/* Overview */}
-      <section className="grid gap-5 rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-5">
+      <section className="mt-4 grid gap-6 rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-4 sm:p-6 lg:grid-cols-[1fr_1.1fr] lg:gap-10">
         <div className="min-w-0">
           <p className="text-sm text-zinc-400">Spent in {MONTH_NAME} {YEAR}</p>
-          <p key={total} className="animate-tick mt-1 truncate text-4xl font-semibold tracking-tight tabular-nums text-white">{money(total)}</p>
+          <p key={total} className="animate-tick mt-1 truncate text-4xl font-semibold tracking-tight tabular-nums text-white sm:text-5xl">{money(total)}</p>
           <div className="mt-5">
             <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
               <span className="inline-flex items-center gap-1.5 text-zinc-400">
@@ -143,13 +153,13 @@ export function TryExpenses() {
             )}
           </div>
         </div>
-        <div className="grid min-w-0 grid-cols-3 gap-2">
+        <div className="grid min-w-0 grid-cols-3 gap-2.5 self-start">
           <Stat k="Daily average" v={money(avg)} sub={`over ${TODAY} day${TODAY > 1 ? "s" : ""} so far`} />
           <Stat k="On pace for" v={moneyShort(pace)} sub={`by the end of ${MONTH_NAME}`} />
           <Stat k="Biggest" v={biggest ? money(biggest.amount) : '—'} sub={biggest ? biggest.name || catOf(biggest.category).label : `${list.length} expenses`} />
         </div>
         {list.length > 1 && (
-          <div className="flex flex-wrap gap-2 border-t border-white/[0.06] pt-4">
+          <div className="flex flex-wrap gap-2 border-t border-white/[0.06] pt-4 lg:col-span-2">
             {byCat[0] && (
               <Insight>
                 Most went to <b className="font-semibold text-white">{catOf(byCat[0][0]).label}</b> · {Math.round((byCat[0][1] / total) * 100)}%
@@ -168,21 +178,23 @@ export function TryExpenses() {
           </div>
         )}
       </section>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.15fr]">
+        {/* Log and list */}
+        <div className="flex min-w-0 flex-col gap-4">
           <button
             onClick={() => setAdding(true)}
             className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-brand-600 text-sm font-semibold text-white shadow-lg shadow-brand-600/20 transition hover:bg-brand-500"
           >
             <Plus className="h-4 w-4" /> Add expense
           </button>
-      </div>
-        {/* The list */}
-        <div className="flex min-w-0 flex-col">
           {adding && (
             <DemoExpenseModal
               today={keyOf(TODAY)}
               min={keyOf(1)}
               max={keyOf(TODAY)}
               past={list}
+              accounts={payFrom}
               onAdd={(e) => setList((l) => [...l, withId(e)])}
               onClose={() => setAdding(false)}
             />
@@ -260,7 +272,7 @@ export function TryExpenses() {
                         <Icon className={`h-4 w-4 shrink-0 ${col.text}`} />
                         <span className="min-w-0 flex-1 truncate text-zinc-200">{c.label}</span>
                         <span className="shrink-0 tabular-nums text-zinc-400">{Math.round((v / total) * 100)}%</span>
-                        <span className="w-20 shrink-0 text-right font-semibold tabular-nums text-white">{money(v)}</span>
+                        <span className="w-24 shrink-0 text-right font-semibold tabular-nums text-white">{money(v)}</span>
                       </span>
                       <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-white/[0.05]">
                         <span className={`block h-full rounded-full transition-all duration-500 ${col.bar}`} style={{ width: `${(v / byCat[0][1]) * 100}%` }} />
@@ -280,9 +292,9 @@ export function TryExpenses() {
 
 function Stat({ k, v, sub, className = '' }: { k: string; v: string; sub: string; className?: string }) {
   return (
-    <div className={`min-w-0 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-2.5 ${className}`}>
-      <p className="truncate text-[10px] uppercase tracking-wider text-zinc-400">{k}</p>
-      <p key={v} className="animate-tick mt-1 truncate text-base font-semibold tabular-nums text-white">{v}</p>
+    <div className={`min-w-0 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-3 ${className}`}>
+      <p className="truncate text-[11px] uppercase tracking-wider text-zinc-400">{k}</p>
+      <p key={v} className="animate-tick mt-1 truncate text-lg font-semibold tabular-nums text-white">{v}</p>
       <p className="truncate text-xs text-zinc-400">{sub}</p>
     </div>
   )
@@ -297,7 +309,7 @@ function ByDay({ byDay }: { byDay: number[] }) {
   return (
     <section className="rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-4 sm:p-5">
       <h3 className="font-semibold text-white">By day</h3>
-      <div className="mt-3 flex h-28 items-end gap-[3px]" role="img" aria-label={`Spending by day in ${MONTH_NAME}; the most was ${money(max)} in one day`}>
+      <div className="mt-4 flex h-36 items-end gap-[3px]" role="img" aria-label={`Spending by day in ${MONTH_NAME}; the most was ${money(max)} in one day`}>
         {byDay.map((v, i) => (
           <span
             key={i}
