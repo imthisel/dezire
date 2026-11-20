@@ -10,6 +10,7 @@ import { ChartToggle, useChartHidden } from './ChartToggle'
 import { useIsPhone } from '../lib/useMedia'
 import { ModeStrip } from './Modes'
 import { BlurAll, BlurToggle, Blurred } from './Blur'
+import { FitText } from './FitText'
 
 /** The Overview's cards that can be blurred. */
 const BLUR_IDS = ['w-earned', 'w-spent', 'w-left', 'w-networth', 'w-chart', 'w-assets']
@@ -291,12 +292,9 @@ function Stat(props: {
         <BlurToggle id={props.blurId} name={props.label} className="-my-1 -mr-1.5 ml-auto" />
       </div>
       <Blurred id={props.blurId} name={props.label}>
-        <p
-          key={props.value}
-          className={`animate-tick mt-3 truncate text-[28px] font-bold leading-none tracking-tight tabular-nums ${props.valueCls ?? 'text-white'}`}
-        >
+        <FitText key={props.value} min={16} className={`animate-tick mt-3 pb-px text-[28px] font-bold leading-none tracking-tight tabular-nums ${props.valueCls ?? 'text-white'}`}>
           {props.value}
-        </p>
+        </FitText>
         <p className="alt mt-1.5 truncate text-sm font-medium tabular-nums text-zinc-400">≈ {props.usd} {altCode}</p>
         <p className="mt-1.5 truncate text-xs text-zinc-500">{props.sub}</p>
         {p !== undefined && (
@@ -336,18 +334,19 @@ function PhoneStats(p: {
           <BlurToggle id="w-networth" name="Net worth" className="-my-1 -mr-1 ml-auto" />
         </div>
         <Blurred id="w-networth" name="Net worth">
-          <p
+          <FitText
             key={p.netWorth}
-            className={`animate-tick mt-2.5 truncate text-[32px] font-bold leading-none tracking-tight tabular-nums ${p.netWorth < 0 ? 'text-red-300' : 'text-white'}`}
+            min={18}
+            className={`animate-tick mt-2.5 pb-px text-[32px] font-bold leading-none tracking-tight tabular-nums ${p.netWorth < 0 ? 'text-red-300' : 'text-white'}`}
           >
             {f(p.netWorth)}
-          </p>
+          </FitText>
           <p className="alt mt-1.5 truncate text-sm font-medium tabular-nums text-zinc-400">≈ {u(p.netWorth)} {altCode}</p>
-          <div className="mt-3 flex gap-2 text-xs">
-            <span className="truncate rounded-full bg-white/[0.06] px-2.5 py-1 tabular-nums text-zinc-300">
+          <div className="mt-3 flex min-w-0 gap-2 text-xs">
+            <span className="min-w-0 truncate rounded-full bg-white/[0.06] px-2.5 py-1 tabular-nums text-zinc-300">
               <span className="text-zinc-500">Cash</span> {f(p.cash, true)}
             </span>
-            <span className="truncate rounded-full bg-white/[0.06] px-2.5 py-1 tabular-nums text-zinc-300">
+            <span className="min-w-0 truncate rounded-full bg-white/[0.06] px-2.5 py-1 tabular-nums text-zinc-300">
               <span className="text-zinc-500">Assets</span> {f(p.assets, true)}
             </span>
           </div>
@@ -367,15 +366,16 @@ function MiniStat(props: { blurId: string; icon: ReactNode; iconCls: string; lab
   const barCls = props.warn && p !== undefined && p > 1 ? 'bg-red-400' : props.warn ? 'bg-amber-300/80' : 'bg-emerald-400/80'
   return (
     <div className={`${card} group/blur relative min-w-0 overflow-hidden p-3`}>
-      <div className="flex items-center gap-1.5">
+      {/* Icon and hide button on top, the label on its own line: three cards side by side leave no room for all three in a row. */}
+      <div className="flex items-center justify-between gap-1">
         <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md ${props.iconCls}`}>{props.icon}</span>
-        <span className="min-w-0 truncate text-xs font-medium text-zinc-400">{props.label}</span>
-        <BlurToggle id={props.blurId} name={props.label} small className="-my-1 -mr-1.5 ml-auto" />
+        <BlurToggle id={props.blurId} name={props.label} small className="-my-1 -mr-1.5" />
       </div>
+      <p className="mt-1.5 truncate text-xs font-medium text-zinc-400">{props.label}</p>
       <Blurred id={props.blurId} name={props.label} compact>
-        <p key={props.value} className={`animate-tick mt-2 truncate text-lg font-bold leading-tight tabular-nums ${props.valueCls ?? 'text-white'}`}>
+        <FitText key={props.value} min={12} className={`animate-tick mt-0.5 text-lg font-bold leading-tight tabular-nums ${props.valueCls ?? 'text-white'}`}>
           {props.value}
-        </p>
+        </FitText>
         <p className="alt truncate text-[11px] tabular-nums text-zinc-500">≈ {props.usd}</p>
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/5">
           {p !== undefined && <div className={`h-full rounded-full transition-all duration-500 ${barCls}`} style={{ width: `${Math.min(100, p * 100)}%` }} />}

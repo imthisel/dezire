@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { ChevronsLeftRight } from 'lucide-react'
 import { useFmt, usePlan, useStore, useAlt } from '../store'
+import { FitText } from './FitText'
 import { END_YEAR, START_YEAR, TOTAL_MONTHS, YEARS, currentIndex, labelOf } from '../lib/time'
 
 const H = 260
@@ -169,9 +170,10 @@ export function NetWorthChart() {
               {labelOf(shown.index)}
               {!hp && ' · today'}
             </p>
-            <p className="truncate text-base font-semibold tabular-nums text-white">
-              {f(shown.netWorth)} <span className="alt-i text-xs font-normal text-zinc-500">≈ {u(shown.netWorth, true)}</span>
-            </p>
+            <FitText min={12} className="text-base font-semibold tabular-nums text-white">
+              {f(shown.netWorth)}
+            </FitText>
+            <p className="alt truncate text-[11px] tabular-nums text-zinc-500">≈ {u(shown.netWorth, true)}</p>
           </div>
           <div className="shrink-0 text-right text-[11px] leading-4 tabular-nums">
             <p className="text-zinc-500">

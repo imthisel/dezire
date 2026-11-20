@@ -15,6 +15,7 @@ import { NeedsPicker } from './NeedItemModal'
 import { BOUGHT_TEXT, BringInModal, NOT_BOUGHT_TEXT, NeedsBridge, SendBar, SendTick, flipSent } from './NeedsBridge'
 import { toast } from '../toast'
 import { BlurAll, BlurToggle, Blurred } from './Blur'
+import { FitText } from './FitText'
 
 /** The Needs overview's cards that can be blurred. */
 const BLUR_IDS = ['n-month', 'n-left', 'n-week', 'n-year', 'n-chart', 'n-breakdown']
@@ -175,19 +176,19 @@ function Stat(p: { blurId: string; icon: ReactNode; iconCls: string; label: stri
     <div className={`${card} group/blur relative min-w-0 overflow-hidden p-3.5 sm:p-5 ${p.highlight ? 'border-emerald-400/30 bg-gradient-to-br from-emerald-500/[0.14] via-white/[0.02] to-teal-500/[0.06]' : ''}`}>
       <div className="flex items-center gap-2 sm:gap-2.5">
         <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${p.iconCls}`}>{p.icon}</span>
-        <span className="min-w-0 truncate text-xs font-medium text-zinc-400 sm:text-sm">{p.label}</span>
+        <span className="min-w-0 text-xs font-medium leading-tight text-zinc-400 line-clamp-2 sm:line-clamp-1 sm:text-sm">{p.label}</span>
         <BlurToggle id={p.blurId} name={p.label} className="-my-1 -mr-1.5 ml-auto" />
       </div>
       <Blurred id={p.blurId} name={p.label}>
-        <p key={p.value} className={`animate-tick mt-2.5 truncate text-xl font-bold leading-none tracking-tight tabular-nums sm:mt-3 sm:text-[28px] ${p.valueCls ?? 'text-white'}`}>
+        <FitText key={p.value} min={13} className={`animate-tick mt-2.5 pb-px text-xl font-bold leading-none tracking-tight tabular-nums sm:mt-3 sm:text-[28px] ${p.valueCls ?? 'text-white'}`}>
           {p.value}
-        </p>
+        </FitText>
         {p.alt && (
           <p className="alt mt-1.5 truncate text-xs font-medium tabular-nums text-zinc-400 sm:text-sm">
             ≈ {p.alt} {altCode}
           </p>
         )}
-        <p className="mt-1.5 truncate text-xs text-zinc-500">{p.sub}</p>
+        <p className="mt-1.5 text-xs leading-snug text-zinc-500 line-clamp-2 sm:line-clamp-1">{p.sub}</p>
         {p.progress !== undefined && (
           <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/5">
             <div className={`h-full rounded-full transition-all duration-500 ${barCls(p.progress)}`} style={{ width: `${Math.min(100, p.progress * 100)}%` }} />
