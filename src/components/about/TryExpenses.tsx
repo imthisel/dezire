@@ -99,15 +99,18 @@ export function TryExpenses() {
         }}
       />
 
+      {/* Wide screens: overview | list | charts, side by side, so the whole playground fits one screen. */}
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr_1.05fr]">
+      <div className="flex min-w-0 flex-col gap-4">
       {/* Overview */}
-      <section className="mt-5 grid gap-6 rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-5 sm:p-6 lg:grid-cols-[1fr_1.1fr] lg:gap-10">
+      <section className="grid gap-5 rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-5">
         <div className="min-w-0">
           <p className="text-sm text-zinc-400">Spent in {MONTH_NAME} {YEAR}</p>
-          <p key={total} className="animate-tick mt-1 truncate text-4xl font-semibold tracking-tight tabular-nums text-white sm:text-5xl">{money(total)}</p>
+          <p key={total} className="animate-tick mt-1 truncate text-4xl font-semibold tracking-tight tabular-nums text-white">{money(total)}</p>
           <div className="mt-5">
             <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
               <span className="inline-flex items-center gap-1.5 text-zinc-400">
-                <Target className="h-3.5 w-3.5" /> Month’s budget <span className="text-zinc-500">(from the Planner)</span>
+                <Target className="h-3.5 w-3.5" /> Month’s budget <span className="text-zinc-500">(from Wants)</span>
               </span>
               <div className="w-36">
                 <MoneyField value={budget} onChange={(v) => setBudget(v ?? 0)} label="Month's budget" />
@@ -133,20 +136,20 @@ export function TryExpenses() {
                     ? `${money(total - budget)} over budget`
                     : `${money(budget - total)} left${pace > budget ? ` · at this pace you'll go ${moneyShort(pace - budget)} over` : ' · on track'}`}
                 </p>
-                <p className="mt-1 text-[11px] text-zinc-500">The same budget as {MONTH_NAME} in the Planner above. Change it in either place.</p>
+                <p className="mt-1 text-[11px] text-zinc-500">The same budget as {MONTH_NAME} under Wants. Change it in either place.</p>
               </>
             ) : (
-              <p className="text-xs text-zinc-500">No budget for {MONTH_NAME} yet. Set one here or in the Planner above.</p>
+              <p className="text-xs text-zinc-500">No budget for {MONTH_NAME} yet. Set one here or under Wants.</p>
             )}
           </div>
         </div>
-        <div className="grid min-w-0 grid-cols-2 gap-2.5 self-start sm:grid-cols-3 lg:grid-cols-3">
+        <div className="grid min-w-0 grid-cols-3 gap-2">
           <Stat k="Daily average" v={money(avg)} sub={`over ${TODAY} day${TODAY > 1 ? "s" : ""} so far`} />
           <Stat k="On pace for" v={moneyShort(pace)} sub={`by the end of ${MONTH_NAME}`} />
-          <Stat k="Biggest" v={biggest ? money(biggest.amount) : '—'} sub={biggest ? biggest.name || catOf(biggest.category).label : `${list.length} expenses`} className="col-span-2 sm:col-span-1" />
+          <Stat k="Biggest" v={biggest ? money(biggest.amount) : '—'} sub={biggest ? biggest.name || catOf(biggest.category).label : `${list.length} expenses`} />
         </div>
         {list.length > 1 && (
-          <div className="flex flex-wrap gap-2 border-t border-white/[0.06] pt-4 lg:col-span-2">
+          <div className="flex flex-wrap gap-2 border-t border-white/[0.06] pt-4">
             {byCat[0] && (
               <Insight>
                 Most went to <b className="font-semibold text-white">{catOf(byCat[0][0]).label}</b> · {Math.round((byCat[0][1] / total) * 100)}%
@@ -165,16 +168,15 @@ export function TryExpenses() {
           </div>
         )}
       </section>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.15fr]">
-        {/* Log and list */}
-        <div className="flex min-w-0 flex-col gap-4">
           <button
             onClick={() => setAdding(true)}
             className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-brand-600 text-sm font-semibold text-white shadow-lg shadow-brand-600/20 transition hover:bg-brand-500"
           >
             <Plus className="h-4 w-4" /> Add expense
           </button>
+      </div>
+        {/* The list */}
+        <div className="flex min-w-0 flex-col">
           {adding && (
             <DemoExpenseModal
               today={keyOf(TODAY)}
@@ -241,7 +243,7 @@ export function TryExpenses() {
           <ByDay byDay={byDay} />
           <section className="rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-4 sm:p-5">
             <h3 className="font-semibold text-white">Where it went</h3>
-            <ul className="mt-3 space-y-1">
+            <ul className="mt-2 space-y-0.5">
               {byCat.map(([id, v]) => {
                 const c = catOf(id)
                 const Icon = catIcon(c)
@@ -252,15 +254,15 @@ export function TryExpenses() {
                     <button
                       onClick={() => setFilter(on ? null : id)}
                       aria-pressed={on}
-                      className={`w-full rounded-xl px-2 py-2 text-left transition ${on ? 'bg-white/[0.06] ring-1 ring-inset ring-white/10' : 'hover:bg-white/[0.03]'}`}
+                      className={`w-full rounded-xl px-2 py-1.5 text-left transition ${on ? 'bg-white/[0.06] ring-1 ring-inset ring-white/10' : 'hover:bg-white/[0.03]'}`}
                     >
                       <span className="flex items-center gap-2.5 text-sm">
                         <Icon className={`h-4 w-4 shrink-0 ${col.text}`} />
                         <span className="min-w-0 flex-1 truncate text-zinc-200">{c.label}</span>
                         <span className="shrink-0 tabular-nums text-zinc-400">{Math.round((v / total) * 100)}%</span>
-                        <span className="w-24 shrink-0 text-right font-semibold tabular-nums text-white">{money(v)}</span>
+                        <span className="w-20 shrink-0 text-right font-semibold tabular-nums text-white">{money(v)}</span>
                       </span>
-                      <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-white/[0.05]">
+                      <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-white/[0.05]">
                         <span className={`block h-full rounded-full transition-all duration-500 ${col.bar}`} style={{ width: `${(v / byCat[0][1]) * 100}%` }} />
                       </span>
                     </button>
@@ -278,9 +280,9 @@ export function TryExpenses() {
 
 function Stat({ k, v, sub, className = '' }: { k: string; v: string; sub: string; className?: string }) {
   return (
-    <div className={`min-w-0 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-3 ${className}`}>
-      <p className="truncate text-[11px] uppercase tracking-wider text-zinc-400">{k}</p>
-      <p key={v} className="animate-tick mt-1 truncate text-lg font-semibold tabular-nums text-white">{v}</p>
+    <div className={`min-w-0 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-2.5 ${className}`}>
+      <p className="truncate text-[10px] uppercase tracking-wider text-zinc-400">{k}</p>
+      <p key={v} className="animate-tick mt-1 truncate text-base font-semibold tabular-nums text-white">{v}</p>
       <p className="truncate text-xs text-zinc-400">{sub}</p>
     </div>
   )
@@ -295,7 +297,7 @@ function ByDay({ byDay }: { byDay: number[] }) {
   return (
     <section className="rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-4 sm:p-5">
       <h3 className="font-semibold text-white">By day</h3>
-      <div className="mt-4 flex h-36 items-end gap-[3px]" role="img" aria-label={`Spending by day in ${MONTH_NAME}; the most was ${money(max)} in one day`}>
+      <div className="mt-3 flex h-28 items-end gap-[3px]" role="img" aria-label={`Spending by day in ${MONTH_NAME}; the most was ${money(max)} in one day`}>
         {byDay.map((v, i) => (
           <span
             key={i}

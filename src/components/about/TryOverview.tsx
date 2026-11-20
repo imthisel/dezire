@@ -58,20 +58,21 @@ export function compute(months: MonthData[]): Calc[] {
 
 // ---- The playground ----
 
-export function TryOverview() {
+/** `part`: the three months to plan, or the summary of them ("at a glance"); the About page shows them as two tabs. */
+export function TryOverview({ part = 'plan' }: { part?: 'plan' | 'glance' }) {
   const months = useDemo((s) => s.months)
   const update = useDemo((s) => s.update)
   const calc = useMemo(() => compute(months), [months])
 
+  if (part === 'glance') return <Summary months={months} calc={calc} />
   return (
     <div>
       <Toolbar onReset={useDemo.getState().reset} onClear={useDemo.getState().clear} />
-      <div className="-mx-5 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-4 sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0">
+      <div className="-mx-5 mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-4 sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0">
         {months.map((m, i) => (
           <SimMonth key={i} i={i} m={m} c={calc[i]} update={update} />
         ))}
       </div>
-      <Summary months={months} calc={calc} />
     </div>
   )
 }
@@ -119,7 +120,7 @@ export function MoneyField({ value, onChange, label, nullable, placeholder = '0'
 }
 
 function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; update: (i: number, patch: Partial<MonthData>) => void }) {
-  const [notesOpen, setNotesOpen] = useState(i === 0)
+  const [notesOpen, setNotesOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const editing = editId ? m.items.find((x) => x.id === editId) : undefined
@@ -371,8 +372,9 @@ function Summary({ months, calc }: { months: MonthData[]; calc: Calc[] }) {
     { k: 'What you own is worth', v: money(last.assets), cls: 'text-white' },
   ]
   return (
-    <div className="mt-6 rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-5 sm:p-6">
+    <div className="rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-5 sm:p-6">
       <h3 className="font-semibold text-white">Your next three months, at a glance</h3>
+      <p className="mt-1 text-sm text-zinc-400">Change anything under Wants and these follow.</p>
       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((s) => (
           <div key={s.k} className="min-w-0">

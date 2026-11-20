@@ -473,3 +473,26 @@ html[data-noglow] [class~="blur-[120px]"] { display: none; }
 @media (min-width: 1024px) {
   .about .sec { --pad: 6rem; }
 }
+
+/*
+ * About page "screens": the hero and every section the top menu jumps to. Each one is exactly one screen tall under the
+ * 4rem sticky bar, with its content centred, so jumping to it shows the whole section and nothing of the next one.
+ * (The menu is only shown from 1024px; below that, sections flow normally and only the hero fills the first screen.)
+ */
+.about .screen {
+  /* the bar is 4rem plus its 1px bottom line */
+  scroll-margin-top: calc(4rem + 1px);
+  padding-block: 4rem;
+}
+@media (min-width: 640px) {
+  .about .screen { padding-block: 5rem; }
+}
+@media (min-width: 1024px) {
+  .about .screen {
+    min-height: calc(100svh - 4rem - 1px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-block: clamp(1.25rem, 4.5svh, 3.5rem);
+  }
+}
