@@ -115,7 +115,7 @@ export function TryMoney({ state, wallet, setWallet, today, onSpent }: {
             </div>
           )}
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 [&>*:last-child:nth-child(odd)]:col-span-2 sm:[&>*:last-child:nth-child(odd)]:col-span-1">
             {state.accounts.map(({ account: a, balance }) => {
               const Icon = ICONS[a.icon]
               const c = colorOf(a)

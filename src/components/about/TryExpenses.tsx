@@ -7,6 +7,7 @@ import { DemoExpenseModal, type NewExpense } from './DemoDialogs'
 import { useDemo } from './demoStore'
 import { TryMoney, exampleWallet } from './TryMoney'
 import { walletState, type Wallet } from '../../lib/wallet'
+import { FitText } from '../FitText'
 
 /*
  * A playable copy of Expenses on the About page: this month, with Your money (money on hand, which every expense comes
@@ -153,7 +154,7 @@ export function TryExpenses() {
             )}
           </div>
         </div>
-        <div className="grid min-w-0 grid-cols-3 gap-2.5 self-start">
+        <div className="grid min-w-0 grid-cols-3 gap-2 self-start sm:gap-2.5">
           <Stat k="Daily average" v={money(avg)} sub={`over ${TODAY} day${TODAY > 1 ? "s" : ""} so far`} />
           <Stat k="On pace for" v={moneyShort(pace)} sub={`by the end of ${MONTH_NAME}`} />
           <Stat k="Biggest" v={biggest ? money(biggest.amount) : '—'} sub={biggest ? biggest.name || catOf(biggest.category).label : `${list.length} expenses`} />
@@ -292,10 +293,12 @@ export function TryExpenses() {
 
 function Stat({ k, v, sub, className = '' }: { k: string; v: string; sub: string; className?: string }) {
   return (
-    <div className={`min-w-0 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-3 ${className}`}>
-      <p className="truncate text-[11px] uppercase tracking-wider text-zinc-400">{k}</p>
-      <p key={v} className="animate-tick mt-1 truncate text-lg font-semibold tabular-nums text-white">{v}</p>
-      <p className="truncate text-xs text-zinc-400">{sub}</p>
+    <div className={`min-w-0 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-2.5 sm:p-3 ${className}`}>
+      <p className="line-clamp-2 text-[10.5px] uppercase leading-tight tracking-wider text-zinc-400 sm:line-clamp-1 sm:text-[11px]">{k}</p>
+      <FitText key={v} min={11} className="animate-tick mt-1 pb-px text-lg font-semibold tabular-nums text-white">
+        {v}
+      </FitText>
+      <p className="line-clamp-2 text-[11px] leading-snug text-zinc-400 sm:line-clamp-1 sm:text-xs">{sub}</p>
     </div>
   )
 }

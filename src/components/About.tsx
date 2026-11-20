@@ -164,17 +164,18 @@ function Logo({ size = 'h-9 w-9' }: { size?: string }) {
 }
 
 const primaryBtn =
-  'group inline-flex items-center justify-center gap-3 rounded-full bg-brand-600 font-semibold text-white shadow-[0_12px_40px_-12px_rgb(58_109_240/0.55)] transition duration-300 hover:-translate-y-0.5 hover:bg-brand-500 hover:shadow-[0_18px_50px_-12px_rgb(58_109_240/0.7)] active:translate-y-0 disabled:opacity-60'
+  'group inline-flex items-center justify-center gap-2.5 rounded-full bg-brand-600 sm:gap-3 font-semibold text-white shadow-[0_12px_40px_-12px_rgb(58_109_240/0.55)] transition duration-300 hover:-translate-y-0.5 hover:bg-brand-500 hover:shadow-[0_18px_50px_-12px_rgb(58_109_240/0.7)] active:translate-y-0 disabled:opacity-60'
 
 function GoogleButton({ signin, label = 'Start building your vision', big = false }: { signin: SignIn; label?: string; big?: boolean }) {
   return (
     <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:items-start">
-      <button onClick={signin.go} disabled={signin.busy} className={`${primaryBtn} w-full sm:w-auto ${big ? 'h-14 px-7 text-base' : 'h-12 px-6 text-[15px]'}`}>
-        <span className="grid h-7 w-7 place-items-center rounded-full bg-white">
+      <button onClick={signin.go} disabled={signin.busy} className={`${primaryBtn} w-full sm:w-auto ${big ? 'h-14 px-5 text-[15px] sm:px-7 sm:text-base' : 'h-12 px-5 text-[15px] sm:px-6'}`}>
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white">
           {signin.busy ? <Loader2 className="h-4 w-4 animate-spin text-brand-600" /> : <GoogleIcon />}
         </span>
         {label}
-        <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+        {/* On the narrowest phones the label needs the room. */}
+        <ArrowRight className="h-4 w-4 shrink-0 transition group-hover:translate-x-0.5 max-[359px]:hidden" />
       </button>
       {signin.error && (
         <p role="alert" className="animate-fade text-sm text-rose-300">
@@ -239,15 +240,15 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
   // floating cards step aside and the headline shrinks a little, so nothing is ever cut off.
   return (
     <section ref={ref} id="top" aria-label="Dizayr" className="relative flex scroll-mt-16 flex-col lg:min-h-[calc(100svh-4rem-1px)]">
-      <div className="mx-auto grid w-full max-w-6xl flex-1 items-center gap-10 px-5 sm:px-8 lg:grid-cols-[1.08fr_1fr] lg:gap-14 lg:py-[clamp(1.5rem,4svh,3rem)]">
+      <div className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-[minmax(0,1fr)] items-center gap-10 px-5 sm:px-8 lg:grid-cols-[1.08fr_1fr] lg:gap-14 lg:py-[clamp(1.5rem,4svh,3rem)]">
         <div className="flex min-h-[calc(100svh-4rem-1px)] flex-col justify-center py-8 text-center lg:min-h-0 lg:py-0 lg:text-left">
           <a
             href="#try"
-            className="hero-in mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.03] py-1 pl-1 pr-3.5 text-xs text-zinc-300 transition hover:border-brand-300/40 hover:text-white lg:mx-0 lg:self-start [@media(max-height:700px)]:mb-4"
+            className="hero-in mx-auto mb-6 inline-flex max-w-full items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.03] py-1 pl-1 pr-3.5 text-xs text-zinc-300 transition hover:border-brand-300/40 hover:text-white lg:mx-0 lg:self-start [@media(max-height:700px)]:mb-4"
             style={{ ['--d' as string]: '0ms' }}
           >
-            <span className="rounded-full bg-brand-600 px-2 py-0.5 font-semibold text-white">New</span>
-            Wants, Expenses & Setups, all in one plan <ArrowRight className="h-3 w-3" />
+            <span className="shrink-0 rounded-full bg-brand-600 px-2 py-0.5 font-semibold text-white">New</span>
+            <span className="truncate">Wants, Expenses & Setups, all in one plan</span> <ArrowRight className="h-3 w-3 shrink-0" />
           </a>
           <h1
             className="hero-in font-display font-semibold tracking-[-0.035em] text-[2.9rem] leading-[1] text-white sm:text-[4rem] lg:text-[4.6rem] [@media(min-width:1024px)_and_(max-height:760px)]:text-[3.7rem]"
@@ -265,8 +266,8 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
             </a>
           </div>
           {!signedIn && (
-            <p className="hero-in mt-5 text-sm text-zinc-400" style={{ ['--d' as string]: '380ms' }}>
-              {TRIAL_DAYS} days free · No card needed ·{' '}
+            <p className="hero-in mt-5 text-balance text-sm text-zinc-400" style={{ ['--d' as string]: '380ms' }}>
+              {TRIAL_DAYS} days free · No card needed<span className="hidden sm:inline"> ·</span> <br className="sm:hidden" />
               <a href="#pricing" className="text-brand-200 underline decoration-brand-300/40 underline-offset-4 transition hover:text-brand-100">
                 or plans from {perMonth(PLANS.annual)}/month
               </a>
@@ -352,6 +353,14 @@ function TryItNow() {
   }, [])
   const active = TRY_TABS.find((t) => t.id === tab)!
   const tabs = useRef<(HTMLButtonElement | null)[]>([])
+  const shownTab = useRef(tab)
+  useEffect(() => {
+    if (shownTab.current === tab) return
+    shownTab.current = tab
+    const el = tabs.current[TRY_TABS.findIndex((t) => t.id === tab)]
+    const row = el?.parentElement?.parentElement
+    if (el && row && row.scrollWidth > row.clientWidth) row.scrollTo({ left: el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' })
+  }, [tab])
   const onKey = (e: KeyboardEvent, i: number) => {
     const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
     if (!d) return
@@ -371,7 +380,8 @@ function TryItNow() {
             </h2>
             <p key={tab} className="animate-fade mt-2 max-w-xl text-[15px] text-zinc-300 sm:text-base">{active.sub}</p>
           </div>
-          <div role="tablist" aria-label="Try it now" className="flex shrink-0 flex-wrap justify-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.03] p-1">
+          <div className="scrollbar-none -mx-5 w-[calc(100%+2.5rem)] shrink-0 overflow-x-auto px-5 sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0 [mask-image:linear-gradient(to_right,transparent,black_1.25rem,black_calc(100%-2rem),transparent)] sm:[mask-image:none]">
+          <div role="tablist" aria-label="Try it now" className="mx-auto flex w-max gap-1 rounded-full border border-white/[0.08] bg-white/[0.03] p-1">
             {TRY_TABS.map((t, i) => (
               <button
                 key={t.id}
@@ -385,13 +395,14 @@ function TryItNow() {
                 tabIndex={tab === t.id ? 0 : -1}
                 onClick={() => setTab(t.id)}
                 onKeyDown={(e) => onKey(e, i)}
-                className={`h-9 rounded-full px-4 text-sm font-medium transition ${
+                className={`h-9 shrink-0 rounded-full px-3.5 text-sm font-medium transition sm:px-4 ${
                   tab === t.id ? 'bg-brand-600 text-white shadow-[0_6px_20px_-8px_rgb(58_109_240/0.7)]' : 'text-zinc-400 hover:text-white'
                 }`}
               >
                 {t.label}
               </button>
             ))}
+          </div>
           </div>
         </div>
         <div id="try-panel" role="tabpanel" aria-labelledby={`try-tab-${tab}`} className="mt-6">
@@ -537,7 +548,7 @@ function PrayAct() {
         </div>
 
         <ol className="relative space-y-4">
-          <span aria-hidden className="absolute bottom-10 left-[2.15rem] top-10 w-px bg-gradient-to-b from-brand-300/50 via-brand-300/20 to-transparent" />
+          <span aria-hidden className="absolute bottom-10 left-[41.5px] top-10 w-px sm:left-[45.5px] bg-gradient-to-b from-brand-300/50 via-brand-300/20 to-transparent" />
           {steps.map((s, i) => (
             <li
               key={s.n}
@@ -692,8 +703,8 @@ function Footer() {
   ]
   return (
     <footer className="border-t border-white/[0.06] px-5 pb-10 pt-16 text-sm text-zinc-400 sm:px-8">
-      <div className="mx-auto grid max-w-6xl gap-12 md:grid-cols-[1.4fr_repeat(3,1fr)]">
-        <div>
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-[1.4fr_repeat(3,1fr)] md:gap-12">
+        <div className="col-span-2 md:col-span-1">
           <span className="flex items-center gap-2.5">
             <Logo size="h-8 w-8" /> <span className="text-base font-semibold text-zinc-100">Dizayr</span>
           </span>
@@ -1012,13 +1023,14 @@ function Faq() {
   const active = groups.find((g) => g.id === group) ?? groups[0]
   return (
     <section id="faq" aria-labelledby="faq-title" className="screen border-t border-white/[0.06] px-5 sm:px-8">
-      <div className="mx-auto grid w-full max-w-6xl items-start gap-10 lg:grid-cols-[0.9fr_1.4fr] lg:gap-16">
-        <div data-reveal className="reveal text-center lg:text-left">
+      <div className="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)] items-start gap-10 lg:grid-cols-[0.9fr_1.4fr] lg:gap-16">
+        <div data-reveal className="reveal min-w-0 text-center lg:text-left">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">Questions</p>
           <h2 id="faq-title" className="mt-5 font-display text-[2.5rem] font-semibold leading-[1.04] tracking-[-0.035em] text-white sm:text-[3.2rem]">
             Everything you might be wondering.
           </h2>
-          <div role="tablist" aria-label="Question topics" className="mt-8 flex flex-wrap justify-center gap-2 lg:flex-col lg:items-stretch">
+          <div className="scrollbar-none -mx-5 mt-8 overflow-x-auto px-5 sm:mx-0 sm:overflow-visible sm:px-0 [mask-image:linear-gradient(to_right,transparent,black_1.25rem,black_calc(100%-2rem),transparent)] sm:[mask-image:none]">
+          <div role="tablist" aria-label="Question topics" className="mx-auto flex w-max gap-2 sm:w-auto sm:flex-wrap sm:justify-center lg:flex-col lg:items-stretch">
             {groups.map((g) => (
               <button
                 key={g.id}
@@ -1026,7 +1038,7 @@ function Faq() {
                 aria-selected={group === g.id}
                 aria-controls="faq-panel"
                 onClick={() => setGroup(g.id)}
-                className={`flex h-11 items-center justify-between gap-3 rounded-full px-5 text-sm font-medium transition lg:rounded-2xl ${
+                className={`flex h-11 shrink-0 items-center justify-between gap-2.5 rounded-full px-4 text-sm font-medium transition sm:gap-3 sm:px-5 lg:rounded-2xl ${
                   group === g.id ? 'bg-brand-600 text-white' : 'border border-white/[0.08] bg-white/[0.02] text-zinc-300 hover:text-white'
                 }`}
               >
@@ -1034,6 +1046,7 @@ function Faq() {
                 <span className={`text-xs tabular-nums ${group === g.id ? 'text-white/70' : 'text-zinc-500'}`}>{g.qs.length}</span>
               </button>
             ))}
+          </div>
           </div>
           <p className="mt-6 text-sm text-zinc-400">
             Still wondering?{' '}
@@ -1091,11 +1104,12 @@ function FinalCta({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           Write down the life you want today, and take the first step toward it.
         </p>
         <div className="mt-10 flex justify-center">{signedIn ? <OpenApp big /> : <GoogleButton signin={signin} big />}</div>
-        <p className="mt-5 text-sm text-zinc-400">
+        <p className="mt-5 text-balance text-sm text-zinc-400">
           {TRIAL_DAYS} days free · no card needed · cancel anytime
           {!signedIn && (
             <>
-              {' · '}
+              <span className="hidden sm:inline"> · </span>
+              <br className="sm:hidden" />
               <a href="#pricing" className="text-brand-200 underline decoration-brand-300/40 underline-offset-4 hover:text-brand-100">
                 or buy a plan now
               </a>

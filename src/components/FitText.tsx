@@ -17,9 +17,12 @@ export function FitText({ children, className = '', min = 12, as: Tag = 'p' }: {
       width = room
       const need = el.scrollWidth
       if (!room || need <= room) return
-      const base = parseFloat(getComputedStyle(el).fontSize)
-      // Text width scales with font size, so one step gets it there; the small margin covers rounding.
-      el.style.fontSize = `${Math.max(min, Math.floor(((base * room) / need) * 10) / 10 - 0.2)}px`
+      const cs = getComputedStyle(el)
+      const base = parseFloat(cs.fontSize)
+      // The padding stays the same size; only the text shrinks.
+      const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+      // Text width scales with font size, so one step gets it there; 2px to spare covers rounding.
+      el.style.fontSize = `${Math.max(min, Math.floor(((base * (room - pad - 2)) / (need - pad)) * 10) / 10)}px`
     }
     fit()
     // Again once the web fonts are in (they're a different width), and whenever the box changes width.

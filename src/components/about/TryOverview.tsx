@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { AlertTriangle, Eraser, Home, Plus, RotateCcw, Star, StickyNote, Target, X } from 'lucide-react'
 import { overLimitIds, valueAfter } from '../../lib/calc'
 import { DEFAULT_KINDS, TREND, kindColor, kindIcon } from '../../lib/meta'
@@ -63,14 +63,44 @@ export function TryOverview({ part = 'plan' }: { part?: 'plan' | 'glance' }) {
   const months = useDemo((s) => s.months)
   const update = useDemo((s) => s.update)
   const calc = useMemo(() => compute(months), [months])
+  const strip = useRef<HTMLDivElement>(null)
+  const [page, setPage] = useState(0)
+  const onStrip = () => {
+    const el = strip.current
+    const first = el?.children[0] as HTMLElement | undefined
+    if (!el || !first) return
+    setPage(Math.max(0, Math.min(months.length - 1, Math.round(el.scrollLeft / (first.offsetWidth + 12)))))
+  }
 
   if (part === 'glance') return <Summary months={months} calc={calc} />
   return (
     <div>
       <Toolbar onReset={useDemo.getState().reset} onClear={useDemo.getState().clear} />
-      <div className="-mx-5 mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-4 sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0">
+      <div
+        ref={strip}
+        onScroll={onStrip}
+        className="scrollbar-none -mx-5 mt-4 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1 sm:-mx-8 sm:scroll-px-8 sm:gap-4 sm:px-8 sm:pb-4 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0"
+      >
         {months.map((m, i) => (
           <SimMonth key={i} i={i} m={m} c={calc[i]} update={update} />
+        ))}
+      </div>
+      {/* Which month you're on, when they're side by side in a strip */}
+      <div className="mt-3 flex justify-center gap-1.5 sm:hidden" role="tablist" aria-label="Months">
+        {months.map((_, i) => (
+          <button
+            key={i}
+            role="tab"
+            aria-selected={page === i}
+            aria-label={monthLabel(i)}
+            onClick={() => {
+              const el = strip.current?.children[i] as HTMLElement | undefined
+              strip.current?.scrollTo({ left: (el?.offsetLeft ?? 0) - 20, behavior: 'smooth' })
+            }}
+            className="grid h-6 place-items-center px-0.5"
+          >
+            <span className={`block h-1.5 rounded-full transition-all duration-300 ${page === i ? 'w-5 bg-brand-300' : 'w-1.5 bg-white/20'}`} />
+          </button>
         ))}
       </div>
     </div>
@@ -136,16 +166,16 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
   const nwShort = m.netWorthGoal !== null ? m.netWorthGoal - c.netWorth : 0
 
   return (
-    <article className="flex w-[88%] shrink-0 snap-center flex-col rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:w-[60%] lg:w-auto">
+    <article className="@container flex w-full shrink-0 snap-start flex-col rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:w-[60%] lg:w-auto">
       <header className="mb-3 flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h3 className="text-lg font-semibold tracking-tight text-white">{name}</h3>
           <p className="text-xs text-zinc-500">
             {DEMO_MONTHS[i].year}
             {i === 0 && <span className="ml-1.5 rounded-full bg-emerald-400/15 px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wider text-emerald-300">This month</span>}
           </p>
         </div>
-        <div className="flex items-start gap-2">
+        <div className="flex shrink-0 items-start gap-2">
           <button
             onClick={() => setNotesOpen((o) => !o)}
             aria-expanded={notesOpen}
@@ -153,7 +183,7 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
               notesOpen ? 'border-amber-200/30 bg-amber-200/10 text-amber-100' : 'border-white/10 text-zinc-400 hover:text-amber-100'
             }`}
           >
-            <StickyNote className="h-3.5 w-3.5" /> Notes
+            <StickyNote className="h-3.5 w-3.5" /> <span className="hidden @[19rem]:inline">Notes</span>
             {hasNotes && !notesOpen && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-300 ring-2 ring-[#0b0c10]" />}
           </button>
           <div className="text-right">
@@ -199,7 +229,7 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 @[22rem]:grid-cols-3">
         <Field label="Goal to make">
           {c.fromNetWorth ? (
             <p
@@ -215,7 +245,7 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
         <Field label="Budget">
           <MoneyField value={m.budget} onChange={(v) => update(i, { budget: v ?? 0 })} label={`${name} budget`} />
         </Field>
-        <Field label="Spent" hint="this month">
+        <Field label="Spent" hint="this month" className="col-span-2 @[22rem]:col-span-1">
           <p className={`flex h-9 items-center truncate rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 text-[13px] font-semibold tabular-nums ${left < 0 && m.budget > 0 ? 'text-rose-300' : 'text-zinc-300'}`}>
             {money(c.spent)}
           </p>
@@ -301,9 +331,9 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
   )
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+function Field({ label, hint, className = '', children }: { label: string; hint?: string; className?: string; children: ReactNode }) {
   return (
-    <div className="min-w-0">
+    <div className={`min-w-0 ${className}`}>
       <p className="mb-1 flex items-center justify-between gap-1 truncate text-[10px] font-medium uppercase tracking-wider text-zinc-500">
         {label}
         {hint && <span className="normal-case tracking-normal text-zinc-600">{hint}</span>}
@@ -333,7 +363,7 @@ function SimItem({ it, keptAt, over, onEdit, onRemove, onStar }: { it: Item; kep
   const kc = kindColor(k)
   const t = TREND[it.trend]
   return (
-    <li className={`group/item relative flex items-center gap-2.5 overflow-hidden rounded-xl border py-2 pl-2.5 pr-1.5 transition ${over ? 'border-rose-500/40 bg-rose-500/[0.08] hover:border-rose-400/60' : it.favorite ? 'border-brand-400/30 bg-brand-500/[0.07]' : 'border-white/[0.06] bg-white/[0.025] hover:border-white/15 hover:bg-white/[0.05]'}`}>
+    <li className={`group/item relative flex items-center gap-2 overflow-hidden rounded-xl border py-2 pl-2.5 pr-1 transition @[18rem]:gap-2.5 ${over ? 'border-rose-500/40 bg-rose-500/[0.08] hover:border-rose-400/60' : it.favorite ? 'border-brand-400/30 bg-brand-500/[0.07]' : 'border-white/[0.06] bg-white/[0.025] hover:border-white/15 hover:bg-white/[0.05]'}`}>
       {it.favorite && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-200 to-amber-400" />}
       <button type="button" onClick={onEdit} aria-label={`Edit ${it.name}`} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg text-left">
       <span title={k.label} className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${kc.soft} ${kc.text}`}>
@@ -360,7 +390,7 @@ function SimItem({ it, keptAt, over, onEdit, onRemove, onStar }: { it: Item; kep
         onClick={onStar}
         aria-pressed={!!it.favorite}
         aria-label={it.favorite ? `Remove ${it.name} from Favorites` : `Add ${it.name} to Favorites`}
-        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition active:scale-90 ${it.favorite ? 'text-amber-300 hover:bg-amber-300/10' : 'text-zinc-600 hover:bg-white/10 hover:text-amber-300'}`}
+        className={`hidden h-8 w-8 shrink-0 place-items-center rounded-lg transition active:scale-90 @[18rem]:grid ${it.favorite ? 'text-amber-300 hover:bg-amber-300/10' : 'text-zinc-600 hover:bg-white/10 hover:text-amber-300'}`}
       >
         <Star className={`h-4 w-4 ${it.favorite ? 'fill-amber-300' : ''}`} strokeWidth={it.favorite ? 2 : 1.75} />
       </button>

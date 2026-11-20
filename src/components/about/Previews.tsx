@@ -57,7 +57,7 @@ export function MonthOverview() {
   const earnedToDate = 612_000_000
   const spentToDate = 318_000_000
   return (
-    <div className={`${card} p-4 sm:p-5`}>
+    <div className={`${card} @container p-4 sm:p-5`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-lg font-semibold tracking-tight text-white">June</p>
@@ -70,9 +70,9 @@ export function MonthOverview() {
       </div>
 
       <div className="mt-3.5 grid grid-cols-3 gap-2">
-        <Stat label="Goal to make" value={peso(goal)} cls="border-brand-300/25 bg-brand-300/[0.07] text-brand-100" />
-        <Stat label="Budget" value={peso(budget)} />
-        <Stat label="Spent" value={peso(spent)} cls="border-white/[0.06] bg-white/[0.03] text-zinc-300" />
+        <Stat label="Goal to make" value={goal} cls="border-brand-300/25 bg-brand-300/[0.07] text-brand-100" />
+        <Stat label="Budget" value={budget} />
+        <Stat label="Spent" value={spent} cls="border-white/[0.06] bg-white/[0.03] text-zinc-300" />
       </div>
 
       <div className="mt-3">
@@ -102,11 +102,15 @@ export function MonthOverview() {
   )
 }
 
-function Stat({ label, value, cls = 'border-white/10 bg-black/20 text-white' }: { label: string; value: string; cls?: string }) {
+/** Full amounts when the month has room for them, short ones ("₱50M") on the narrowest phones. */
+function Stat({ label, value, cls = 'border-white/10 bg-black/20 text-white' }: { label: string; value: number; cls?: string }) {
   return (
     <div className="min-w-0">
       <p className="mb-1 truncate text-[9.5px] font-medium uppercase tracking-wider text-zinc-400 sm:text-[10px]">{label}</p>
-      <p className={`truncate rounded-lg border px-2 py-1.5 text-[11px] font-semibold tabular-nums sm:text-[12.5px] ${cls}`}>{value}</p>
+      <p className={`truncate rounded-lg border px-2 py-1.5 text-[11px] font-semibold tabular-nums sm:text-[12.5px] ${cls}`}>
+        <span className="@[18.5rem]:hidden">{pesoShort(value)}</span>
+        <span className="hidden @[18.5rem]:inline">{peso(value)}</span>
+      </p>
     </div>
   )
 }
@@ -129,10 +133,10 @@ function Row({ item }: { item: MonthItem }) {
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[12.5px] font-semibold text-white">{item.name}</span>
-        <span className={`flex items-center gap-1 text-[10.5px] ${t.cls}`}>
-          <t.icon className="h-3 w-3" /> {t.label}
+        <span className={`flex min-w-0 items-center gap-1 whitespace-nowrap text-[10.5px] ${t.cls}`}>
+          <t.icon className="h-3 w-3 shrink-0" /> {t.label}
           {item.rate && ` · ${item.rate}`}
-          <span className="text-zinc-500">· {item.kindLabel}</span>
+          <span className="truncate text-zinc-500">· {item.kindLabel}</span>
         </span>
       </span>
       <span className="shrink-0 text-[12.5px] font-semibold tabular-nums text-white">{pesoShort(item.price)}</span>
