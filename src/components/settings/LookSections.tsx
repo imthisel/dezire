@@ -1,8 +1,8 @@
 import { Check } from 'lucide-react'
-import { ACCENTS, DEFAULT_PREFS, NAV_IDS, TAB_IDS, TAB_MAX, type NavId, type StartPage, type TabId, type TextSize } from '../../lib/prefs'
-import { TAB_LOOK } from '../MobileNav'
+import { ACCENTS, NAV_IDS, type NavId, type StartPage, type TextSize } from '../../lib/prefs'
+import { TabBarEditor } from '../TabBarEditor'
 import { useStore, type PhoneCols } from '../../store'
-import { ActionRow, Group, Row, Segmented, Select, ToggleRow } from './ui'
+import { Group, Row, Segmented, Select, ToggleRow } from './ui'
 
 const NAV_LABELS: Record<NavId, { label: string; hint: string }> = {
   life: { label: 'Life goals', hint: 'The very final goals, for your whole life' },
@@ -175,39 +175,13 @@ export function LayoutSection() {
   )
 }
 
-const TAB_OPTIONS: { id: TabId | 'none'; label: string }[] = [...TAB_IDS.map((id) => ({ id, label: TAB_LOOK[id].label })), { id: 'none', label: 'Nothing' }]
-
 /** The phone's tab bar: which tabs, in which order. More always comes last. */
 function TabBarGroup() {
-  const tabBar = useStore((s) => s.prefs.tabBar)
-  const setTabs = (tabBar: TabId[]) => useStore.getState().setPrefs({ tabBar })
-  const isDefault = tabBar.join() === DEFAULT_PREFS.tabBar.join()
-
-  /** Puts `v` in slot `i`. A tab that's already in another slot swaps places with what was here. */
-  function pick(i: number, v: TabId | 'none') {
-    const next = [...tabBar]
-    const j = v === 'none' ? -1 : next.indexOf(v)
-    if (v === 'none') next.splice(i, 1)
-    else if (i >= next.length) {
-      if (j >= 0) next.splice(j, 1)
-      next.push(v)
-    } else {
-      if (j >= 0) next[j] = next[i]
-      next[i] = v
-    }
-    setTabs(next)
-  }
-
   return (
-    <Group title="Tab bar on phones" hint="The buttons along the bottom of the screen on a phone, left to right. More is always last and opens everything else.">
-      <div id="set-tab-bar" className="divide-y divide-white/[0.06]">
-        {Array.from({ length: TAB_MAX }, (_, i) => (
-          <Row key={i} title={`Tab ${i + 1}`} hint={tabBar[i] ? TAB_LOOK[tabBar[i]].hint : 'Empty'}>
-            <Select<TabId | 'none'> label={`Tab ${i + 1}`} value={tabBar[i] ?? 'none'} onChange={(v) => pick(i, v)} options={TAB_OPTIONS} />
-          </Row>
-        ))}
+    <Group title="Tab bar on phones" hint="The buttons along the bottom of the screen on a phone. You can also press and hold the tab bar to change it.">
+      <div id="set-tab-bar" className="p-3 sm:p-4">
+        <TabBarEditor />
       </div>
-      {!isDefault && <ActionRow title="Back to the usual tabs" hint="Wants, Needs, School, Expenses" onClick={() => setTabs(DEFAULT_PREFS.tabBar)} />}
     </Group>
   )
 }

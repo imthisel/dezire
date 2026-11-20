@@ -1,35 +1,63 @@
-import { useState } from 'react'
-import { Award, CalendarCheck, Flag, Gem, Mountain, GraduationCap, Menu, Receipt, Rocket, ShoppingBasket, Sparkles, Star } from 'lucide-react'
+import type React from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Menu, type LucideIcon } from 'lucide-react'
 import { goTo, useActiveSection } from '../nav'
 import { inNeedsMode, useStore } from '../store'
-import type { NavId, TabId } from '../lib/prefs'
+import type { TabId } from '../lib/prefs'
 import { CopyModeModal, ModesModal, enterKind } from './Modes'
+import { EDIT_TABS_EVENT, HIDDEN_BY, TAB_LOOK, TabBarSheet } from './TabBarEditor'
 
-/** How each tab looks, and the page it's "on" for. */
-export const TAB_LOOK: Record<TabId, { label: string; icon: typeof Flag; hint: string }> = {
-  wants: { label: 'Wants', icon: Sparkles, hint: 'Your Wants overview' },
-  needs: { label: 'Needs', icon: ShoppingBasket, hint: 'Your everyday budget' },
-  life: { label: 'Life', icon: Mountain, hint: 'Your life goals' },
-  school: { label: 'School', icon: GraduationCap, hint: 'Subjects and deadlines' },
-  grades: { label: 'Grades', icon: Award, hint: 'Your grade tracker' },
-  expenses: { label: 'Expenses', icon: Receipt, hint: 'Money spent, day by day' },
-  calendar: { label: 'Calendar', icon: CalendarCheck, hint: 'Events and tasks' },
-  assets: { label: 'Assets', icon: Gem, hint: 'What you own' },
-  favorites: { label: 'Favorites', icon: Star, hint: 'The items you starred' },
-  plan: { label: 'Income', icon: Rocket, hint: 'Your income plan' },
-}
-
-/** The setting that takes a tab's page out of the menus (a hidden page doesn't get a tab either). */
-const HIDDEN_BY: Partial<Record<TabId, NavId>> = { life: 'life', school: 'school', grades: 'school', expenses: 'expenses', calendar: 'calendar', assets: 'assets', favorites: 'favorites', plan: 'plan' }
-
-/** Bottom tab bar on phones: the tabs chosen in Settings → Layout (Wants, Needs, School, Expenses by default), then More for the rest. */
+/**
+ * Bottom tab bar on phones: the tabs you picked (Wants, Needs, School, Expenses by default), then More for the rest.
+ * Press and hold the bar (or More → Edit tab bar, or Settings → Layout) to choose them.
+ */
 export function MobileNav() {
   const active = useActiveSection()
   const drawer = useStore((s) => s.drawer)
   const hiddenNav = useStore((s) => s.prefs.hiddenNav)
   const tabBar = useStore((s) => s.prefs.tabBar)
   const needsMode = useStore(inNeedsMode)
-  const [modal, setModal] = useState<null | 'needs' | 'copy'>(null)
+  const [modal, setModal] = useState<null | 'needs' | 'copy' | 'edit'>(null)
+
+  useEffect(() => {
+    const edit = () => setModal('edit')
+    window.addEventListener(EDIT_TABS_EVENT, edit)
+    return () => window.removeEventListener(EDIT_TABS_EVENT, edit)
+  }, [])
+
+  // Press and hold anywhere on the bar: edit it. The tap that ends the hold doesn't also open a tab.
+  const hold = useRef<{ timer: number; x: number; y: number; fired: boolean } | null>(null)
+  const endHold = () => {
+    if (hold.current) clearTimeout(hold.current.timer)
+  }
+  const holdProps = {
+    onPointerDown: (e: React.PointerEvent) => {
+      endHold()
+      const h = { x: e.clientX, y: e.clientY, fired: false, timer: 0 }
+      h.timer = window.setTimeout(() => {
+        h.fired = true
+        navigator.vibrate?.(12)
+        useStore.getState().setDrawer(false)
+        setModal('edit')
+      }, 550)
+      hold.current = h
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const h = hold.current
+      if (h && Math.hypot(e.clientX - h.x, e.clientY - h.y) > 10) endHold()
+    },
+    onPointerUp: endHold,
+    onPointerCancel: endHold,
+    onPointerLeave: endHold,
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+    onClickCapture: (e: React.MouseEvent) => {
+      if (hold.current?.fired) {
+        e.stopPropagation()
+        e.preventDefault()
+        hold.current = null
+      }
+    },
+  }
 
   const tabs = tabBar.filter((id) => !(HIDDEN_BY[id] && hiddenNav.includes(HIDDEN_BY[id]!)))
   // Months and Goals are part of the overview, which is Wants or Needs depending on the mode in use.
@@ -50,7 +78,12 @@ export function MobileNav() {
 
   return (
     <>
-      <nav data-tabbar className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-[#0b0c11]/90 backdrop-blur-xl sm:hidden">
+      <nav
+        data-tabbar
+        {...holdProps}
+        aria-description="Press and hold to edit the tabs"
+        className="pb-safe fixed inset-x-0 bottom-0 z-40 touch-manipulation select-none border-t border-white/[0.08] bg-[#0b0c11]/90 backdrop-blur-xl [-webkit-touch-callout:none] sm:hidden"
+      >
         <div className="mx-auto flex max-w-md">
           {tabs.map((id) => (
             <Tab key={id} on={!drawer && isOn(id)} label={TAB_LOOK[id].label} icon={TAB_LOOK[id].icon} onClick={() => open(id)} />
@@ -60,11 +93,12 @@ export function MobileNav() {
       </nav>
       {modal === 'needs' && <ModesModal startAdding="needs" onCopy={() => setModal('copy')} onClose={() => setModal(null)} />}
       {modal === 'copy' && <CopyModeModal onClose={() => setModal(null)} />}
+      {modal === 'edit' && <TabBarSheet onClose={() => setModal(null)} />}
     </>
   )
 }
 
-function Tab({ on, label, icon: Icon, onClick }: { on: boolean; label: string; icon: typeof Flag; onClick: () => void }) {
+function Tab({ on, label, icon: Icon, onClick }: { on: boolean; label: string; icon: LucideIcon; onClick: () => void }) {
   return (
     <button
       onClick={onClick}

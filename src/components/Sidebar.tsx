@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
-import { ArrowDown, ArrowUp, Award, CalendarCheck, CalendarDays, ChevronDown, Download, Eye, EyeOff, Flag, Gem, GraduationCap, GripVertical, LifeBuoy, Wallet, LayoutDashboard, Mountain, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, SlidersHorizontal, Sparkles, Star, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Award, CalendarCheck, CalendarDays, ChevronDown, Download, Eye, EyeOff, Flag, Gem, GraduationCap, GripVertical, LifeBuoy, Wallet, LayoutDashboard, Mountain, PanelBottom, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, SlidersHorizontal, Sparkles, Star, X } from 'lucide-react'
 import { modeKind } from '../lib/needs'
 import { CopyModeModal, ModesModal, enterKind, lastMode, modeFor } from './Modes'
 import type { ModeKind } from '../lib/types'
@@ -18,6 +18,7 @@ import { DEFAULT_PREFS, moveSideBlock, type NavId, type SideBlock } from '../lib
 import { toast } from '../toast'
 import { installApp, useApp } from '../appUpdate'
 import { PremiumCard } from './Plans'
+import { editTabBar } from './TabBarEditor'
 import { openHelp } from './Help'
 import { useUnreadReplies } from '../lib/feedback'
 import { useSchoolView } from '../lib/schoolView'
@@ -417,6 +418,18 @@ export function Sidebar() {
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
               >
                 <SlidersHorizontal className="h-4 w-4" /> Customize menu
+              </button>
+            )}
+            {/* Phones only: the tab bar along the bottom (press and hold it does the same). */}
+            {!arranging && !docked && (
+              <button
+                onClick={() => {
+                  useStore.getState().setDrawer(false)
+                  editTabBar()
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200 sm:hidden"
+              >
+                <PanelBottom className="h-4 w-4" /> Edit tab bar
               </button>
             )}
             {!arranging && !appInstalled && (
