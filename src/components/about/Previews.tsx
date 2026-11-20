@@ -1,4 +1,7 @@
-import { Building2, Car, Check, Gem, Lock, Minus, Plane, ShoppingBag, Star, TrendingDown, TrendingUp, Watch, Waves, type LucideIcon } from 'lucide-react'
+import { Fragment } from 'react'
+import { Car, Check, Mountain, Minus, Plane, ShoppingBag, TrendingDown, TrendingUp, Watch, type LucideIcon } from 'lucide-react'
+import { SOURCE_KIND, SOURCE_STAGE } from '../../lib/meta'
+import type { SourceKind, SourceStage } from '../../lib/types'
 
 /*
  * Small pictures of the app for the About page, drawn in code (not screenshots), so they stay sharp and load instantly.
@@ -184,67 +187,115 @@ export function NetWorthFloat() {
 
 // ---- Feature previews ----
 
-/** The private list: anything at all, written down. */
-export function WishListPreview() {
-  const rows: { t: string; tag: string; done?: boolean }[] = [
-    { t: 'A house with a view of the sea', tag: 'Property' },
-    { t: 'Black 911 GT3 RS, Weissach package', tag: 'Vehicle' },
-    { t: 'Take Mom to Jerusalem', tag: 'Travel', done: true },
-    { t: 'Loro Piana Summer Walks, every colour', tag: 'Status' },
-    { t: 'Give generously, every month', tag: 'Identity' },
+/** Life goals as the app's "By age" view: a reached one, where you are now, and what's still ahead. */
+export function LifeGoalsPreview() {
+  const rows: { age: number | null; t: string; meta: string; done?: boolean; linked?: [number, number] }[] = [
+    { age: 25, t: 'Debt-free, every peso', meta: 'Reached · March 2025', done: true },
+    { age: 32, t: 'Own our home outright', meta: '2032 · 6 years left', linked: [2, 3] },
+    { age: 40, t: 'A business that runs without me', meta: '2040 · 14 years left', linked: [1, 4] },
+    { age: 50, t: 'Financially free', meta: '2050 · 24 years left' },
+    { age: null, t: 'Take the whole family to Jerusalem', meta: 'Someday' },
   ]
   return (
     <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-3.5">
-      <p className="mb-2.5 flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-wider text-zinc-400">
-        <Lock className="h-3 w-3 text-brand-300" /> Only you can see this
-      </p>
-      <ul className="space-y-1.5">
-        {rows.map((r) => (
-          <li key={r.t} className="flex items-center gap-2.5 rounded-lg bg-white/[0.03] px-2.5 py-2 text-[13px]">
-            <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full ${r.done ? 'bg-brand-500' : 'border border-white/25'}`}>
-              {r.done && <Check className="h-2.5 w-2.5 text-white" strokeWidth={4} />}
+      <p className="font-verse text-[15px] italic leading-snug text-zinc-200">“A life of faith, family and freedom.”</p>
+      <ol className="relative mt-3 space-y-2 pl-9">
+        <span aria-hidden className="absolute bottom-3 left-[13px] top-3 w-px bg-gradient-to-b from-violet-400/40 via-violet-400/20 to-transparent" />
+        {rows.map((r, i) => (
+          <Fragment key={r.t}>
+          {i === 1 && (
+            <li className="relative flex h-4 items-center text-[10.5px] font-semibold uppercase tracking-wider text-emerald-300">
+              <span className="absolute -left-[27px] h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_3px_#0a0b0e,0_0_10px_1px_rgb(52_211_153/0.55)]" />
+              You’re here · 26
+            </li>
+          )}
+          <li className="relative">
+            <span
+              className={`absolute -left-9 top-1 grid h-[27px] w-[27px] place-items-center rounded-full border text-[10px] font-bold tabular-nums ${
+                r.done
+                  ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-200'
+                  : r.age === null
+                    ? 'border-white/10 bg-white/[0.04] text-zinc-400'
+                    : 'border-violet-400/40 bg-violet-500/15 text-violet-100'
+              }`}
+            >
+              {r.done ? <Check className="h-3 w-3" strokeWidth={3.5} /> : (r.age ?? '∞')}
             </span>
-            <span className={`min-w-0 flex-1 truncate ${r.done ? 'text-zinc-400 line-through decoration-zinc-600' : 'text-zinc-100'}`}>{r.t}</span>
-            <span className="shrink-0 text-[10.5px] text-zinc-400">{r.tag}</span>
+            <div className="rounded-lg bg-white/[0.03] px-2.5 py-1.5">
+              <p className={`truncate text-[12.5px] font-semibold ${r.done ? 'text-zinc-400 line-through decoration-zinc-600' : 'text-white'}`}>{r.t}</p>
+              <p className="flex items-center gap-2 text-[10.5px] text-zinc-400">
+                <span className="truncate">{r.meta}</span>
+                {r.linked && (
+                  <span className="ml-auto flex shrink-0 items-center gap-1.5 tabular-nums text-violet-200">
+                    <span className="h-1 w-8 overflow-hidden rounded-full bg-white/10">
+                      <span className="block h-full rounded-full bg-violet-400" style={{ width: `${(r.linked[0] / r.linked[1]) * 100}%` }} />
+                    </span>
+                    {r.linked[0]}/{r.linked[1]} yearly
+                  </span>
+                )}
+              </p>
+            </div>
           </li>
+          </Fragment>
         ))}
-      </ul>
+      </ol>
     </div>
   )
 }
 
-/** Starred items, together on one board. */
-export function BoardPreview() {
-  const tiles: { t: string; p: string; icon: LucideIcon; kind: Kind; y: string }[] = [
-    { t: '911 GT3 RS', p: '₱28.5M', icon: Car, kind: 'vehicle', y: '2028' },
-    { t: 'Nautilus 5711', p: '₱10M', icon: Watch, kind: 'status', y: '2028' },
-    { t: 'Siargao villa', p: '₱38M', icon: Waves, kind: 'property', y: '2030' },
-    { t: 'Maldives', p: '₱2.4M', icon: Plane, kind: 'travel', y: '2028' },
-    { t: 'BGC penthouse', p: '₱85M', icon: Building2, kind: 'property', y: '2032' },
-    { t: 'Birkin 25', p: '₱1.6M', icon: Gem, kind: 'status', y: '2027' },
+/** The Income plan: how much of this month's goal each way of earning covers, and the one thing to do next. */
+export function IncomePreview() {
+  const goal = 2_150_000
+  const rows: { name: string; kind: SourceKind; stage: SourceStage; amount: number }[] = [
+    { name: 'Specialty coffee roastery', kind: 'business', stage: 'running', amount: 1_200_000 },
+    { name: 'Head of Sales', kind: 'job', stage: 'running', amount: 500_000 },
+    { name: 'Brand strategy retainers', kind: 'freelance', stage: 'starting', amount: 900_000 },
   ]
+  const earning = rows.filter((r) => r.stage === 'running').reduce((n, r) => n + r.amount, 0)
+  const planned = rows.reduce((n, r) => n + r.amount, 0)
+  const scale = Math.max(goal, planned)
   return (
-    <div className="grid grid-cols-3 gap-2">
-      {tiles.map((x, i) => (
-        <div
-          key={x.t}
-          className={`relative flex aspect-[4/5] flex-col justify-between overflow-hidden rounded-xl border border-white/[0.07] bg-gradient-to-b from-white/[0.05] to-transparent p-2.5 transition duration-500 group-hover:-translate-y-0.5`}
-          style={{ transitionDelay: `${i * 40}ms` }}
-        >
-          <div className="flex items-start justify-between">
-            <span className={`grid h-7 w-7 place-items-center rounded-lg ring-1 ring-inset ${TINT[x.kind]}`}>
-              <x.icon className="h-3.5 w-3.5" />
-            </span>
-            <Star className="h-3 w-3 fill-brand-300 text-brand-300" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-[11.5px] font-semibold text-white">{x.t}</p>
-            <p className="truncate text-[10.5px] tabular-nums text-zinc-400">
-              {x.p} · {x.y}
-            </p>
-          </div>
+    <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-3.5">
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">Goal this month</p>
+          <p className="text-lg font-semibold tabular-nums text-white">{peso(goal)}</p>
         </div>
-      ))}
+        <span className="shrink-0 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-300">
+          {Math.round((planned / goal) * 100)}% covered
+        </span>
+      </div>
+      <div className="relative mt-2.5 flex h-2 overflow-hidden rounded-full bg-white/5">
+        {rows.map((r) => (
+          <span key={r.name} className={`${SOURCE_KIND[r.kind].bar} ${r.stage === 'running' ? '' : 'opacity-40'}`} style={{ width: `${(r.amount / scale) * 100}%` }} />
+        ))}
+        <span aria-hidden className="absolute inset-y-0 w-px bg-white/70" style={{ left: `${(goal / scale) * 100}%` }} />
+      </div>
+      <p className="mt-1.5 text-[10.5px] text-zinc-400">
+        <span className="font-medium text-emerald-300">{pesoShort(earning)}</span> already coming in · {pesoShort(planned - earning)} on the way
+      </p>
+      <ul className="mt-3 space-y-1.5">
+        {rows.map((r) => {
+          const k = SOURCE_KIND[r.kind]
+          const st = SOURCE_STAGE[r.stage]
+          return (
+            <li key={r.name} className="flex items-center gap-2.5 rounded-lg bg-white/[0.03] px-2.5 py-1.5">
+              <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${k.iconBg}`}>
+                <k.icon className={`h-3.5 w-3.5 ${k.text}`} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[12.5px] font-semibold text-white">{r.name}</span>
+                <span className="block truncate text-[10.5px] text-zinc-400">{st.label}</span>
+              </span>
+              <span className="shrink-0 text-[12.5px] font-semibold tabular-nums text-white">{pesoShort(r.amount)}</span>
+            </li>
+          )
+        })}
+      </ul>
+      <p className="mt-2.5 flex items-center gap-2 rounded-lg border border-brand-300/20 bg-brand-300/[0.06] px-2.5 py-2 text-[11.5px] text-zinc-200">
+        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-brand-200">Next up</span>
+        <span className="truncate">Package one retainer offer</span>
+      </p>
     </div>
   )
 }
@@ -289,8 +340,39 @@ export function ListsPreview() {
   )
 }
 
-/** Yearly goals by area, as rings. */
+/** This year's goals: rings by area, then the goals themselves, each tagged with the life goal it moves. */
 export function GoalsPreview() {
+  const goals: { t: string; area: string; life: string; done?: boolean }[] = [
+    { t: 'Pay ₱1.8M more off the house', area: 'Status', life: 'Own our home outright', done: true },
+    { t: 'Hire a manager for the roastery', area: 'Status', life: 'A business that runs without me' },
+    { t: 'Invest ₱150K every month', area: 'Mind', life: 'Financially free' },
+    { t: 'Book the Jerusalem trip for 2027', area: 'Identity', life: 'Take the whole family to Jerusalem', done: true },
+  ]
+  return (
+    <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-3.5">
+      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">2026 goals</p>
+      <GoalRings />
+      <ul className="mt-3.5 space-y-1.5">
+        {goals.map((g) => (
+          <li key={g.t} className="flex items-start gap-2.5 rounded-lg bg-white/[0.03] px-2.5 py-2">
+            <span className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full ${g.done ? 'bg-brand-500' : 'border border-brand-300/60'}`}>
+              {g.done && <Check className="h-2.5 w-2.5 text-white" strokeWidth={4} />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className={`block truncate text-[12.5px] font-medium ${g.done ? 'text-zinc-400 line-through decoration-zinc-600' : 'text-white'}`}>{g.t}</span>
+              <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[10.5px] text-violet-200">
+                <Mountain className="h-3 w-3 shrink-0" /> <span className="truncate">{g.life}</span>
+              </span>
+            </span>
+            <span className="shrink-0 text-[10.5px] text-zinc-500">{g.area}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function GoalRings() {
   const areas: [string, number, number][] = [
     ['Mind', 2, 3],
     ['Body', 3, 4],
@@ -300,7 +382,7 @@ export function GoalsPreview() {
   const r = 18
   const c = 2 * Math.PI * r
   return (
-    <div className="grid grid-cols-4 gap-2 rounded-2xl border border-white/[0.07] bg-black/30 p-3.5">
+    <div className="grid grid-cols-4 gap-2">
       {areas.map(([name, done, of]) => (
         <div key={name} className="flex flex-col items-center gap-1.5">
           <span className="relative grid h-12 w-12 place-items-center">

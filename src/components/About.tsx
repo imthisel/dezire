@@ -12,7 +12,7 @@ import { DownloadSection } from './AppInstall'
 import { ContactDialog } from './Help'
 import { LEGAL } from '../lib/legal'
 import { MAX_SPAN } from '../lib/time'
-import { BoardPreview, GoalsFloat, GoalsPreview, MonthOverview, NetWorthFloat, WishListPreview } from './about/Previews'
+import { GoalsFloat, GoalsPreview, IncomePreview, LifeGoalsPreview, MonthOverview, NetWorthFloat } from './about/Previews'
 import { TryOverview } from './about/TryOverview'
 import { TryExpenses } from './about/TryExpenses'
 import { TrySetups } from './about/TrySetups'
@@ -329,6 +329,8 @@ function Problem() {
 // ---- Try it ----
 
 type TryTab = 'wants' | 'assets' | 'income' | 'expenses' | 'setups'
+/** Opens a tab of "Try it now" from elsewhere on the page (detail: the tab). */
+const TRY_EVENT = 'dz-try-tab'
 const TRY_TABS: { id: TryTab; label: string; sub: string }[] = [
   { id: 'wants', label: 'Wants', sub: 'Plan three months: set a goal, a budget, a net worth to reach, and add what you want.' },
   { id: 'assets', label: 'Assets', sub: 'Everything you plan to own, what it costs, and what it’ll be worth years from now.' },
@@ -343,6 +345,11 @@ const TRY_TABS: { id: TryTab; label: string; sub: string }[] = [
  */
 function TryItNow() {
   const [tab, setTab] = useState<TryTab>('wants')
+  useEffect(() => {
+    const open = (e: Event) => setTab((e as CustomEvent<TryTab>).detail)
+    window.addEventListener(TRY_EVENT, open)
+    return () => window.removeEventListener(TRY_EVENT, open)
+  }, [])
   const active = TRY_TABS.find((t) => t.id === tab)!
   const tabs = useRef<(HTMLButtonElement | null)[]>([])
   const onKey = (e: KeyboardEvent, i: number) => {
@@ -437,23 +444,41 @@ function Verse() {
 function Features() {
   return (
     <section id="features" aria-labelledby="features-title" className="mx-auto max-w-6xl px-5 sm:px-8 sec">
-      <SectionHead id="features-title" eyebrow="What you can do" title="Everything you want, finally in one place." />
+      <SectionHead
+        id="features-title"
+        eyebrow="What you can do"
+        title="Your whole life, planned down to this month."
+        sub="Start with where you want to end up. Dizayr breaks it into this year’s goals, then into the money and the next step that get you there."
+      />
       <div className="mt-10 sm:mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Tile title="A private place for everything you want." text="Big or small, write it all down, without explaining it to anyone.">
-          <WishListPreview />
+        <Tile
+          title="Know where your life is going."
+          text="Write the goals for your whole life and the age you want each one by. Dizayr shows the year, and how many years you have left."
+        >
+          <LifeGoalsPreview />
         </Tile>
-        <Tile title="See your life on one board." text="Star what matters most and see it all together: your vision, laid out year by year.">
-          <BoardPreview />
-        </Tile>
-        <Tile className="md:col-span-2 lg:col-span-1" title="Watch every goal move." text="Yearly goals for mind, body, status and who you’re becoming. Tick them off as you go.">
+        <Tile
+          title="Make this year count toward it."
+          text="Set yearly goals for mind, body, status and who you’re becoming, each linked to the life goal it moves forward."
+        >
           <GoalsPreview />
+        </Tile>
+        <Tile
+          className="md:col-span-2 lg:col-span-1"
+          title="Know where the money comes from."
+          text="Plan every way you earn, see how much of your goal each one covers, and always know the next step."
+          href="#try"
+          cta="Try the Income plan"
+          onCta={() => window.dispatchEvent(new CustomEvent<TryTab>(TRY_EVENT, { detail: 'income' }))}
+        >
+          <IncomePreview />
         </Tile>
       </div>
     </section>
   )
 }
 
-function Tile({ title, text, children, className = '', href, cta }: { title: string; text: string; children: ReactNode; className?: string; href?: string; cta?: string }) {
+function Tile({ title, text, children, className = '', href, cta, onCta }: { title: string; text: string; children: ReactNode; className?: string; href?: string; cta?: string; onCta?: () => void }) {
   return (
     <article
       data-reveal
@@ -463,7 +488,7 @@ function Tile({ title, text, children, className = '', href, cta }: { title: str
         <h3 className="text-xl font-semibold tracking-tight text-white">{title}</h3>
         <p className="mt-2 leading-relaxed text-zinc-400">{text}</p>
         {href && (
-          <a href={href} className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-200 transition hover:text-brand-100">
+          <a href={href} onClick={onCta} className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-200 transition hover:text-brand-100">
             {cta} <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
           </a>
         )}
