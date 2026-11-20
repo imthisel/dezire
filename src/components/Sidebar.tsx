@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpDown, Award, CalendarCheck, CalendarDays, ChevronDown, Download, Flag, Gem, GraduationCap, GripVertical, LifeBuoy, Wallet, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, Sparkles, Star, Target, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Award, CalendarCheck, CalendarDays, ChevronDown, Download, Eye, EyeOff, Flag, Gem, GraduationCap, GripVertical, LifeBuoy, Wallet, LayoutDashboard, PanelLeftClose, Plus, Receipt, Rocket, Settings, Settings2, ShoppingBasket, SlidersHorizontal, Sparkles, Star, Target, X } from 'lucide-react'
 import { modeKind } from '../lib/needs'
 import { CopyModeModal, ModesModal, enterKind, lastMode, modeFor } from './Modes'
 import type { ModeKind } from '../lib/types'
@@ -88,7 +88,7 @@ export function Sidebar() {
   const needsMode = useStore(inNeedsMode)
   // Money plans can be put in order by dragging them in the list below.
   const [dragSource, setDragSource] = useState<string | null>(null)
-  // The blocks themselves can be put in any order: drag one by its grip, or use "Arrange menu".
+  // The blocks themselves can be put in any order (drag one by its grip), or hidden: both from "Customize menu".
   const sideOrder = useStore((s) => s.prefs.sideOrder)
   const [dragBlock, setDragBlock] = useState<string | null>(null)
   const [arranging, setArranging] = useState(false)
@@ -412,7 +412,7 @@ export function Sidebar() {
                 onClick={() => setArranging(true)}
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
               >
-                <ArrowUpDown className="h-4 w-4" /> Arrange this menu
+                <SlidersHorizontal className="h-4 w-4" /> Customize menu
               </button>
             )}
             {!arranging && !appInstalled && (
@@ -653,7 +653,24 @@ function Block({ id, index, dragId, setDragId, children }: { id: SideBlock; inde
   )
 }
 
-/** "Arrange this menu": every block as one row, to drag or move with the arrows. Works the same on phones. */
+/** Blocks that can be taken out of the menu, and the setting each uses (Wants and Needs always stay). */
+const HIDEABLE: Partial<Record<SideBlock, NavId>> = { plan: 'plan', calendar: 'calendar', school: 'school', expenses: 'expenses' }
+/** Parts inside Wants that can be taken out too. */
+const WANTS_PARTS: { id: NavId; label: string; icon: typeof Flag; tint: string }[] = [
+  { id: 'favorites', label: 'Favorites', icon: Star, tint: 'bg-amber-400/15 text-amber-200' },
+  { id: 'assets', label: 'Assets', icon: Gem, tint: 'bg-cyan-400/15 text-cyan-200' },
+]
+
+/**
+ * Shows or hides a part of the menu (the same switches as Settings → Side menu & tab bar). Your data stays; a hidden
+ * page also leaves the phone tab bar.
+ */
+function setShown(id: NavId, show: boolean) {
+  const hidden = useStore.getState().prefs.hiddenNav
+  useStore.getState().setPrefs({ hiddenNav: show ? hidden.filter((x) => x !== id) : [...hidden.filter((x) => x !== id), id] })
+}
+
+/** "Customize menu": every block as one row, to drag or move with the arrows, and an eye to show or hide it. Works the same on phones. */
 function Arrange({ order, hidden, onDone }: { order: SideBlock[]; hidden: NavId[]; onDone: () => void }) {
   const [dragId, setDragId] = useState<string | null>(null)
   const isDefault = order.join() === DEFAULT_PREFS.sideOrder.join()
@@ -663,13 +680,18 @@ function Arrange({ order, hidden, onDone }: { order: SideBlock[]; hidden: NavId[
     setOrder(DEFAULT_PREFS.sideOrder)
     toast.undo('Menu back to its usual order.', () => setOrder(before))
   }
+  function showAll() {
+    const before = hidden
+    useStore.getState().setPrefs({ hiddenNav: [] })
+    toast.undo('Everything is back in the menu.', () => useStore.getState().setPrefs({ hiddenNav: before }))
+  }
 
   return (
-    <section aria-label="Arrange the menu" className="animate-fade rounded-2xl border border-indigo-400/25 bg-indigo-500/[0.05] p-2">
+    <section aria-label="Customize the menu" className="animate-fade rounded-2xl border border-indigo-400/25 bg-indigo-500/[0.05] p-2">
       <div className="flex items-start justify-between gap-2 px-1.5 pb-2 pt-1">
         <div>
-          <h3 className="text-[13px] font-semibold text-white">Arrange the menu</h3>
-          <p className="text-[11px] text-zinc-500">Drag, or use the arrows.</p>
+          <h3 className="text-[13px] font-semibold text-white">Customize the menu</h3>
+          <p className="text-[11px] leading-snug text-zinc-500">Drag to reorder. Tap the eye to hide or show.</p>
         </div>
         <button onClick={onDone} className="h-8 shrink-0 rounded-lg bg-indigo-500 px-3 text-xs font-semibold text-white transition hover:brightness-110">
           Done
@@ -677,22 +699,75 @@ function Arrange({ order, hidden, onDone }: { order: SideBlock[]; hidden: NavId[
       </div>
       <ol className="space-y-1">
         {order.map((id, i) => (
-          <ArrangeRow key={id} id={id} index={i} last={i === order.length - 1} off={id !== 'wants' && id !== 'needs' && hidden.includes(id)} dragId={dragId} setDragId={setDragId} />
+          <ArrangeRow key={id} id={id} index={i} last={i === order.length - 1} hidden={hidden} dragId={dragId} setDragId={setDragId} />
         ))}
       </ol>
-      {!isDefault && (
-        <button onClick={reset} className="mt-1.5 w-full rounded-lg px-2 py-1.5 text-[11px] text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200">
-          Back to the usual order
-        </button>
+
+      {/* Inside Wants */}
+      <p className="px-1.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">Inside Wants</p>
+      <ul className="space-y-1">
+        {WANTS_PARTS.map((p) => {
+          const off = hidden.includes(p.id)
+          return (
+            <li key={p.id} className="flex items-center gap-1.5 rounded-xl border border-white/[0.07] bg-[#0e1016] py-1 pl-1.5 pr-1">
+              <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-md ${p.tint} ${off ? 'opacity-40' : ''}`}>
+                <p.icon className="h-3.5 w-3.5" strokeWidth={2.4} />
+              </span>
+              <span className={`min-w-0 flex-1 truncate text-[13px] font-medium ${off ? 'text-zinc-500 line-through decoration-zinc-600' : 'text-zinc-100'}`}>{p.label}</span>
+              <EyeButton label={p.label} off={off} onClick={() => setShown(p.id, off)} />
+              <span aria-hidden className="w-[3.125rem] shrink-0" />
+            </li>
+          )
+        })}
+      </ul>
+
+      {(!isDefault || hidden.length > 0) && (
+        <div className="mt-1.5 flex gap-1">
+          {!isDefault && (
+            <button onClick={reset} className="flex-1 rounded-lg px-2 py-1.5 text-[11px] text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200">
+              Usual order
+            </button>
+          )}
+          {hidden.length > 0 && (
+            <button onClick={showAll} className="flex-1 rounded-lg px-2 py-1.5 text-[11px] text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200">
+              Show everything
+            </button>
+          )}
+        </div>
       )}
     </section>
   )
 }
 
-function ArrangeRow({ id, index, last, off, dragId, setDragId }: { id: SideBlock; index: number; last: boolean; off: boolean; dragId: string | null; setDragId: (id: string | null) => void }) {
+function EyeButton({ label, off, onClick }: { label: string; off: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      draggable={false}
+      onClick={onClick}
+      aria-pressed={!off}
+      aria-label={off ? `Show ${label} in the menu` : `Hide ${label} from the menu`}
+      title={off ? `Hidden. Tap to show ${label} again` : `Hide ${label} from the menu (your data stays)`}
+      className={`grid h-7 w-7 shrink-0 place-items-center rounded-md transition hover:bg-white/10 ${off ? 'text-zinc-600 hover:text-zinc-200' : 'text-zinc-400 hover:text-white'}`}
+    >
+      {off ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+    </button>
+  )
+}
+
+function ArrangeRow({ id, index, last, hidden, dragId, setDragId }: {
+  id: SideBlock
+  index: number
+  last: boolean
+  hidden: NavId[]
+  dragId: string | null
+  setDragId: (id: string | null) => void
+}) {
   const k = BLOCK_LOOK[id]
+  const navId = HIDEABLE[id]
+  const off = !!navId && hidden.includes(navId)
   const sort = useSortable({ id, index, ids: () => useStore.getState().prefs.sideOrder, dragId, setDragId, onMove: moveBlock })
-  const arrow = 'grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-400 transition hover:bg-white/10 hover:text-white disabled:opacity-25 disabled:hover:bg-transparent'
+  const arrow = 'grid h-7 w-6 shrink-0 place-items-center rounded-md text-zinc-400 transition hover:bg-white/10 hover:text-white disabled:opacity-25 disabled:hover:bg-transparent'
   return (
     <li {...sort.zone} className="relative">
       {sort.dropAt && (
@@ -703,17 +778,17 @@ function ArrangeRow({ id, index, last, off, dragId, setDragId }: { id: SideBlock
       )}
       <div
         {...sort.handle('li')}
-        className={`flex cursor-grab items-center gap-2 rounded-xl border border-white/[0.07] bg-[#0e1016] py-1 pl-1.5 pr-1 transition active:cursor-grabbing ${sort.dragging ? 'opacity-40' : 'hover:border-white/15'}`}
+        title={`Drag to move ${k.label}`}
+        className={`flex cursor-grab items-center gap-1.5 rounded-xl border border-white/[0.07] bg-[#0e1016] py-1 pl-1.5 pr-1 transition active:cursor-grabbing ${sort.dragging ? 'opacity-40' : 'hover:border-white/15'}`}
       >
-        <GripVertical className="h-3.5 w-3.5 shrink-0 text-zinc-600" />
-        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${k.tint} ${off ? 'opacity-40' : ''}`}>
+        <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-md ${k.tint} ${off ? 'opacity-40' : ''}`}>
           <k.icon className="h-3.5 w-3.5" strokeWidth={2.4} />
         </span>
-        <span className={`min-w-0 flex-1 truncate text-[13px] font-medium ${off ? 'text-zinc-500' : 'text-zinc-100'}`}>{k.label}</span>
-        {off && (
-          <span title="Taken out of the menu in Settings" className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-px text-[10px] text-zinc-500">
-            Hidden
-          </span>
+        <span className={`min-w-0 flex-1 truncate text-[13px] font-medium ${off ? 'text-zinc-500 line-through decoration-zinc-600' : 'text-zinc-100'}`}>{k.label}</span>
+        {navId ? (
+          <EyeButton label={k.label} off={off} onClick={() => setShown(navId, off)} />
+        ) : (
+          <span title={`${k.label} always stays in the menu`} className="h-7 w-7 shrink-0" />
         )}
         <button type="button" draggable={false} onClick={() => moveBlock(id, index - 1)} disabled={index === 0} aria-label={`Move ${k.label} up`} className={arrow}>
           <ArrowUp className="h-3.5 w-3.5" />
