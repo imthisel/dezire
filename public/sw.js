@@ -10,8 +10,8 @@
  * Firebase (sign-in, data) is never touched here.
  */
 
-const SHELL = 'dizayr-shell-v1'
-const RUNTIME = 'dizayr-runtime-v1'
+const SHELL = 'dizayr-shell-v2'
+const RUNTIME = 'dizayr-runtime-v2'
 const PAGE = '/'
 const NETWORK_WAIT = 3500
 

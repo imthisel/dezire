@@ -22,8 +22,8 @@ async function systemNotice(title: string, body: string, tag: string) {
   try {
     // Phones only allow notifications through the service worker.
     const sw = await navigator.serviceWorker?.getRegistration().catch(() => undefined)
-    if (sw) await sw.showNotification(title, { body, tag, icon: '/icon-192.png', badge: '/icon-192.png' })
-    else new Notification(title, { body, tag, icon: '/icon-192.png' })
+    if (sw) await sw.showNotification(title, { body, tag, icon: '/icon-192-v2.png', badge: '/icon-192-v2.png' })
+    else new Notification(title, { body, tag, icon: '/icon-192-v2.png' })
     return true
   } catch {
     return false
