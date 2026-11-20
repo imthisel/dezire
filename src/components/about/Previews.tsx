@@ -40,7 +40,7 @@ type MonthItem = { name: string; kind: Kind; kindLabel: string; icon: LucideIcon
 
 const JUNE_2028: MonthItem[] = [
   { name: 'Porsche 911 GT3 RS', kind: 'vehicle', kindLabel: 'Vehicle', icon: Car, trend: 'up', rate: '3%/yr', price: 28_500_000 },
-  { name: 'Richard Mille RM 35-03', kind: 'status', kindLabel: 'Watch', icon: Watch, trend: 'up', rate: '6%/yr', price: 10_000_000 },
+  { name: 'Patek Philippe Nautilus 5711/1A', kind: 'status', kindLabel: 'Watch', icon: Watch, trend: 'up', rate: '6%/yr', price: 10_000_000 },
   { name: 'Maldives · overwater villa, 7 nights', kind: 'travel', kindLabel: 'Travel', icon: Plane, trend: 'flat', price: 2_400_000 },
   { name: 'Hermès Birkin 25', kind: 'status', kindLabel: 'Status', icon: ShoppingBag, trend: 'up', rate: '5%/yr', price: 1_600_000 },
 ]
@@ -190,6 +190,7 @@ export function WishListPreview() {
     { t: 'A house with a view of the sea', tag: 'Property' },
     { t: 'Black 911 GT3 RS, Weissach package', tag: 'Vehicle' },
     { t: 'Take Mom to Jerusalem', tag: 'Travel', done: true },
+    { t: 'Loro Piana Summer Walks, every colour', tag: 'Status' },
     { t: 'Give generously, every month', tag: 'Identity' },
   ]
   return (
@@ -216,7 +217,7 @@ export function WishListPreview() {
 export function BoardPreview() {
   const tiles: { t: string; p: string; icon: LucideIcon; kind: Kind; y: string }[] = [
     { t: '911 GT3 RS', p: '₱28.5M', icon: Car, kind: 'vehicle', y: '2028' },
-    { t: 'RM 35-03', p: '₱10M', icon: Watch, kind: 'status', y: '2028' },
+    { t: 'Nautilus 5711', p: '₱10M', icon: Watch, kind: 'status', y: '2028' },
     { t: 'Siargao villa', p: '₱38M', icon: Waves, kind: 'property', y: '2030' },
     { t: 'Maldives', p: '₱2.4M', icon: Plane, kind: 'travel', y: '2028' },
     { t: 'BGC penthouse', p: '₱85M', icon: Building2, kind: 'property', y: '2032' },

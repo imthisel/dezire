@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import {
-  ArrowRight, BadgeCheck, Check, ChevronDown, Download, EyeOff, KeyRound, Loader2, Lock, LogOut, Quote, ShieldCheck, Star, Target,
+  ArrowRight, BadgeCheck, Check, ChevronDown, Cloud, CreditCard, Download, EyeOff, Fingerprint, KeyRound, Loader2, Lock, LogOut, Quote, Server,
+  ShieldCheck, Smartphone, Star, Target,
 } from 'lucide-react'
 import { signIn, signOut, useCloud } from '../cloud'
 import { forgetIntent, openBilling, openCheckout, rememberIntent, upgradeToYearly, useAccess } from '../billing'
@@ -9,7 +10,6 @@ import { PLANS, TRIAL_DAYS, dollars, paymentsReady, perMonth, type Plan, type Pl
 import { EXAMPLE_REVIEWS, REVIEWS, type Review } from '../content/reviews'
 import { DownloadSection } from './AppInstall'
 import { ContactDialog } from './Help'
-import { LegalLinks } from './Legal'
 import { LEGAL } from '../lib/legal'
 import { BoardPreview, GoalsFloat, GoalsPreview, MonthOverview, NetWorthFloat, WishListPreview } from './about/Previews'
 import { TryOverview } from './about/TryOverview'
@@ -122,14 +122,14 @@ export function About() {
 
       <main id="main">
         <Hero signedIn={!!user} signin={signin} />
+        <TrustBar />
         <Problem />
-        <TryIt />
-        <TryItExpenses />
-        <TryItSetups />
+        <TryItNow />
         <Verse />
         <Features />
+        <Numbers />
         <PrayAct />
-        <Privacy />
+        <Security />
         <DownloadSection />
         <Reviews />
         <Pricing signin={signin} />
@@ -137,19 +137,8 @@ export function About() {
         <FinalCta signedIn={!!user} signin={signin} />
       </main>
 
-      <footer className="border-t border-white/[0.06] px-5 py-10 text-sm text-zinc-400 sm:px-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 sm:flex-row">
-          <span className="flex items-center gap-2.5">
-            <Logo size="h-7 w-7" /> <span className="font-semibold text-zinc-200">Dizayr</span>
-            <span className="text-zinc-500">© {new Date().getFullYear()}</span>
-          </span>
-          <nav aria-label="Footer" className="flex flex-wrap justify-center gap-x-6 gap-y-2">
-            <a href="#pricing" className="transition hover:text-white">Pricing</a>
-            <a href="#faq" className="transition hover:text-white">Questions</a>
-            <LegalLinks className="transition hover:text-white" />
-          </nav>
-        </div>
-      </footer>
+      <Footer />
+
     </div>
   )
 }
@@ -213,10 +202,9 @@ function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           <span className="text-lg font-semibold tracking-tight text-white">Dizayr</span>
         </a>
         <nav aria-label="Main" className="hidden items-center gap-7 text-sm text-zinc-400 lg:flex">
-          <a href="#try" className="transition hover:text-white">Try it</a>
-          <a href="#try-expenses" className="transition hover:text-white">Expenses</a>
-          <a href="#try-setups" className="transition hover:text-white">Setups</a>
+          <a href="#try" className="transition hover:text-white">Try it now</a>
           <a href="#how" className="transition hover:text-white">How it works</a>
+          <a href="#security" className="transition hover:text-white">Security</a>
           <a href="#pricing" className="transition hover:text-white">Pricing</a>
           <a href="#faq" className="transition hover:text-white">FAQ</a>
         </nav>
@@ -253,6 +241,14 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
       className="relative mx-auto grid max-w-6xl items-center gap-14 px-5 pb-16 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.08fr_1fr] lg:items-start lg:gap-14 lg:pb-24 lg:pt-12"
     >
       <div className="text-center lg:text-left">
+        <a
+          href="#try"
+          className="hero-in mb-7 inline-flex items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.03] py-1 pl-1 pr-3.5 text-xs text-zinc-300 transition hover:border-brand-300/40 hover:text-white"
+          style={{ ['--d' as string]: '0ms' }}
+        >
+          <span className="rounded-full bg-brand-600 px-2 py-0.5 font-semibold text-white">New</span>
+          Wants, Expenses & Setups, all in one plan <ArrowRight className="h-3 w-3" />
+        </a>
         <h1 className="hero-in font-display font-semibold tracking-[-0.035em] text-[2.9rem] leading-[1] text-white sm:text-[4rem] lg:text-[4.6rem]" style={{ ['--d' as string]: '80ms' }}>
           A private space for <span className="text-brand-300">the life you want.</span>
         </h1>
@@ -262,7 +258,7 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
         <div className="hero-in mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start" style={{ ['--d' as string]: '280ms' }}>
           {signedIn ? <OpenApp big /> : <GoogleButton signin={signin} big />}
           <a href="#try" className="inline-flex h-14 items-center gap-2 rounded-full px-5 text-[15px] font-medium text-zinc-300 transition hover:text-white">
-            Try it live <ChevronDown className="h-4 w-4" />
+            Try it now <ChevronDown className="h-4 w-4" />
           </a>
         </div>
         {!signedIn && (
@@ -329,55 +325,68 @@ function Problem() {
 
 // ---- Try it ----
 
-function TryIt() {
+/** One "Try it now" section with the three playgrounds (Wants, Expenses, Setups) one after another; they share one plan. */
+function TryItNow() {
+  const parts = [
+    {
+      id: 'try-wants',
+      n: '01',
+      label: 'Wants',
+      title: 'Plan three months. Watch it all add up.',
+      sub: 'Set a goal, a budget, a net worth to reach. Add what you want. Every total, warning and chart updates as you type.',
+      body: <TryOverview />,
+    },
+    {
+      id: 'try-expenses',
+      n: '02',
+      label: 'Expenses',
+      title: 'See exactly where your money goes.',
+      sub: 'Log a few things you spent. Your budget, daily average and where it went update in an instant. Tap a category to see just those.',
+      body: <TryExpenses />,
+    },
+    {
+      id: 'try-setups',
+      n: '03',
+      label: 'Setups',
+      title: 'Park every car where it belongs.',
+      sub: 'Drag the GT3 RS onto a property. Take one off and it counts as sold. Your totals, what’s still yours and what you sold it for, update as you go.',
+      body: <TrySetups />,
+    },
+  ]
   return (
     <section id="try" aria-labelledby="try-title" className="border-t border-white/[0.06] bg-white/[0.012] px-5 sm:px-8 sec">
       <div className="mx-auto max-w-6xl">
         <SectionHead
           id="try-title"
-          eyebrow="Try it, right here"
-          title="Plan three months. Watch it all add up."
-          sub="Set a goal, a budget, a net worth to reach. Add what you want. Every total, warning and chart updates as you type."
+          eyebrow="Try it now"
+          title="The real app, right here. No sign-up."
+          sub="Your wants, your spending and your setups, all in one plan. Change anything and watch the rest follow."
         />
-        <div className="mt-10">
-          <TryOverview />
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function TryItExpenses() {
-  return (
-    <section id="try-expenses" aria-labelledby="try-expenses-title" className="border-t border-white/[0.06] px-5 sm:px-8 sec">
-      <div className="mx-auto max-w-6xl">
-        <SectionHead
-          id="try-expenses-title"
-          eyebrow="Expenses"
-          title="See exactly where your money goes."
-          sub="Log a few things you spent. Your budget, daily average and where it went update in an instant. Tap a category to see just those."
-        />
-        <div className="mt-10">
-          <TryExpenses />
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function TryItSetups() {
-  return (
-    <section id="try-setups" aria-labelledby="try-setups-title" className="border-t border-white/[0.06] bg-white/[0.012] px-5 sm:px-8 sec">
-      <div className="mx-auto max-w-6xl">
-        <SectionHead
-          id="try-setups-title"
-          eyebrow="Setups"
-          title="Park every car where it belongs."
-          sub="Drag the GT3 RS onto a property. Take one off and it counts as sold. Your totals, what’s still yours and what you sold it for, update as you go."
-        />
-        <div className="mt-10">
-          <TrySetups />
-        </div>
+        <nav aria-label="Try it now" className="mt-8 flex flex-wrap justify-center gap-2">
+          {parts.map((p) => (
+            <a
+              key={p.id}
+              href={`#${p.id}`}
+              className="inline-flex h-9 items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 text-sm text-zinc-300 transition hover:border-brand-300/40 hover:text-white"
+            >
+              <span className="text-xs tabular-nums text-brand-300">{p.n}</span> {p.label}
+            </a>
+          ))}
+        </nav>
+        {parts.map((p, i) => (
+          <div key={p.id} id={p.id} aria-labelledby={`${p.id}-title`} role="region" className={`scroll-mt-20 ${i ? 'mt-20 border-t border-white/[0.06] pt-16 sm:mt-24 sm:pt-20' : 'mt-14'}`}>
+            <div data-reveal className="reveal max-w-2xl">
+              <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">
+                <span className="tabular-nums">{p.n}</span> <span className="h-px w-8 bg-brand-300/40" /> {p.label}
+              </p>
+              <h3 id={`${p.id}-title`} className="mt-4 font-display text-3xl font-semibold tracking-[-0.03em] text-white sm:text-[2.6rem] sm:leading-[1.08]">
+                {p.title}
+              </h3>
+              <p className="mt-3 text-lg text-zinc-300">{p.sub}</p>
+            </div>
+            <div className="mt-8">{p.body}</div>
+          </div>
+        ))}
       </div>
     </section>
   )
@@ -508,31 +517,109 @@ function PrayAct() {
   )
 }
 
-// ---- Privacy ----
+// ---- Trust bar ----
 
-function Privacy() {
-  const points = [
-    { icon: KeyRound, title: 'Only you can open it', text: 'Your space is tied to your Google account. No one else sees what you write.' },
-    { icon: EyeOff, title: 'Never sold, never shared', text: 'Your dreams aren’t data for advertisers. We don’t sell or share them.' },
-    { icon: Download, title: 'Yours to keep', text: 'Export a full backup whenever you like.' },
+/** Right under the hero: what Dizayr runs on and how it's protected. Only true things: no invented logos or numbers. */
+function TrustBar() {
+  const items = [
+    { icon: Cloud, text: 'Runs on Google Cloud' },
+    { icon: Fingerprint, text: 'Secure Google sign-in' },
+    { icon: Lock, text: 'Encrypted in transit & at rest' },
+    { icon: CreditCard, text: 'Payments by Paddle' },
+    { icon: Smartphone, text: 'Phone, tablet & computer' },
   ]
   return (
-    <section aria-labelledby="privacy-title" className="border-t border-white/[0.06] px-5 sm:px-8 sec">
-      <div className="mx-auto grid max-w-6xl items-start gap-12 lg:grid-cols-[1fr_1.3fr] lg:gap-20">
-        <div data-reveal className="reveal">
+    <div aria-label="Built on trusted infrastructure" role="region" className="border-y border-white/[0.06] bg-white/[0.015] px-5 py-6 sm:px-8">
+      <ul className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm text-zinc-400">
+        {items.map((it) => (
+          <li key={it.text} className="flex items-center gap-2">
+            <it.icon className="h-4 w-4 text-brand-300" /> {it.text}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// ---- By the numbers ----
+
+function Numbers() {
+  const stats = [
+    { v: '15', unit: 'years', k: 'Planned ahead, 2026 to 2040, month by month' },
+    { v: '0', unit: 'ads', k: 'Ever. Your plan is never sold or shared' },
+    { v: String(LEGAL.refundDays), unit: 'days', k: 'Full money-back guarantee, no questions asked' },
+    { v: '24/7', unit: '', k: 'On every device, synced, even offline' },
+  ]
+  return (
+    <section aria-label="Dizayr by the numbers" className="border-y border-white/[0.06] bg-white/[0.012] px-5 py-16 sm:px-8 sm:py-20">
+      <dl className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-4">
+        {stats.map((s, i) => (
+          <div key={s.k} data-reveal className="reveal border-l border-brand-300/30 pl-5" style={{ transitionDelay: `${i * 80}ms` }}>
+            <dt className="sr-only">{s.k}</dt>
+            <dd>
+              <span className="font-display text-5xl font-semibold tracking-[-0.04em] text-white sm:text-6xl">{s.v}</span>
+              {s.unit && <span className="ml-2 text-lg font-medium text-brand-300">{s.unit}</span>}
+              <span aria-hidden className="mt-2 block max-w-[15rem] text-sm leading-relaxed text-zinc-400">{s.k}</span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )
+}
+
+// ---- Security & privacy ----
+
+function Security() {
+  const points = [
+    {
+      icon: Fingerprint,
+      title: 'Signed in by Google, not by a password',
+      text: 'There’s no Dizayr password to steal, guess or leak. Google checks it’s you, with the same protection as your Gmail: 2-Step Verification, passkeys and new-sign-in alerts.',
+    },
+    {
+      icon: KeyRound,
+      title: 'Locked to your account',
+      text: 'Our servers check every single request. Your plan opens for your Google account and nobody else’s, not another user, not someone with the link.',
+    },
+    {
+      icon: Server,
+      title: 'Encrypted on Google Cloud',
+      text: 'Everything travels over HTTPS and is stored encrypted on Google’s infrastructure, the same that runs Gmail and Google Drive.',
+    },
+    {
+      icon: CreditCard,
+      title: 'We never see your card',
+      text: 'Payments go through Paddle’s secure checkout. Your card number never touches Dizayr.',
+    },
+    {
+      icon: EyeOff,
+      title: 'Never sold, never shared',
+      text: 'Your dreams aren’t data for advertisers. We don’t sell, rent or share them. No ads, ever.',
+    },
+    { icon: Download, title: 'Yours to keep', text: 'Export a full backup of everything, whenever you like.' },
+  ]
+  return (
+    <section id="security" aria-labelledby="security-title" className="border-t border-white/[0.06] px-5 sm:px-8 sec">
+      <div className="mx-auto grid max-w-6xl items-start gap-12 lg:grid-cols-[1fr_1.6fr] lg:gap-16">
+        <div data-reveal className="reveal lg:sticky lg:top-28">
           <span className="grid h-12 w-12 place-items-center rounded-2xl border border-brand-300/30 bg-brand-300/[0.06]">
-            <Lock className="h-5 w-5 text-brand-200" />
+            <ShieldCheck className="h-5 w-5 text-brand-200" />
           </span>
-          <h2 id="privacy-title" className="mt-6 font-display font-semibold tracking-[-0.035em] text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
-            Your dreams are yours.
+          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">Security & privacy</p>
+          <h2 id="security-title" className="mt-4 font-display font-semibold tracking-[-0.035em] text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
+            Your dreams are yours. And they’re safe.
           </h2>
           <p className="mt-6 max-w-md text-lg leading-relaxed text-zinc-300">
-            Some of what you want, you haven’t told anyone yet. Dizayr is a private space, so you can be honest about all of it.
+            Some of what you want, you haven’t told anyone yet. Dizayr is built so it stays that way: private by design, protected at every step.
           </p>
+          <a href="#faq" className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-brand-200 transition hover:text-brand-100">
+            How sign-in keeps you safe <ArrowRight className="h-3.5 w-3.5" />
+          </a>
         </div>
-        <ul className="grid gap-4">
+        <ul className="grid gap-4 sm:grid-cols-2">
           {points.map((p, i) => (
-            <li key={p.title} data-reveal className="reveal rounded-[24px] border border-white/[0.07] bg-[#0b0c10] p-6" style={{ transitionDelay: `${i * 70}ms` }}>
+            <li key={p.title} data-reveal className="reveal rounded-[24px] border border-white/[0.07] bg-[#0b0c10] p-6" style={{ transitionDelay: `${(i % 2) * 70}ms` }}>
               <p.icon className="h-5 w-5 text-brand-300" />
               <h3 className="mt-4 font-semibold text-white">{p.title}</h3>
               <p className="mt-1.5 text-[15px] leading-relaxed text-zinc-400">{p.text}</p>
@@ -541,6 +628,48 @@ function Privacy() {
         </ul>
       </div>
     </section>
+  )
+}
+
+// ---- Footer ----
+
+function Footer() {
+  const link = 'transition hover:text-white'
+  const cols: { title: string; links: [string, string][] }[] = [
+    { title: 'Product', links: [['Try it now', '#try'], ['How it works', '#how'], ['Download', '#download'], ['Pricing', '#pricing']] },
+    { title: 'Trust', links: [['Security', '#security'], ['Privacy Policy', '/privacy'], ['Terms', '/terms'], ['Refunds', '/refunds']] },
+    { title: 'Support', links: [['Questions', '#faq'], ['Contact us', `mailto:${LEGAL.email}`]] },
+  ]
+  return (
+    <footer className="border-t border-white/[0.06] px-5 pb-10 pt-16 text-sm text-zinc-400 sm:px-8">
+      <div className="mx-auto grid max-w-6xl gap-12 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div>
+          <span className="flex items-center gap-2.5">
+            <Logo size="h-8 w-8" /> <span className="text-base font-semibold text-zinc-100">Dizayr</span>
+          </span>
+          <p className="mt-4 max-w-xs leading-relaxed">A private space for the life you want. Write the vision, make it plain, then run with it.</p>
+          <p className="mt-5 flex items-center gap-2 text-xs text-zinc-500">
+            <ShieldCheck className="h-3.5 w-3.5 text-brand-300" /> Secure Google sign-in · Encrypted · Never sold
+          </p>
+        </div>
+        {cols.map((c) => (
+          <nav key={c.title} aria-label={c.title}>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-200">{c.title}</p>
+            <ul className="mt-4 space-y-2.5">
+              {c.links.map(([t, href]) => (
+                <li key={t}>
+                  <a href={href} className={link}>{t}</a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+      </div>
+      <div className="mx-auto mt-14 flex max-w-6xl flex-col items-center justify-between gap-3 border-t border-white/[0.06] pt-6 text-xs text-zinc-500 sm:flex-row">
+        <span>© {new Date().getFullYear()} Dizayr. All rights reserved.</span>
+        <span>Payments processed securely by Paddle.com</span>
+      </div>
+    </footer>
   )
 }
 
@@ -771,10 +900,14 @@ function Faq() {
   const qs: [string, string][] = [
     ['How does the free trial work?', `Sign in with Google and every feature is unlocked for ${TRIAL_DAYS} days, with one Wants mode and one Needs mode. No card, nothing to cancel. When the trial ends, pick a plan to keep going.`],
     ['Can I pay right away, without the free trial?', 'Yes. Pick a plan under Pricing, sign in with Google, and you go straight to the secure checkout. Your plan starts the day you pay. Already on the trial? You can buy whenever you like; the plan starts that day.'],
+    ['Why do I sign in with Google?', 'Because it’s the safest way in. There’s no new password to create, reuse or forget, and nothing for anyone to steal from us: Dizayr never sees or stores a password at all. Google confirms it’s you, with the same protection that guards your Gmail, and you’re in with one tap on every device.'],
+    ['Is signing in safe? Could my account get hacked?', 'Your account is as safe as your Google account, which is among the best-protected accounts in the world. Since Dizayr has no passwords, a leak on some other website can’t be used to get into your plan, and there’s no password here for anyone to guess. Google watches every sign-in, blocks suspicious ones and alerts you about new devices. For the strongest protection, turn on 2-Step Verification or a passkey in your Google account; then even someone who knew your password still couldn’t get in.'],
+    ['What can Dizayr see in my Google account?', 'Only your name, email address and profile photo, so we know it’s you. Dizayr cannot read your Gmail, Drive, Photos, contacts or calendar, and it can’t post, send or do anything on your behalf. You can see or remove its access anytime at myaccount.google.com, under Security.'],
+    ['Who else can see my plan?', 'No one. Your plan is locked to your account, and our servers check every request: it opens only for your Google account, not for another user and not for someone with a link. Everything is encrypted on its way to you (HTTPS) and while it’s stored on Google Cloud. We never sell or share it, and there are no ads.'],
+    ['Is paying safe? Do you keep my card?', 'Yes, and no, we never see it. Payments go through Paddle, a trusted checkout used by thousands of software companies. Your card details go straight to them and never touch Dizayr.'],
     ['What happens to my plan if I don’t subscribe?', 'Nothing is deleted. Everything you planned stays saved in your account, and it’s all there the moment you choose a plan.'],
     ['Can I cancel anytime?', 'Yes. Cancel from your billing page in a couple of clicks, and you keep access until the end of the time you paid for.'],
     ['Can I get a refund?', `Yes. Ask within ${LEGAL.refundDays} days of any payment and you get your money back in full, no questions asked. See the Refund Policy at the bottom of this page.`],
-    ['Is my data private?', 'Yes. Your plan is tied to your Google account and only you can open it. We never sell or share it.'],
     ['Does it work on my phone?', 'Yes. Dizayr works in any browser on your phone, tablet or computer, and stays in sync. Add it to your home screen and it opens like an app, even offline.'],
     ['What are modes?', 'Separate versions of your plan. Add some to try a different future, each with its own items, net worth and setups, while your calendar, expenses and goals stay shared. Modes come in two sections, Wants and Needs, and you choose which one is the main one in each. The free trial includes 1 of each, the 6-month plan 2 of each, and the yearly plan is unlimited.'],
     ['Which currency does it use?', 'Plan in your own currency, and see a second one next to every amount if you like (for example pesos and US dollars).'],

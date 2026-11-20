@@ -35,7 +35,12 @@ function example() {
   const months: MonthData[] = [
     {
       goal: 3_000_000, netWorthGoal: null, budget: 2_500_000, earned: null, notes: 'Give first, then spend.',
-      items: [item('Rolex Submariner Date', 'status', 'appreciating', 850_000, 5), item('Tokyo, 5 nights', 'travel', 'stable', 320_000), vespa],
+      items: [
+        item('Rolex Submariner Date', 'status', 'appreciating', 850_000, 5),
+        item('Loro Piana Open Walk', 'status', 'depreciating', 62_000, 15),
+        item('Tokyo, 5 nights', 'travel', 'stable', 320_000),
+        vespa,
+      ],
     },
     { goal: 0, netWorthGoal: 6_000_000, budget: 4_000_000, earned: null, notes: '', items: [condo] },
     {

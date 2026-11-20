@@ -45,7 +45,7 @@ function example(): Exp[] {
     exp(12, 549, 'Subscriptions', 'fun', 'Netflix'),
     exp(13, 5_600, 'Dinner', 'food', 'Manam'),
     exp(15, 3_200, 'Fuel', 'transport', 'Shell'),
-    exp(16, 7_990, 'Shoes', 'shopping', 'Nike Park'),
+    exp(16, 48_500, 'Loro Piana Summer Walk', 'shopping', 'Loro Piana Greenbelt'),
     exp(20, 5_400, 'Groceries', 'groceries', 'S&R'),
     exp(21, 2_300, 'Night out', 'fun'),
   ]
@@ -185,7 +185,9 @@ export function TryExpenses() {
               onClose={() => setAdding(false)}
             />
           )}
-          <section className="rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-4 sm:p-5">
+          {/* No scrolling: on wide screens the list takes exactly the height left beside the charts and stops at the same
+              line as "Where it went" (size containment keeps its own length from stretching the row). */}
+          <section className="flex flex-col rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-4 sm:p-5 lg:min-h-0 lg:flex-1 lg:[contain:size]">
             <div className="flex items-center justify-between gap-2">
               <h3 className="font-semibold text-white">
                 {filter ? catOf(filter).label : 'Everything'} <span className="font-normal text-zinc-400">· {shown.length}</span>
@@ -196,7 +198,7 @@ export function TryExpenses() {
                 </button>
               )}
             </div>
-            <ul className="mt-3 max-h-80 space-y-1 overflow-y-auto pr-1">
+            <ul className="mt-3 space-y-1 lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:[mask-image:linear-gradient(to_bottom,black_88%,transparent)]">
               {shown.map((e) => {
                 const c = catOf(e.category)
                 const Icon = catIcon(c)
