@@ -36,6 +36,14 @@
       ]
     }
   ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "dezire.vercel.app" }],
+      "destination": "https://dizayr.com/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/about", "destination": "/index.html" },
     { "source": "/terms", "destination": "/index.html" },
