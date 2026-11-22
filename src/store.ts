@@ -214,6 +214,9 @@ function migrateMonths(months: unknown) {
 
 const num = (v: unknown) => Math.max(0, Number(v) || 0)
 
+/** Longest note a yearly goal can have. */
+export const MAX_GOAL_NOTE = 4000
+
 export const EMPTY_LIFE: LifePlan = { vision: '', goals: [] }
 /** Oldest age a life goal can be set for. */
 export const MAX_AGE = 120
@@ -466,8 +469,9 @@ interface State {
    */
   setItemsSpent: (ids: string[], on: boolean, pay?: SpendInput) => { count: number; undo: () => void }
 
-  addGoal: (year: number, area: GoalArea, text: string, lifeId?: string) => void
-  updateGoal: (year: number, id: string, patch: Partial<Pick<Goal, 'text' | 'area' | 'done' | 'lifeId'>>) => void
+  addGoal: (year: number, area: GoalArea, text: string, lifeId?: string, notes?: string) => void
+  /** `notes: ''` removes the note. */
+  updateGoal: (year: number, id: string, patch: Partial<Pick<Goal, 'text' | 'area' | 'done' | 'lifeId' | 'notes'>>) => void
   removeGoal: (year: number, id: string) => void
   /** Moves a goal into `area`, next to goal `at` (or to the end of that area). */
   moveGoal: (year: number, id: string, area: GoalArea, at?: DropAt) => void
@@ -1298,16 +1302,27 @@ export const useStore = create<State>()(
         return { count: changed.length, undo: () => void get().setItemsSpent(changed, !on) }
       },
 
-      addGoal: (year, area, text, lifeId) =>
+      addGoal: (year, area, text, lifeId, notes) =>
         set((s) => {
           const linked = lifeId && s.life.goals.some((l) => l.id === lifeId) ? { lifeId } : {}
-          const goal: Goal = { id: uid(), text: text.trim(), area, done: false, createdAt: Date.now(), ...linked }
+          const note = notes?.trim() ? { notes: notes.slice(0, MAX_GOAL_NOTE) } : {}
+          const goal: Goal = { id: uid(), text: text.trim(), area, done: false, createdAt: Date.now(), ...linked, ...note }
           return { goals: { ...s.goals, [year]: [...(s.goals[year] ?? []), goal] } }
         }),
 
       updateGoal: (year, id, patch) =>
         set((s) => ({
-          goals: { ...s.goals, [year]: (s.goals[year] ?? []).map((g) => (g.id === id ? { ...g, ...patch } : g)) },
+          goals: {
+            ...s.goals,
+            [year]: (s.goals[year] ?? []).map((g) => {
+              if (g.id !== id) return g
+              const next = { ...g, ...patch }
+              // An empty note isn't kept (nothing to show, nothing to save).
+              if (patch.notes !== undefined && !patch.notes.trim()) delete next.notes
+              else if (next.notes) next.notes = next.notes.slice(0, MAX_GOAL_NOTE)
+              return next
+            }),
+          },
         })),
 
       moveGoal: (year, id, area, at) =>
@@ -1648,6 +1663,7 @@ export const useStore = create<State>()(
                 done: !!g.done,
                 createdAt: Number(g.createdAt) || Date.now(),
                 ...(typeof g.lifeId === 'string' && g.lifeId ? { lifeId: g.lifeId } : {}),
+                ...(typeof g.notes === 'string' && g.notes.trim() ? { notes: g.notes.slice(0, MAX_GOAL_NOTE) } : {}),
               }))
           }
           const life = parseLife(d.life, goalAreas)

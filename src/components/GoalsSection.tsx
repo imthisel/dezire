@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from 'react'
 import {
-  ArrowDown, ArrowRight, ArrowUp, Check, Flag, GripVertical, MoreHorizontal, Mountain, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2, Trophy,
+  ArrowDown, ArrowRight, ArrowUp, Check, Flag, GripVertical, MoreHorizontal, Mountain, Pencil, Plus, RotateCcw, SlidersHorizontal, StickyNote, Trash2, Trophy,
 } from 'lucide-react'
 import { MAX_AREA_NAME, useAreaOf, useGoalAreas, useStore } from '../store'
 import { DEFAULT_GOAL_AREAS, areaColor, areaIcon } from '../lib/meta'
@@ -10,6 +10,7 @@ import { card } from './Dashboard'
 import { toast } from '../toast'
 import { goalDrag } from '../dnd'
 import { GoalNote } from './YearNote'
+import { GoalNoteBlock } from './GoalNotes'
 import { goTo } from '../nav'
 
 const EMPTY: never[] = []
@@ -276,12 +277,14 @@ function AreaName({ area }: { area: GoalAreaDef }) {
 function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; prevId?: string; nextId?: string }) {
   const area = useAreaOf()(goal.area)
   const a = areaColor(area)
-  const { updateGoal, removeGoal, openModal } = useStore.getState()
+  const { updateGoal, openModal } = useStore.getState()
   // The life goal it works toward, if it's linked to one.
   const life = useStore((s) => (goal.lifeId ? s.life.goals.find((g) => g.id === goal.lifeId)?.text : undefined))
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(goal.text)
   const [dropAt, setDropAt] = useState<null | 'above' | 'below'>(null)
+  const [noting, setNoting] = useState(false)
+  const hasNote = !!goal.notes?.trim()
   const input = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -324,7 +327,7 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
 
   return (
     <li
-      draggable={!editing}
+      draggable={!editing && !noting}
       onDragStart={(e) => {
         goalDrag.current = { year, id: goal.id }
         e.dataTransfer.effectAllowed = 'move'
@@ -358,6 +361,7 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
         {goal.done && <Check className="animate-tick h-3 w-3 text-black" strokeWidth={3.5} />}
       </button>
 
+      <div className="min-w-0 flex-1">
       {editing ? (
         <input
           ref={input}
@@ -372,7 +376,7 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
             }
           }}
           aria-label="Goal"
-          className="-my-0.5 h-7 min-w-0 flex-1 rounded-md border border-white/15 bg-black/40 px-1.5 text-sm text-white outline-none focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20"
+          className="-my-0.5 h-7 w-full min-w-0 rounded-md border border-white/15 bg-black/40 px-1.5 text-sm text-white outline-none focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20"
         />
       ) : (
         <p
@@ -381,7 +385,7 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
             setEditing(true)
           }}
           title="Double-click to edit · drag to move"
-          className={`min-w-0 flex-1 break-words py-0.5 text-[15px] leading-6 transition sm:py-0 sm:text-sm ${
+          className={`min-w-0 break-words py-0.5 text-[15px] leading-6 transition sm:py-0 sm:text-sm ${
             goal.done ? 'text-zinc-500 line-through decoration-zinc-600' : 'text-zinc-100'
           }`}
         >
@@ -398,9 +402,19 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
           )}
         </p>
       )}
+      <GoalNoteBlock goal={goal} year={year} color={a.stroke} editing={noting} setEditing={setNoting} />
+      </div>
 
-      {!editing && (
+      {!editing && !noting && (
         <div className="-my-1 flex shrink-0 items-center opacity-100 sm:my-0 sm:gap-0.5 transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100 sm:has-[[aria-expanded=true]]:opacity-100">
+          <button
+            onClick={() => setNoting(true)}
+            title={hasNote ? 'Edit note' : 'Add a note'}
+            aria-label={hasNote ? 'Edit note' : 'Add a note'}
+            className="hidden h-7 w-7 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-white sm:grid"
+          >
+            <StickyNote className="h-3.5 w-3.5" />
+          </button>
           <button
             onClick={() => openModal({ type: 'goal', year, editId: goal.id })}
             title="Edit"
@@ -410,25 +424,22 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
             <Pencil className="h-3.5 w-3.5" />
           </button>
           <button
-            onClick={() => {
-              removeGoal(year, goal.id)
-              toast.info(`Deleted “${goal.text}”.`)
-            }}
+            onClick={() => deleteGoal(year, goal)}
             title="Delete"
             aria-label="Delete goal"
             className="hidden h-7 w-7 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-red-300 sm:grid"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
-          <GoalMenu goal={goal} year={year} prevId={prevId} nextId={nextId} />
+          <GoalMenu goal={goal} year={year} prevId={prevId} nextId={nextId} onNote={() => setNoting(true)} />
         </div>
       )}
     </li>
   )
 }
 
-/** ⋯ menu: move up / down, move to another area, edit, delete. Works everywhere, including phones (no dragging there). */
-function GoalMenu({ goal, year, prevId, nextId }: { goal: Goal; year: number; prevId?: string; nextId?: string }) {
+/** ⋯ menu: move up / down, move to another area, note, edit, delete. Works everywhere, including phones (no dragging there). */
+function GoalMenu({ goal, year, prevId, nextId, onNote }: { goal: Goal; year: number; prevId?: string; nextId?: string; onNote: () => void }) {
   const areas = useGoalAreas()
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number; up: boolean } | null>(null)
@@ -483,10 +494,10 @@ function GoalMenu({ goal, year, prevId, nextId }: { goal: Goal; year: number; pr
           setPos(null)
           setOpen((o) => !o)
         }}
-        aria-label="More: move, edit, delete"
+        aria-label="More: move, note, edit, delete"
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Move, edit, delete"
+        title="Move, note, edit, delete"
         className={`grid h-9 w-9 place-items-center rounded-md transition hover:bg-white/10 hover:text-white sm:h-7 sm:w-7 ${open ? 'bg-white/10 text-white' : 'text-zinc-500'}`}
       >
         <MoreHorizontal className="h-4 w-4" />
@@ -520,15 +531,15 @@ function GoalMenu({ goal, year, prevId, nextId }: { goal: Goal; year: number; pr
           })}
 
           <div className="mt-1.5 border-t border-white/[0.06] pt-1.5">
+            <button role="menuitem" onClick={run(onNote)} className={`${item} text-zinc-200 hover:bg-white/[0.07]`}>
+              <StickyNote className="h-4 w-4 text-zinc-400" /> {goal.notes?.trim() ? 'Edit note' : 'Add a note'}
+            </button>
             <button role="menuitem" onClick={run(() => s().openModal({ type: 'goal', year, editId: goal.id }))} className={`${item} text-zinc-200 hover:bg-white/[0.07]`}>
               <Pencil className="h-4 w-4 text-zinc-400" /> Edit
             </button>
             <button
               role="menuitem"
-              onClick={run(() => {
-                s().removeGoal(year, goal.id)
-                toast.info(`Deleted “${goal.text}”.`)
-              })}
+              onClick={run(() => deleteGoal(year, goal))}
               className={`${item} text-red-300 hover:bg-red-500/10`}
             >
               <Trash2 className="h-4 w-4" /> Delete
@@ -537,6 +548,16 @@ function GoalMenu({ goal, year, prevId, nextId }: { goal: Goal; year: number; pr
         </div>
       )}
     </>
+  )
+}
+
+/** Deletes a goal (and its note), with Undo to put it back where it was. */
+function deleteGoal(year: number, goal: Goal) {
+  const { goals, removeGoal } = useStore.getState()
+  const before = goals[year]
+  removeGoal(year, goal.id)
+  toast.undo(`Deleted “${goal.text}”${goal.notes?.trim() ? ' and its note' : ''}.`, () =>
+    useStore.setState((s) => ({ goals: { ...s.goals, [year]: before } })),
   )
 }
 

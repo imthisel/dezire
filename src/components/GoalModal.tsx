@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Check, CornerDownLeft, Mountain, SlidersHorizontal } from 'lucide-react'
-import { useAreaOf, useGoalAreas, useStore } from '../store'
+import { Check, ChevronDown, CornerDownLeft, Mountain, SlidersHorizontal, StickyNote } from 'lucide-react'
+import { MAX_GOAL_NOTE, useAreaOf, useGoalAreas, useStore } from '../store'
 import { areaColor, areaIcon, goalPlaceholder } from '../lib/meta'
 import type { GoalArea } from '../lib/types'
 import { Modal } from './Modal'
@@ -25,6 +25,8 @@ export function GoalModal({ year, editId, area: preset, lifeId: presetLife }: { 
   const lifeShown = lifeGoals.filter((g) => !g.done || g.id === lifeId)
   // Life goals in the picked area first.
   const lifeSorted = area ? [...lifeShown.filter((g) => g.area === area), ...lifeShown.filter((g) => g.area !== area)] : lifeShown
+  const [notes, setNotes] = useState(editing?.notes ?? '')
+  const [notesOpen, setNotesOpen] = useState(!!editing?.notes?.trim())
   const [added, setAdded] = useState(0)
   const [managing, setManaging] = useState(false)
   const stopManaging = useCallback(() => setManaging(false), [])
@@ -42,13 +44,14 @@ export function GoalModal({ year, editId, area: preset, lifeId: presetLife }: { 
     if (!ready) return
     const s = useStore.getState()
     if (editing) {
-      s.updateGoal(year, editing.id, { text: text.trim(), area: area!, lifeId: lifeId ?? undefined })
+      s.updateGoal(year, editing.id, { text: text.trim(), area: area!, lifeId: lifeId ?? undefined, notes })
       toast.success(editing.area === area ? 'Goal updated.' : `Goal moved to ${label(area!)}.`)
       return close()
     }
-    s.addGoal(year, area!, text, lifeId ?? undefined)
+    s.addGoal(year, area!, text, lifeId ?? undefined, notes)
     if (another) {
       setText('')
+      setNotes('')
       setAdded((n) => n + 1)
       input.current?.focus()
     } else {
@@ -212,6 +215,52 @@ export function GoalModal({ year, editId, area: preset, lifeId: presetLife }: { 
             <p className="mt-2 text-xs text-zinc-500">Linked goals show under that life goal, so you can see it move year by year.</p>
           </Step>
         )}
+
+        <Step
+          n={lifeSorted.length > 0 ? 4 : 3}
+          title="Notes"
+          done={notes.trim().length > 0}
+          action={
+            <button
+              type="button"
+              onClick={() => setNotesOpen((o) => !o)}
+              aria-expanded={notesOpen}
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
+            >
+              {notesOpen ? 'Hide' : 'Optional'} <ChevronDown className={`h-3.5 w-3.5 transition ${notesOpen ? 'rotate-180' : ''}`} />
+            </button>
+          }
+        >
+          {notesOpen ? (
+            <div className="animate-fade">
+              <textarea
+                rows={4}
+                value={notes}
+                maxLength={MAX_GOAL_NOTE}
+                autoFocus={!editing?.notes}
+                onChange={(e) => setNotes(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault()
+                    save()
+                  }
+                }}
+                aria-label="Notes"
+                placeholder="The plan to get there, first steps, why it matters, links, how it's going…"
+                className="block min-h-[6rem] w-full resize-y rounded-xl border border-white/10 bg-black/30 px-3.5 py-3 text-base leading-relaxed text-zinc-100 outline-none transition [field-sizing:content] placeholder:text-zinc-600 hover:border-white/20 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm"
+              />
+              <p className="mt-1.5 text-xs text-zinc-500">Shows under the goal. Web addresses become links. Ctrl+Enter to save.</p>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setNotesOpen(true)}
+              className="flex w-full items-center gap-2.5 rounded-xl border border-dashed border-white/10 px-3.5 py-3 text-left text-sm text-zinc-500 transition hover:border-white/20 hover:text-zinc-300"
+            >
+              <StickyNote className="h-4 w-4 shrink-0" /> Add notes: the plan, steps, why it matters…
+            </button>
+          )}
+        </Step>
       </div>
       {managing && <GoalAreasModal onClose={stopManaging} />}
     </Modal>

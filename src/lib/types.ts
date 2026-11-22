@@ -136,6 +136,8 @@ export interface Goal {
   createdAt: number
   /** The life goal this yearly goal works toward, if any */
   lifeId?: string
+  /** Free text: the plan, progress, reminders. Missing = none. */
+  notes?: string
 }
 
 /** One of the very final goals: what you want your whole life to add up to. */

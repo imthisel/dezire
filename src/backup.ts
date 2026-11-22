@@ -152,9 +152,9 @@ export function downloadItemsCsv() {
 export function downloadGoalsCsv() {
   const { goals, goalAreas } = useStore.getState()
   const name = new Map(goalAreas.map((a) => [a.id, a.label]))
-  const rows = Object.keys(goals).sort().flatMap((y) => goals[y].map((g) => [y, name.get(g.area) ?? '', g.text, g.done ? 'Yes' : 'No']))
+  const rows = Object.keys(goals).sort().flatMap((y) => goals[y].map((g) => [y, name.get(g.area) ?? '', g.text, g.done ? 'Yes' : 'No', g.notes ?? '']))
   if (!rows.length) return toast.info('No goals to download yet.')
-  download(`dizayr-goals-${today()}.csv`, sheet([['Year', 'Area', 'Goal', 'Done'], ...rows]), 'text/csv')
+  download(`dizayr-goals-${today()}.csv`, sheet([['Year', 'Area', 'Goal', 'Done', 'Notes'], ...rows]), 'text/csv')
   toast.success(`Downloaded ${rows.length} goal${rows.length === 1 ? '' : 's'}.`)
 }
 

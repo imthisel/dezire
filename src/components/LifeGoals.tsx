@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Cake, Check, ChevronDown, Flag, GripVertical, LayoutGrid, ListOrdered, Mountain, Pencil, Plus, Quote, Trash2, Trophy, X } from 'lucide-react'
+import { Cake, Check, ChevronDown, Flag, GripVertical, LayoutGrid, ListOrdered, Mountain, Pencil, Plus, Quote, StickyNote, Trash2, Trophy, X } from 'lucide-react'
 import { MAX_AGE, useAreaOf, useGoalAreas, useStore } from '../store'
 import { areaColor, areaIcon } from '../lib/meta'
 import { clampYear } from '../lib/time'
@@ -583,6 +583,11 @@ function LifeCard({ goal: g, linked, me, grip }: { goal: LifeGoal; linked: Linke
                       {goal.done && <Check className="h-2.5 w-2.5 text-black" strokeWidth={3.5} />}
                     </span>
                     <span className={`min-w-0 truncate ${goal.done ? 'text-zinc-500 line-through decoration-zinc-600' : 'text-zinc-200'}`}>{goal.text}</span>
+                    {goal.notes?.trim() && (
+                      <span title={goal.notes.trim()} aria-label={`Note: ${goal.notes.trim()}`} role="img" className="shrink-0 text-zinc-500">
+                        <StickyNote className="h-3 w-3" />
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
