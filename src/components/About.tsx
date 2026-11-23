@@ -258,7 +258,7 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
             Visualize your dream life. <span className="text-brand-300">Then go get it.</span>
           </h1>
           <p className="hero-in mx-auto mt-6 max-w-lg text-lg leading-relaxed text-zinc-300 lg:mx-0" style={{ ['--d' as string]: '180ms' }}>
-            See everything you want in one place, with a price and a date on each. Dizayr tells you exactly how much to make each month to get there, and tracks your goals, spending and net worth along the way.
+            Dizayr helps you list everything you want in life and keeps it in front of you, so you never stop taking action on your dreams. Track your goals, expenses and net worth in one place, and see exactly what to make each month to get there.
           </p>
           <div className="hero-in mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start" style={{ ['--d' as string]: '280ms' }}>
             {signedIn ? <OpenApp big /> : <GoogleButton signin={signin} big />}
@@ -309,7 +309,7 @@ function Problem() {
         <div data-reveal className="reveal max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">Why it doesn’t happen</p>
           <h2 id="problem-title" className="mt-5 font-display font-semibold tracking-[-0.035em] text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
-            Most people never put a number on what they want.
+            Most people never visualize what they want.
           </h2>
         </div>
         <div className="mt-10 sm:mt-12 grid gap-px overflow-hidden rounded-[28px] border border-white/[0.07] bg-white/[0.07] md:grid-cols-3">
@@ -476,10 +476,10 @@ function TryArrow({ dir, to, onClick }: { dir: 'prev' | 'next'; to: string; onCl
 function Verse() {
   const words = 'Write the vision, and make it plain upon tables, that he may run that readeth it.'.split(' ')
   return (
-    <section aria-label="Habakkuk 2:2" className="relative overflow-hidden border-y border-white/[0.06] px-5 py-20 sm:px-8 sm:py-28">
+    <section aria-label="Habakkuk 2:2" className="relative overflow-hidden border-y border-white/[0.06] px-5 py-12 sm:px-8 sm:py-16">
       <div aria-hidden className="absolute inset-0 bg-[radial-gradient(50%_60%_at_50%_50%,rgb(58_109_240/0.07),transparent_75%)]" />
       <figure data-reveal className="relative mx-auto max-w-4xl text-center">
-        <blockquote className="font-verse text-[2.1rem] leading-[1.18] text-white sm:text-5xl lg:text-[3.6rem]">
+        <blockquote className="font-verse text-[1.9rem] leading-[1.15] text-white sm:text-[2.75rem] lg:text-[3.2rem]">
           <p>
             <span aria-hidden className="text-brand-300">“</span>
             {words.map((w, i) => (
@@ -491,11 +491,9 @@ function Verse() {
             <span aria-hidden className="text-brand-300">”</span>
           </p>
         </blockquote>
-        <figcaption className="mt-10 text-xs font-semibold uppercase tracking-[0.3em] text-brand-300">Habakkuk 2:2 · KJV</figcaption>
-        <p className="mx-auto mt-10 max-w-md text-[17px] leading-relaxed text-zinc-300">
-          Write it down. Make it plain. Then run with it.
-          <br />
-          That’s what Dizayr is for.
+        <figcaption className="mt-5 text-xs font-semibold uppercase tracking-[0.3em] text-brand-300">Habakkuk 2:2 · KJV</figcaption>
+        <p className="mx-auto mt-4 max-w-md text-[17px] leading-relaxed text-zinc-300">
+          Write it down. Make it plain. Then run with it. That’s what Dizayr is for.
         </p>
       </figure>
     </section>

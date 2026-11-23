@@ -7,7 +7,7 @@ import { DemoItemModal, type PlaceChoice } from './DemoDialogs'
 import { DEMO_MONTHS, monthLabel, nextId, placedOf, useDemo } from './demoStore'
 
 /*
- * A playable copy of the Overview on the About page: this month and the next two, with the same maths as the app
+ * A playable copy of the Overview on the About page: November 2027 and the two months after, with the same maths as the app
  * (net worth goal → goal to make, budget, spent, running totals, items that don't fit shown in red, assets that gain or lose value).
  * It lives only in this page's memory: nothing is saved anywhere, and leaving or refreshing the page starts it over.
  */

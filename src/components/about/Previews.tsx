@@ -40,7 +40,7 @@ const card = 'rounded-[22px] border border-white/10 bg-[#0d0e12]/95 shadow-[0_40
 
 type MonthItem = { name: string; kind: Kind; kindLabel: string; icon: LucideIcon; trend: Trend; rate?: string; price: number }
 
-const JUNE_2028: MonthItem[] = [
+const MAY_2030: MonthItem[] = [
   { name: 'Porsche 911 GT3 RS', kind: 'vehicle', kindLabel: 'Vehicle', icon: Car, trend: 'up', rate: '3%/yr', price: 28_500_000 },
   { name: 'Patek Philippe Nautilus 5711/1A', kind: 'status', kindLabel: 'Watch', icon: Watch, trend: 'up', rate: '6%/yr', price: 10_000_000 },
   { name: 'Maldives · overwater villa, 7 nights', kind: 'travel', kindLabel: 'Travel', icon: Plane, trend: 'flat', price: 2_400_000 },
@@ -49,9 +49,9 @@ const JUNE_2028: MonthItem[] = [
 
 /** A month as the app shows it: what to make, the budget, what's spent, running totals, and everything planned for it. */
 export function MonthOverview() {
-  const goal = 50_000_000
-  const budget = 45_000_000
-  const spent = JUNE_2028.reduce((s, i) => s + i.price, 0)
+  const goal = 100_000_000
+  const budget = 100_000_000
+  const spent = MAY_2030.reduce((s, i) => s + i.price, 0)
   const left = budget - spent
   const pct = spent / budget
   const earnedToDate = 612_000_000
@@ -60,8 +60,8 @@ export function MonthOverview() {
     <div className={`${card} @container p-4 sm:p-5`}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-lg font-semibold tracking-tight text-white">June</p>
-          <p className="text-xs text-zinc-400">2028</p>
+          <p className="text-lg font-semibold tracking-tight text-white">May</p>
+          <p className="text-xs text-zinc-400">2030</p>
         </div>
         <div className="text-right">
           <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">Net worth</p>
@@ -94,7 +94,7 @@ export function MonthOverview() {
       </div>
 
       <ul className="mt-3 space-y-1.5">
-        {JUNE_2028.map((it) => (
+        {MAY_2030.map((it) => (
           <Row key={it.name} item={it} />
         ))}
       </ul>

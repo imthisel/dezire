@@ -6,10 +6,11 @@ import type { Item, MonthData, Trend } from '../../lib/types'
  * month, which Expenses also uses), and a setup that places the vehicles at properties. It lives only in this page's memory.
  */
 
-const NOW = new Date()
-/** The three months the playground plans: this month and the next two. */
+/** The first month the playground plans (November 2027); it plans that month and the next two. */
+const START = new Date(2027, 10, 1)
+/** The three months the playground plans: November 2027, December 2027, January 2028. */
 export const DEMO_MONTHS = [0, 1, 2].map((i) => {
-  const d = new Date(NOW.getFullYear(), NOW.getMonth() + i, 1)
+  const d = new Date(START.getFullYear(), START.getMonth() + i, 1)
   return {
     name: d.toLocaleDateString('en-US', { month: 'long' }),
     short: d.toLocaleDateString('en-US', { month: 'short' }),
