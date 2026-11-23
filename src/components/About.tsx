@@ -207,9 +207,20 @@ function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           <a href="#try" className="transition hover:text-white">Try it now</a>
           <a href="#how" className="transition hover:text-white">How it works</a>
           <a href="#security" className="transition hover:text-white">Security</a>
+          <a href="#download" className="transition hover:text-white">Download</a>
           <a href="#pricing" className="transition hover:text-white">Pricing</a>
           <a href="#faq" className="transition hover:text-white">FAQ</a>
         </nav>
+        <div className="flex items-center gap-1">
+        {/* Phones and tablets: the menu above is hidden, so the app download gets its own button */}
+        <a
+          href="#download"
+          aria-label="Download the app"
+          title="Download the app"
+          className="grid h-10 w-10 place-items-center rounded-full text-zinc-300 transition hover:bg-white/5 hover:text-white lg:hidden"
+        >
+          <Download className="h-[18px] w-[18px]" />
+        </a>
         {signedIn ? (
           <OpenApp />
         ) : (
@@ -226,6 +237,7 @@ function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
             </button>
           </div>
         )}
+        </div>
       </div>
     </header>
   )
@@ -258,7 +270,7 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
             Visualize your dream life. <span className="text-brand-300">Then go get it.</span>
           </h1>
           <p className="hero-in mx-auto mt-6 max-w-lg text-lg leading-relaxed text-zinc-300 lg:mx-0" style={{ ['--d' as string]: '180ms' }}>
-            Dizayr helps you list everything you want in life and keeps it in front of you, so you never stop taking action on your dreams. Track your goals, expenses and net worth in one place, and see exactly what to make each month to get there.
+            List everything you want in life, then track your goals, spending and net worth until you get there.
           </p>
           <div className="hero-in mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start" style={{ ['--d' as string]: '280ms' }}>
             {signedIn ? <OpenApp big /> : <GoogleButton signin={signin} big />}
