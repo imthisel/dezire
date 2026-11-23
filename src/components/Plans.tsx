@@ -35,15 +35,14 @@ export function TrialBanner() {
 /** The subscription as shown on every page: what you can get, or what you already have. Nothing until access is known. */
 function usePremium() {
   const state = useAccess((s) => s.state)
-  const plan = useAccess((s) => s.plan)
   if (state === 'checking') return null
   if (state === 'lifetime') return { label: 'Lifetime', upgrade: false }
-  if (state === 'comp' || (state === 'paid' && plan !== 'semiannual')) return { label: 'Premium', upgrade: false }
-  return { label: state === 'paid' ? 'Go Yearly' : 'Get Premium', upgrade: true }
+  if (state === 'comp' || state === 'paid') return { label: 'Premium', upgrade: false }
+  return { label: 'Get Premium', upgrade: true }
 }
 
-/** Why to upgrade, in a few words. Comes from the yearly plan, so it can't drift from the real price. */
-const UPGRADE_HINT = `${PLANS.annual.perks[0]} · ${dollars(PLANS.annual.price)} a year`
+/** Why to upgrade, in a few words. Comes from the plans, so it can't drift from the real prices. */
+const UPGRADE_HINT = `Everything unlocked · ${dollars(PLANS.annual.price)} a year or ${dollars(PLANS.lifetime.price)} once`
 
 /** Header: gold when there's something to get, quieter once you have it. Opens Plans & billing either way. */
 export function PremiumBadge() {

@@ -11,7 +11,7 @@ export const LEGAL = {
   /** Where customers can reach you about billing, refunds and their data. */
   email: 'dizayrofficial@gmail.com',
   /** The date these pages last changed. Update it whenever you change their wording. */
-  updated: 'November 17, 2026',
+  updated: 'November 23, 2026',
   /** Days after any payment in which a full refund is given, no questions asked. Paddle expects at least 14. */
   refundDays: 14,
 } as const

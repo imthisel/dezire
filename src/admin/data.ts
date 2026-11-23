@@ -5,18 +5,19 @@ import { computeAll } from '../lib/calc'
 import { DEFAULT_EXPENSE_CATS, parseExpenseCats, parseExpenses } from '../lib/expenses'
 import { DEFAULT_TASK_KINDS, parseTaskKinds, parseTasks } from '../lib/tasks'
 import { parseLinks } from '../lib/links'
-import { TRIAL_DAYS } from '../lib/plans'
+import { PLANS, TRIAL_DAYS, dollars } from '../lib/plans'
 import type { Sub, UserRow } from './api'
 
 const DAY = 86_400_000
 
 // ---------------------------------------------------------------- membership
 
-export type Membership = 'lifetime' | 'comp' | 'paid' | 'trial' | 'expired' | 'new'
+/** `bought`: paid for Lifetime. `lifetime`: given lifetime access from the admin page. */
+export type Membership = 'bought' | 'lifetime' | 'comp' | 'paid' | 'trial' | 'expired' | 'new'
 
 /** Same order of precedence as the app itself (src/billing.ts). */
 export function membershipOf(s: Sub, now = Date.now()): Membership {
-  if (s.lifetime) return 'lifetime'
+  if (s.lifetime) return s.lifetimePaidAt != null ? 'bought' : 'lifetime'
   if ((s.compUntil ?? 0) > now) return 'comp'
   if ((s.accessUntil ?? 0) > now) return 'paid'
   if (s.trialStartedAt == null) return 'new'
@@ -27,7 +28,8 @@ export const trialEnds = (s: Pick<Sub, 'trialStartedAt'>) => (s.trialStartedAt =
 
 /** The four groups the overview and filters use. */
 export type Group = 'trial' | 'paying' | 'free' | 'expired'
-export const groupOf = (m: Membership): Group => (m === 'paid' ? 'paying' : m === 'lifetime' || m === 'comp' ? 'free' : m === 'expired' ? 'expired' : 'trial')
+export const groupOf = (m: Membership): Group =>
+  m === 'paid' || m === 'bought' ? 'paying' : m === 'lifetime' || m === 'comp' ? 'free' : m === 'expired' ? 'expired' : 'trial'
 
 /** Validated against the dark surface (dataviz validator: band, chroma, CVD, contrast). Always shown with a label. */
 export const GROUP: Record<Group, { label: string; hex: string; chip: string }> = {
@@ -38,7 +40,8 @@ export const GROUP: Record<Group, { label: string; hex: string; chip: string }> 
 }
 
 export const MEMBERSHIP_LABEL: Record<Membership, string> = {
-  lifetime: 'Lifetime',
+  bought: 'Lifetime (paid)',
+  lifetime: 'Lifetime (given)',
   comp: 'Free membership',
   paid: 'Paying',
   trial: 'Free trial',
@@ -46,13 +49,14 @@ export const MEMBERSHIP_LABEL: Record<Membership, string> = {
   new: 'Not started',
 }
 
-export const PLAN_LABEL = { annual: 'Yearly', semiannual: '6 months' } as const
-/** In US dollars, the same as src/lib/plans.ts (and Paddle). */
-export const PLAN_PRICE = { annual: 20, semiannual: 14 } as const
+export const PLAN_LABEL = { annual: 'Yearly' } as const
+/** In US dollars, tax included: the same as src/lib/plans.ts (and Paddle). */
+export const PLAN_PRICE = { annual: PLANS.annual.price, lifetime: PLANS.lifetime.price } as const
 
 /** Short line under the status: when it ends, which plan… */
 export function membershipDetail(u: Sub, now = Date.now()) {
   const m = membershipOf(u, now)
+  if (m === 'bought') return `Paid ${dollars(PLAN_PRICE.lifetime)} once · ${shortDate(u.lifetimePaidAt || null)}`
   if (m === 'lifetime') return 'Free forever'
   if (m === 'comp') return `Free until ${shortDate(u.compUntil)}`
   if (m === 'paid') return `${u.plan ? PLAN_LABEL[u.plan] : 'Plan'}${u.status === 'cancelled' ? ' · cancelled, ends' : ' · renews'} ${shortDate(u.accessUntil)}`

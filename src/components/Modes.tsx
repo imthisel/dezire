@@ -65,12 +65,12 @@ function useModes() {
   return { list, current, mainId, limit, canAdd: (kind: ModeKind) => used[kind] < limit }
 }
 
-/** The way to more modes, said for where the person is: the free trial (1 of each) or the 6-month plan. */
+/** The way to more modes: the free trial has 1 of each; Yearly and Lifetime are unlimited. */
 function askForMore(limit: number, kind: ModeKind, name?: string) {
   const title = kindOf(kind).title
   const held = name ? `“${name}” is kept safe. ` : ''
   openPlans()
-  toast.info(limit === 1 ? `${held}Your free trial includes 1 ${title} mode. Pick a plan to have more.` : `${held}Your plan includes ${limit} ${title} modes. Go Yearly for unlimited.`)
+  toast.info(limit === 1 ? `${held}Your free trial includes 1 ${title} mode. Pick a plan to have more.` : `${held}Your plan includes ${limit} ${title} modes. Pick a plan for unlimited.`)
 }
 
 /** Opens a mode. Crossing between Wants and Needs lands on that section's main page. */
@@ -296,7 +296,7 @@ function MenuModeRow({ m, on, onOpen }: { m: ModeInfo & { index: number; kind: M
               {m.main && <span className="block text-[11px] text-zinc-500">{mainLabel(m.kind)}</span>}
             </span>
             {m.main && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label="Main" />}
-            {m.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-label="Needs the yearly plan" />}
+            {m.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-label="Needs a plan" />}
             {on && <Check className={`h-4 w-4 shrink-0 ${mc.text}`} />}
           </button>
           <button
@@ -376,7 +376,7 @@ export function ModesModal({ startAdding, onCopy, onClose }: { startAdding?: Mod
               {list.some((m) => m.locked) && <span className="text-amber-200/80"> {list.filter((m) => m.locked).length} more kept safe (locked).</span>}
             </span>
             <button onClick={() => openPlans()} className="inline-flex items-center gap-1 font-semibold text-indigo-200 hover:text-white">
-              <Sparkles className="h-3.5 w-3.5" /> {limit === 1 ? 'See plans' : 'Get Yearly for unlimited'}
+              <Sparkles className="h-3.5 w-3.5" /> {limit === 1 ? 'See plans' : 'Get unlimited'}
             </button>
           </span>
         )}
@@ -614,7 +614,7 @@ export function CopyModeModal({ onClose }: { onClose: () => void }) {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-medium text-zinc-200">A new mode</span>
-              <span className="block text-[11px] text-zinc-500">{limit === 1 ? 'Pick a plan to have more modes' : 'Get Yearly for unlimited modes'}</span>
+              <span className="block text-[11px] text-zinc-500">{limit === 1 ? 'Pick a plan to have more modes' : 'Pick a plan for unlimited modes'}</span>
             </span>
           </button>
         )}

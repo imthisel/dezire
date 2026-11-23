@@ -1,8 +1,11 @@
 /**
- * Paddle webhook: keeps each account's access in step with its subscription.
- * Set it up in Paddle → Developer tools → Notifications with the URL https://YOUR-SITE/api/paddle and the
- * subscription.* events (see SETUP-PAYMENTS.md). Writes subscriptions/{uid} in Firestore, which the app and the
- * Firestore rules read to decide who may use Dizayr.
+ * Paddle webhook: keeps each account's access in step with what it paid for.
+ * Set it up in Paddle → Developer tools → Notifications with the URL https://YOUR-SITE/api/paddle and these events
+ * (see SETUP-PAYMENTS.md):
+ * - subscription.* : the Yearly plan (access until the next renewal)
+ * - transaction.completed : a Lifetime purchase (a one-time payment) turns on `lifetime`
+ * - adjustment.created, adjustment.updated : a full refund or chargeback of that Lifetime payment turns it off again
+ * Writes subscriptions/{uid} in Firestore, which the app and the Firestore rules read to decide who may use Dizayr.
  *
  * Protections:
  * - Only requests signed with PADDLE_WEBHOOK_SECRET are accepted (checked before anything is read or parsed), and only
@@ -16,13 +19,17 @@
  *   subscription than the one on the account only applies when it gives at least as much access, so it can add access
  *   but never take it away.
  * - Events that arrive out of order never overwrite newer ones.
+ * - Lifetime is only taken away by a refund of the very payment that gave it (its transaction id is kept).
  */
 import { cert, getApps, initializeApp } from 'firebase-admin/app'
 import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore'
-import { accessFor, validSignature, type PaddleSubscription } from './_lib/subscription.js'
-import { paddle, paddleSandbox } from './_lib/paddle.js'
+import {
+  accessFor, lifetimePurchase, takesPaymentBack, validSignature,
+  type PaddleAdjustment, type PaddleSubscription, type PaddleTransaction,
+} from './_lib/subscription.js'
+import { paddle, paddleId, paddleSandbox } from './_lib/paddle.js'
 
-type Payload = { event_id?: string; event_type: string; occurred_at?: string; data: PaddleSubscription }
+type Payload<T = unknown> = { event_id?: string; event_type: string; occurred_at?: string; data: T }
 
 const MAX_BODY = 512 * 1024
 
@@ -69,14 +76,27 @@ export async function POST(request: Request) {
   } catch {
     return text('Bad request', 400)
   }
-  // Only subscriptions decide access (transactions come with their own subscription.* event).
-  const s = body?.data
-  if (typeof body?.event_type !== 'string' || !body.event_type.startsWith('subscription.') || !s?.id || !s.status) return text('Ignored', 200)
+  const type = typeof body?.event_type === 'string' ? body.event_type : ''
+  if (!body?.data || typeof body.data !== 'object') return text('Ignored', 200)
+  if (type.startsWith('subscription.')) return handleSubscription(body as Payload<PaddleSubscription>)
+  // Subscription payments come with their own subscription.* event; only one-time (Lifetime) payments are handled here.
+  if (type === 'transaction.completed' || type === 'transaction.paid') return handleTransaction(body as Payload<PaddleTransaction>)
+  if (type === 'adjustment.created' || type === 'adjustment.updated') return handleAdjustment(body as Payload<PaddleAdjustment>)
+  return text('Ignored', 200)
+}
+
+/** The account a payment belongs to: passed into the checkout by the app (customData.user_id). */
+const uidOf = (custom: Record<string, unknown> | null | undefined): string | null => (validUid(custom?.user_id) ? custom!.user_id : null)
+
+/** A Yearly subscription started, renewed, changed, was cancelled… */
+async function handleSubscription(body: Payload<PaddleSubscription>) {
+  const s = body.data
+  if (!s?.id || !s.status) return text('Ignored', 200)
 
   const store = db()
   const subscriptionId = String(s.id)
   // The account it belongs to: passed into the checkout by the app (customData.user_id); otherwise found from an earlier event.
-  let uid: unknown = s.custom_data?.user_id
+  let uid: unknown = uidOf(s.custom_data)
   if (!validUid(uid)) {
     const found = await store.collection('subscriptions').where('subscriptionId', '==', subscriptionId).limit(1).get()
     uid = found.docs[0]?.id
@@ -87,7 +107,7 @@ export async function POST(request: Request) {
     return text('No user for this subscription', 200)
   }
 
-  const access = accessFor(s, { annual: process.env.VITE_PADDLE_PRICE_ANNUAL, semiannual: process.env.VITE_PADDLE_PRICE_SEMIANNUAL })
+  const access = accessFor(s, { annual: process.env.VITE_PADDLE_PRICE_ANNUAL })
   const at = new Date(s.updated_at ?? body.occurred_at ?? '')
   if (Number.isNaN(at.getTime())) return text('Bad request', 400)
   const ref = store.collection('subscriptions').doc(uid)
@@ -138,6 +158,86 @@ export async function POST(request: Request) {
     if (email) await ref.set({ email }, { merge: true })
   }
 
+  return text('OK', 200)
+}
+
+/**
+ * A one-time payment went through. When it's the Lifetime price, the account gets lifetime access for good, and a
+ * Yearly subscription it already has is set to stop renewing (so nobody pays twice).
+ */
+async function handleTransaction(body: Payload<PaddleTransaction>) {
+  const t = body.data
+  if (!t?.id || !lifetimePurchase(t, process.env.VITE_PADDLE_PRICE_LIFETIME)) return text('Ignored', 200)
+  const uid = uidOf(t.custom_data)
+  if (!uid) {
+    console.error('Lifetime payment without a valid user', t.id)
+    // 200 so Paddle doesn't keep retrying something that can't be matched. Fix by hand (admin page → Make lifetime).
+    return text('No user for this payment', 200)
+  }
+
+  const store = db()
+  const ref = store.collection('subscriptions').doc(uid)
+  const customerId = t.customer_id ? String(t.customer_id) : ''
+  let subscriptionToStop: string | null = null
+  let changed = false
+  await store.runTransaction(async (tx) => {
+    subscriptionToStop = null
+    changed = false
+    const now = await tx.get(ref)
+    // The same payment again (transaction.paid, then .completed, or a retry): nothing new.
+    if (now.get('lifetimeTransactionId') === t.id && now.get('lifetime') === true) return
+    const sub = now.get('subscriptionId') as string | undefined
+    const status = now.get('status') as string | undefined
+    if (sub && (status === 'active' || status === 'on_trial' || status === 'past_due')) subscriptionToStop = sub
+    const paidAt = new Date(t.billed_at ?? t.updated_at ?? '')
+    tx.set(
+      ref,
+      {
+        lifetime: true,
+        lifetimeTransactionId: t.id,
+        lifetimePaidAt: Number.isNaN(paidAt.getTime()) ? FieldValue.serverTimestamp() : Timestamp.fromDate(paidAt),
+        lifetimePriceId: t.items?.find((i) => i.price)?.price?.id ?? null,
+        // Lets them open their receipts in the Paddle portal. A subscriber already has the same customer.
+        ...(customerId && !now.get('customerId') ? { customerId } : {}),
+        testMode: paddleSandbox(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    )
+    changed = true
+  })
+  if (!changed) return text('OK', 200)
+
+  // Already on Yearly: stop it renewing. Best effort: it never holds up the Lifetime access itself.
+  const stop = subscriptionToStop as string | null
+  if (stop && paddleId(stop, 'sub') && process.env.PADDLE_API_KEY) {
+    try {
+      await paddle(`/subscriptions/${stop}/cancel`, { method: 'POST', body: { effective_from: 'next_billing_period' } })
+    } catch (e) {
+      console.error('Lifetime bought, but the Yearly subscription could not be set to stop renewing. Cancel it in Paddle by hand.', stop, e)
+    }
+  }
+  if (customerId) {
+    const email = await emailOf(customerId)
+    if (email) await ref.set({ email }, { merge: true })
+  }
+  return text('OK', 200)
+}
+
+/** A refund or chargeback. When it takes back the whole Lifetime payment, lifetime access ends. */
+async function handleAdjustment(body: Payload<PaddleAdjustment>) {
+  const a = body.data
+  if (!a?.transaction_id || !takesPaymentBack(a)) return text('Ignored', 200)
+  const store = db()
+  const found = await store.collection('subscriptions').where('lifetimeTransactionId', '==', String(a.transaction_id)).limit(1).get()
+  const doc = found.docs[0]
+  // Not a Lifetime payment (a Yearly refund ends the subscription, which comes as its own subscription.* event).
+  if (!doc || doc.get('lifetime') !== true) return text('Ignored', 200)
+  await doc.ref.set(
+    { lifetime: false, lifetimeRefundedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() },
+    { merge: true },
+  )
+  console.warn('Lifetime taken back after a refund or chargeback', { uid: doc.id, transaction: a.transaction_id, adjustment: a.id })
   return text('OK', 200)
 }
 

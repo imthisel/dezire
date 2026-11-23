@@ -71,6 +71,8 @@ function subscriptionOf(s: DocumentSnapshot | undefined) {
     accessUntil: ms(d.accessUntil),
     compUntil: ms(d.compUntil),
     lifetime: d.lifetime === true,
+    /** Lifetime was bought (not given from the admin page): when */
+    lifetimePaidAt: d.lifetime === true && d.lifetimeTransactionId ? ms(d.lifetimePaidAt) ?? 0 : null,
     plan: (d.plan as string | null) ?? null,
     status: (d.status as string | null) ?? null,
     renewsAt: ms(d.renewsAt),

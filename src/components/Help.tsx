@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useCloud } from '../cloud'
 import { openPlans } from '../billing'
+import { PLANS, TRIAL_DAYS, dollars } from '../lib/plans'
 import { openSettings } from '../settingsNav'
 import { goTo } from '../nav'
 import { installApp } from '../appUpdate'
@@ -285,10 +286,10 @@ const ARTICLES: Article[] = [
     body: (
       <>
         <p>
-          Every new account gets a {b('7-day free trial')} with everything included. After that, pick a plan in {b('Plan & billing')} to keep using Dizayr. Your
-          data stays safe either way.
+          Every new account gets a {b(`${TRIAL_DAYS}-day free trial`)} with everything included. After that, pick a plan in {b('Plan & billing')} to keep using Dizayr:
+          {b(` Yearly (${dollars(PLANS.annual.price)} a year)`)} or {b(`Lifetime (${dollars(PLANS.lifetime.price)} once)`)}. Your data stays safe either way.
         </p>
-        <p>You can see when your plan renews, or cancel it, in Plan & billing. If a payment went through but the app didn't unlock, contact us and we'll fix it.</p>
+        <p>You can see when Yearly renews, or cancel it, in Plan & billing. Lifetime never renews, so there's nothing to cancel. If a payment went through but the app didn't unlock, contact us and we'll fix it.</p>
       </>
     ),
     action: { label: 'Open Plan & billing', run: () => openPlans() },

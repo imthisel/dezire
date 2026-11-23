@@ -2,15 +2,16 @@ import { create } from 'zustand'
 import { doc, onSnapshot, serverTimestamp, setDoc, type Timestamp } from 'firebase/firestore'
 import type { User } from 'firebase/auth'
 import { auth, db } from './lib/firebase'
-import { PLANS, TRIAL_DAYS, dollars, paymentsReady, type PlanId } from './lib/plans'
+import { PLANS, TRIAL_DAYS, paymentsReady, type PlanId } from './lib/plans'
 import { toast } from './toast'
 
 /**
  * Who may use the app. Each account has a document `subscriptions/{uid}`:
  * - `trialStartedAt`: written once by the app on the first sign-in (the Firestore rules only allow it to be "now",
  *   and never changed afterwards), so the free trial can't be restarted.
- * - `accessUntil`, `plan`, `status`…: written only by the payment webhook (api/paddle.ts) when someone pays.
- * - `lifetime: true`: set from the admin page or by hand in the Firebase console (e.g. for the owner).
+ * - `accessUntil`, `plan`, `status`…: written only by the payment webhook (api/paddle.ts) for the Yearly subscription.
+ * - `lifetime: true`: written by the webhook when Lifetime is bought (with `lifetimeTransactionId`), or set from the
+ *   admin page or by hand in the Firebase console (e.g. for the owner).
  * - `compUntil`: free membership until then, given from the admin page (api/admin.ts).
  * The Firestore rules check the same thing before letting anyone read or save their data.
  */
@@ -22,7 +23,8 @@ type SubDoc = {
   accessUntil?: Timestamp | null
   lifetime?: boolean
   compUntil?: Timestamp | null
-  plan?: PlanId | null
+  /** The subscription's plan (only Yearly is a subscription) */
+  plan?: 'annual' | null
   status?: string
   renewsAt?: Timestamp | null
   endsAt?: Timestamp | null
@@ -36,7 +38,7 @@ interface AccessStore {
   paidUntil: number | null
   /** Free membership until (ms) */
   compUntil: number | null
-  plan: PlanId | null
+  plan: 'annual' | null
   /** Subscription status (see api/_lib/subscription.ts): active, cancelled, past_due… */
   status: string | null
   /** A payment just went through; waiting for it to be confirmed */
@@ -115,7 +117,9 @@ export function watchAccess(user: User, onChange: (allowed: boolean) => void) {
             ? 'trial'
             : 'ended'
       const was = useAccess.getState()
-      if (was.activating && state === 'paid') toast.success("You're all set. Thank you for joining Dizayr!")
+      const unlocked = state === 'paid' || state === 'lifetime'
+      if (was.activating && unlocked)
+        toast.success(state === 'lifetime' ? 'Lifetime unlocked. Dizayr is yours for good. Thank you!' : "You're all set. Thank you for joining Dizayr!")
       useAccess.setState({
         state,
         trialEndsAt,
@@ -123,7 +127,7 @@ export function watchAccess(user: User, onChange: (allowed: boolean) => void) {
         compUntil,
         plan: d.plan ?? null,
         status: d.status ?? null,
-        activating: was.activating && state !== 'paid',
+        activating: was.activating && !unlocked,
       })
       report(state !== 'ended')
 
@@ -141,7 +145,8 @@ export function watchAccess(user: User, onChange: (allowed: boolean) => void) {
 
       // Chose a plan before signing in: go straight to paying for it.
       const intent = takeIntent()
-      if (intent && state !== 'paid' && state !== 'comp' && state !== 'lifetime') void openCheckout(intent, user)
+      // (Lifetime can still be bought on Yearly; nothing more can be bought once on Lifetime or a free membership.)
+      if (intent && state !== 'comp' && state !== 'lifetime' && !(intent === 'annual' && state === 'paid')) void openCheckout(intent, user)
     },
     (e) => {
       console.error(e)
@@ -190,7 +195,7 @@ function takeIntent(): PlanId | null {
   try {
     const p = sessionStorage.getItem(INTENT)
     sessionStorage.removeItem(INTENT)
-    return p === 'annual' || p === 'semiannual' ? p : null
+    return p === 'annual' || p === 'lifetime' ? p : null
   } catch {
     return null
   }
@@ -264,13 +269,13 @@ export async function openCheckout(plan: PlanId, user: User) {
   paddle.Checkout.open({
     items: [{ priceId, quantity: 1 }],
     ...(user.email ? { customer: { email: user.email } } : {}),
-    // Copied onto the subscription, so the webhook (api/paddle.ts) knows which account to unlock.
+    // Copied onto the subscription (Yearly) or the payment (Lifetime), so the webhook (api/paddle.ts) knows which account to unlock.
     customData: { user_id: user.uid },
   })
 }
 
 /** Calls api/billing.ts as the signed-in user. Throws an Error whose message is the server's error code. */
-async function billingApi<T>(action: 'portal' | 'preview_upgrade' | 'upgrade'): Promise<T> {
+async function billingApi<T>(action: 'portal'): Promise<T> {
   const user = auth?.currentUser
   if (!user) throw new Error('signed_out')
   const res = await fetch('/api/billing', {
@@ -281,39 +286,6 @@ async function billingApi<T>(action: 'portal' | 'preview_upgrade' | 'upgrade'): 
   const body = (await res.json().catch(() => ({}))) as T & { error?: string }
   if (!res.ok) throw new Error(body.error ?? 'server_error')
   return body
-}
-
-/**
- * 6 months → Yearly. Paddle's customer portal can't change plans, so it's done here: shows what it costs today
- * (the yearly price minus credit for the unused 6-month time), asks, then makes the change. The webhook unlocks
- * the yearly plan a moment later.
- */
-export async function upgradeToYearly() {
-  try {
-    const { amount, currency } = await billingApi<{ amount: number | null; currency: string | null }>('preview_upgrade')
-    const now =
-      amount != null && currency
-        ? new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount / 100)
-        : 'the difference'
-    const ok = window.confirm(
-      `Move to the Yearly plan?\n\nYou’ll be charged ${now} today (the yearly price minus credit for the time left on your 6-month plan), using the card on your subscription. After that it renews once a year at ${dollars(PLANS.annual.price)}.`,
-    )
-    if (!ok) return
-    await billingApi('upgrade')
-    useAccess.setState({ activating: true })
-    toast.success('Upgrading you to Yearly…')
-  } catch (e) {
-    const code = e instanceof Error ? e.message : ''
-    toast.error(
-      code === 'scheduled_change'
-        ? 'Your plan is set to end. Turn that off in Manage billing first, then upgrade.'
-        : code === 'not_active'
-          ? 'Your plan has a payment problem. Update your card in Manage billing first.'
-          : code === 'refused'
-            ? 'Paddle couldn’t make the change right now (the payment may have been declined). Nothing was charged; please try again later.'
-            : 'Couldn’t upgrade right now. Please try again in a moment.',
-    )
-  }
 }
 
 /**
@@ -341,12 +313,10 @@ export async function openBilling() {
 }
 
 /**
- * How many modes the account can use in each section (Wants, Needs): 1 during the free trial, 2 on the 6-month plan,
- * unlimited on the yearly plan (and with lifetime access or a free membership). While access is being checked, nothing is limited.
+ * How many modes the account can use in each section (Wants, Needs): 1 during the free trial (or once it's over),
+ * unlimited on Yearly, Lifetime or a free membership. While access is being checked, nothing is limited.
  */
-export function modeLimit(s: Pick<AccessStore, 'state' | 'plan'> = useAccess.getState()) {
-  if (s.state === 'checking' || s.state === 'lifetime' || s.state === 'comp') return Infinity
-  if (s.state === 'paid') return s.plan === 'semiannual' ? 2 : Infinity
-  return 1
+export function modeLimit(s: Pick<AccessStore, 'state'> = useAccess.getState()) {
+  return s.state === 'trial' || s.state === 'ended' ? 1 : Infinity
 }
 export const useModeLimit = () => useAccess((s) => modeLimit(s))

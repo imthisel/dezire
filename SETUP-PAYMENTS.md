@@ -18,22 +18,20 @@
 
 ## Prices
 
-These are the prices set in the app (`src/lib/plans.ts`). Paddle must charge exactly the same. Prices are in **US dollars** and **include tax**, so customers pay exactly $14 or $20 at checkout.
+These are the prices set in the app (`src/lib/plans.ts`). Paddle must charge exactly the same. Prices are in **US dollars** and **include tax**, so customers pay exactly $24.99 or $149 at checkout.
 
-| | Free trial | 6 months | Yearly |
+| | Free trial | Yearly | Lifetime |
 |---|---|---|---|
-| **Price** | Free | **$14 every 6 months** | **$20 per year** |
-| **Works out to** | | about $2.33 a month | about $1.67 a month |
-| **Over a full year** | | $28 | $20 |
-| **Length** | 7 days, once per Google account | Renews every 6 months | Renews every year |
+| **Price** | Free | **$24.99 per year** | **$149 once** |
+| **Works out to** | | about $2.08 a month | never charged again |
+| **Length** | 14 days, once per Google account | Renews every year | Forever (a one-time payment, no renewals) |
 | **Card needed** | No | Yes (card, PayPal, Apple Pay, Google Pay) | Yes |
-| **Wants modes** | 1 | 2 | **Unlimited** |
-| **Needs modes** | 1 | 2 | **Unlimited** |
-| **Total modes** | 2 | 4 | **Unlimited** |
+| **Wants modes** | 1 | **Unlimited** | **Unlimited** |
+| **Needs modes** | 1 | **Unlimited** | **Unlimited** |
 
 ## What people get
 
-**Modes are the only difference between the plans.** The free trial and both paid plans all include:
+**Modes are the only difference between the trial and a plan.** The free trial and both paid plans all include:
 
 - Month-by-month planning from 2026 to 2040: money goals, budgets and items
 - Net worth, assets and setups
@@ -46,7 +44,7 @@ Each mode has its own plan. The calendar, expenses and goals are shared across a
 
 | Situation | What happens |
 |---|---|
-| First Google sign-in | The 7-day trial starts. It can't be restarted by the user. |
+| First Google sign-in | The 14-day trial starts. It can't be restarted by the user. |
 | Buys during the trial | The plan starts that day. Unused trial days are not added on. |
 | Buys without trying first | They sign in, then go straight to checkout. |
 | Trial ends with no plan | The app locks and shows "Your free trial has ended" with the plans. Nothing is deleted. |
@@ -54,12 +52,14 @@ Each mode has its own plan. The calendar, expenses and goals are shared across a
 | Renewal payment is being retried (past due) | They keep access until the renewal date plus 3 days. |
 | Cancels | They keep access until the end of the time they paid for (shown as "cancelled, ends on…"), then the app locks. |
 | Subscription is paused or canceled | The app locks right away. Nothing is deleted. |
-| Has more modes than the plan allows | The extra modes are locked and kept safe. They reopen with a bigger plan. |
-| 6-month customer wants Yearly | They click **Go Yearly → Upgrade to Yearly** in the app. They see the price first (the yearly price minus credit for their unused 6-month time), and it's charged to the card on file. Paddle's billing page can't change plans, so this is done in the app. |
+| Has more modes than the trial allows | The extra modes are locked and kept safe. They reopen with a plan. |
+| Buys Lifetime | `lifetime: true` is saved on their account for good. Nothing renews. |
+| Yearly customer buys Lifetime | They click **Switch to Lifetime** in Plan & billing. After paying, their Yearly subscription is set to stop renewing automatically (no refund for the unused Yearly time). |
 | Manage billing (card, invoices, cancel) | The **Manage billing** button opens Paddle's customer portal, already signed in. |
-| Refund | **A refund alone does not lock the account.** Cancel the subscription too (Step 10). |
+| Refund of a Yearly payment | **A refund alone does not lock the account.** Cancel the subscription too (Step 10). |
+| Full refund (or chargeback) of a Lifetime payment | Lifetime access ends automatically. Nothing is deleted. |
 
-**Free access you can give from `/admin`:** lifetime access, free time for any number of days, or a new 7-day trial. Lifetime and free time have unlimited modes.
+**Free access you can give from `/admin`:** lifetime access, free time for any number of days, or a new 14-day trial. Lifetime and free time have unlimited modes. In `/admin`, bought Lifetime shows as **Lifetime (paid)** and counts as paying; given Lifetime shows as **Lifetime (given)**.
 
 ## What you actually receive
 
@@ -69,10 +69,10 @@ Rough estimates, **before tax**:
 
 | Sale | After fees |
 |---|---|
-| $20 Yearly | about $18.50 |
-| $14 for 6 months | about $12.80 |
+| $24.99 Yearly | about $23.24 |
+| $149 Lifetime | about $141.05 |
 
-The 50¢ part of the fee matters a lot at these prices. **Your prices include tax, so any tax comes out of these amounts.** How much depends on where the customer lives. For example, with 12% VAT (as in the Philippines), a $20 sale includes about $2.14 of tax.
+**Your prices include tax, so any tax comes out of these amounts.** How much depends on where the customer lives. For example, with 12% VAT (as in the Philippines), a $24.99 sale includes about $2.68 of tax, so you'd keep roughly $20.50.
 
 **Payouts:** Paddle pays out monthly by bank transfer (or other methods it offers in your country), usually in USD. Set this up in Step 11.
 
@@ -86,7 +86,7 @@ Keep Notepad open. You'll collect these values (sandbox first, then live ones in
 |---|---|---|
 | Client-side token | `test_…` (sandbox) / `live_…` | Step 4 |
 | Yearly price ID | `pri_…` | Step 3 |
-| 6-month price ID | `pri_…` | Step 3 |
+| Lifetime price ID | `pri_…` | Step 3 |
 | API key | `pdl_sdbx_apikey_…` / `pdl_live_apikey_…` | Step 4 |
 | Webhook secret key | `pdl_ntfset_…` | Step 8 |
 | Firebase service account file | `.json` | Step 5 |
@@ -133,31 +133,31 @@ Paddle has two separate accounts: **sandbox** (for testing, fake cards, nothing 
 
 ## Step 3: Create the product and two prices (sandbox)
 
-Use **one product with two prices**, so customers can move from 6 months to Yearly.
+Use **one product with two prices**: Yearly (recurring) and Lifetime (one-time).
 
 1. In the sandbox dashboard, go to **Catalog → Products → New product**.
 2. **Name:** `Dizayr`. **Tax category:** **Standard digital goods** (or **SaaS**, whichever is offered). **Description:** `Budget each month, track your net worth and expenses, and set yearly goals in one place. Syncs across all your devices and works offline.` Save.
 3. In the product, click **New price** and enter:
    - **Description / name:** `Yearly` (customers see this)
    - **Type:** Recurring. **Billing period:** every `1` `year`
-   - **Price:** `20.00` **USD**
-   - **Tax:** choose **Tax included in the price** (labelled "inclusive" in some places). This makes customers pay exactly $20.
-   - **Trial period:** none. The website already gives the 7 free days without a card.
+   - **Price:** `24.99` **USD**
+   - **Tax:** choose **Tax included in the price** (labelled "inclusive" in some places). This makes customers pay exactly $24.99.
+   - **Trial period:** none. The website already gives the 14 free days without a card.
 4. Click **New price** again:
-   - **Name:** `6 months`
-   - **Billing period:** every `6` `months`
-   - **Price:** `14.00` **USD**, tax included, no trial.
-5. Copy each price's **ID** (`pri_…`). Save them as **Yearly price ID** and **6-month price ID**. Don't mix them up: the app uses them to decide how many modes someone gets.
+   - **Name:** `Lifetime`
+   - **Type:** **One-time** (not recurring). No billing period.
+   - **Price:** `149.00` **USD**, tax included.
+5. Copy each price's **ID** (`pri_…`). Save them as **Yearly price ID** and **Lifetime price ID**. Don't mix them up: the webhook uses the Lifetime ID to recognise a Lifetime purchase.
 
 ## Step 4: Get your client-side token and API key (sandbox)
 
 1. Go to **Developer tools → Authentication**.
 2. **Client-side tokens → New client-side token.** Name it `Dizayr website`. Copy it (`test_…`). This is your **Client-side token**. It's meant to be public, because the checkout uses it in the browser.
-3. **API keys → New API key.** Name it `Dizayr server`. Give it these permissions if it asks: **Customers** (read), **Customer portal sessions** (write), **Subscriptions** (read and write). Copy it straight away, as it's only shown once. This is your **API key**. **Keep it secret**: it can change subscriptions.
+3. **API keys → New API key.** Name it `Dizayr server`. Give it these permissions if it asks: **Customers** (read), **Customer portal sessions** (write), **Subscriptions** (read and write). Subscriptions write is what lets the webhook stop a Yearly plan from renewing when that customer buys Lifetime. Copy it straight away, as it's only shown once. This is your **API key**. **Keep it secret**: it can change subscriptions.
 
 ## Step 5: Firebase rules and server key
 
-**5a. Publish the security rules.** These enforce the trial and paywall on the server. Skip this if you already published them for Lemon Squeezy: they haven't changed.
+**5a. Publish the security rules.** These enforce the trial and paywall on the server. **Publish them again now even if you did before: the trial changed from 7 to 14 days.**
 1. In the Firebase console, go to **Build → Firestore Database → Rules**. **Don't use "Realtime Database"**: it's a different product, and these rules give `Line 1: Parse error` there.
 2. In VS Code, open `firestore.rules`, press **Ctrl+A**, then **Ctrl+C**.
 3. In the Firebase editor, press **Ctrl+A**, then **Ctrl+V**.
@@ -185,7 +185,7 @@ If you set up a webhook in Lemon Squeezy, delete it there too (**Settings → We
 | `VITE_PADDLE_ENV` | **Config** | `sandbox` (while testing) |
 | `VITE_PADDLE_CLIENT_TOKEN` | **Config** | Client-side token |
 | `VITE_PADDLE_PRICE_ANNUAL` | **Config** | Yearly price ID |
-| `VITE_PADDLE_PRICE_SEMIANNUAL` | **Config** | 6-month price ID |
+| `VITE_PADDLE_PRICE_LIFETIME` | **Config** | Lifetime price ID |
 | `PADDLE_API_KEY` | Secret | API key |
 | `PADDLE_WEBHOOK_SECRET` | Secret | Webhook secret key (from Step 8; add it then) |
 | `FIREBASE_SERVICE_ACCOUNT` | Secret | The whole service account file (if not there yet) |
@@ -193,17 +193,17 @@ If you set up a webhook in Lemon Squeezy, delete it there too (**Settings → We
 
    Vercel warns about the `VITE_` prefix on the first four. That's expected: they're meant to be public, because the checkout runs in the customer's browser. Click **Change to Config**. Don't rename them.
 
-   `VITE_FIREBASE_API_KEY` must also be there (it already is if sign-in works). The server uses it to check who's asking for **Manage billing** and upgrades.
+   `VITE_FIREBASE_API_KEY` must also be there (it already is if sign-in works). The server uses it to check who's asking for **Manage billing**.
 
 2. **Redeploy:** go to **Deployments**, click **⋯** on the latest one, then **Redeploy**. Settings only apply to a new deployment. Do this every time you change one.
 
-**To try checkout on your own computer (optional):** add only these four lines to `.env.local`. The others are server secrets and must stay out of it. (Manage billing and upgrades need the server, so they only work on Vercel.)
+**To try checkout on your own computer (optional):** add only these four lines to `.env.local`. The others are server secrets and must stay out of it. (Manage billing needs the server, so it only works on Vercel.)
 
 ```
 VITE_PADDLE_ENV=sandbox
 VITE_PADDLE_CLIENT_TOKEN=your test_ token
 VITE_PADDLE_PRICE_ANNUAL=your yearly pri_ ID
-VITE_PADDLE_PRICE_SEMIANNUAL=your 6-month pri_ ID
+VITE_PADDLE_PRICE_LIFETIME=your lifetime pri_ ID
 ```
 
 ## Step 8: Connect the webhook, and give yourself free access
@@ -222,6 +222,8 @@ VITE_PADDLE_PRICE_SEMIANNUAL=your 6-month pri_ ID
    - `subscription.resumed`
    - `subscription.trialing`
    - `subscription.imported`
+   - `transaction.completed` (Lifetime purchases)
+   - `adjustment.created` and `adjustment.updated` (refunds and chargebacks, so a refunded Lifetime is taken back)
 5. Save. Then open the destination (**⋯ → Edit destination**) and copy its **Secret key** (`pdl_ntfset_…`). Add it to Vercel as `PADDLE_WEBHOOK_SECRET` and **Redeploy**.
 
 **Test vs real payments:** sandbox and live have **different** secret keys. Whichever one is in Vercel decides which payments count. With the sandbox key, only test payments unlock accounts. With the live key, test payments are refused. You swap it in Step 11.
@@ -237,47 +239,52 @@ VITE_PADDLE_PRICE_SEMIANNUAL=your 6-month pri_ ID
 Use a **spare Google account** in a private window. Do these in order, because one account goes through the whole journey.
 
 **Trial**
-1. Open `https://dizayr.com` and click **Start your 7-day free trial**. Sign in with the spare account.
-2. The top bar should say **"Free trial · 7 of 7 days left"**.
+1. Open `https://dizayr.com` and click **Start your plan free**. Sign in with the spare account.
+2. The top bar should say **"Free trial · 14 of 14 days left"**.
 3. **Settings → Your plan → Modes** should say **1 + 1**.
 4. Try to add a second Wants mode. The app should offer plans instead of creating it.
 
-**6-month plan**
+**Yearly plan**
 
-5. Click **Choose a plan → Buy 6 months now**. The Paddle checkout should open over the page with the email filled in and show **$14.00**.
+5. Click **Choose a plan → Buy Yearly now**. The Paddle checkout should open over the page with the email filled in and show **$24.99**.
 6. Pay with test card **4242 4242 4242 4242**, any future date such as `12/30`, CVC `100`, and any name and country.
 7. You should see **"Payment received! Activating your plan…"**, then **"You're all set"** within a few seconds. The trial bar disappears.
-8. In Firestore, open **subscriptions →** that account's UID. It should show `status: active`, `plan: semiannual`, `customerId: ctm_…`, `subscriptionId: sub_…`, and an `accessUntil` about 6 months away.
-   - **It must say `semiannual`.** If it doesn't, the price IDs in Vercel are wrong or swapped.
-9. **Settings → Your plan → Modes** should say **2 + 2**. The header button should say **Go Yearly**.
+8. In Firestore, open **subscriptions →** that account's UID. It should show `status: active`, `plan: annual`, `customerId: ctm_…`, `subscriptionId: sub_…`, and an `accessUntil` about a year away.
+9. **Settings → Your plan → Modes** should say **unlimited**. The header button should say **Premium**.
 10. In Paddle, go to **Developer tools → Notifications → your destination → Logs** (or **Events**). The deliveries should show **200**.
 
 **Manage billing**
 
 11. **Settings → Your plan → Manage billing** should open Paddle's customer portal in a new tab, already signed in, showing the subscription.
 
-**Moving up to Yearly**
+**Switching to Lifetime**
 
-12. In the app, click **Go Yearly**, then **Upgrade to Yearly** on the Yearly card. It should ask you to confirm, showing an amount less than $20 (the yearly price minus credit for unused 6-month time).
-13. Confirm. Within a few seconds Firestore should show `plan: annual`, and the mode count should say **unlimited**.
+12. In the app, open **Plan & billing**. The Yearly card should say **Your plan**, and the Lifetime card **Switch to Lifetime**. Click it: the checkout should show **$149.00**. Pay with the test card.
+13. Within a few seconds you should see **"Lifetime unlocked"**. Firestore should show `lifetime: true` and a `lifetimeTransactionId: txn_…`. In Paddle, the Yearly subscription should now be **scheduled to cancel** at the end of its period. In `/admin`, the user shows as **Lifetime (paid)**.
+    - If the subscription isn't scheduled to cancel: the API key is missing **Subscriptions (write)** (Step 4). Cancel it by hand for now.
 
-**Cancelling**
+**Refunding Lifetime**
 
-14. **Manage billing** → cancel the subscription in the portal.
-15. Firestore should show `status: cancelled`. The app should still open, and the plan window should say **"Your plan is cancelled and ends on…"**.
+14. In Paddle, find that $149 transaction and refund it in full (sandbox refunds are approved quickly). Firestore should then show `lifetime: false` and a `lifetimeRefundedAt`.
+
+**Cancelling** (use a second spare account that buys Yearly, since the first one's Yearly is already set to end)
+
+15. **Manage billing** → cancel the subscription in the portal.
+16. Firestore should show `status: cancelled`. The app should still open, and the plan window should say **"Your plan is cancelled and ends on…"**.
 
 **Locking**
 
-16. In Firestore, on the test account's document, delete `accessUntil` and set `trialStartedAt` to a date 8+ days ago.
-17. Reload the site. You should see **"Your free trial has ended"** with the plans.
+17. In Firestore, on a test account's document, delete `accessUntil`, set `lifetime` to false, and set `trialStartedAt` to a date 15+ days ago.
+18. Reload the site. You should see **"Your free trial has ended"** with the plans.
 
-**Don't go live until all 17 pass.**
+**Don't go live until all 18 pass.**
 
 ## Step 10: Refunds and cancellations (how to do them)
 
 In Paddle, go to **Customers → Subscriptions** (or search for the `sub_…` ID shown on the user's page in `/admin`).
 - **Cancel:** open the subscription → **Cancel**. Pick **at the end of the billing period** (they keep what they paid for) or **immediately** (locks the app now).
-- **Refund:** open the transaction → **Refund**. **A refund alone doesn't lock the account**, so cancel the subscription immediately too.
+- **Refund a Yearly payment:** open the transaction → **Refund**. **A refund alone doesn't lock the account**, so cancel the subscription immediately too.
+- **Refund a Lifetime payment:** open the transaction → **Refund** (full). Once Paddle approves it, lifetime access ends by itself. A partial refund keeps Lifetime.
 
 ## Step 11: Go live (real money)
 
@@ -288,11 +295,11 @@ In Paddle, go to **Customers → Subscriptions** (or search for the `sub_…` ID
    - `VITE_PADDLE_ENV`: delete it, or set it to `production`
    - `VITE_PADDLE_CLIENT_TOKEN` (`live_…`)
    - `VITE_PADDLE_PRICE_ANNUAL`
-   - `VITE_PADDLE_PRICE_SEMIANNUAL`
+   - `VITE_PADDLE_PRICE_LIFETIME`
    - `PADDLE_API_KEY` (live key)
    - `PADDLE_WEBHOOK_SECRET` (live destination's secret key)
-5. **Real purchase test:** with a spare account, buy the 6-month plan with your real card.
-   - Check Firestore shows `plan: semiannual` and `testMode: false`, and that the webhook shows **200**.
+5. **Real purchase test:** with a spare account, buy Yearly with your real card.
+   - Check Firestore shows `plan: annual` and `testMode: false`, and that the webhook shows **200**.
    - Refund it and cancel it immediately (Step 10).
 
 **Tip:** to keep testing safely after going live, use a Vercel **Preview** deployment with the sandbox values (set them for **Preview** only), and point a sandbox notification destination at that preview's address.
@@ -303,9 +310,9 @@ In Paddle, go to **Customers → Subscriptions** (or search for the `sub_…` ID
 
 **Change a price**
 1. Paddle (live): add a new price on the product (Paddle prices can't be edited once used). Archive the old one.
-2. Vercel: put the new price's `pri_…` ID in `VITE_PADDLE_PRICE_ANNUAL` or `VITE_PADDLE_PRICE_SEMIANNUAL`, and redeploy. Existing subscribers stay on the old price unless you move them in Paddle.
-3. `src/lib/plans.ts`: change `price`.
-4. `src/admin/data.ts`: change `PLAN_PRICE`, which the admin revenue figure uses. Also change the prices in the `<noscript>` text in `index.html`.
+2. Vercel: put the new price's `pri_…` ID in `VITE_PADDLE_PRICE_ANNUAL` or `VITE_PADDLE_PRICE_LIFETIME`, and redeploy. Existing subscribers stay on the old price unless you move them in Paddle.
+3. `src/lib/plans.ts`: change `price` (the admin revenue figure reads it from there too).
+4. Change the prices in the `<noscript>` text in `index.html`.
 5. Push to GitHub.
 
 **Change how many modes a plan includes**
@@ -317,8 +324,8 @@ In Paddle, go to **Customers → Subscriptions** (or search for the `sub_…` ID
 
 **Change the trial length**
 1. `src/lib/plans.ts`: change `TRIAL_DAYS`.
-2. `firestore.rules`: change `duration.value(7, 'd')`, then publish it again (Step 5a). If the two don't match, people get locked out or kept in at the wrong time.
-3. Search the project for `7-day` and `7 days`, and update the wording, including `index.html` and the admin page.
+2. `firestore.rules`: change `duration.value(14, 'd')`, then publish it again (Step 5a). If the two don't match, people get locked out or kept in at the wrong time.
+3. Update the `<noscript>` text in `index.html`. Everything else in the app reads `TRIAL_DAYS`.
 4. Push to GitHub.
 
 ---
@@ -334,10 +341,10 @@ In Paddle, go to **Customers → Subscriptions** (or search for the `sub_…` ID
 | Checkout opens then shows an error | Default payment link not set, or the website isn't approved yet (live) | Step 2.4 and 2.5 |
 | Checkout blocked, browser console mentions "Content Security Policy" | Paddle loaded something from a new address | Add that address to the CSP in `vercel.json` and push |
 | Paid, but the account stays locked | The webhook isn't getting through | See the webhook codes below |
-| 6-month customer has unlimited modes | `plan` is wrong in Firestore | Fix the price IDs in Vercel and redeploy. Then replay that customer's latest event from Paddle's notification logs. |
+| Paid $149 but the account isn't Lifetime | `transaction.completed` isn't ticked on the webhook, or `VITE_PADDLE_PRICE_LIFETIME` is wrong | Fix it (Step 8 / Step 7), redeploy, then replay the `transaction.completed` event from the notification logs |
+| Bought Lifetime but Yearly still renews | The API key can't write subscriptions | Give it **Subscriptions (write)** (Step 4), and cancel that subscription by hand in Paddle |
 | **Manage billing** says it couldn't open | `PADDLE_API_KEY` missing or from the other environment (sandbox vs live) | Step 4 / Step 11, then redeploy. Details in Vercel **Logs**, filter `/api/billing` |
 | **Manage billing** says there's no payment | The account has no Paddle customer saved yet (the webhook never reached it) | Check the webhook |
-| Upgrade says Paddle couldn't make the change | Card declined, or a renewal is less than 30 minutes away | Nothing was charged; try again later or update the card in Manage billing |
 | Refunded customer still has access | A refund alone doesn't lock | Cancel the subscription immediately (Step 10) |
 | Someone uses the app after their trial | Rules not published | Step 5a |
 | "Could not load your data" for a new user | Their trial record wasn't created | Ask them to reload, then check they appear under `subscriptions` |

@@ -27,24 +27,25 @@ export function Overview() {
     const now = Date.now()
     const groups: Record<Group, number> = { trial: 0, paying: 0, free: 0, expired: 0 }
     let yearly = 0
-    let semi = 0
+    let lifetime = 0
     for (const u of users) {
       const m = membershipOf(u, now)
       groups[groupOf(m)]++
-      if (m === 'paid' && u.plan === 'annual') yearly++
-      if (m === 'paid' && u.plan === 'semiannual') semi++
+      if (m === 'paid') yearly++
+      if (m === 'bought') lifetime++
     }
     const week = users.filter((u) => (u.createdAt ?? 0) > now - 7 * DAY).length
     const prevWeek = users.filter((u) => (u.createdAt ?? 0) > now - 14 * DAY && (u.createdAt ?? 0) <= now - 7 * DAY).length
     const active7 = users.filter((u) => (lastActive(u) ?? 0) > now - 7 * DAY).length
-    // What paying subscribers bring in a year at today's prices: yearly × $20, 6-month × $14 × 2 (US dollars).
-    const arr = yearly * PLAN_PRICE.annual + semi * PLAN_PRICE.semiannual * 2
+    // What Yearly subscribers bring in a year at today's price (US dollars, tax included). Lifetime is counted apart: paid once.
+    const arr = yearly * PLAN_PRICE.annual
+    const lifetimeSales = lifetime * PLAN_PRICE.lifetime
     const everTried = users.filter((u) => u.trialStartedAt != null).length
     const conversion = everTried ? (groups.paying / everTried) * 100 : 0
     const endingSoon = users
       .filter((u) => membershipOf(u, now) === 'trial' && trialEnds(u)! - now < 2 * DAY)
       .sort((a, b) => trialEnds(a)! - trialEnds(b)!)
-    return { groups, week, prevWeek, active7, arr, yearly, semi, conversion, endingSoon }
+    return { groups, week, prevWeek, active7, arr, yearly, lifetime, lifetimeSales, conversion, endingSoon }
   }, [users])
 
   return (
@@ -80,10 +81,10 @@ export function Overview() {
             />
             <Stat
               label="Yearly revenue"
-              value={`$${stats.arr.toLocaleString()}`}
+              value={`$${stats.arr.toLocaleString('en-US', { maximumFractionDigits: 2 })}`}
               icon={Zap}
               accent="text-amber-300 bg-amber-400/10"
-              hint={`${stats.yearly} yearly · ${stats.semi} six-month`}
+              hint={`${stats.yearly} yearly · ${stats.lifetime} lifetime ($${stats.lifetimeSales.toLocaleString('en-US')} once)`}
             />
           </>
         ) : (

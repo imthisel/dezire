@@ -48,7 +48,7 @@ export type PaddleSubscription = {
 }
 
 export type Access = {
-  plan: 'annual' | 'semiannual' | null
+  plan: 'annual' | null
   /**
    * In the app's words (src/billing.ts and the admin page read these): active, on_trial, past_due,
    * cancelled (still paid up, ends at endsAt), paused, expired.
@@ -65,18 +65,16 @@ const date = (s: string | null | undefined) => {
   return d && !Number.isNaN(d.getTime()) ? d : null
 }
 
-/** Which of the two plans a price is: by its id when set, otherwise by how often it bills. */
-function planOf(s: PaddleSubscription, prices: { annual?: string; semiannual?: string }): Access['plan'] {
+/**
+ * Which plan a subscription is. Yearly is the only subscription sold now (Lifetime is a one-time payment, see
+ * lifetimePurchase), so any subscription that bills counts as Yearly: by its price id when set, otherwise by how often it bills.
+ */
+function planOf(s: PaddleSubscription, prices: { annual?: string }): Access['plan'] {
   const items = s.items ?? []
   const live = items.filter((i) => i.status !== 'inactive')
   for (const i of live.length ? live : items) {
-    const id = i.price?.id
-    if (id && id === prices.annual) return 'annual'
-    if (id && id === prices.semiannual) return 'semiannual'
-    const c = i.price?.billing_cycle
-    if (c?.interval === 'year' && c.frequency === 1) return 'annual'
-    if (c?.interval === 'month' && c.frequency === 12) return 'annual'
-    if (c?.interval === 'month' && c.frequency === 6) return 'semiannual'
+    if (i.price?.id && i.price.id === prices.annual) return 'annual'
+    if (i.price?.billing_cycle) return 'annual'
   }
   return null
 }
@@ -87,7 +85,7 @@ function planOf(s: PaddleSubscription, prices: { annual?: string; semiannual?: s
  * - active but set to cancel (or pause) at the end of the period: until then, shown as "cancelled"
  * - paused / canceled: no access (Paddle only marks it canceled once the paid time is over, or on an immediate cancel)
  */
-export function accessFor(s: PaddleSubscription, prices: { annual?: string; semiannual?: string }): Access {
+export function accessFor(s: PaddleSubscription, prices: { annual?: string }): Access {
   const plan = planOf(s, prices)
   const periodEnd = date(s.current_billing_period?.ends_at)
   if (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due') {
@@ -107,4 +105,49 @@ export function accessFor(s: PaddleSubscription, prices: { annual?: string; semi
   }
   if (s.status === 'paused') return { plan, status: 'paused', accessUntil: null, renewsAt: null, endsAt: null }
   return { plan, status: 'expired', accessUntil: null, renewsAt: null, endsAt: date(s.canceled_at) }
+}
+
+// ---- Lifetime: a one-time payment ----
+
+/** The parts of a Paddle transaction (the `data` of transaction.* webhooks) that matter for Lifetime. */
+export type PaddleTransaction = {
+  id: string
+  status: 'draft' | 'ready' | 'billed' | 'paid' | 'completed' | 'canceled' | 'past_due' | string
+  customer_id: string | null
+  subscription_id?: string | null
+  custom_data?: Record<string, unknown> | null
+  items: { price: { id: string; billing_cycle?: { interval: string; frequency: number } | null } | null }[]
+  billed_at?: string | null
+  updated_at: string
+}
+
+/** The parts of a Paddle adjustment (the `data` of adjustment.* webhooks): refunds and chargebacks. */
+export type PaddleAdjustment = {
+  id: string
+  action: 'refund' | 'credit' | 'chargeback' | 'chargeback_reverse' | 'chargeback_warning' | string
+  /** full or partial (missing on older events: treated as full) */
+  type?: 'full' | 'partial' | string
+  transaction_id: string
+  status: 'pending_approval' | 'approved' | 'rejected' | 'reversed' | string
+  updated_at: string
+}
+
+/**
+ * Whether a transaction is a paid Lifetime purchase: completed (or paid), not part of a subscription, and for the
+ * Lifetime price. When the price id isn't configured, a one-time price (no billing cycle) counts as Lifetime.
+ */
+export function lifetimePurchase(t: PaddleTransaction, lifetimePrice: string | undefined) {
+  if (t.status !== 'completed' && t.status !== 'paid') return false
+  if (t.subscription_id) return false
+  return (t.items ?? []).some((i) => {
+    const p = i.price
+    if (!p) return false
+    return lifetimePrice ? p.id === lifetimePrice : !p.billing_cycle
+  })
+}
+
+/** Whether an adjustment takes a whole payment back (an approved full refund, or a chargeback). */
+export function takesPaymentBack(a: PaddleAdjustment) {
+  if (a.action === 'chargeback') return true
+  return a.action === 'refund' && a.status === 'approved' && a.type !== 'partial'
 }

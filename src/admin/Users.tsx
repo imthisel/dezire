@@ -10,7 +10,7 @@ type Filter = 'all' | Group | 'disabled'
 type SortKey = 'joined' | 'active' | 'name' | 'status'
 const PAGE = 50
 
-const STATUS_ORDER = { lifetime: 0, comp: 1, paid: 2, trial: 3, new: 4, expired: 5 }
+const STATUS_ORDER = { bought: 0, lifetime: 1, comp: 2, paid: 3, trial: 4, new: 5, expired: 6 }
 
 export function Users() {
   const { users, loading, error } = useUsers()

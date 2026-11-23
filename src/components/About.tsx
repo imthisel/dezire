@@ -4,9 +4,9 @@ import {
   ShieldCheck, Smartphone, Star,
 } from 'lucide-react'
 import { signIn, signOut, useCloud } from '../cloud'
-import { forgetIntent, openBilling, openCheckout, rememberIntent, upgradeToYearly, useAccess } from '../billing'
+import { forgetIntent, openBilling, openCheckout, rememberIntent, useAccess } from '../billing'
 import { auth } from '../lib/firebase'
-import { PLANS, TRIAL_DAYS, dollars, paymentsReady, perMonth, type Plan, type PlanId } from '../lib/plans'
+import { PLANS, PLAN_ORDER, TRIAL_DAYS, dollars, paymentsReady, perMonth, type Plan, type PlanId } from '../lib/plans'
 import { EXAMPLE_REVIEWS, REVIEWS, type Review } from '../content/reviews'
 import { DownloadSection } from './AppInstall'
 import { ContactDialog } from './Help'
@@ -832,21 +832,20 @@ export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; co
   const access = useAccess()
   const user = useCloud((s) => s.user)
   const brand = (tone ?? (compact ? 'app' : 'brand')) === 'brand'
-  const order: PlanId[] = ['semiannual', 'annual']
-  const onPlan = access.state === 'paid' || access.state === 'comp' || access.state === 'lifetime'
-  // A running 6-month subscription can move up to Yearly from here (Paddle's billing page can't change plans).
-  const canUpgrade =
-    access.state === 'paid' && access.plan === 'semiannual' && (access.status === 'active' || access.status === 'on_trial') && paymentsReady()
+  const s = access.state
+  // What they already have: Yearly can still move up to Lifetime; Lifetime and a free membership need nothing more.
+  const current = (id: PlanId) => (id === 'lifetime' ? s === 'lifetime' : s === 'paid')
+  const disabled = (id: PlanId) => s === 'lifetime' || s === 'comp' || (id === 'annual' && s === 'paid')
   const cards = (
     <div className="mx-auto grid w-full max-w-3xl gap-5 md:grid-cols-2">
-      {order.map((id) => (
+      {PLAN_ORDER.map((id) => (
         <PlanCard
           key={id}
           plan={PLANS[id]}
           featured={id === 'annual'}
-          current={onPlan && access.plan === id}
-          disabled={onPlan && !(id === 'annual' && canUpgrade)}
-          upgrade={id === 'annual' && canUpgrade}
+          current={current(id)}
+          disabled={disabled(id)}
+          fromYearly={id === 'lifetime' && s === 'paid'}
           brand={brand}
         />
       ))}
@@ -862,7 +861,7 @@ export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; co
   )
   const fine = (
     <p className={`text-xs leading-relaxed text-zinc-500 ${compact ? 'mx-auto mt-5 max-w-2xl text-center' : 'mx-auto mt-8 max-w-3xl text-center lg:mt-6'}`}>
-      Prices in US dollars, tax included. Plans renew automatically until you cancel. Orders are processed by Paddle.com, our reseller and
+      Prices in US dollars, tax included. Yearly renews automatically until you cancel; Lifetime is a single payment that never renews. Orders are processed by Paddle.com, our reseller and
       merchant of record. By buying you agree to the{' '}
       <a href="/terms" className="underline underline-offset-2 hover:text-zinc-300">Terms</a> and{' '}
       <a href="/refunds" className="underline underline-offset-2 hover:text-zinc-300">Refund Policy</a>.
@@ -884,7 +883,7 @@ export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; co
           <h2 id="pricing-title" className="mt-5 font-display text-[2.5rem] font-semibold leading-[1.04] tracking-[-0.035em] text-white sm:text-[3.2rem]">
             Less than a coffee a month.
           </h2>
-          <p className="mt-4 text-lg text-zinc-300">One plan, everything included. Every feature, every device, as many years ahead as you want.</p>
+          <p className="mt-4 text-lg text-zinc-300">Everything included, on every device. Pay {dollars(PLANS.annual.price)} a year, or {dollars(PLANS.lifetime.price)} once and never again.</p>
           {!user && signin && (
             <div className="mt-7 rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-5">
               <p className="text-[15px] text-zinc-300">
@@ -908,8 +907,8 @@ export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; co
 }
 
 function PlanCard({
-  plan, featured, current, disabled, upgrade = false, brand,
-}: { plan: Plan; featured: boolean; current: boolean; disabled: boolean; upgrade?: boolean; brand: boolean }) {
+  plan, featured, current, disabled, fromYearly = false, brand,
+}: { plan: Plan; featured: boolean; current: boolean; disabled: boolean; /** On Yearly now, looking at Lifetime */ fromYearly?: boolean; brand: boolean }) {
   const [busy, setBusy] = useState(false)
   const signedIn = useCloud((s) => !!s.user)
   const included = [...plan.perks, 'Every other feature included', `Plan up to ${MAX_SPAN} years ahead`, 'All your devices, synced', 'Works offline']
@@ -944,7 +943,7 @@ function PlanCard({
     <div data-reveal className={`reveal relative flex flex-col p-7 ${look.radius} ${featured ? 'order-first md:order-last' : ''} ${look.card}`}>
       {featured && (
         <span className={`absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3.5 py-1 text-xs font-bold uppercase tracking-wider ${look.badge}`}>
-          Best value{plan.badge ? ` · ${plan.badge}` : ''}
+          Recommended{plan.badge ? ` · ${plan.badge}` : ''}
         </span>
       )}
       <p className="font-semibold text-zinc-200">{plan.name}</p>
@@ -954,7 +953,9 @@ function PlanCard({
       </div>
       <p className="mt-2 flex items-center gap-2 text-sm">
         {plan.compareAt && <span className="text-zinc-500 line-through">{dollars(plan.compareAt)}</span>}
-        <span className={featured ? look.save : 'text-zinc-400'}>just {perMonth(plan)} a month</span>
+        <span className={featured ? look.save : 'text-zinc-400'}>
+          {plan.months ? `just ${perMonth(plan)} a month` : 'One payment. No renewals, ever.'}
+        </span>
       </p>
       <ul className="mt-6 flex-1 space-y-2.5 text-sm">
         {included.map((t) => (
@@ -967,7 +968,7 @@ function PlanCard({
         onClick={async () => {
           setBusy(true)
           try {
-            await (upgrade ? upgradeToYearly() : choose(plan.id))
+            await choose(plan.id)
           } finally {
             setBusy(false)
           }
@@ -976,12 +977,12 @@ function PlanCard({
         className={`mt-7 inline-flex h-12 items-center justify-center gap-2 text-[15px] font-semibold transition disabled:cursor-default ${look.btnRadius} ${look.button}`}
       >
         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-        {current ? 'Your plan' : upgrade ? `Upgrade to ${plan.name}` : `Buy ${plan.name} now`}
+        {current ? 'Your plan' : fromYearly ? `Switch to ${plan.name}` : `Buy ${plan.name} now`}
       </button>
       {!disabled && (
         <p className="mt-2.5 text-center text-xs text-zinc-400">
-          {upgrade
-            ? 'Credit for your unused 6-month time · you’ll see the price first'
+          {fromYearly
+            ? 'Pay once · your Yearly plan stops renewing'
             : signedIn
               ? 'Starts today · secure checkout'
               : 'Skip the trial · sign in, then straight to checkout'}
@@ -1015,7 +1016,8 @@ function Faq() {
       ['Can I pay right away, without the free trial?', 'Yes. Pick a plan under Pricing, sign in with Google, and you go straight to the secure checkout. Your plan starts the day you pay. Already on the trial? You can buy whenever you like; the plan starts that day.'],
       ['Is paying safe? Do you keep my card?', 'Yes, and no, we never see it. Payments go through Paddle, a trusted checkout used by thousands of software companies. Your card details go straight to them and never touch Dizayr.'],
       ['How do I pay?', 'By card, PayPal, Apple Pay or Google Pay, through Paddle’s secure checkout. Prices are in US dollars, tax included; your bank converts them if your card is in pesos or another currency.'],
-      ['Can I cancel anytime?', 'Yes. Cancel from your billing page in a couple of clicks, and you keep access until the end of the time you paid for.'],
+      ['What’s the difference between Yearly and Lifetime?', `Both include every feature. Yearly is ${dollars(PLANS.annual.price)} a year and renews until you cancel. Lifetime is ${dollars(PLANS.lifetime.price)} once: no renewals, and Dizayr is yours for as long as it runs. Already on Yearly? Buy Lifetime anytime and your yearly plan simply stops renewing.`],
+      ['Can I cancel anytime?', 'Yes. Cancel Yearly from your billing page in a couple of clicks, and you keep access until the end of the year you paid for. Lifetime has nothing to cancel: it never renews.'],
       ['Can I get a refund?', `Yes. Ask within ${LEGAL.refundDays} days of any payment and you get your money back in full, no questions asked. See the Refund Policy at the bottom of this page.`],
       ['What happens to my plan if I don’t subscribe?', 'Nothing is deleted. Everything you planned stays saved in your account, and it’s all there the moment you choose a plan.'],
       ],
@@ -1025,7 +1027,7 @@ function Faq() {
       label: 'Using Dizayr',
       qs: [
       ['Does it work on my phone?', 'Yes. Dizayr works in any browser on your phone, tablet or computer, and stays in sync. Add it to your home screen and it opens like an app, even offline.'],
-      ['What are modes?', 'Separate versions of your plan. Add some to try a different future, each with its own items, net worth and setups, while your calendar, expenses and goals stay shared. Modes come in two sections, Wants and Needs, and you choose which one is the main one in each. The free trial includes 1 of each, the 6-month plan 2 of each, and the yearly plan is unlimited.'],
+      ['What are modes?', 'Separate versions of your plan. Add some to try a different future, each with its own items, net worth and setups, while your calendar, expenses and goals stay shared. Modes come in two sections, Wants and Needs, and you choose which one is the main one in each. The free trial includes 1 of each; Yearly and Lifetime are unlimited.'],
       ['Which currency does it use?', 'Plan in your own currency, and see a second one next to every amount if you like (for example pesos and US dollars).'],
       ],
     },

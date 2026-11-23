@@ -10,7 +10,7 @@ service cloud.firestore {
         s.get('lifetime', false) == true
         || (s.get('compUntil', null) != null && s.compUntil > request.time)
         || (s.get('accessUntil', null) != null && s.accessUntil > request.time)
-        || (s.get('trialStartedAt', null) != null && s.trialStartedAt + duration.value(7, 'd') > request.time)
+        || (s.get('trialStartedAt', null) != null && s.trialStartedAt + duration.value(14, 'd') > request.time)
       );
     }
 

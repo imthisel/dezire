@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { TRIAL_DAYS } from '../lib/plans'
 import {
   ArrowLeft, Ban, CalendarDays, CalendarPlus, Check, Download, ExternalLink, FileJson, Gem, Gift, History, Infinity as InfinityIcon, LogOut,
   Mail, MonitorPlay, NotebookPen, Receipt, RefreshCw, RotateCcw, Rocket, ShieldAlert, Target, Trash2, UserCheck, X,
@@ -336,7 +337,7 @@ function MembershipCard({ user, reload }: { user: UserDetail; reload: () => Prom
   const now = Date.now()
 
   const accent =
-    m === 'lifetime' || m === 'comp' ? 'from-amber-500/15' : m === 'paid' ? 'from-emerald-500/15' : m === 'trial' || m === 'new' ? 'from-indigo-500/15' : 'from-rose-500/15'
+    m === 'lifetime' || m === 'comp' ? 'from-amber-500/15' : m === 'paid' || m === 'bought' ? 'from-emerald-500/15' : m === 'trial' || m === 'new' ? 'from-indigo-500/15' : 'from-rose-500/15'
 
   return (
     <Card title="Membership" pad={false}>
@@ -369,7 +370,7 @@ function MembershipCard({ user, reload }: { user: UserDetail; reload: () => Prom
           </Button>
         )}
         <Button icon={RotateCcw} onClick={() => setAsk('trial')} busy={is('trial')}>
-          New 7-day trial
+          New {TRIAL_DAYS}-day trial
         </Button>
         {(user.compUntil ?? 0) > now && (
           <Button icon={X} className="col-span-2" tone="subtle" onClick={() => setAsk('endComp')} busy={is('endComp')}>
@@ -414,10 +415,10 @@ function MembershipCard({ user, reload }: { user: UserDetail; reload: () => Prom
       )}
       {ask === 'trial' && (
         <Confirm
-          title="Start a new 7-day trial?"
-          text="Their free trial restarts from now and lasts 7 days. Handy when someone signed up and never got to try it."
+          title={`Start a new ${TRIAL_DAYS}-day trial?`}
+          text={`Their free trial restarts from now and lasts ${TRIAL_DAYS} days. Handy when someone signed up and never got to try it.`}
           confirmLabel="Start new trial"
-          onConfirm={() => run('trial', {}, 'New 7-day trial started.')}
+          onConfirm={() => run('trial', {}, `New ${TRIAL_DAYS}-day trial started.`)}
           onClose={() => setAsk(null)}
         />
       )}

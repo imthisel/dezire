@@ -97,8 +97,8 @@ const PADDLE_PRIVACY = 'https://www.paddle.com/legal/privacy'
 const PADDLE_ORDERS = 'https://paddle.net'
 
 const yearly = PLANS.annual
-const half = PLANS.semiannual
-const prices = `${dollars(half.price)} every 6 months, or ${dollars(yearly.price)} per year`
+const lifetime = PLANS.lifetime
+const prices = `${dollars(yearly.price)} per year (Yearly), or ${dollars(lifetime.price)} once (Lifetime)`
 
 const MerchantOfRecord = () => (
   <p>
@@ -146,28 +146,33 @@ const PAGES: Record<LegalPage, { title: string; body: ReactNode }> = {
         <h2>4. Plans and payment</h2>
         <ul>
           <li>
-            Dizayr is sold as a subscription: <b>{prices}</b>, in US dollars. Prices include any sales tax or VAT, so you pay the amount shown at
+            Dizayr is sold as two plans: <b>{prices}</b>, in US dollars. Prices include any sales tax or VAT, so you pay the amount shown at
             checkout. Your bank may charge a currency conversion fee if your card isn’t in US dollars.
           </li>
-          <li>The 6-month plan includes two Wants modes and two Needs modes. The yearly plan includes unlimited modes. Both include every other feature.</li>
+          <li>Both plans include every feature, with unlimited Wants and Needs modes.</li>
           <li>
-            <b>Plans renew automatically</b> at the end of each period, at the same price, until you cancel. You can see your renewal date in the app
+            <b>Yearly renews automatically</b> at the end of each year, at the same price, until you cancel. You can see your renewal date in the app
             under Settings → Plan &amp; billing.
           </li>
           <li>
-            You can move from the 6-month plan to the yearly plan at any time in the app. You’re shown the price first: the yearly price minus
-            credit for your unused 6-month time. It’s charged to your saved payment method.
+            <b>Lifetime is a single payment.</b> It never renews and is never charged again. It gives you access to Dizayr for as long as we offer
+            it, including the features we add later. It belongs to your account and can’t be transferred.
           </li>
           <li>
-            If we change a price, we’ll tell you by email at least 30 days before it applies to your next renewal. You can cancel before then.
+            If you’re on Yearly, you can buy Lifetime at any time. Your Yearly plan then stops renewing; the time you already paid for isn’t refunded,
+            except as described in our <a href="/refunds">Refund Policy</a>.
+          </li>
+          <li>
+            If we change the Yearly price, we’ll tell you by email at least 30 days before it applies to your next renewal. You can cancel before then.
           </li>
         </ul>
         <MerchantOfRecord />
 
         <h2>5. Cancelling</h2>
         <p>
-          You can cancel any time from <b>Settings → Plan &amp; billing → Manage billing</b>, or by emailing <Mail />. When you cancel, your plan doesn’t
+          You can cancel Yearly any time from <b>Settings → Plan &amp; billing → Manage billing</b>, or by emailing <Mail />. When you cancel, your plan doesn’t
           renew, and you keep access until the end of the time you’ve already paid for. After that, Dizayr locks and your plan stays saved.
+          Lifetime has nothing to cancel, because it never renews.
         </p>
 
         <h2>6. Refunds</h2>
@@ -196,7 +201,7 @@ const PAGES: Record<LegalPage, { title: string; body: ReactNode }> = {
         <p>
           We work to keep Dizayr running and your data safe, but we can’t promise it will always be available or free of errors. We improve the
           app over time, which can mean changing or removing features. If we ever shut Dizayr down, we’ll tell you at least 30 days before, give you
-          time to download your data, and refund the unused part of any plan you’ve paid for.
+          time to download your data, and refund the unused part of any Yearly plan you’ve paid for.
         </p>
 
         <h2>10. Liability</h2>
@@ -352,7 +357,7 @@ const PAGES: Record<LegalPage, { title: string; body: ReactNode }> = {
         <h2>{LEGAL.refundDays}-day money-back guarantee</h2>
         <p>
           <b>Ask within {LEGAL.refundDays} days of any payment and you get a full refund</b>, no questions asked. This applies to your first payment,
-          to every renewal ({prices}), and to upgrade payments.
+          to every Yearly renewal, and to a Lifetime purchase ({prices}).
         </p>
 
         <h2>How to ask for a refund</h2>
@@ -374,16 +379,16 @@ const PAGES: Record<LegalPage, { title: string; body: ReactNode }> = {
             5–10 business days, depending on your bank.
           </li>
           <li>
-            When a payment is refunded, the subscription it paid for is cancelled, and the plan’s access ends. <b>Your plan stays saved</b>, and
-            it’s all there if you buy a plan again later.
+            When a payment is refunded, the plan it paid for ends: a refunded Yearly payment cancels the subscription, and a refunded Lifetime
+            payment ends lifetime access. <b>Your plan stays saved</b>, and it’s all there if you buy a plan again later.
           </li>
           <li>The refund is for the full amount you paid, including tax.</li>
         </ul>
 
         <h2>After {LEGAL.refundDays} days</h2>
         <p>
-          After {LEGAL.refundDays} days, payments aren’t refunded for the unused part of a period. You can still cancel at any time, which stops the
-          next renewal, and you keep access until the end of the time you paid for. If something went wrong on our side, such as a double charge
+          After {LEGAL.refundDays} days, payments aren’t refunded, including for the unused part of a Yearly period. You can still cancel Yearly at any time,
+          which stops the next renewal, and you keep access until the end of the time you paid for. If something went wrong on our side, such as a double charge
           or Dizayr not working for you, email us and we’ll make it right, whenever it happened. This doesn’t affect any refund rights you have
           under the law where you live.
         </p>

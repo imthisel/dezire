@@ -7,7 +7,9 @@ export type Sub = {
   accessUntil: number | null
   compUntil: number | null
   lifetime: boolean
-  plan: 'annual' | 'semiannual' | null
+  /** When Lifetime was bought; null when it was given from the admin page (or there's none) */
+  lifetimePaidAt: number | null
+  plan: 'annual' | null
   status: string | null
   renewsAt: number | null
   endsAt: number | null
