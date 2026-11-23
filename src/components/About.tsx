@@ -12,8 +12,9 @@ import { DownloadSection } from './AppInstall'
 import { ContactDialog } from './Help'
 import { LEGAL } from '../lib/legal'
 import { MAX_SPAN } from '../lib/time'
-import { DreamsPreview, ExpensesPreview, GoalsFloat, IncomePreview, MonthOverview, NetWorthFloat } from './about/Previews'
+import { DreamsPreview, ExpensesPreview, GoalsFloat, GoalsPreview, IncomePreview, MonthOverview, NetWorthFloat } from './about/Previews'
 import { TryOverview } from './about/TryOverview'
+import { TryGoals } from './about/TryGoals'
 import { TryExpenses } from './about/TryExpenses'
 import { TrySetups } from './about/TrySetups'
 import { TryAssets } from './about/TryAssets'
@@ -166,7 +167,7 @@ function Logo({ size = 'h-9 w-9' }: { size?: string }) {
 const primaryBtn =
   'group inline-flex items-center justify-center gap-2.5 rounded-full bg-brand-600 sm:gap-3 font-semibold text-white shadow-[0_12px_40px_-12px_rgb(58_109_240/0.55)] transition duration-300 hover:-translate-y-0.5 hover:bg-brand-500 hover:shadow-[0_18px_50px_-12px_rgb(58_109_240/0.7)] active:translate-y-0 disabled:opacity-60'
 
-function GoogleButton({ signin, label = 'Start building your vision', big = false }: { signin: SignIn; label?: string; big?: boolean }) {
+function GoogleButton({ signin, label = 'Start your plan free', big = false }: { signin: SignIn; label?: string; big?: boolean }) {
   return (
     <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:items-start">
       <button onClick={signin.go} disabled={signin.busy} className={`${primaryBtn} w-full sm:w-auto ${big ? 'h-14 px-5 text-[15px] sm:px-7 sm:text-base' : 'h-12 px-5 text-[15px] sm:px-6'}`}>
@@ -248,16 +249,16 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
             style={{ ['--d' as string]: '0ms' }}
           >
             <span className="shrink-0 rounded-full bg-brand-600 px-2 py-0.5 font-semibold text-white">New</span>
-            <span className="truncate">Wants, Expenses & Setups, all in one plan</span> <ArrowRight className="h-3 w-3 shrink-0" />
+            <span className="truncate">Yearly goals, now with notes on every goal</span> <ArrowRight className="h-3 w-3 shrink-0" />
           </a>
           <h1
             className="hero-in font-display font-semibold tracking-[-0.035em] text-[2.9rem] leading-[1] text-white sm:text-[4rem] lg:text-[4.6rem] [@media(min-width:1024px)_and_(max-height:760px)]:text-[3.7rem]"
             style={{ ['--d' as string]: '80ms' }}
           >
-            A private space for <span className="text-brand-300">the life you want.</span>
+            Visualize your dream life. <span className="text-brand-300">Then go get it.</span>
           </h1>
           <p className="hero-in mx-auto mt-6 max-w-lg text-lg leading-relaxed text-zinc-300 lg:mx-0" style={{ ['--d' as string]: '180ms' }}>
-            Build a visual version of the life you want. Give every dream a price and a date, then work toward it, one month at a time.
+            See everything you want in one place, with a price and a date on each. Dizayr tells you exactly how much to make each month to get there, and tracks your goals, spending and net worth along the way.
           </p>
           <div className="hero-in mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start" style={{ ['--d' as string]: '280ms' }}>
             {signedIn ? <OpenApp big /> : <GoogleButton signin={signin} big />}
@@ -298,17 +299,17 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
 
 function Problem() {
   const points = [
-    { k: 'Unwritten', text: 'If it only lives in your head, it’s easy to quietly let it go.' },
-    { k: 'Unpriced', text: '“Someday” has no number, so it never gets a plan.' },
-    { k: 'Untracked', text: 'Nothing measures it, so you never know if you’re getting closer.' },
+    { k: 'Unwritten', text: 'If it only lives in your head, it’s easy to let it slide another year.' },
+    { k: 'Unpriced', text: 'No number means no plan. “Someday” stays someday.' },
+    { k: 'Untracked', text: 'If you don’t measure it, you can’t tell whether you’re getting closer.' },
   ]
   return (
     <section aria-labelledby="problem-title" className="border-t border-white/[0.06] px-5 sm:px-8 sec">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="reveal max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">The quiet problem</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">Why it doesn’t happen</p>
           <h2 id="problem-title" className="mt-5 font-display font-semibold tracking-[-0.035em] text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
-            Most dreams never make it out of your head.
+            Most people never put a number on what they want.
           </h2>
         </div>
         <div className="mt-10 sm:mt-12 grid gap-px overflow-hidden rounded-[28px] border border-white/[0.07] bg-white/[0.07] md:grid-cols-3">
@@ -320,7 +321,7 @@ function Problem() {
           ))}
         </div>
         <p data-reveal className="reveal mt-12 max-w-2xl text-xl leading-relaxed text-zinc-300">
-          Wanting it was never the problem. <span className="text-white">Seeing it clearly is.</span> That’s where Dizayr starts.
+          Wanting it isn’t the problem. Not having a plan is. <span className="text-white">Dizayr gives you the plan, and shows you if you’re on track.</span>
         </p>
       </div>
     </section>
@@ -329,11 +330,12 @@ function Problem() {
 
 // ---- Try it ----
 
-type TryTab = 'wants' | 'assets' | 'income' | 'expenses' | 'setups'
+type TryTab = 'wants' | 'goals' | 'assets' | 'income' | 'expenses' | 'setups'
 /** Opens a tab of "Try it now" from elsewhere on the page (detail: the tab). */
 const TRY_EVENT = 'dz-try-tab'
 const TRY_TABS: { id: TryTab; label: string; sub: string }[] = [
   { id: 'wants', label: 'Wants', sub: 'Plan three months: set a goal, a budget, a net worth to reach, and add what you want.' },
+  { id: 'goals', label: 'Goals', sub: 'Your goals for the year, by area of life. Tick them off, drag them around, and open any goal’s notes.' },
   { id: 'assets', label: 'Assets', sub: 'Everything you plan to own, what it costs, and what it’ll be worth years from now.' },
   { id: 'income', label: 'Income', sub: 'Every way you earn, whether it covers the month’s goal, and the next step for each.' },
   { id: 'expenses', label: 'Expenses', sub: 'Your money on hand, and every expense coming off it. Budget and breakdown update as you log.' },
@@ -341,7 +343,7 @@ const TRY_TABS: { id: TryTab; label: string; sub: string }[] = [
 ]
 
 /**
- * "Try it now": the playgrounds (Wants, Assets, Income, Expenses, Setups) as tabs in one section, shown at the same size as in
+ * "Try it now": the playgrounds (Wants, Goals, Assets, Income, Expenses, Setups) as tabs in one section, shown at the same size as in
  * the app. They share one plan, so a change in one shows in the others.
  */
 function TryItNow() {
@@ -376,7 +378,7 @@ function TryItNow() {
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">Try it now · no sign-up</p>
             <h2 id="try-title" className="mt-3 font-display text-[2.2rem] font-semibold leading-[1.05] tracking-[-0.035em] text-white sm:text-[2.8rem]">
-              The real app, right here.
+              Don’t take our word for it. Use it.
             </h2>
             <p key={tab} className="animate-fade mt-2 max-w-xl text-[15px] text-zinc-300 sm:text-base">{active.sub}</p>
           </div>
@@ -408,6 +410,7 @@ function TryItNow() {
         <div id="try-panel" role="tabpanel" aria-labelledby={`try-tab-${tab}`} className="mt-6">
           <div key={tab} className="animate-fade">
             {tab === 'wants' && <TryOverview part="plan" />}
+            {tab === 'goals' && <TryGoals />}
             {tab === 'assets' && <TryAssets onOpenMonth={() => setTab('wants')} />}
             {tab === 'income' && <TryIncome />}
             {tab === 'expenses' && <TryExpenses />}
@@ -461,18 +464,27 @@ function Features() {
       <SectionHead
         id="features-title"
         eyebrow="What you can do"
-        title="Dream big. Then make it real."
-        sub="Write down everything you want, see where your money goes today, and know exactly where the rest will come from."
+        title="Your money, your goals, one plan."
+        sub="Price what you want, set goals for the year, see where your money goes, and know exactly where the rest will come from."
       />
-      <div className="mt-10 sm:mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-10 sm:mt-12 grid gap-4 md:grid-cols-2">
         <Tile
-          title="List everything you want. Don’t hold back."
-          text="The house, the car, the trips, the life you’d live if money weren’t the question. Give each one a price and a month, then set the net worth you’re going for. Make it big."
+          title="Put a price on everything you want."
+          text="The house, the car, the trips. Give each one a price and a month, set the net worth you’re aiming for, and Dizayr works out what you need to earn every month to get there."
           href="#try"
           cta="Try it now"
           onCta={tryTab('wants')}
         >
           <DreamsPreview />
+        </Tile>
+        <Tile
+          title="Set goals for the year. Then hit them."
+          text="Faith, career, health, who you’re becoming. Group goals by area of life, tick them off as you go, and keep notes on each one: the plan, the next step, how it’s going."
+          href="#try"
+          cta="Try it now"
+          onCta={tryTab('goals')}
+        >
+          <GoalsPreview />
         </Tile>
         <Tile
           title="See where every peso goes."
@@ -484,7 +496,6 @@ function Features() {
           <ExpensesPreview />
         </Tile>
         <Tile
-          className="md:col-span-2 lg:col-span-1"
           title="Know where the money comes from."
           text="Plan every way you earn, see how much of your goal each one covers, and always know the next step."
           href="#try"
@@ -662,7 +673,7 @@ function Security() {
               <ShieldCheck className="h-4 w-4" /> Security & privacy
             </p>
             <h2 id="security-title" className="mt-4 font-display font-semibold tracking-[-0.035em] text-[2.6rem] leading-[1.02] text-white sm:text-[3.4rem] [@media(min-width:1024px)_and_(max-height:720px)]:text-[2.7rem]">
-              Your dreams are yours. And they’re safe.
+              Your plan is private. Full stop.
             </h2>
           </div>
           <div>
@@ -708,7 +719,7 @@ function Footer() {
           <span className="flex items-center gap-2.5">
             <Logo size="h-8 w-8" /> <span className="text-base font-semibold text-zinc-100">Dizayr</span>
           </span>
-          <p className="mt-4 max-w-xs leading-relaxed">A private space for the life you want. Write the vision, make it plain, then run with it.</p>
+          <p className="mt-4 max-w-xs leading-relaxed">Price what you want, plan it month by month, and track every step until you get there.</p>
           <p className="mt-5 flex items-center gap-2 text-xs text-zinc-500">
             <ShieldCheck className="h-3.5 w-3.5 text-brand-300" /> Secure Google sign-in · Encrypted · Never sold
           </p>
@@ -1101,7 +1112,7 @@ function FinalCta({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           <span className="text-brand-300">Build it.</span>
         </h2>
         <p className="mx-auto mt-7 max-w-lg text-lg leading-relaxed text-zinc-300">
-          Write down the life you want today, and take the first step toward it.
+          Start free today. In a few minutes you’ll know what your goals cost and what this month needs to look like.
         </p>
         <div className="mt-10 flex justify-center">{signedIn ? <OpenApp big /> : <GoogleButton signin={signin} big />}</div>
         <p className="mt-5 text-balance text-sm text-zinc-400">

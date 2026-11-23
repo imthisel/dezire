@@ -1,26 +1,28 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Check, ChevronDown, CornerDownLeft, Mountain, SlidersHorizontal, StickyNote } from 'lucide-react'
-import { MAX_GOAL_NOTE, useAreaOf, useGoalAreas, useStore } from '../store'
+import { MAX_GOAL_NOTE } from '../store'
+import { useAreaLookup, useAreas, useGoalsApi } from './goalsApi'
 import { areaColor, areaIcon, goalPlaceholder } from '../lib/meta'
 import type { GoalArea } from '../lib/types'
 import { Modal } from './Modal'
 import { GoalAreasModal } from './GoalAreasModal'
-import { toast } from '../toast'
 
 const EMPTY: never[] = []
 
 export function GoalModal({ year, editId, area: preset, lifeId: presetLife }: { year: number; editId?: string; area?: GoalArea; lifeId?: string }) {
-  const close = useStore((s) => s.closeModal)
-  const goals = useStore((s) => s.goals[year] ?? EMPTY)
-  const areas = useGoalAreas()
-  const areaOf = useAreaOf()
+  const api = useGoalsApi()
+  const { toast } = api
+  const close = api.closeGoal
+  const goals = api.use((s) => s.goals[year] ?? EMPTY)
+  const areas = useAreas()
+  const areaOf = useAreaLookup()
   const label = (id: GoalArea) => areaOf(id).label
   const editing = editId ? goals.find((g) => g.id === editId) : undefined
 
   const [area, setArea] = useState<GoalArea | null>(editing?.area ?? preset ?? null)
   const [text, setText] = useState(editing?.text ?? '')
   // The life goal it works toward (optional). Only ones still to reach are offered, plus the one it's already linked to.
-  const lifeGoals = useStore((s) => s.life.goals)
+  const lifeGoals = api.use((s) => s.life.goals)
   const [lifeId, setLifeId] = useState<string | null>(editing?.lifeId ?? presetLife ?? null)
   const lifeShown = lifeGoals.filter((g) => !g.done || g.id === lifeId)
   // Life goals in the picked area first.
@@ -42,7 +44,7 @@ export function GoalModal({ year, editId, area: preset, lifeId: presetLife }: { 
 
   function save(another = false) {
     if (!ready) return
-    const s = useStore.getState()
+    const s = api.get()
     if (editing) {
       s.updateGoal(year, editing.id, { text: text.trim(), area: area!, lifeId: lifeId ?? undefined, notes })
       toast.success(editing.area === area ? 'Goal updated.' : `Goal moved to ${label(area!)}.`)
@@ -108,7 +110,7 @@ export function GoalModal({ year, editId, area: preset, lifeId: presetLife }: { 
           title="What is this goal for?"
           done={!!area}
           action={
-            <button
+            api.openAreas && <button
               type="button"
               onClick={() => setManaging(true)}
               className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"

@@ -1,4 +1,4 @@
-import { Building2, Car, Check, Fuel, Minus, Plane, ShoppingBag, ShoppingCart, TrendingDown, TrendingUp, UtensilsCrossed, Watch, Waves, type LucideIcon } from 'lucide-react'
+import { BookOpen, Briefcase, Building2, Car, Check, Dumbbell, Fuel, Minus, Plane, ShoppingBag, StickyNote, ShoppingCart, TrendingDown, TrendingUp, UtensilsCrossed, Watch, Waves, type LucideIcon } from 'lucide-react'
 import { SOURCE_KIND, SOURCE_STAGE } from '../../lib/meta'
 import type { SourceKind, SourceStage } from '../../lib/types'
 
@@ -149,7 +149,7 @@ export function GoalsFloat() {
   const goals: [string, boolean][] = [
     ['Tithe every month', true],
     ['Run the Tokyo Marathon', true],
-    ['Open the second branch', false],
+    ['Read the whole Bible', false],
   ]
   return (
     <div className={`${card} w-52 p-3.5`}>
@@ -419,3 +419,45 @@ export function CostPreview() {
   )
 }
 
+
+/** The yearly goals: by area of life, ticked off as they're done, with notes on the ones that need a plan. */
+export function GoalsPreview() {
+  const goals: { t: string; done: boolean; icon: LucideIcon; tint: string; note?: string }[] = [
+    { t: 'Read the whole Bible this year', done: false, icon: BookOpen, tint: 'bg-fuchsia-400/10 text-fuchsia-200 ring-fuchsia-300/15', note: '3–4 chapters every morning. Now in Psalms.' },
+    { t: 'Hit ₱3M in income', done: false, icon: Briefcase, tint: 'bg-sky-400/10 text-sky-200 ring-sky-300/15', note: 'Q2 on pace. Raise prices in July.' },
+    { t: 'Gym 4× a week, all year', done: true, icon: Dumbbell, tint: 'bg-orange-400/10 text-orange-200 ring-orange-300/15' },
+  ]
+  const done = goals.filter((g) => g.done).length + 4
+  const total = goals.length + 5
+  return (
+    <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-3.5">
+      <div className="flex items-center justify-between gap-3 px-1">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">{new Date().getFullYear()} goals</p>
+        <span className="text-[11px] font-semibold tabular-nums text-zinc-200">{done} of {total} done</span>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/5">
+        <div className="bar-grow h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-200" style={{ width: `${(done / total) * 100}%` }} />
+      </div>
+      <ul className="mt-3 space-y-1.5">
+        {goals.map((g) => (
+          <li key={g.t} className="flex items-start gap-2.5 rounded-lg bg-white/[0.03] px-2.5 py-1.5">
+            <span className={`mt-px grid h-7 w-7 shrink-0 place-items-center rounded-lg ring-1 ring-inset ${g.tint}`}>
+              <g.icon className="h-3.5 w-3.5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className={`block truncate text-[12.5px] font-semibold ${g.done ? 'text-zinc-500 line-through decoration-zinc-600' : 'text-white'}`}>{g.t}</span>
+              {g.note && (
+                <span className="mt-0.5 flex items-center gap-1 text-[10.5px] text-zinc-400">
+                  <StickyNote className="h-2.5 w-2.5 shrink-0" /> <span className="truncate">{g.note}</span>
+                </span>
+              )}
+            </span>
+            <span className={`mt-1.5 grid h-4 w-4 shrink-0 place-items-center rounded-full ${g.done ? 'bg-brand-500' : 'border border-brand-300/60'}`}>
+              {g.done && <Check className="h-2.5 w-2.5 text-white" strokeWidth={4} />}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}

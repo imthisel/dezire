@@ -3,6 +3,7 @@ import { Cake, Car, Check, ChevronDown, NotebookPen, Pencil, StickyNote, Trash2 
 import { useStore } from '../store'
 import { labelOfKey } from '../lib/time'
 import { toast } from '../toast'
+import { useGoalsApi } from './goalsApi'
 
 /** Long notes start folded to this many lines. */
 const FOLD_LINES = 6
@@ -211,8 +212,9 @@ export function YearNote({ year, compact = false }: { year: number; compact?: bo
 
 /** The note for one year's goals: why they matter, how you'll get there, what to look back on. */
 export function GoalNote({ year }: { year: number }) {
-  const note = useStore((s) => s.goalNotes[year]) ?? ''
-  const setNote = useStore((s) => s.setGoalNote)
+  const api = useGoalsApi()
+  const note = api.use((s) => s.goalNotes[year]) ?? ''
+  const setNote = (y: number, text: string) => api.get().setGoalNote(y, text)
   return (
     <NoteCard
       key={year}

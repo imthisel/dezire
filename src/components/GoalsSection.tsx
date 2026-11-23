@@ -2,31 +2,42 @@ import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from 're
 import {
   ArrowDown, ArrowRight, ArrowUp, Check, Flag, GripVertical, MoreHorizontal, Mountain, Pencil, Plus, RotateCcw, SlidersHorizontal, StickyNote, Trash2, Trophy,
 } from 'lucide-react'
-import { MAX_AREA_NAME, useAreaOf, useGoalAreas, useStore } from '../store'
+import { MAX_AREA_NAME } from '../store'
 import { DEFAULT_GOAL_AREAS, areaColor, areaIcon } from '../lib/meta'
 import { END_YEAR } from '../lib/time'
 import type { Goal, GoalAreaDef } from '../lib/types'
 import { card } from './Dashboard'
-import { toast } from '../toast'
 import { goalDrag } from '../dnd'
 import { GoalNote } from './YearNote'
 import { GoalNoteBlock } from './GoalNotes'
-import { goTo } from '../nav'
+import { GoalsCtx, useAreaLookup, useAreas, useGoalsApi, type GoalsApi, type GoalsData } from './goalsApi'
 
 const EMPTY: never[] = []
 
-export function GoalsSection() {
-  const year = useStore((s) => s.year)
-  const goals = useStore((s) => s.goals[year] ?? EMPTY)
-  const areas = useGoalAreas()
-  const openModal = useStore((s) => s.openModal)
+/** The year's goals. `api`: what it runs on (the real store when not given; see GoalsApi). */
+export function GoalsSection({ api }: { api?: GoalsApi }) {
+  if (api)
+    return (
+      <GoalsCtx.Provider value={api}>
+        <GoalsSection />
+      </GoalsCtx.Provider>
+    )
+  return <Goals />
+}
+
+function Goals() {
+  const api = useGoalsApi()
+  const { toast } = api
+  const year = api.use((s) => s.year)
+  const goals = api.use((s) => s.goals[year] ?? EMPTY)
+  const areas = useAreas()
 
   const done = goals.filter((g) => g.done).length
   const open = goals.length - done
   const pct = goals.length ? done / goals.length : 0
 
   function carryOver() {
-    const n = useStore.getState().carryOverGoals(year)
+    const n = api.get().carryOverGoals(year)
     if (n) toast.success(`Copied ${n} unfinished goal${n > 1 ? 's' : ''} to ${year + 1}.`)
     else toast.info(`Everything unfinished is already in ${year + 1}.`)
   }
@@ -55,15 +66,17 @@ export function GoalsSection() {
           </div>
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
+          {api.openAreas && (
           <button
-            onClick={() => openModal({ type: 'goalAreas' })}
+            onClick={() => api.openAreas?.({})}
             title="Rename, add, restyle or remove goal areas"
             aria-label="Edit goal areas"
             className="inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-white/10 px-3 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white sm:h-10"
           >
             <SlidersHorizontal className="h-4 w-4" /> <span className="hidden sm:inline">Areas</span>
           </button>
-          {open > 0 && year < END_YEAR && (
+          )}
+          {api.carry && open > 0 && year < END_YEAR && (
             <button
               onClick={carryOver}
               title={`Copy unfinished goals into ${year + 1}`}
@@ -74,7 +87,7 @@ export function GoalsSection() {
             </button>
           )}
           <button
-            onClick={() => openModal({ type: 'goal', year })}
+            onClick={() => api.openGoal({ year })}
             className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl sm:h-10 sm:flex-none bg-gradient-to-r from-indigo-500 to-indigo-400 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:brightness-110"
           >
             <Plus className="h-4 w-4" strokeWidth={2.5} /> Add goal
@@ -114,12 +127,14 @@ export function GoalsSection() {
         {areas.map((a) => (
           <AreaCard key={a.id} area={a} year={year} goals={goals.filter((g) => g.area === a.id)} />
         ))}
+        {api.openAreas && (
         <button
-          onClick={() => openModal({ type: 'goalAreas', add: true })}
+          onClick={() => api.openAreas?.({ add: true })}
           className="flex min-h-[4.5rem] items-center justify-center gap-2 rounded-2xl border border-dashed border-white/[0.09] text-sm text-zinc-500 transition hover:border-white/20 hover:text-zinc-300"
         >
           <Plus className="h-4 w-4" /> New area
         </button>
+        )}
       </div>
     </section>
   )
@@ -128,7 +143,7 @@ export function GoalsSection() {
 function AreaCard({ area, year, goals }: { area: GoalAreaDef; year: number; goals: Goal[] }) {
   const a = areaColor(area)
   const Icon = areaIcon(area)
-  const openModal = useStore((s) => s.openModal)
+  const api = useGoalsApi()
   const done = goals.filter((g) => g.done).length
   const complete = goals.length > 0 && done === goals.length
   const [dropping, setDropping] = useState(false)
@@ -146,9 +161,9 @@ function AreaCard({ area, year, goals }: { area: GoalAreaDef; year: number; goal
     const d = goalDrag.current
     goalDrag.current = null
     if (!d) return
-    const from = useStore.getState().goals[year]?.find((g) => g.id === d.id)
-    useStore.getState().moveGoal(year, d.id, area.id)
-    if (from && from.area !== area.id) toast.info(`Moved to ${area.label}.`)
+    const from = api.get().goals[year]?.find((g) => g.id === d.id)
+    api.get().moveGoal(year, d.id, area.id)
+    if (from && from.area !== area.id) api.toast.info(`Moved to ${area.label}.`)
   }
 
   return (
@@ -161,14 +176,20 @@ function AreaCard({ area, year, goals }: { area: GoalAreaDef; year: number; goal
       }`}
     >
       <header className="mb-3 flex items-start gap-3">
-        <button
-          onClick={() => openModal({ type: 'goalAreas', openId: area.id })}
-          title="Change icon, colour or name"
-          aria-label={`Customize ${area.label}`}
-          className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl transition hover:ring-2 ${a.ring} ${a.iconBg} ${a.text}`}
-        >
-          <Icon className="h-5 w-5" />
-        </button>
+        {api.openAreas ? (
+          <button
+            onClick={() => api.openAreas?.({ openId: area.id })}
+            title="Change icon, colour or name"
+            aria-label={`Customize ${area.label}`}
+            className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl transition hover:ring-2 ${a.ring} ${a.iconBg} ${a.text}`}
+          >
+            <Icon className="h-5 w-5" />
+          </button>
+        ) : (
+          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${a.iconBg} ${a.text}`}>
+            <Icon className="h-5 w-5" />
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <AreaName area={area} />
           <p className="truncate text-xs text-zinc-500">{area.hint}</p>
@@ -184,7 +205,7 @@ function AreaCard({ area, year, goals }: { area: GoalAreaDef; year: number; goal
         {goals.length === 0 && (
           <li>
             <button
-              onClick={() => openModal({ type: 'goal', year, area: area.id })}
+              onClick={() => api.openGoal({ year, area: area.id })}
               className={`flex w-full items-center justify-center gap-2 rounded-xl border border-dashed py-5 text-sm transition ${
                 dropping ? `${a.border} ${a.text}` : 'border-white/[0.09] text-zinc-500 hover:border-white/20 hover:text-zinc-300'
               }`}
@@ -197,7 +218,7 @@ function AreaCard({ area, year, goals }: { area: GoalAreaDef; year: number; goal
 
       {goals.length > 0 && (
         <button
-          onClick={() => openModal({ type: 'goal', year, area: area.id })}
+          onClick={() => api.openGoal({ year, area: area.id })}
           className={`mt-2 inline-flex items-center gap-1.5 self-start rounded-lg px-2 py-2 text-xs font-medium sm:py-1.5 text-zinc-500 transition hover:bg-white/5 ${a.hoverText}`}
         >
           <Plus className="h-3.5 w-3.5" /> Add to this area
@@ -212,7 +233,8 @@ function AreaName({ area }: { area: GoalAreaDef }) {
   const label = area.label
   const starter = DEFAULT_GOAL_AREAS.find((d) => d.id === area.id)
   const custom = !!starter && starter.label !== label
-  const updateArea = useStore((s) => s.updateArea)
+  const api = useGoalsApi()
+  const updateArea = (id: string, patch: { label: string }) => api.get().updateArea(id, patch)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(label)
   const input = useRef<HTMLInputElement>(null)
@@ -275,11 +297,13 @@ function AreaName({ area }: { area: GoalAreaDef }) {
 }
 
 function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; prevId?: string; nextId?: string }) {
-  const area = useAreaOf()(goal.area)
+  const api = useGoalsApi()
+  const { toast } = api
+  const area = useAreaLookup()(goal.area)
   const a = areaColor(area)
-  const { updateGoal, openModal } = useStore.getState()
+  const updateGoal: GoalsData['updateGoal'] = (...args) => api.get().updateGoal(...args)
   // The life goal it works toward, if it's linked to one.
-  const life = useStore((s) => (goal.lifeId ? s.life.goals.find((g) => g.id === goal.lifeId)?.text : undefined))
+  const life = api.use((s) => (goal.lifeId ? s.life.goals.find((g) => g.id === goal.lifeId)?.text : undefined))
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(goal.text)
   const [dropAt, setDropAt] = useState<null | 'above' | 'below'>(null)
@@ -320,8 +344,8 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
     // Handled here; clearing it makes the area card's own drop handler skip it.
     goalDrag.current = null
     e.preventDefault()
-    const from = useStore.getState().goals[year]?.find((g) => g.id === d.id)
-    useStore.getState().moveGoal(year, d.id, goal.area, { id: goal.id, after: half(e) === 'below' })
+    const from = api.get().goals[year]?.find((g) => g.id === d.id)
+    api.get().moveGoal(year, d.id, goal.area, { id: goal.id, after: half(e) === 'below' })
     if (from && from.area !== goal.area) toast.info(`Moved to ${area.label}.`)
   }
 
@@ -392,7 +416,8 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
           {goal.text}
           {life && (
             <button
-              onClick={() => goTo(`life-${goal.lifeId}`)}
+              onClick={() => api.openLife?.(goal.lifeId!)}
+              disabled={!api.openLife}
               title={`Part of your life goal: ${life}`}
               className="ml-1.5 inline-flex max-w-[14rem] translate-y-[-1px] items-center gap-1 rounded-full bg-violet-500/10 px-1.5 py-px align-middle text-[11px] font-medium text-violet-200 no-underline transition hover:bg-violet-500/20"
             >
@@ -416,7 +441,7 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
             <StickyNote className="h-3.5 w-3.5" />
           </button>
           <button
-            onClick={() => openModal({ type: 'goal', year, editId: goal.id })}
+            onClick={() => api.openGoal({ year, editId: goal.id })}
             title="Edit"
             aria-label="Edit goal"
             className="hidden h-7 w-7 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-white sm:grid"
@@ -424,7 +449,7 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
             <Pencil className="h-3.5 w-3.5" />
           </button>
           <button
-            onClick={() => deleteGoal(year, goal)}
+            onClick={() => deleteGoal(api, year, goal)}
             title="Delete"
             aria-label="Delete goal"
             className="hidden h-7 w-7 place-items-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-red-300 sm:grid"
@@ -440,12 +465,13 @@ function GoalRow({ goal, year, prevId, nextId }: { goal: Goal; year: number; pre
 
 /** ⋯ menu: move up / down, move to another area, note, edit, delete. Works everywhere, including phones (no dragging there). */
 function GoalMenu({ goal, year, prevId, nextId, onNote }: { goal: Goal; year: number; prevId?: string; nextId?: string; onNote: () => void }) {
-  const areas = useGoalAreas()
+  const api = useGoalsApi()
+  const areas = useAreas()
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number; up: boolean } | null>(null)
   const btn = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
-  const s = useStore.getState
+  const s = api.get
 
   // Fixed position next to the button, flipped upward near the bottom of the screen, so cards never clip it.
   useLayoutEffect(() => {
@@ -481,7 +507,7 @@ function GoalMenu({ goal, year, prevId, nextId, onNote }: { goal: Goal; year: nu
   }
   const moveTo = (area: GoalAreaDef) => {
     s().moveGoal(year, goal.id, area.id)
-    toast.info(`Moved to ${area.label}.`)
+    api.toast.info(`Moved to ${area.label}.`)
   }
 
   const item = 'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition disabled:pointer-events-none disabled:opacity-30'
@@ -534,12 +560,12 @@ function GoalMenu({ goal, year, prevId, nextId, onNote }: { goal: Goal; year: nu
             <button role="menuitem" onClick={run(onNote)} className={`${item} text-zinc-200 hover:bg-white/[0.07]`}>
               <StickyNote className="h-4 w-4 text-zinc-400" /> {goal.notes?.trim() ? 'Edit note' : 'Add a note'}
             </button>
-            <button role="menuitem" onClick={run(() => s().openModal({ type: 'goal', year, editId: goal.id }))} className={`${item} text-zinc-200 hover:bg-white/[0.07]`}>
+            <button role="menuitem" onClick={run(() => api.openGoal({ year, editId: goal.id }))} className={`${item} text-zinc-200 hover:bg-white/[0.07]`}>
               <Pencil className="h-4 w-4 text-zinc-400" /> Edit
             </button>
             <button
               role="menuitem"
-              onClick={run(() => deleteGoal(year, goal))}
+              onClick={run(() => deleteGoal(api, year, goal))}
               className={`${item} text-red-300 hover:bg-red-500/10`}
             >
               <Trash2 className="h-4 w-4" /> Delete
@@ -552,13 +578,11 @@ function GoalMenu({ goal, year, prevId, nextId, onNote }: { goal: Goal; year: nu
 }
 
 /** Deletes a goal (and its note), with Undo to put it back where it was. */
-function deleteGoal(year: number, goal: Goal) {
-  const { goals, removeGoal } = useStore.getState()
+function deleteGoal(api: GoalsApi, year: number, goal: Goal) {
+  const { goals, removeGoal } = api.get()
   const before = goals[year]
   removeGoal(year, goal.id)
-  toast.undo(`Deleted “${goal.text}”${goal.notes?.trim() ? ' and its note' : ''}.`, () =>
-    useStore.setState((s) => ({ goals: { ...s.goals, [year]: before } })),
-  )
+  api.toast.undo(`Deleted “${goal.text}”${goal.notes?.trim() ? ' and its note' : ''}.`, () => api.restore(year, before))
 }
 
 function Ring({ done, total, color, complete }: { done: number; total: number; color: string; complete: boolean }) {

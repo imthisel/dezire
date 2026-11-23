@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Check, ChevronUp, Pencil, StickyNote, Trash2 } from 'lucide-react'
-import { MAX_GOAL_NOTE, useStore } from '../store'
+import { MAX_GOAL_NOTE } from '../store'
 import { cleanUrl } from '../lib/links'
 import type { Goal } from '../lib/types'
-import { toast } from '../toast'
+import { useGoalsApi } from './goalsApi'
 
 const URL_RE = /((?:https?:\/\/|www\.)[^\s<>()]+)/gi
 
@@ -56,6 +56,7 @@ export function GoalNoteBlock({
   editing: boolean
   setEditing: (on: boolean) => void
 }) {
+  const api = useGoalsApi()
   const note = goal.notes ?? ''
   const has = note.trim().length > 0
   const [open, setOpen] = useState(false)
@@ -79,7 +80,7 @@ export function GoalNoteBlock({
 
   function change(text: string) {
     setDraft(text)
-    useStore.getState().updateGoal(year, goal.id, { notes: text })
+    api.get().updateGoal(year, goal.id, { notes: text })
   }
 
   function finish() {
@@ -90,10 +91,10 @@ export function GoalNoteBlock({
 
   function remove() {
     const before = goal.notes ?? ''
-    useStore.getState().updateGoal(year, goal.id, { notes: '' })
+    api.get().updateGoal(year, goal.id, { notes: '' })
     setEditing(false)
     setOpen(false)
-    toast.undo(`Deleted the note on “${goal.text}”.`, () => useStore.getState().updateGoal(year, goal.id, { notes: before }))
+    api.toast.undo(`Deleted the note on “${goal.text}”.`, () => api.get().updateGoal(year, goal.id, { notes: before }))
   }
 
   if (editing) {
