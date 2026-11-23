@@ -44,8 +44,9 @@ export function BlurToggle({ id, name, label, small, className = '' }: { id: str
  * Wraps the part of a card that holds amounts. Blurred, it can't be read (and isn't read out or selectable),
  * and pressing and holding it peeks for as long as it's held. Several pieces can share one `id`: they blur and peek together;
  * only one of them needs `hint` (the "Hold to peek" button). `compact`: a small card, so just the icon.
+ * `hide`: hidden completely instead of blurred (a chart's shape gives it away even blurred). It keeps its size, so nothing moves.
  */
-export function Blurred({ id, name, children, hint = true, compact, className = '', innerClassName = '' }: { id: string; name: string; children: ReactNode; hint?: boolean; compact?: boolean; className?: string; innerClassName?: string }) {
+export function Blurred({ id, name, children, hint = true, compact, hide, className = '', innerClassName = '' }: { id: string; name: string; children: ReactNode; hint?: boolean; compact?: boolean; hide?: boolean; className?: string; innerClassName?: string }) {
   const on = useBlurred(id)
   const peek = useStore((s) => s.peeking === id)
   const hidden = on && !peek
@@ -55,16 +56,18 @@ export function Blurred({ id, name, children, hint = true, compact, className = 
       <div
         aria-hidden={hidden || undefined}
         inert={hidden || undefined}
-        className={`transition-[filter,opacity] duration-300 ease-out ${innerClassName} ${hidden ? 'pointer-events-none select-none opacity-70 blur-[10px] saturate-50' : ''}`}
+        className={`transition-[filter,opacity] duration-300 ease-out ${innerClassName} ${
+          hidden ? (hide ? 'pointer-events-none select-none opacity-0' : 'pointer-events-none select-none opacity-70 blur-[10px] saturate-50') : ''
+        }`}
       >
         {children}
       </div>
-      {on && hint && <Peek id={id} name={name} peek={peek} compact={compact} />}
+      {on && hint && <Peek id={id} name={name} peek={peek} compact={compact} hide={hide} />}
     </div>
   )
 }
 
-function Peek({ id, name, peek, compact }: { id: string; name: string; peek: boolean; compact?: boolean }) {
+function Peek({ id, name, peek, compact, hide }: { id: string; name: string; peek: boolean; compact?: boolean; hide?: boolean }) {
   const start = () => useStore.setState({ peeking: id })
   // Leaving the page or switching tabs mid-peek blurs it again.
   useEffect(() => {
@@ -102,7 +105,7 @@ function Peek({ id, name, peek, compact }: { id: string; name: string; peek: boo
       onBlur={stopPeek}
       onClick={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.preventDefault()}
-      aria-label={`${name} is blurred. Press and hold to peek.`}
+      aria-label={`${name} is ${hide ? 'hidden' : 'blurred'}. Press and hold to peek.`}
       className="absolute inset-0 grid cursor-pointer select-none place-items-center rounded-xl outline-none [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-violet-400/50"
     >
       <span
@@ -111,7 +114,7 @@ function Peek({ id, name, peek, compact }: { id: string; name: string; peek: boo
         } ${peek ? 'scale-90 opacity-0' : 'opacity-100'}`}
       >
         <EyeClosed className={compact ? 'h-3.5 w-3.5 text-violet-200' : 'h-3.5 w-3.5 shrink-0 text-violet-200'} />
-        {!compact && <span className="whitespace-nowrap">Hold to peek</span>}
+        {!compact && <span className="whitespace-nowrap">{hide ? 'Hidden · hold to peek' : 'Hold to peek'}</span>}
       </span>
     </button>
   )

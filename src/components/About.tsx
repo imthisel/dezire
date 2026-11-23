@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import {
-  ArrowRight, BadgeCheck, Check, ChevronDown, Cloud, CreditCard, Download, EyeOff, Fingerprint, KeyRound, Loader2, Lock, LogOut, Quote, Server,
+  ArrowLeft, ArrowRight, BadgeCheck, Check, ChevronDown, ChevronLeft, ChevronRight, Cloud, CreditCard, Download, EyeOff, Fingerprint, KeyRound, Loader2, Lock, LogOut, Quote, Server,
   ShieldCheck, Smartphone, Star,
 } from 'lucide-react'
 import { signIn, signOut, useCloud } from '../cloud'
@@ -12,7 +12,7 @@ import { DownloadSection } from './AppInstall'
 import { ContactDialog } from './Help'
 import { LEGAL } from '../lib/legal'
 import { MAX_SPAN } from '../lib/time'
-import { DreamsPreview, ExpensesPreview, GoalsFloat, GoalsPreview, IncomePreview, MonthOverview, NetWorthFloat } from './about/Previews'
+import { DreamsPreview, ExpensesPreview, GoalsFloat, GoalsPreview, MonthOverview, NetWorthFloat } from './about/Previews'
 import { TryOverview } from './about/TryOverview'
 import { TryGoals } from './about/TryGoals'
 import { TryExpenses } from './about/TryExpenses'
@@ -363,6 +363,15 @@ function TryItNow() {
     const row = el?.parentElement?.parentElement
     if (el && row && row.scrollWidth > row.clientWidth) row.scrollTo({ left: el.offsetLeft - (row.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' })
   }, [tab])
+  const at = TRY_TABS.findIndex((t) => t.id === tab)
+  const prev = TRY_TABS[(at - 1 + TRY_TABS.length) % TRY_TABS.length]
+  const next = TRY_TABS[(at + 1) % TRY_TABS.length]
+  const section = useRef<HTMLElement>(null)
+  /** From the bottom of a playground: open the next one and go back up to its start. */
+  const goFromBottom = (id: TryTab) => {
+    setTab(id)
+    section.current?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+  }
   const onKey = (e: KeyboardEvent, i: number) => {
     const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
     if (!d) return
@@ -372,7 +381,7 @@ function TryItNow() {
     tabs.current[n]?.focus()
   }
   return (
-    <section id="try" aria-labelledby="try-title" className="screen border-t border-white/[0.06] bg-white/[0.012] px-5 sm:px-8">
+    <section ref={section} id="try" aria-labelledby="try-title" className="screen border-t border-white/[0.06] bg-white/[0.012] px-5 sm:px-8">
       <div className="mx-auto w-full max-w-7xl">
         <div className="flex flex-col items-center gap-5 text-center lg:flex-row lg:items-end lg:justify-between lg:gap-10 lg:text-left">
           <div className="min-w-0">
@@ -382,7 +391,10 @@ function TryItNow() {
             </h2>
             <p key={tab} className="animate-fade mt-2 max-w-xl text-[15px] text-zinc-300 sm:text-base">{active.sub}</p>
           </div>
-          <div className="scrollbar-none -mx-5 w-[calc(100%+2.5rem)] shrink-0 overflow-x-auto px-5 sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0 [mask-image:linear-gradient(to_right,transparent,black_1.25rem,black_calc(100%-2rem),transparent)] sm:[mask-image:none]">
+          {/* ‹ tabs › : the arrows step through the playgrounds (and wrap around) */}
+          <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+          <TryArrow dir="prev" to={prev.label} onClick={() => setTab(prev.id)} />
+          <div className="scrollbar-none min-w-0 flex-1 overflow-x-auto px-1 sm:flex-none sm:overflow-visible sm:px-0 [mask-image:linear-gradient(to_right,transparent,black_0.75rem,black_calc(100%-0.75rem),transparent)] sm:[mask-image:none]">
           <div role="tablist" aria-label="Try it now" className="mx-auto flex w-max gap-1 rounded-full border border-white/[0.08] bg-white/[0.03] p-1">
             {TRY_TABS.map((t, i) => (
               <button
@@ -406,6 +418,8 @@ function TryItNow() {
             ))}
           </div>
           </div>
+          <TryArrow dir="next" to={next.label} onClick={() => setTab(next.id)} />
+          </div>
         </div>
         <div id="try-panel" role="tabpanel" aria-labelledby={`try-tab-${tab}`} className="mt-6">
           <div key={tab} className="animate-fade">
@@ -417,8 +431,43 @@ function TryItNow() {
             {tab === 'setups' && <TrySetups />}
           </div>
         </div>
+        {/* At the end of a playground: on to the next one, without scrolling back up to the tabs */}
+        <nav aria-label="More to try" className="mt-6 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => goFromBottom(prev.id)}
+            className="group inline-flex h-11 items-center gap-2 rounded-full px-3 text-sm font-medium text-zinc-400 transition hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4 transition group-hover:-translate-x-0.5" /> {prev.label}
+          </button>
+          <button
+            type="button"
+            onClick={() => goFromBottom(next.id)}
+            className="group inline-flex h-11 items-center gap-2 rounded-full border border-brand-300/30 bg-brand-300/[0.06] pl-4 pr-3.5 text-sm font-semibold text-brand-100 transition hover:border-brand-300/60 hover:bg-brand-300/[0.12] hover:text-white"
+          >
+            <span className="text-brand-200/70 font-medium">Next:</span> {next.label}
+            <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+          </button>
+        </nav>
       </div>
     </section>
+  )
+}
+
+/** A round arrow beside the Try-it-now tabs, the same height as the tab bar. */
+function TryArrow({ dir, to, onClick }: { dir: 'prev' | 'next'; to: string; onClick: () => void }) {
+  const Icon = dir === 'prev' ? ChevronLeft : ChevronRight
+  const label = `${dir === 'prev' ? 'Previous' : 'Next'}: ${to}`
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/[0.08] bg-white/[0.03] text-zinc-300 transition hover:border-brand-300/40 hover:bg-brand-300/[0.08] hover:text-white active:scale-95"
+    >
+      <Icon className="h-5 w-5" />
+    </button>
   )
 }
 
@@ -467,7 +516,7 @@ function Features() {
         title="Your money, your goals, one plan."
         sub="Price what you want, set goals for the year, see where your money goes, and know exactly where the rest will come from."
       />
-      <div className="mt-10 sm:mt-12 grid gap-4 md:grid-cols-2">
+      <div className="mt-10 sm:mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Tile
           title="Put a price on everything you want."
           text="The house, the car, the trips. Give each one a price and a month, set the net worth you’re aiming for, and Dizayr works out what you need to earn every month to get there."
@@ -487,6 +536,7 @@ function Features() {
           <GoalsPreview />
         </Tile>
         <Tile
+          className="md:col-span-2 lg:col-span-1"
           title="See where every peso goes."
           text="Log what you spend in seconds. Your budget, what’s left for the month, and where it all went update as you go, so you always know where you stand."
           href="#try"
@@ -494,15 +544,6 @@ function Features() {
           onCta={tryTab('expenses')}
         >
           <ExpensesPreview />
-        </Tile>
-        <Tile
-          title="Know where the money comes from."
-          text="Plan every way you earn, see how much of your goal each one covers, and always know the next step."
-          href="#try"
-          cta="Try it now"
-          onCta={tryTab('income')}
-        >
-          <IncomePreview />
         </Tile>
       </div>
     </section>
@@ -667,23 +708,19 @@ function Security() {
   return (
     <section id="security" aria-labelledby="security-title" className="screen border-t border-white/[0.06] px-5 sm:px-8">
       <div className="mx-auto w-full max-w-6xl">
-        <div data-reveal className="reveal grid items-end gap-6 lg:grid-cols-[1.25fr_1fr] lg:gap-16">
-          <div>
-            <p className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">
-              <ShieldCheck className="h-4 w-4" /> Security & privacy
-            </p>
-            <h2 id="security-title" className="mt-4 font-display font-semibold tracking-[-0.035em] text-[2.6rem] leading-[1.02] text-white sm:text-[3.4rem] [@media(min-width:1024px)_and_(max-height:720px)]:text-[2.7rem]">
-              Your plan is private. Full stop.
-            </h2>
-          </div>
-          <div>
-            <p className="text-lg leading-relaxed text-zinc-300">
-              Some of what you want, you haven’t told anyone yet. Dizayr is built so it stays that way: private by design, protected at every step.
-            </p>
-            <a href="#faq" className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-200 transition hover:text-brand-100">
-              How sign-in keeps you safe <ArrowRight className="h-3.5 w-3.5" />
-            </a>
-          </div>
+        <div data-reveal className="reveal mx-auto max-w-2xl text-center">
+          <p className="inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">
+            <ShieldCheck className="h-4 w-4" /> Security & privacy
+          </p>
+          <h2 id="security-title" className="mt-4 font-display font-semibold tracking-[-0.035em] text-[2.6rem] leading-[1.02] text-white sm:text-[3.4rem] [@media(min-width:1024px)_and_(max-height:720px)]:text-[2.7rem]">
+            Locked to you. Never sold.
+          </h2>
+          <p className="mt-5 text-lg leading-relaxed text-zinc-300 [@media(min-width:1024px)_and_(max-height:720px)]:mt-3">
+            Your goals and your money are personal. Your plan opens only for your Google account, stays encrypted, and is never shown to advertisers.
+          </p>
+          <a href="#faq" className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-200 transition hover:text-brand-100">
+            How sign-in keeps you safe <ArrowRight className="h-3.5 w-3.5" />
+          </a>
         </div>
         <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 [@media(min-width:1024px)_and_(max-height:720px)]:mt-6">
           {points.map((p, i) => (

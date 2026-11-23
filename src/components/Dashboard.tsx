@@ -185,7 +185,7 @@ export function Dashboard() {
             </div>
           </div>
           {!chartHidden && (
-            <Blurred id="w-chart" name="Net worth over time" className="animate-fade">
+            <Blurred id="w-chart" name="Net worth over time" hide className="animate-fade">
               <NetWorthChart />
             </Blurred>
           )}
