@@ -4,20 +4,26 @@ import './index.css'
 import App from './App'
 import { startApp } from './appUpdate'
 import { startHistory } from './history'
+import { isGoogleReturn } from './googleRedirect'
+import { SigningIn } from './components/SigningIn'
 
 /** The admin page (/admin) is its own small app, downloaded only by whoever opens it. */
 const isAdmin = /^\/admin(\/|$)/.test(location.pathname)
 const AdminApp = lazy(() => import('./admin/AdminApp'))
+/** /auth: Google coming back from a phone's sign-in (see googleRedirect.ts); only that is done here. */
+const isSignInReturn = isGoogleReturn()
 
 // Installing as an app, and offering updates whenever a new version is pushed.
-if (!isAdmin) startApp()
+if (!isAdmin && !isSignInReturn) startApp()
 
 // Ctrl+Z / Ctrl+Shift+Z for any change to your plan.
-if (!isAdmin) startHistory()
+if (!isAdmin && !isSignInReturn) startHistory()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {isAdmin ? (
+    {isSignInReturn ? (
+      <SigningIn />
+    ) : isAdmin ? (
       <Suspense fallback={null}>
         <AdminApp />
       </Suspense>

@@ -8,6 +8,7 @@ import type { Expense } from './lib/types'
 import { toast } from './toast'
 import { stopAccess, watchAccess } from './billing'
 import { platform } from './appUpdate'
+import { startGoogleRedirect } from './googleRedirect'
 import { leaveSettings } from './settingsNav'
 import { clearHistory, quietly } from './history'
 import { mergeSchool, parseSchool, unstamped, type School } from './lib/school'
@@ -273,20 +274,21 @@ async function connect(user: User) {
 }
 
 /**
- * Phones and tablets sign in in the same tab. A sign-in pop-up opens there as a separate tab, which can lose the
- * sign-in's saved state on the way back from Google ("missing initial state"). The same-tab way needs sign-in to run
- * on this site's own address (see firebase.ts), so on localhost the pop-up is kept.
+ * Phones and tablets sign in in the same tab, through this site's own /auth (see googleRedirect.ts). A pop-up opens there
+ * as a separate tab, and Firebase's own sign-in page keeps its state in sessionStorage; phones can lose either on the way
+ * back from Google ("missing initial state"). /auth only exists on the real site, so on localhost the pop-up is kept.
  */
-const sameTab = () => platform() !== 'desktop' && !['localhost', '127.0.0.1'].includes(location.hostname)
+const isLocal = () => ['localhost', '127.0.0.1'].includes(location.hostname)
+const sameTab = () => platform() !== 'desktop' && !isLocal()
 
 export async function signIn() {
   if (!auth) return
-  if (sameTab()) return signInWithRedirect(auth, googleProvider)
+  if (sameTab()) return startGoogleRedirect()
   try {
     await signInWithPopup(auth, googleProvider)
   } catch (e) {
     const code = (e as { code?: string }).code
-    if (code === 'auth/popup-blocked') return signInWithRedirect(auth, googleProvider)
+    if (code === 'auth/popup-blocked') return isLocal() ? signInWithRedirect(auth, googleProvider) : startGoogleRedirect()
     if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return
     throw e
   }

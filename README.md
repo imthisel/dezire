@@ -53,6 +53,7 @@ Press your profile picture → **Settings** (or Settings in the side menu). It h
 3. Before clicking **Deploy**, open **Environment Variables** and add the same four `VITE_FIREBASE_*` values.
 4. Click **Deploy**. Every later `git push` to `main` redeploys automatically.
 5. Back in Firebase: **Authentication → Settings → Authorized domains → Add domain**, and add your Vercel domain (e.g. `dizayr.vercel.app`) plus any custom domain. Google sign-in is blocked on domains that aren't listed.
+6. **Sign-in on phones** goes to Google and comes back to the site's own `/auth` page (see `src/googleRedirect.ts`), so Google must allow it: open https://console.cloud.google.com/apis/credentials for the same project, click **Web client (auto created by Google Service)**, and under **Authorized redirect URIs** add `https://your-domain/auth` (e.g. `https://dizayr.com/auth`). Keep the `/__/auth/handler` ones that are already there (computers still use them). Without it, phones get **Error 400: redirect_uri_mismatch** from Google.
 
 ## The app (install, offline, updates)
 

@@ -49,6 +49,7 @@
     { "source": "/terms", "destination": "/index.html" },
     { "source": "/privacy", "destination": "/index.html" },
     { "source": "/refunds", "destination": "/index.html" },
+    { "source": "/auth", "destination": "/index.html" },
     { "source": "/admin", "destination": "/index.html" },
     { "source": "/admin/:path*", "destination": "/index.html" },
     { "source": "/__/auth/:path*", "destination": "https://dezire-ce767.firebaseapp.com/__/auth/:path*" },

@@ -176,9 +176,14 @@ export function trialDaysLeft() {
 // ---- Choosing a plan before signing in ----
 
 const INTENT = 'dizayr-plan-intent'
+/**
+ * Kept in localStorage (not sessionStorage), so it survives the trip to Google and back on phones, whichever tab Google
+ * comes back in. Only for a while: a plan picked and then left isn't bought by surprise much later.
+ */
+const INTENT_FOR = 30 * 60_000
 export function rememberIntent(plan: PlanId) {
   try {
-    sessionStorage.setItem(INTENT, plan)
+    localStorage.setItem(INTENT, JSON.stringify({ plan, at: Date.now() }))
   } catch {
     // Not remembered: they can pick it again after signing in.
   }
@@ -186,16 +191,18 @@ export function rememberIntent(plan: PlanId) {
 /** Forgets a plan picked before signing in (e.g. the Google window was closed), so checkout doesn't pop up later. */
 export function forgetIntent() {
   try {
-    sessionStorage.removeItem(INTENT)
+    localStorage.removeItem(INTENT)
+    sessionStorage.removeItem(INTENT) // kept there by older versions
   } catch {
     // Nothing remembered.
   }
 }
 function takeIntent(): PlanId | null {
   try {
-    const p = sessionStorage.getItem(INTENT)
-    sessionStorage.removeItem(INTENT)
-    return p === 'annual' || p === 'lifetime' ? p : null
+    const raw = localStorage.getItem(INTENT)
+    forgetIntent()
+    const { plan, at } = JSON.parse(raw ?? 'null') ?? {}
+    return (plan === 'annual' || plan === 'lifetime') && Date.now() - at < INTENT_FOR ? plan : null
   } catch {
     return null
   }
