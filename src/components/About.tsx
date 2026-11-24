@@ -525,7 +525,7 @@ function Features() {
         title="Your money, your goals, one plan."
         sub="Price what you want, set goals for the year, see where your money goes, and know exactly where the rest will come from."
       />
-      <div className="mt-10 sm:mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-10 grid gap-4 sm:mt-12 md:grid-cols-2 lg:grid-cols-3">
         <Tile
           title="Put a price on everything you want."
           text="The house, the car, the trips. Give each one a price and a month, set the net worth you’re aiming for, and Dizayr works out what you need to earn every month to get there."
@@ -559,23 +559,34 @@ function Features() {
   )
 }
 
+/**
+ * A feature: the picture first, on a lit stage, then what it does. Tiles in the same row share their stage and text heights
+ * (a subgrid), so the pictures sit level and the links line up, whatever each picture's height.
+ */
 function Tile({ title, text, children, className = '', href, cta, onCta }: { title: string; text: string; children: ReactNode; className?: string; href?: string; cta?: string; onCta?: () => void }) {
   return (
     <article
       data-reveal
-      className={`reveal group flex min-w-0 flex-col justify-between gap-8 rounded-[28px] border border-white/[0.07] bg-[#0b0c10] p-6 transition-colors duration-500 hover:border-white/[0.14] sm:p-7 ${className}`}
+      className={`reveal group grid min-w-0 grid-rows-[auto_1fr] rounded-[28px] border border-white/[0.07] bg-[#0b0c10] p-2 transition-colors duration-500 hover:border-white/[0.14] md:row-span-2 md:grid-rows-subgrid md:gap-y-0 ${className}`}
     >
-      <div>
+      <div
+        aria-hidden
+        className="relative flex items-center justify-center overflow-hidden rounded-[22px] border border-white/[0.05] bg-[radial-gradient(110%_75%_at_50%_0%,rgb(58_109_240/0.13),transparent_65%)] px-4 py-7 sm:px-5 sm:py-8"
+      >
+        {/* A faint line of light along the top edge of the stage */}
+        <span className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-brand-300/40 to-transparent" />
+        <div className="w-full min-w-0 max-w-[22rem] drop-shadow-[0_24px_40px_rgba(0,0,0,0.55)] transition duration-500 ease-out group-hover:-translate-y-1">
+          {children}
+        </div>
+      </div>
+      <div className="flex flex-col px-4 pb-5 pt-6 sm:px-5">
         <h3 className="text-xl font-semibold tracking-tight text-white">{title}</h3>
-        <p className="mt-2 leading-relaxed text-zinc-400">{text}</p>
+        <p className="mt-2 text-[15px] leading-relaxed text-zinc-400">{text}</p>
         {href && (
-          <a href={href} onClick={onCta} className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-200 transition hover:text-brand-100">
+          <a href={href} onClick={onCta} className="mt-auto inline-flex items-center gap-1.5 self-start pt-4 text-sm font-medium text-brand-200 transition hover:text-brand-100">
             {cta} <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
           </a>
         )}
-      </div>
-      <div aria-hidden className="transition duration-500 group-hover:-translate-y-1">
-        {children}
       </div>
     </article>
   )
