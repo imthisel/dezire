@@ -37,14 +37,17 @@ const kindOf = (id: string) => DEFAULT_KINDS.find((k) => k.id === id) ?? DEFAULT
 
 export type Calc = { goal: number; fromNetWorth: boolean; spent: number; cumEarned: number; cumSpent: number; cash: number; available: number; assets: number; netWorth: number }
 
-export function compute(months: MonthData[]): Calc[] {
+/** What came before the first month: earned and spent so far, and what's already owned is worth (in the first month). */
+export type Before = { earned: number; spent: number; assets: number }
+
+export function compute(months: MonthData[], before: Before = { earned: 0, spent: 0, assets: 0 }): Calc[] {
   const n = months.length
-  const assets = new Array<number>(n).fill(0)
+  const assets = new Array<number>(n).fill(before.assets)
   months.forEach((m, i) => m.items.forEach((it) => {
     for (let t = i; t < n; t++) assets[t] += valueAfter(it, t - i)
   }))
-  let cumEarned = 0
-  let cumSpent = 0
+  let cumEarned = before.earned
+  let cumSpent = before.spent
   return months.map((m, i) => {
     const spent = m.items.reduce((s, it) => s + it.price, 0)
     // A net worth goal decides the goal to make: whatever is still missing by the end of the month.
@@ -82,7 +85,18 @@ export function TryOverview({ part = 'plan' }: { part?: 'plan' | 'glance' }) {
         className="scrollbar-none -mx-5 mt-4 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1 sm:-mx-8 sm:scroll-px-8 sm:gap-4 sm:px-8 sm:pb-4 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0"
       >
         {months.map((m, i) => (
-          <SimMonth key={i} i={i} m={m} c={calc[i]} update={update} />
+          <SimMonth
+            key={i}
+            name={NAMES[i]}
+            year={DEMO_MONTHS[i].year}
+            thisMonth={i === 0}
+            m={m}
+            c={calc[i]}
+            onChange={(patch) => update(i, patch)}
+            places={placesFor(months, i)}
+            keptAt={(id) => (id ? months.flatMap((x) => x.items).find((x) => x.id === id && x.category === 'property')?.name : undefined)}
+            className="w-full shrink-0 snap-start sm:w-[60%] lg:w-auto"
+          />
         ))}
       </div>
       {/* Which month you're on, when they're side by side in a strip */}
@@ -149,7 +163,25 @@ export function MoneyField({ value, onChange, label, nullable, placeholder = '0'
   )
 }
 
-function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; update: (i: number, patch: Partial<MonthData>) => void }) {
+/**
+ * One month, as the app's month card: change the goals and budget, add, edit, star and remove items. It only shows and
+ * edits `m`; the maths (`c`) and where it's kept (`onChange`) are up to the page using it.
+ */
+export function SimMonth({ name, year, thisMonth = false, m, c, onChange, places, keptAt, className = '' }: {
+  name: string
+  year: number
+  /** Marks it "This month" */
+  thisMonth?: boolean
+  m: MonthData
+  c: Calc
+  onChange: (patch: Partial<MonthData>) => void
+  /** The properties a vehicle can be kept at (see placesFor) */
+  places: PlaceChoice[]
+  /** A property's name by id, for "Kept at …" */
+  keptAt: (propertyId?: string) => string | undefined
+  className?: string
+}) {
+  const label = `${name} ${year}`
   const [notesOpen, setNotesOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -158,21 +190,17 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
   const left = m.budget - c.spent
   const pct = m.budget > 0 ? c.spent / m.budget : 0
   const bar = pct > 1 ? 'bg-rose-400' : pct >= 0.85 ? 'bg-amber-300' : 'bg-emerald-400'
-  const name = NAMES[i]
-  const months = useDemo((s) => s.months)
-  const places = placesFor(months, i)
-  const propName = (id?: string) => (id ? months.flatMap((x) => x.items).find((x) => x.id === id && x.category === 'property')?.name : undefined)
   const hasNotes = !!m.notes?.trim()
   const nwShort = m.netWorthGoal !== null ? m.netWorthGoal - c.netWorth : 0
 
   return (
-    <article className="@container flex w-full shrink-0 snap-start flex-col rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] sm:w-[60%] lg:w-auto">
+    <article className={`@container flex flex-col rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] ${className}`}>
       <header className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-lg font-semibold tracking-tight text-white">{name}</h3>
           <p className="text-xs text-zinc-500">
-            {DEMO_MONTHS[i].year}
-            {i === 0 && <span className="ml-1.5 rounded-full bg-emerald-400/15 px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wider text-emerald-300">This month</span>}
+            {year}
+            {thisMonth && <span className="ml-1.5 rounded-full bg-emerald-400/15 px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wider text-emerald-300">This month</span>}
           </p>
         </div>
         <div className="flex shrink-0 items-start gap-2">
@@ -200,7 +228,7 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
           <textarea
             data-plain
             value={m.notes ?? ''}
-            onChange={(e) => update(i, { notes: e.target.value.slice(0, 500) })}
+            onChange={(e) => onChange({ notes: e.target.value.slice(0, 500) })}
             rows={2}
             aria-label={`Notes for ${name}`}
             placeholder="Reminders, plans, what you’re believing for…"
@@ -225,7 +253,7 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
           </p>
         </div>
         <div className="w-32 shrink-0 sm:w-36">
-          <MoneyField value={m.netWorthGoal} nullable placeholder="Not set" onChange={(v) => update(i, { netWorthGoal: v })} label={`${name} net worth goal`} />
+          <MoneyField value={m.netWorthGoal} nullable placeholder="Not set" onChange={(v) => onChange({ netWorthGoal: v })} label={`${name} net worth goal`} />
         </div>
       </div>
 
@@ -239,11 +267,11 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
               {money(c.goal)}
             </p>
           ) : (
-            <MoneyField value={m.goal} onChange={(v) => update(i, { goal: v ?? 0 })} label={`${name} goal to make`} />
+            <MoneyField value={m.goal} onChange={(v) => onChange({ goal: v ?? 0 })} label={`${name} goal to make`} />
           )}
         </Field>
         <Field label="Budget">
-          <MoneyField value={m.budget} onChange={(v) => update(i, { budget: v ?? 0 })} label={`${name} budget`} />
+          <MoneyField value={m.budget} onChange={(v) => onChange({ budget: v ?? 0 })} label={`${name} budget`} />
         </Field>
         <Field label="Spent" hint="this month" className="col-span-2 @[22rem]:col-span-1">
           <p className={`flex h-9 items-center truncate rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 text-[13px] font-semibold tabular-nums ${left < 0 && m.budget > 0 ? 'text-rose-300' : 'text-zinc-300'}`}>
@@ -280,11 +308,11 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
           <SimItem
             key={it.id}
             it={it}
-            keptAt={it.category === 'vehicle' ? propName(it.propertyId) : undefined}
+            keptAt={it.category === 'vehicle' ? keptAt(it.propertyId) : undefined}
             over={over.has(it.id)}
             onEdit={() => setEditId(it.id)}
-            onRemove={() => update(i, { items: m.items.filter((x) => x.id !== it.id) })}
-            onStar={() => update(i, { items: m.items.map((x) => (x.id === it.id ? { ...x, favorite: !x.favorite } : x)) })}
+            onRemove={() => onChange({ items: m.items.filter((x) => x.id !== it.id) })}
+            onStar={() => onChange({ items: m.items.map((x) => (x.id === it.id ? { ...x, favorite: !x.favorite } : x)) })}
           />
         ))}
         {!m.items.length && !adding && (
@@ -306,25 +334,25 @@ function SimMonth({ i, m, c, update }: { i: number; m: MonthData; c: Calc; updat
       </button>
       {adding && (
         <DemoItemModal
-          month={monthLabel(i)}
+          month={label}
           budget={m.budget}
           spent={c.spent}
           available={c.available}
           places={places}
           onClose={() => setAdding(false)}
-          onAdd={(it) => update(i, { items: [...m.items, { ...it, id: nextId(), createdAt: Date.now() }] })}
+          onAdd={(it) => onChange({ items: [...m.items, { ...it, id: nextId(), createdAt: Date.now() }] })}
         />
       )}
       {editing && (
         <DemoItemModal
-          month={monthLabel(i)}
+          month={label}
           budget={m.budget}
           spent={c.spent - editing.price}
           available={c.available}
           places={places.filter((p) => p.id !== editing.id)}
           editing={{ ...editing, notes: editing.notes ?? '' }}
           onClose={() => setEditId(null)}
-          onAdd={(it) => update(i, { items: m.items.map((x) => (x.id === editing.id ? { ...x, ...it, links: it.links, propertyId: it.propertyId } : x)) })}
+          onAdd={(it) => onChange({ items: m.items.map((x) => (x.id === editing.id ? { ...x, ...it, links: it.links, propertyId: it.propertyId } : x)) })}
         />
       )}
     </article>

@@ -16,6 +16,8 @@ export type Plan = {
   /** Months each payment covers (for the per-month price); null for a one-time payment */
   months: number | null
   badge?: string
+  /** Offered only for a while: a quiet "Limited release" mark on the card, and this line under the price */
+  limited?: string
   /** What's included on this plan beyond the basics, e.g. how many modes */
   perks: string[]
   /** Paddle price id for this plan (pri_…) */
@@ -40,6 +42,7 @@ export const PLANS: Record<PlanId, Plan> = {
     price: 149,
     every: 'once',
     months: null,
+    limited: 'Offered to early members for a limited time.',
     perks: ['Pay once, never again', 'Unlimited Wants and Needs modes'],
     priceId: import.meta.env.VITE_PADDLE_PRICE_LIFETIME ?? '',
   },

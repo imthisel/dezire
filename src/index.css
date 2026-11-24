@@ -291,6 +291,13 @@ html.zooming [data-zoom-item] {
 }
 
 /* About page: the hero preview drifting a little slower than the page as it scrolls (see useParallax) */
+/* About page: the hero's month gets a little smaller on shorter laptop screens, so it and the bar under it fit the first screen */
+@media (min-width: 1024px) and (max-height: 867px) { .hero-month { zoom: 0.95; } }
+@media (min-width: 1024px) and (max-height: 832px) { .hero-month { zoom: 0.9; } }
+@media (min-width: 1024px) and (max-height: 795px) { .hero-month { zoom: 0.85; } }
+@media (min-width: 1024px) and (max-height: 759px) { .hero-month { zoom: 0.8; } }
+@media (min-width: 1024px) and (max-height: 723px) { .hero-month { zoom: 0.75; } }
+@media (min-width: 1024px) and (max-height: 687px) { .hero-month { zoom: 0.7; } }
 .parallax-a { transform: translate3d(0, calc(var(--py, 0) * -0.05px), 0); will-change: transform; }
 .parallax-b { transform: translate3d(0, calc(var(--py, 0) * -0.11px), 0); will-change: transform; }
 

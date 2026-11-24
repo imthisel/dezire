@@ -12,7 +12,8 @@ import { DownloadSection } from './AppInstall'
 import { ContactDialog } from './Help'
 import { LEGAL } from '../lib/legal'
 import { MAX_SPAN } from '../lib/time'
-import { DreamsPreview, ExpensesPreview, GoalsFloat, GoalsPreview, MonthOverview, NetWorthFloat } from './about/Previews'
+import { DreamsPreview, ExpensesPreview, GoalsFloat, GoalsPreview, NetWorthFloat } from './about/Previews'
+import { HeroMonth } from './about/HeroMonth'
 import { TryOverview } from './about/TryOverview'
 import { TryGoals } from './about/TryGoals'
 import { TryExpenses } from './about/TryExpenses'
@@ -294,11 +295,12 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           </div>
         </div>
 
-        {/* The app, drawn: one month of the life you're planning */}
-        <div className="hero-in relative mx-auto mb-12 w-full max-w-[440px] lg:mb-0 lg:mr-0" style={{ ['--d' as string]: '220ms' }} aria-hidden>
-          <div className="absolute -inset-10 rounded-full bg-[radial-gradient(closest-side,rgb(58_109_240/0.12),transparent)]" />
-          <div className="parallax-a relative [@media(min-width:1024px)_and_(max-height:720px)]:[zoom:0.86]">
-            <MonthOverview />
+        {/* The app itself: one month of the life you're planning, the same card as in Try it now and the app */}
+        <div className="hero-in relative mx-auto mb-12 w-full max-w-[440px] lg:mb-0 lg:mr-0 lg:max-w-[calc((72rem-2rem)/3)]" style={{ ['--d' as string]: '220ms' }}>
+          <div aria-hidden className="absolute -inset-10 rounded-full bg-[radial-gradient(closest-side,rgb(58_109_240/0.12),transparent)]" />
+          {/* Shorter laptop screens: a little smaller, so the month and the bar under it still fit the first screen */}
+          <div className="hero-month parallax-a relative">
+            <HeroMonth />
           </div>
         </div>
       </div>
@@ -993,7 +995,15 @@ function PlanCard({
           Recommended{plan.badge ? ` · ${plan.badge}` : ''}
         </span>
       )}
-      <p className="font-semibold text-zinc-200">{plan.name}</p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-semibold text-zinc-200">{plan.name}</p>
+        {plan.limited && !current && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/20 bg-amber-200/[0.06] px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-amber-100/90">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300/90" aria-hidden />
+            Limited release
+          </span>
+        )}
+      </div>
       <div className="mt-4 flex items-end gap-2">
         <span className="text-5xl font-semibold tracking-tight text-white">{dollars(plan.price)}</span>
         <span className="pb-1.5 text-zinc-400">{plan.every}</span>
@@ -1004,6 +1014,7 @@ function PlanCard({
           {plan.months ? `just ${perMonth(plan)} a month` : 'One payment. No renewals, ever.'}
         </span>
       </p>
+      {plan.limited && !current && <p className="mt-1.5 text-sm text-zinc-500">{plan.limited}</p>}
       <ul className="mt-6 flex-1 space-y-2.5 text-sm">
         {included.map((t) => (
           <li key={t} className={`flex items-center gap-2.5 ${plan.perks.includes(t) ? 'font-semibold text-white' : 'text-zinc-300'}`}>
@@ -1063,7 +1074,7 @@ function Faq() {
       ['Can I pay right away, without the free trial?', 'Yes. Pick a plan under Pricing, sign in with Google, and you go straight to the secure checkout. Your plan starts the day you pay. Already on the trial? You can buy whenever you like; the plan starts that day.'],
       ['Is paying safe? Do you keep my card?', 'Yes, and no, we never see it. Payments go through Paddle, a trusted checkout used by thousands of software companies. Your card details go straight to them and never touch Dizayr.'],
       ['How do I pay?', 'By card, PayPal, Apple Pay or Google Pay, through Paddle’s secure checkout. Prices are in US dollars, tax included; your bank converts them if your card is in pesos or another currency.'],
-      ['What’s the difference between Yearly and Lifetime?', `Both include every feature. Yearly is ${dollars(PLANS.annual.price)} a year and renews until you cancel. Lifetime is ${dollars(PLANS.lifetime.price)} once: no renewals, and Dizayr is yours for as long as it runs. Already on Yearly? Buy Lifetime anytime and your yearly plan simply stops renewing.`],
+      ['What’s the difference between Yearly and Lifetime?', `Both include every feature. Yearly is ${dollars(PLANS.annual.price)} a year and renews until you cancel. Lifetime is ${dollars(PLANS.lifetime.price)} once: no renewals, and Dizayr is yours for as long as it runs. Lifetime is a limited release for early members, so it won’t always be on offer. Already on Yearly? Switch to Lifetime while it’s available and your yearly plan simply stops renewing.`],
       ['Can I cancel anytime?', 'Yes. Cancel Yearly from your billing page in a couple of clicks, and you keep access until the end of the year you paid for. Lifetime has nothing to cancel: it never renews.'],
       ['Can I get a refund?', `Yes. Ask within ${LEGAL.refundDays} days of any payment and you get your money back in full, no questions asked. See the Refund Policy at the bottom of this page.`],
       ['What happens to my plan if I don’t subscribe?', 'Nothing is deleted. Everything you planned stays saved in your account, and it’s all there the moment you choose a plan.'],

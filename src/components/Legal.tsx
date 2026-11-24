@@ -156,10 +156,11 @@ const PAGES: Record<LegalPage, { title: string; body: ReactNode }> = {
           </li>
           <li>
             <b>Lifetime is a single payment.</b> It never renews and is never charged again. It gives you access to Dizayr for as long as we offer
-            it, including the features we add later. It belongs to your account and can’t be transferred.
+            it, including the features we add later. It belongs to your account and can’t be transferred. Lifetime is offered for a limited time
+            and we may stop selling it; anyone who has already bought it keeps it.
           </li>
           <li>
-            If you’re on Yearly, you can buy Lifetime at any time. Your Yearly plan then stops renewing; the time you already paid for isn’t refunded,
+            If you’re on Yearly, you can buy Lifetime while it’s offered. Your Yearly plan then stops renewing; the time you already paid for isn’t refunded,
             except as described in our <a href="/refunds">Refund Policy</a>.
           </li>
           <li>

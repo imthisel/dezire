@@ -1,4 +1,4 @@
-import { BookOpen, Briefcase, Building2, Car, Check, Dumbbell, Fuel, Minus, Plane, ShoppingBag, StickyNote, ShoppingCart, TrendingDown, TrendingUp, UtensilsCrossed, Watch, Waves, type LucideIcon } from 'lucide-react'
+import { BookOpen, Briefcase, Building2, Car, Check, Dumbbell, Fuel, Minus, StickyNote, ShoppingCart, TrendingDown, TrendingUp, UtensilsCrossed, Watch, Waves, type LucideIcon } from 'lucide-react'
 import { SOURCE_KIND, SOURCE_STAGE } from '../../lib/meta'
 import type { SourceKind, SourceStage } from '../../lib/types'
 
@@ -36,113 +36,7 @@ type Kind = keyof typeof TINT
 
 const card = 'rounded-[22px] border border-white/10 bg-[#0d0e12]/95 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.85)] ring-1 ring-inset ring-white/[0.03] backdrop-blur-xl'
 
-// ---- Hero: one whole month ----
-
-type MonthItem = { name: string; kind: Kind; kindLabel: string; icon: LucideIcon; trend: Trend; rate?: string; price: number }
-
-const MAY_2030: MonthItem[] = [
-  { name: 'Porsche 911 GT3 RS', kind: 'vehicle', kindLabel: 'Vehicle', icon: Car, trend: 'up', rate: '3%/yr', price: 28_500_000 },
-  { name: 'Patek Philippe Nautilus 5711/1A', kind: 'status', kindLabel: 'Watch', icon: Watch, trend: 'up', rate: '6%/yr', price: 10_000_000 },
-  { name: 'Maldives · overwater villa, 7 nights', kind: 'travel', kindLabel: 'Travel', icon: Plane, trend: 'flat', price: 2_400_000 },
-  { name: 'Hermès Birkin 25', kind: 'status', kindLabel: 'Status', icon: ShoppingBag, trend: 'up', rate: '5%/yr', price: 1_600_000 },
-]
-
-/** A month as the app shows it: what to make, the budget, what's spent, running totals, and everything planned for it. */
-export function MonthOverview() {
-  const goal = 100_000_000
-  const budget = 100_000_000
-  const spent = MAY_2030.reduce((s, i) => s + i.price, 0)
-  const left = budget - spent
-  const pct = spent / budget
-  const earnedToDate = 612_000_000
-  const spentToDate = 318_000_000
-  return (
-    <div className={`${card} @container p-4 sm:p-5`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-lg font-semibold tracking-tight text-white">May</p>
-          <p className="text-xs text-zinc-400">2030</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">Net worth</p>
-          <p className="text-sm font-semibold tabular-nums text-brand-200">{peso(486_200_000)}</p>
-        </div>
-      </div>
-
-      <div className="mt-3.5 grid grid-cols-3 gap-2">
-        <Stat label="Goal to make" value={goal} cls="border-brand-300/25 bg-brand-300/[0.07] text-brand-100" />
-        <Stat label="Budget" value={budget} />
-        <Stat label="Spent" value={spent} cls="border-white/[0.06] bg-white/[0.03] text-zinc-300" />
-      </div>
-
-      <div className="mt-3">
-        <div className="mb-1.5 flex items-center justify-between gap-3 text-[11px]">
-          <span className="text-zinc-400">
-            Spent <span className="font-medium tabular-nums text-zinc-200">{pesoShort(spent)}</span> of {pesoShort(budget)}
-          </span>
-          <span className="font-medium tabular-nums text-zinc-200">{peso(left)} left</span>
-        </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
-          <div className="bar-grow h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-200" style={{ width: `${pct * 100}%` }} />
-        </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-3 divide-x divide-white/[0.06] rounded-xl border border-white/[0.06] bg-black/25">
-        <Total k="Total earned" v={pesoShort(earnedToDate)} cls="text-emerald-300" />
-        <Total k="Total spent" v={pesoShort(spentToDate)} cls="text-rose-300" />
-        <Total k="Money left" v={pesoShort(earnedToDate - spentToDate)} cls="text-white" />
-      </div>
-
-      <ul className="mt-3 space-y-1.5">
-        {MAY_2030.map((it) => (
-          <Row key={it.name} item={it} />
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-/** Full amounts when the month has room for them, short ones ("₱50M") on the narrowest phones. */
-function Stat({ label, value, cls = 'border-white/10 bg-black/20 text-white' }: { label: string; value: number; cls?: string }) {
-  return (
-    <div className="min-w-0">
-      <p className="mb-1 truncate text-[9.5px] font-medium uppercase tracking-wider text-zinc-400 sm:text-[10px]">{label}</p>
-      <p className={`truncate rounded-lg border px-2 py-1.5 text-[11px] font-semibold tabular-nums sm:text-[12.5px] ${cls}`}>
-        <span className="@[18.5rem]:hidden">{pesoShort(value)}</span>
-        <span className="hidden @[18.5rem]:inline">{peso(value)}</span>
-      </p>
-    </div>
-  )
-}
-
-function Total({ k, v, cls }: { k: string; v: string; cls: string }) {
-  return (
-    <div className="min-w-0 px-2 py-2 text-center">
-      <p className="truncate text-[9.5px] uppercase tracking-wider text-zinc-400">{k}</p>
-      <p className={`mt-0.5 truncate text-[13px] font-semibold tabular-nums ${cls}`}>{v}</p>
-    </div>
-  )
-}
-
-function Row({ item }: { item: MonthItem }) {
-  const t = TREND[item.trend]
-  return (
-    <li className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.025] p-2 transition-colors duration-300 hover:border-white/[0.12]">
-      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ring-1 ring-inset ${TINT[item.kind]}`}>
-        <item.icon className="h-4 w-4" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[12.5px] font-semibold text-white">{item.name}</span>
-        <span className={`flex min-w-0 items-center gap-1 whitespace-nowrap text-[10.5px] ${t.cls}`}>
-          <t.icon className="h-3 w-3 shrink-0" /> {t.label}
-          {item.rate && ` · ${item.rate}`}
-          <span className="truncate text-zinc-500">· {item.kindLabel}</span>
-        </span>
-      </span>
-      <span className="shrink-0 text-[12.5px] font-semibold tabular-nums text-white">{pesoShort(item.price)}</span>
-    </li>
-  )
-}
+// ---- Hero: beside the month (the month itself is HeroMonth.tsx) ----
 
 /** Floating beside the month: this year's goals, two of three done. */
 export function GoalsFloat() {
