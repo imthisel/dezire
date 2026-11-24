@@ -46,7 +46,7 @@ function example() {
   const penthouse = item('BGC penthouse', 'property', 'appreciating', 50_000_000, 5)
   const restHouse = item('Batangas rest house', 'property', 'appreciating', 20_000_000, 5)
   // Used F50s average US$1.0–1.5M; ₱70M (about US$1.1M) is a fair price for one a few years old. Boats lose ~8% a year.
-  const yacht = item('Princess F50 yacht', 'vehicle', 'depreciating', 70_000_000, 8, { propertyId: restHouse.id })
+  const yacht = item('Princess F50 yacht', 'status', 'depreciating', 70_000_000, 8)
   // The 812's convertible is officially the "812 GTS"; its production ended in the first half of 2024.
   const ferrari = item('2024 Ferrari 812 GTS', 'vehicle', 'depreciating', 40_000_000, 3, { notes: 'Fit a Novitec exhaust.' })
   const months: MonthData[] = [
@@ -66,7 +66,7 @@ function example() {
         penthouse,
         restHouse,
         item('Patek Philippe Nautilus 5711/1A-010, blue dial, steel, 40mm', 'status', 'appreciating', 11_000_000, 5),
-        item('Investments · index funds and stocks', 'investment', 'appreciating', 20_000_000, 8),
+        item('Index funds', 'investment', 'appreciating', 20_000_000, 8),
       ],
     },
     {
@@ -76,12 +76,12 @@ function example() {
         item('Shell gas station (CODO)', 'investment', 'depreciating', 8_000_000, 5),
         ferrari,
         yacht,
-        item('Help people out', 'status', 'depreciating', 20_000_000, 100, gone),
+        item('Help the poor', 'status', 'depreciating', 20_000_000, 100, gone),
       ],
     },
   ]
-  // The AMG and the Ducati are at the loft, the yacht at the rest house; the Ferrari isn't at a property yet: drag it onto one.
-  return { months, layout: { [amg.id]: loft.id, [ducati.id]: loft.id, [yacht.id]: restHouse.id } as Record<string, string> }
+  // The AMG and the Ducati are at the loft; the Ferrari isn't at a property yet: drag it onto one.
+  return { months, layout: { [amg.id]: loft.id, [ducati.id]: loft.id } as Record<string, string> }
 }
 
 const blank = () => ({ months: DEMO_MONTHS.map((): MonthData => ({ goal: 0, netWorthGoal: null, budget: 0, earned: null, notes: '', items: [] })), layout: {} })

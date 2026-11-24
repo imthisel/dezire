@@ -19,7 +19,7 @@ const may2030 = (): MonthData => ({
   netWorthGoal: null,
   budget: 100_000_000,
   earned: null,
-  notes: 'Rest house turnover is on the 20th. Settle the GT3 balance before then.',
+  notes: 'Buy the porsche gt3 in PGA cars. use cash for both gt3 and the gx550 as well as the house and the patek',
   items: [
     // Manual 992.2 GT3s trade above sticker; a modest 2%/yr is the careful view.
     item('gt3', '2026 Porsche 911 GT3 (992.2) Manual', 'vehicle', 'appreciating', 23_000_000, 2, { favorite: true }),
