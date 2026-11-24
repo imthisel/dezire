@@ -249,13 +249,13 @@ function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
 function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
   const ref = useRef<HTMLElement>(null)
   useParallax(ref)
-  // The first screen: the hero and the trust bar under it fill exactly one screen below the sticky bar. On phones the words
-  // and buttons fill the first screen on their own and the drawn month follows. On short laptop screens the small
+  // The first screen: the hero and the trust bar under it fill exactly one screen below the sticky bar. On phones and tablets
+  // the words and buttons come first, and the top of the month shows under them, so it's clear there's more to see. On short laptop screens the small
   // floating cards step aside and the headline shrinks a little, so nothing is ever cut off.
   return (
-    <section ref={ref} id="top" aria-label="Dizayr" className="relative flex scroll-mt-16 flex-col lg:min-h-[calc(100svh-4rem-1px)]">
+    <section ref={ref} id="top" aria-label="Dizayr" className="relative flex scroll-mt-16 flex-col overflow-x-clip lg:min-h-[calc(100svh-4rem-1px)]">
       <div className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-[minmax(0,1fr)] items-center gap-10 px-5 sm:px-8 lg:grid-cols-[1.08fr_1fr] lg:gap-14 lg:py-[clamp(1.5rem,4svh,3rem)]">
-        <div className="flex min-h-[calc(100svh-4rem-1px)] flex-col justify-center py-8 text-center lg:min-h-0 lg:py-0 lg:text-left">
+        <div className="flex flex-col justify-center pb-2 pt-12 text-center sm:pt-16 lg:py-0 lg:text-left">
           <a
             href="#try"
             className="hero-in mx-auto mb-6 inline-flex max-w-full items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.03] py-1 pl-1 pr-3.5 text-xs text-zinc-300 transition hover:border-brand-300/40 hover:text-white lg:mx-0 lg:self-start [@media(max-height:700px)]:mb-4"
@@ -273,14 +273,14 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           <p className="hero-in mx-auto mt-6 max-w-lg text-lg leading-relaxed text-zinc-300 lg:mx-0" style={{ ['--d' as string]: '180ms' }}>
             List everything you want in life, then track your goals, spending and net worth until you get there.
           </p>
-          <div className="hero-in mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start" style={{ ['--d' as string]: '280ms' }}>
+          <div className="hero-in mt-8 flex flex-col items-center gap-1 sm:flex-row sm:gap-3 sm:justify-center lg:justify-start" style={{ ['--d' as string]: '280ms' }}>
             {signedIn ? <OpenApp big /> : <GoogleButton signin={signin} big />}
-            <a href="#try" className="inline-flex h-14 items-center gap-2 rounded-full px-5 text-[15px] font-medium text-zinc-300 transition hover:text-white">
+            <a href="#try" className="inline-flex h-12 items-center gap-2 rounded-full px-5 text-[15px] sm:h-14 font-medium text-zinc-300 transition hover:text-white">
               Try it now <ChevronDown className="h-4 w-4" />
             </a>
           </div>
           {!signedIn && (
-            <p className="hero-in mt-5 text-balance text-sm text-zinc-400" style={{ ['--d' as string]: '380ms' }}>
+            <p className="hero-in mt-2 text-balance text-sm text-zinc-400 sm:mt-5" style={{ ['--d' as string]: '380ms' }}>
               {TRIAL_DAYS} days free · No card needed<span className="hidden sm:inline"> ·</span> <br className="sm:hidden" />
               <a href="#pricing" className="text-brand-200 underline decoration-brand-300/40 underline-offset-4 transition hover:text-brand-100">
                 or plans from {perMonth(PLANS.annual)}/month
@@ -648,10 +648,10 @@ function TrustBar() {
   ]
   return (
     <div aria-label="Built on trusted infrastructure" role="region" className="border-y border-white/[0.06] bg-white/[0.015] px-5 py-6 sm:px-8">
-      <ul className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm text-zinc-400">
+      <ul className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-5 gap-y-2.5 text-[13px] text-zinc-400 sm:gap-x-10 sm:gap-y-3 sm:text-sm">
         {items.map((it) => (
-          <li key={it.text} className="flex items-center gap-2">
-            <it.icon className="h-4 w-4 text-brand-300" /> {it.text}
+          <li key={it.text} className="flex items-center gap-2 whitespace-nowrap">
+            <it.icon className="h-4 w-4 shrink-0 text-brand-300" /> {it.text}
           </li>
         ))}
       </ul>
@@ -734,7 +734,7 @@ function Security() {
             How sign-in keeps you safe <ArrowRight className="h-3.5 w-3.5" />
           </a>
         </div>
-        <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 [@media(min-width:1024px)_and_(max-height:720px)]:mt-6">
+        <ul className="mt-10 grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 [@media(min-width:1024px)_and_(max-height:720px)]:mt-6">
           {points.map((p, i) => (
             <li key={p.title} data-reveal className="reveal rounded-[24px] border border-white/[0.07] bg-[#0b0c10] p-5 sm:p-6 [@media(min-width:1024px)_and_(max-height:720px)]:p-5" style={{ transitionDelay: `${(i % 3) * 70}ms` }}>
               <h3 className="flex items-center gap-3 font-semibold text-white">
@@ -743,7 +743,7 @@ function Security() {
                 </span>
                 {p.title}
               </h3>
-              <p className="mt-3 text-[15px] leading-relaxed text-zinc-400 [@media(min-width:1024px)_and_(max-height:720px)]:mt-2 [@media(min-width:1024px)_and_(max-height:720px)]:text-sm">{p.text}</p>
+              <p className="mt-2.5 text-[15px] leading-relaxed text-zinc-400 sm:mt-3 [@media(min-width:1024px)_and_(max-height:720px)]:mt-2 [@media(min-width:1024px)_and_(max-height:720px)]:text-sm">{p.text}</p>
             </li>
           ))}
         </ul>
@@ -1100,8 +1100,8 @@ function Faq() {
           <h2 id="faq-title" className="mt-5 font-display text-[2.5rem] font-semibold leading-[1.04] tracking-[-0.035em] text-white sm:text-[3.2rem]">
             Everything you might be wondering.
           </h2>
-          <div className="scrollbar-none -mx-5 mt-8 overflow-x-auto px-5 sm:mx-0 sm:overflow-visible sm:px-0 [mask-image:linear-gradient(to_right,transparent,black_1.25rem,black_calc(100%-2rem),transparent)] sm:[mask-image:none]">
-          <div role="tablist" aria-label="Question topics" className="mx-auto flex w-max gap-2 sm:w-auto sm:flex-wrap sm:justify-center lg:flex-col lg:items-stretch">
+          <div className="mt-8">
+          <div role="tablist" aria-label="Question topics" className="flex flex-wrap justify-center gap-2 lg:flex-col lg:items-stretch">
             {groups.map((g) => (
               <button
                 key={g.id}

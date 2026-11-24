@@ -283,11 +283,13 @@ export function SimMonth({ name, year, thisMonth = false, m, c, onChange, places
       <div className="mt-3">
         <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
           <span className="text-zinc-400">
-            Spent <span className="font-medium tabular-nums text-zinc-200">{money(c.spent)}</span>
-            {m.budget > 0 && <span className="text-zinc-500"> of {money(m.budget)}</span>}
+            Spent <span className="font-medium tabular-nums text-zinc-200"><Amount n={c.spent} /></span>
+            {m.budget > 0 && <span className="text-zinc-500"> of <Amount n={m.budget} /></span>}
           </span>
           {m.budget > 0 ? (
-            <span className={`font-medium tabular-nums ${left < 0 ? 'text-rose-300' : 'text-zinc-300'}`}>{left < 0 ? `${money(-left)} over` : `${money(left)} left`}</span>
+            <span className={`shrink-0 font-medium tabular-nums ${left < 0 ? 'text-rose-300' : 'text-zinc-300'}`}>
+              <Amount n={Math.abs(left)} /> {left < 0 ? 'over' : 'left'}
+            </span>
           ) : (
             <span className="text-zinc-500">No budget yet</span>
           )}
@@ -371,10 +373,20 @@ function Field({ label, hint, className = '', children }: { label: string; hint?
   )
 }
 
+/** The full amount, or the short one ("₱42.5M") on the narrowest cards, so the line fits on one row. */
+function Amount({ n }: { n: number }) {
+  return (
+    <>
+      <span className="@[20rem]:hidden">{moneyShort(n)}</span>
+      <span className="hidden @[20rem]:inline">{money(n)}</span>
+    </>
+  )
+}
+
 function Total({ k, v, cls }: { k: string; v: string; cls: string }) {
   return (
-    <div className="min-w-0 px-2.5 py-2">
-      <p className="truncate text-[10px] font-medium uppercase tracking-wider text-zinc-500">{k}</p>
+    <div className="min-w-0 px-2 py-2 @[20rem]:px-2.5">
+      <p className="truncate text-[10px] font-medium uppercase tracking-wide text-zinc-500 @[20rem]:tracking-wider">{k}</p>
       <p className={`truncate text-sm font-semibold tabular-nums ${cls}`}>{v}</p>
     </div>
   )
@@ -422,7 +434,11 @@ function SimItem({ it, keptAt, over, onEdit, onRemove, onStar }: { it: Item; kep
       >
         <Star className={`h-4 w-4 ${it.favorite ? 'fill-amber-300' : ''}`} strokeWidth={it.favorite ? 2 : 1.75} />
       </button>
-      <span className={`shrink-0 text-right text-sm font-semibold tabular-nums ${over ? 'text-rose-300' : 'text-zinc-100'}`}>{money(it.price)}</span>
+      {/* Narrow cards (phones): the short price, so the name has room */}
+      <span title={money(it.price)} className={`shrink-0 text-right text-sm font-semibold tabular-nums ${over ? 'text-rose-300' : 'text-zinc-100'}`}>
+        <span className="@[20rem]:hidden">{moneyShort(it.price)}</span>
+        <span className="hidden @[20rem]:inline">{money(it.price)}</span>
+      </span>
       <button
         onClick={onRemove}
         aria-label={`Remove ${it.name}`}

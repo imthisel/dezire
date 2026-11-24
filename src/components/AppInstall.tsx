@@ -147,11 +147,14 @@ export function DownloadSection() {
           <h2 id="download-title" className="mt-5 font-display font-semibold tracking-[-0.035em] text-[2.5rem] leading-[1.04] text-white sm:text-[3.4rem]">Take your vision everywhere.</h2>
           <p className="mt-5 text-lg text-zinc-300">Install Dizayr on your phone or computer in a few seconds. Nothing to download from an app store, and it’s included with your account.</p>
         </div>
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid gap-3 sm:mt-12 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
           {tiles.map((t, i) => (
-            <div key={t.title} data-reveal className="reveal rounded-[24px] border border-white/[0.07] bg-[#0b0c10] p-6" style={{ transitionDelay: `${i * 70}ms` }}>
-              <t.icon className="h-5 w-5 text-brand-300" />
-              <h3 className="mt-4 font-semibold text-white">{t.title}</h3>
+            <div key={t.title} data-reveal className="reveal rounded-[24px] border border-white/[0.07] bg-[#0b0c10] p-5 sm:p-6" style={{ transitionDelay: `${i * 70}ms` }}>
+              {/* Phones: the icon sits beside the title, so the four cards stay short */}
+              <div className="flex items-center gap-2.5 sm:block">
+                <t.icon className="h-5 w-5 shrink-0 text-brand-300" />
+                <h3 className="font-semibold text-white sm:mt-4">{t.title}</h3>
+              </div>
               <p className="mt-1.5 text-[15px] leading-relaxed text-zinc-400">{t.text}</p>
             </div>
           ))}
@@ -169,7 +172,7 @@ export function DownloadSection() {
               <Download className="h-4 w-4 transition group-hover:translate-y-0.5" /> Download the app
             </button>
           )}
-          <p className="text-sm text-zinc-400">iPhone, iPad, Android, Windows, Mac and Chromebook</p>
+          <p className="text-balance text-center text-sm text-zinc-400">iPhone, iPad, Android, Windows, Mac and Chromebook</p>
         </div>
       </div>
     </section>
