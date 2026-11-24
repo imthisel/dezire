@@ -30,21 +30,24 @@ function example(): Pick<GoalsData, 'goals' | 'goalNotes'> {
   return {
     goals: {
       [YEAR]: [
-        goal('mind', 'Hit ₱3M in income this year', false, {
-          lifeId: 'try-life-free',
-          notes: 'Q1 ₱600K ✓\nQ2 ₱750K, on pace\nNext: raise retainer prices in July.',
+        goal('mind', 'Score 1570 on the SAT', false, {
+          notes: 'Last practice test: 1490.\nTwo full practice tests a week, review every wrong answer the same day.',
         }),
-        goal('mind', 'Finish the Google Data Analytics course', true),
-        goal('body', 'Run a half marathon under 2 hours', false, {
-          notes: '4 runs a week. Long run on Sundays.\nRace: Milo Marathon, December.',
+        goal('body', 'Finish an Ironman', false, {
+          notes: '3.8 km swim · 180 km bike · 42.2 km run.\nA 70.3 first, then the full distance.',
         }),
-        goal('body', 'Gym 4× a week, all year', true),
-        goal('status', 'Speak at one industry event'),
-        goal('identity', 'Read the whole Bible this year', false, {
+        goal('body', 'Bench press 170 kg', false, {
+          notes: 'Now at 145 kg. Add 2.5 kg every three weeks.',
+        }),
+        goal('status', 'Pay for all my own expenses', true),
+        goal('status', 'Give back to my parents', false, {
+          notes: 'A monthly allowance for Mom and Dad, and take them on a trip.',
+        }),
+        goal('identity', 'Give generously to God and to other people', false, {
           lifeId: 'try-life-faith',
-          notes: '3–4 chapters every morning, before I touch my phone.\nGenesis to Psalms done. On pace to finish in December.',
+          notes: 'Tithe first, every month. Then help someone in need each month.',
         }),
-        goal('identity', 'Tithe every month', true),
+        goal('identity', 'Become the most complete, best person I can be'),
       ],
     },
     goalNotes: { [YEAR]: 'The year I stop waiting to be ready. Show up every day, even when it’s small.' },

@@ -44,9 +44,9 @@ const card = 'rounded-[22px] border border-white/10 bg-[#0d0e12]/95 shadow-[0_40
 /** Floating beside the month: this year's goals, two of three done. */
 export function GoalsFloat() {
   const goals: [string, boolean][] = [
-    ['Tithe every month', true],
-    ['Run the Tokyo Marathon', true],
-    ['Read the whole Bible', false],
+    ['Pay for my own expenses', true],
+    ['Give back to my parents', true],
+    ['Finish an Ironman', false],
   ]
   return (
     <div className={`${card} w-52 p-3.5`}>
@@ -320,9 +320,9 @@ export function CostPreview() {
 /** The yearly goals: by area of life, ticked off as they're done, with notes on the ones that need a plan. */
 export function GoalsPreview() {
   const goals: { t: string; done: boolean; icon: LucideIcon; tint: string; note?: string }[] = [
-    { t: 'Read the whole Bible this year', done: false, icon: BookOpen, tint: 'bg-fuchsia-400/10 text-fuchsia-200 ring-fuchsia-300/15', note: '3–4 chapters every morning. Now in Psalms.' },
-    { t: 'Hit ₱3M in income', done: false, icon: Briefcase, tint: 'bg-sky-400/10 text-sky-200 ring-sky-300/15', note: 'Q2 on pace. Raise prices in July.' },
-    { t: 'Gym 4× a week, all year', done: true, icon: Dumbbell, tint: 'bg-orange-400/10 text-orange-200 ring-orange-300/15' },
+    { t: 'Finish an Ironman', done: false, icon: Dumbbell, tint: 'bg-orange-400/10 text-orange-200 ring-orange-300/15', note: 'A 70.3 first, then the full distance.' },
+    { t: 'Score 1570 on the SAT', done: false, icon: BookOpen, tint: 'bg-sky-400/10 text-sky-200 ring-sky-300/15', note: 'Last practice test: 1490.' },
+    { t: 'Pay for all my own expenses', done: true, icon: Briefcase, tint: 'bg-amber-400/10 text-amber-200 ring-amber-300/15' },
   ]
   const done = goals.filter((g) => g.done).length + 4
   const total = goals.length + 5

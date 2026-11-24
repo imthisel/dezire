@@ -47,10 +47,11 @@ function example() {
   const restHouse = item('Batangas rest house', 'property', 'appreciating', 20_000_000, 5)
   // Used F50s average US$1.0–1.5M; ₱70M (about US$1.1M) is a fair price for one a few years old. Boats lose ~8% a year.
   const yacht = item('Princess F50 yacht', 'vehicle', 'depreciating', 70_000_000, 8, { propertyId: restHouse.id })
-  const ferrari = item('Ferrari 812 Superfast', 'vehicle', 'depreciating', 40_000_000, 3)
+  // The 812's convertible is officially the "812 GTS"; its production ended in the first half of 2024.
+  const ferrari = item('2024 Ferrari 812 GTS', 'vehicle', 'depreciating', 40_000_000, 3, { notes: 'Fit a Novitec exhaust.' })
   const months: MonthData[] = [
     {
-      goal: 0, netWorthGoal: 64_000_000, budget: 40_000_000, earned: null, notes: 'Give first, then spend.',
+      goal: 0, netWorthGoal: 64_000_000, budget: 50_000_000, earned: null, notes: 'Give first, then spend.',
       items: [
         item('Tithe', 'status', 'depreciating', 7_000_000, 100, gone),
         item('Flying school · PAL Aviation School, Clark', 'status', 'depreciating', 4_500_000, 100, { notes: 'A pilot’s license: worth a lot to me, nothing to resell.' }),
@@ -69,7 +70,7 @@ function example() {
       ],
     },
     {
-      goal: 150_000_000, netWorthGoal: null, budget: 140_000_000, earned: null, notes: 'Give back big.',
+      goal: 400_000_000, netWorthGoal: null, budget: 150_000_000, earned: null, notes: 'Get the Novitec exhaust fitted on the 812 GTS. Give back big.',
       items: [
         // A dealer's stake in a company-owned station: the equipment and the contract wear down; the station's earnings are income.
         item('Shell gas station (CODO)', 'investment', 'depreciating', 8_000_000, 5),

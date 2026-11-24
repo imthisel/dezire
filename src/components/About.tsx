@@ -372,7 +372,7 @@ const TRY_TABS: { id: TryTab; label: string; sub: string }[] = [
   { id: 'assets', label: 'Assets', sub: 'Everything you plan to own, what it costs, and what it’ll be worth years from now.' },
   { id: 'income', label: 'Income', sub: 'Every way you earn, whether it covers the month’s goal, and the next step for each.' },
   { id: 'expenses', label: 'Expenses', sub: 'Your money on hand, and every expense coming off it. Budget and breakdown update as you log.' },
-  { id: 'setups', label: 'Setups', sub: 'Drag the Ferrari 812 Superfast onto a property. Take one off and it counts as sold.' },
+  { id: 'setups', label: 'Setups', sub: 'Drag the Ferrari 812 GTS onto a property. Take one off and it counts as sold.' },
 ]
 
 /**
