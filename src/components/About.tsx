@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import {
   ArrowLeft, ArrowRight, BadgeCheck, Check, ChevronDown, ChevronLeft, ChevronRight, Cloud, CreditCard, Download, EyeOff, Fingerprint, KeyRound, Loader2, Lock, LogOut, Quote, Server,
-  ShieldCheck, Smartphone, Star,
+  Laptop, ShieldCheck, Smartphone, Star,
 } from 'lucide-react'
 import { signIn, signOut, useCloud } from '../cloud'
 import { forgetIntent, openBilling, openCheckout, rememberIntent, useAccess } from '../billing'
@@ -207,7 +207,6 @@ function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
         <nav aria-label="Main" className="hidden items-center gap-7 text-sm text-zinc-400 lg:flex">
           <a href="#try" className="transition hover:text-white">Try it now</a>
           <a href="#how" className="transition hover:text-white">How it works</a>
-          <a href="#security" className="transition hover:text-white">Security</a>
           <a href="#download" className="transition hover:text-white">Download</a>
           <a href="#pricing" className="transition hover:text-white">Pricing</a>
           <a href="#faq" className="transition hover:text-white">FAQ</a>
@@ -256,14 +255,12 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
     <section ref={ref} id="top" aria-label="Dizayr" className="relative flex scroll-mt-16 flex-col overflow-x-clip lg:min-h-[calc(100svh-4rem-1px)]">
       <div className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-[minmax(0,1fr)] items-center gap-10 px-5 sm:px-8 lg:grid-cols-[1.08fr_1fr] lg:gap-14 lg:py-[clamp(1.5rem,4svh,3rem)]">
         <div className="flex flex-col justify-center pb-2 pt-12 text-center sm:pt-16 lg:py-0 lg:text-left">
-          <a
-            href="#try"
-            className="hero-in mx-auto mb-6 inline-flex max-w-full items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.03] py-1 pl-1 pr-3.5 text-xs text-zinc-300 transition hover:border-brand-300/40 hover:text-white lg:mx-0 lg:self-start [@media(max-height:700px)]:mb-4"
+          <p
+            className="hero-in mx-auto mb-6 inline-flex max-w-full items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.025] px-3.5 py-1.5 text-xs text-zinc-400 lg:mx-0 lg:self-start [@media(max-height:700px)]:mb-4"
             style={{ ['--d' as string]: '0ms' }}
           >
-            <span className="shrink-0 rounded-full bg-brand-600 px-2 py-0.5 font-semibold text-white">New</span>
-            <span className="truncate">Yearly goals, now with notes on every goal</span> <ArrowRight className="h-3 w-3 shrink-0" />
-          </a>
+            <Laptop className="h-3.5 w-3.5 shrink-0 text-brand-300" /> Works on any device · best on a laptop or desktop
+          </p>
           <h1
             className="hero-in font-display font-semibold tracking-[-0.035em] text-[2.9rem] leading-[1] text-white sm:text-[4rem] lg:text-[4.6rem] [@media(min-width:1024px)_and_(max-height:760px)]:text-[3.7rem]"
             style={{ ['--d' as string]: '80ms' }}
@@ -690,63 +687,42 @@ function Numbers() {
 
 function Security() {
   const points = [
-    {
-      icon: Fingerprint,
-      title: 'Google sign-in, no password',
-      text: 'There’s no Dizayr password to steal, guess or leak. Google checks it’s you, with the same protection as your Gmail: 2-Step Verification, passkeys and new-sign-in alerts.',
-    },
-    {
-      icon: KeyRound,
-      title: 'Locked to your account',
-      text: 'Our servers check every single request. Your plan opens for your Google account and nobody else’s, not another user, not someone with the link.',
-    },
-    {
-      icon: Server,
-      title: 'Encrypted on Google Cloud',
-      text: 'Everything travels over HTTPS and is stored encrypted on Google’s infrastructure, the same that runs Gmail and Google Drive.',
-    },
-    {
-      icon: CreditCard,
-      title: 'We never see your card',
-      text: 'Payments go through Paddle’s secure checkout. Your card number never touches Dizayr.',
-    },
-    {
-      icon: EyeOff,
-      title: 'Never sold, never shared',
-      text: 'Your dreams aren’t data for advertisers. We don’t sell, rent or share them. No ads, ever.',
-    },
-    { icon: Download, title: 'Yours to keep', text: 'Export a full backup of everything, whenever you like.' },
+    { icon: Fingerprint, title: 'Sign in with Google', text: 'No new password to make or forget. Google checks it’s you.' },
+    { icon: KeyRound, title: 'Only you can open it', text: 'Your plan opens for your account and no one else’s.' },
+    { icon: Server, title: 'Encrypted', text: 'Sent over HTTPS and stored encrypted on Google Cloud.' },
+    { icon: CreditCard, title: 'We never see your card', text: 'Payments go through Paddle. Your card details never reach us.' },
+    { icon: EyeOff, title: 'No ads, never sold', text: 'We don’t sell or share your data. That won’t change.' },
+    { icon: Download, title: 'Yours to keep', text: 'Download a full backup of your plan anytime.' },
   ]
   return (
-    <section id="security" aria-labelledby="security-title" className="screen border-t border-white/[0.06] px-5 sm:px-8">
+    <section id="security" aria-labelledby="security-title" className="border-t border-white/[0.06] px-5 sm:px-8 sec">
       <div className="mx-auto w-full max-w-6xl">
-        <div data-reveal className="reveal mx-auto max-w-2xl text-center">
-          <p className="inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">
+        <div data-reveal className="reveal mx-auto max-w-xl text-center">
+          <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">
             <ShieldCheck className="h-4 w-4" /> Security & privacy
           </p>
-          <h2 id="security-title" className="mt-4 font-display font-semibold tracking-[-0.035em] text-[2.6rem] leading-[1.02] text-white sm:text-[3.4rem] [@media(min-width:1024px)_and_(max-height:720px)]:text-[2.7rem]">
-            Locked to you. Never sold.
+          <h2 id="security-title" className="mt-4 font-display text-[2.4rem] font-semibold leading-[1.04] tracking-[-0.035em] text-white sm:text-[3rem]">
+            Your plan stays yours.
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-zinc-300 [@media(min-width:1024px)_and_(max-height:720px)]:mt-3">
-            Your goals and your money are personal. Your plan opens only for your Google account, stays encrypted, and is never shown to advertisers.
-          </p>
-          <a href="#faq" className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-200 transition hover:text-brand-100">
-            How sign-in keeps you safe <ArrowRight className="h-3.5 w-3.5" />
-          </a>
+          <p className="mt-4 text-lg text-zinc-300">Only you can see it. We never sell it, and we never see your password or card.</p>
         </div>
-        <ul className="mt-10 grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 [@media(min-width:1024px)_and_(max-height:720px)]:mt-6">
-          {points.map((p, i) => (
-            <li key={p.title} data-reveal className="reveal rounded-[24px] border border-white/[0.07] bg-[#0b0c10] p-5 sm:p-6 [@media(min-width:1024px)_and_(max-height:720px)]:p-5" style={{ transitionDelay: `${(i % 3) * 70}ms` }}>
-              <h3 className="flex items-center gap-3 font-semibold text-white">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-brand-300/25 bg-brand-300/[0.06]">
-                  <p.icon className="h-4 w-4 text-brand-200" />
-                </span>
-                {p.title}
-              </h3>
-              <p className="mt-2.5 text-[15px] leading-relaxed text-zinc-400 sm:mt-3 [@media(min-width:1024px)_and_(max-height:720px)]:mt-2 [@media(min-width:1024px)_and_(max-height:720px)]:text-sm">{p.text}</p>
+        <ul data-reveal className="reveal mx-auto mt-10 grid max-w-5xl gap-px overflow-hidden rounded-[24px] border border-white/[0.07] bg-white/[0.07] sm:grid-cols-2 lg:grid-cols-3">
+          {points.map((p) => (
+            <li key={p.title} className="flex gap-3.5 bg-[#0b0c10] p-5 sm:p-6">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-brand-300/25 bg-brand-300/[0.06]">
+                <p.icon className="h-4 w-4 text-brand-200" />
+              </span>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-white">{p.title}</h3>
+                <p className="mt-1 text-[15px] leading-snug text-zinc-400">{p.text}</p>
+              </div>
             </li>
           ))}
         </ul>
+        <p className="mt-6 text-center text-sm text-zinc-400">
+          More on sign-in and your data in the{' '}
+          <a href="#faq" className="text-brand-200 underline decoration-brand-300/40 underline-offset-4 transition hover:text-brand-100">questions below</a>.
+        </p>
       </div>
     </section>
   )

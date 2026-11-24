@@ -52,7 +52,7 @@ export function HeroMonth() {
       </div>
       <p className="mt-3 flex h-6 items-center justify-center gap-1.5 text-xs text-zinc-500">
         <MousePointerClick className="h-3.5 w-3.5" />
-        <span>Click anything to change it · best on a laptop</span>
+        <span>Click anything to change it</span>
         {changed && (
           <button
             type="button"
