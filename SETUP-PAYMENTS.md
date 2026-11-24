@@ -25,7 +25,7 @@ These are the prices set in the app (`src/lib/plans.ts`). Paddle must charge exa
 | **Price** | Free | **$24.99 per year** | **$149 once** |
 | **Works out to** | | about $2.08 a month | never charged again |
 | **Length** | 14 days, once per Google account | Renews every year | Forever (a one-time payment, no renewals) |
-| **Card needed** | No | Yes (card, PayPal, Apple Pay, Google Pay) | Yes |
+| **Card needed** | No | Yes (card, PayPal or Google Pay) | Yes |
 | **Wants modes** | 1 | **Unlimited** | **Unlimited** |
 | **Needs modes** | 1 | **Unlimited** | **Unlimited** |
 
