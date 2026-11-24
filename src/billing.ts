@@ -282,7 +282,8 @@ function loadPaddle(): Promise<PaddleJs | null> {
       if (import.meta.env.VITE_PADDLE_ENV === 'sandbox') p.Environment.set('sandbox')
       p.Initialize({
         token,
-        checkout: { settings: { displayMode: 'overlay', theme: 'dark', locale: 'en', allowLogout: false } },
+        // One-page: everything on one screen, no "Continue" steps (easiest on a phone).
+        checkout: { settings: { displayMode: 'overlay', variant: 'one-page', theme: 'dark', locale: 'en', allowLogout: false } },
         eventCallback: (e) => {
           if (e.name === 'checkout.completed') {
             useAccess.setState({ activating: true })
