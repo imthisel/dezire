@@ -45,6 +45,8 @@ interface AccessStore {
   activating: boolean
   /** The plans window is open (from the trial banner or the account menu) */
   plansOpen: boolean
+  /** A new account with no free trial, because this device's was already used (see trialEndedHere) */
+  trialUsedHere: boolean
 }
 
 export const useAccess = create<AccessStore>(() => ({
@@ -56,11 +58,36 @@ export const useAccess = create<AccessStore>(() => ({
   status: null,
   activating: false,
   plansOpen: false,
+  trialUsedHere: false,
 }))
 
 export const openPlans = (open = true) => useAccess.setState({ plansOpen: open })
 
 const DAY = 86_400_000
+
+// ---- The free trial on this device ----
+
+const TRIAL_ENDED = 'dizayr-trial-ended'
+/**
+ * Whether a free trial has already run out on this device (this browser), whichever account it was. The About page
+ * sends "Try it free" to the plans instead, and a new account signed in here doesn't get another trial.
+ * Kept in localStorage: a light guard for honest use, not a lock (the server's record per account is the real one).
+ */
+export function trialEndedHere() {
+  try {
+    return localStorage.getItem(TRIAL_ENDED) === '1'
+  } catch {
+    return false
+  }
+}
+function markTrialEndedHere() {
+  try {
+    localStorage.setItem(TRIAL_ENDED, '1')
+  } catch {
+    // Not remembered: the account's own record still stops the trial restarting.
+  }
+}
+
 let stop: (() => void) | null = null
 let timer: ReturnType<typeof setTimeout> | undefined
 
@@ -90,6 +117,15 @@ export function watchAccess(user: User, onChange: (allowed: boolean) => void) {
             useAccess.setState({ state: 'trial' })
             report(true)
           }
+          return
+        }
+        // First time here, on a device whose free trial has already run out: no second trial, straight to the plans.
+        // (A plan bought later creates the record, and they're let in.)
+        if (!creating && trialEndedHere()) {
+          useAccess.setState({ state: 'ended', trialEndsAt: null, trialUsedHere: true })
+          report(false)
+          const intent = takeIntent()
+          if (intent) void openCheckout(intent, user)
           return
         }
         // First time here: start the free trial.
@@ -128,8 +164,11 @@ export function watchAccess(user: User, onChange: (allowed: boolean) => void) {
         plan: d.plan ?? null,
         status: d.status ?? null,
         activating: was.activating && !unlocked,
+        trialUsedHere: false,
       })
       report(state !== 'ended')
+      // The trial ran out on this account: this device remembers it (see trialEndedHere).
+      if (state === 'ended' && trialEndsAt) markTrialEndedHere()
 
       // Look again the moment the trial or the paid time runs out.
       clearTimeout(timer)
@@ -141,6 +180,7 @@ export function watchAccess(user: User, onChange: (allowed: boolean) => void) {
           s.state === 'lifetime' ? 'lifetime' : (s.compUntil ?? 0) > t ? 'comp' : (s.paidUntil ?? 0) > t ? 'paid' : (s.trialEndsAt ?? 0) > t ? 'trial' : 'ended'
         useAccess.setState({ state: left })
         report(left !== 'ended')
+        if (left === 'ended' && s.trialEndsAt) markTrialEndedHere()
       }, Math.min(next - now + 1000, 2 ** 31 - 1))
 
       // Chose a plan before signing in: go straight to paying for it.
@@ -164,7 +204,7 @@ export function watchAccess(user: User, onChange: (allowed: boolean) => void) {
 export function stopAccess() {
   stop?.()
   stop = null
-  useAccess.setState({ state: 'checking', trialEndsAt: null, paidUntil: null, compUntil: null, plan: null, status: null, activating: false, plansOpen: false })
+  useAccess.setState({ state: 'checking', trialEndsAt: null, paidUntil: null, compUntil: null, plan: null, status: null, activating: false, plansOpen: false, trialUsedHere: false })
 }
 
 /** Days left in the free trial (rounded up), or null when not on the trial. */

@@ -4,6 +4,8 @@ import { overLimitIds, valueAfter } from '../../lib/calc'
 import { DEFAULT_KINDS, TREND, kindColor, kindIcon } from '../../lib/meta'
 import type { Item, MonthData } from '../../lib/types'
 import { DemoItemModal, type PlaceChoice } from './DemoDialogs'
+import { curSymbol, fmtMoney, fmtShort, fromShown, toShown } from './currency'
+import { CurrencyToggle } from './CurrencyToggle'
 import { DEMO_MONTHS, DEMO_OFFSETS, monthLabel, nextId, placedOf, shortLabel, useDemo } from './demoStore'
 
 /*
@@ -16,18 +18,10 @@ const NAMES = DEMO_MONTHS.map((m) => m.name)
 
 // ---- Money ----
 
-const abs = (n: number) => Math.round(Math.abs(n)).toLocaleString('en-US')
-/** "₱1,250,000", "−₱40,000" */
-export const money = (n: number) => `${n < -0.5 ? '−' : ''}₱${abs(n)}`
+/** "₱1,250,000", "−₱40,000" (or in dollars, when the page shows dollars). Amounts are always pesos. */
+export const money = fmtMoney
 /** "₱1.3M", "₱850K" */
-export function moneyShort(n: number) {
-  const a = Math.abs(n)
-  const sign = n < -0.5 ? '−' : ''
-  if (a >= 1e9) return `${sign}₱${+(a / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${sign}₱${+(a / 1e6).toFixed(2)}M`
-  if (a >= 1e3) return `${sign}₱${+(a / 1e3).toFixed(1)}K`
-  return money(n)
-}
+export const moneyShort = fmtShort
 
 // ---- Kinds and trends (as in the app) ----
 
@@ -131,7 +125,8 @@ export function Toolbar({ onReset, onClear }: { onReset: () => void; onClear: ()
       <p className="text-sm text-zinc-400">
         <span className="font-medium text-zinc-200">Change anything.</span> Nothing here is saved: leave or refresh the page and it starts over.
       </p>
-      <div className="flex shrink-0 gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <CurrencyToggle />
         <button onClick={onReset} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/10 px-3.5 text-sm text-zinc-300 transition hover:border-white/20 hover:text-white">
           <RotateCcw className="h-3.5 w-3.5" /> Example
         </button>
@@ -149,17 +144,17 @@ export function MoneyField({ value, onChange, label, nullable, placeholder = '0'
 }) {
   return (
     <label className={`flex h-9 min-w-0 items-center rounded-lg border border-white/10 bg-black/25 px-2 transition focus-within:border-brand-400/70 focus-within:ring-2 focus-within:ring-brand-400/25 ${tone}`}>
-      <span className="text-[12px] text-zinc-500">₱</span>
+      <span className="text-[12px] text-zinc-500">{curSymbol()}</span>
       <input
         data-plain
         aria-label={label}
         inputMode="numeric"
-        value={value ? value.toLocaleString('en-US') : ''}
+        value={value ? Math.round(toShown(value)).toLocaleString('en-US') : ''}
         placeholder={placeholder}
         onChange={(e) => {
           const raw = e.target.value.replace(/\D/g, '')
           if (raw === '') return onChange(nullable ? null : 0)
-          onChange(Math.min(1e12, Number(raw)))
+          onChange(Math.min(1e12, fromShown(Number(raw))))
         }}
         className="w-full min-w-0 bg-transparent pl-1 text-[13px] font-semibold tabular-nums text-white outline-none placeholder:font-normal placeholder:text-zinc-600"
       />

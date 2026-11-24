@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { MousePointerClick, RotateCcw } from 'lucide-react'
 import type { Item, MonthData, Trend } from '../../lib/types'
 import { SimMonth, compute, type Before } from './TryOverview'
+import { CurrencyToggle } from './CurrencyToggle'
 
 /*
  * The hero's month: May 2030 of someone planning a very comfortable life. It's the app's own month card, the same one as in
@@ -55,7 +56,8 @@ export function HeroMonth() {
           keptAt={() => undefined}
         />
       </div>
-      <p className="mt-3 flex h-6 items-center justify-center gap-1.5 text-xs text-zinc-500">
+      <div className="mt-3 flex min-h-7 flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-xs text-zinc-500">
+        <span className="inline-flex items-center gap-1.5">
         <MousePointerClick className="h-3.5 w-3.5" />
         <span>Click anything to change it</span>
         {changed && (
@@ -70,7 +72,9 @@ export function HeroMonth() {
             <RotateCcw className="h-3 w-3" /> Reset
           </button>
         )}
-      </p>
+        </span>
+        <CurrencyToggle />
+      </div>
     </div>
   )
 }

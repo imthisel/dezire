@@ -4,7 +4,9 @@ import {
   Laptop, ShieldCheck, Smartphone, Star,
 } from 'lucide-react'
 import { signIn, signOut, useCloud } from '../cloud'
-import { forgetIntent, openBilling, openCheckout, rememberIntent, useAccess } from '../billing'
+import { forgetIntent, openBilling, openCheckout, rememberIntent, trialEndedHere, useAccess } from '../billing'
+import { toast } from '../toast'
+import { useAboutCurrency } from './about/currency'
 import { auth } from '../lib/firebase'
 import { PLANS, PLAN_ORDER, TRIAL_DAYS, dollars, paymentsReady, perMonth, type Plan, type PlanId } from '../lib/plans'
 import { EXAMPLE_REVIEWS, REVIEWS, type Review } from '../content/reviews'
@@ -25,7 +27,19 @@ import { ContactButton } from './EmailContact'
 
 // ---- Actions ----
 
-/** Signs in with Google (starts the free trial on the first time); errors are shown where the button is. */
+/** Whether the free trial is used up: this account's (when signed in), or any account's on this device. */
+const trialUsedUp = () => useAccess.getState().state === 'ended' || trialEndedHere()
+
+/** To the plans, saying why: the free trial can only be had once. */
+function toPlans() {
+  toast.info('The free trial on this device has ended. Pick a plan to keep going.')
+  document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+/**
+ * Signs in with Google (starts the free trial on the first time); errors are shown where the button is.
+ * `go`: just signing in. `tryFree`: the "Try it free" buttons, which go to the plans instead once the trial is used up.
+ */
 function useSignIn() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -41,7 +55,11 @@ function useSignIn() {
       setBusy(false)
     }
   }
-  return { busy, error, go }
+  function tryFree() {
+    if (trialUsedUp()) return toPlans()
+    void go()
+  }
+  return { busy, error, go, tryFree }
 }
 
 /**
@@ -116,6 +134,8 @@ function useTitle(title: string) {
 export function About() {
   const user = useCloud((s) => s.user)
   const signin = useSignIn()
+  // Every amount on the page is shown in this currency (see about/currency.ts): changing it redraws the page.
+  useAboutCurrency((s) => s.cur)
   useReveal()
   useTitle('Dizayr')
 
@@ -168,10 +188,10 @@ function Logo({ size = 'h-9 w-9' }: { size?: string }) {
 const primaryBtn =
   'group inline-flex items-center justify-center gap-2.5 rounded-full bg-brand-600 sm:gap-3 font-semibold text-white shadow-[0_12px_40px_-12px_rgb(58_109_240/0.55)] transition duration-300 hover:-translate-y-0.5 hover:bg-brand-500 hover:shadow-[0_18px_50px_-12px_rgb(58_109_240/0.7)] active:translate-y-0 disabled:opacity-60'
 
-function GoogleButton({ signin, label = 'Start your plan free', big = false }: { signin: SignIn; label?: string; big?: boolean }) {
+function GoogleButton({ signin, label = `Try free for ${TRIAL_DAYS} days`, big = false }: { signin: SignIn; label?: string; big?: boolean }) {
   return (
     <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:items-start">
-      <button onClick={signin.go} disabled={signin.busy} className={`${primaryBtn} w-full sm:w-auto ${big ? 'h-14 px-5 text-[15px] sm:px-7 sm:text-base' : 'h-12 px-5 text-[15px] sm:px-6'}`}>
+      <button onClick={signin.tryFree} disabled={signin.busy} className={`${primaryBtn} w-full sm:w-auto ${big ? 'h-14 px-5 text-[15px] sm:px-7 sm:text-base' : 'h-12 px-5 text-[15px] sm:px-6'}`}>
         <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white">
           {signin.busy ? <Loader2 className="h-4 w-4 animate-spin text-brand-600" /> : <GoogleIcon />}
         </span>
@@ -188,10 +208,12 @@ function GoogleButton({ signin, label = 'Start your plan free', big = false }: {
   )
 }
 
+/** Signed in: open the app, or, once the free trial is over without a plan, the plans. */
 function OpenApp({ big = false }: { big?: boolean }) {
+  const ended = useAccess((s) => s.state === 'ended')
   return (
-    <a href="/" className={`${primaryBtn} ${big ? 'h-14 px-7 text-base' : 'h-10 px-4 text-sm'}`}>
-      Open your plan <ArrowRight className="h-4 w-4" />
+    <a href={ended ? '#pricing' : '/'} className={`${primaryBtn} ${big ? 'h-14 px-7 text-base' : 'h-10 px-4 text-sm'}`}>
+      {ended ? 'Choose a plan' : 'Open your plan'} <ArrowRight className="h-4 w-4" />
     </a>
   )
 }
@@ -229,11 +251,11 @@ function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
               Sign in
             </button>
             <button
-              onClick={signin.go}
+              onClick={signin.tryFree}
               disabled={signin.busy}
-              className="inline-flex h-10 items-center gap-2 rounded-full bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-60"
+              className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-full bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-60"
             >
-              {signin.busy && <Loader2 className="h-4 w-4 animate-spin" />} Try it free
+              {signin.busy && <Loader2 className="h-4 w-4 animate-spin" />} Try {TRIAL_DAYS} days free
             </button>
           </div>
         )}
@@ -484,10 +506,11 @@ function TryArrow({ dir, to, onClick }: { dir: 'prev' | 'next'; to: string; onCl
 
 // ---- The verse ----
 
+/** Proverbs 21:5, word for word as in the ESV (a proverb stands on its own, so this is its full meaning). */
 function Verse() {
-  const words = 'Write the vision, and make it plain upon tables, that he may run that readeth it.'.split(' ')
+  const words = 'The plans of the diligent lead surely to abundance, but everyone who is hasty comes only to poverty.'.split(' ')
   return (
-    <section aria-label="Habakkuk 2:2" className="relative overflow-hidden border-y border-white/[0.06] px-5 py-12 sm:px-8 sm:py-16">
+    <section aria-label="Proverbs 21:5" className="relative overflow-hidden border-y border-white/[0.06] px-5 py-12 sm:px-8 sm:py-16">
       <div aria-hidden className="absolute inset-0 bg-[radial-gradient(50%_60%_at_50%_50%,rgb(58_109_240/0.07),transparent_75%)]" />
       <figure data-reveal className="relative mx-auto max-w-4xl text-center">
         <blockquote className="font-verse text-[1.9rem] leading-[1.15] text-white sm:text-[2.75rem] lg:text-[3.2rem]">
@@ -502,9 +525,9 @@ function Verse() {
             <span aria-hidden className="text-brand-300">”</span>
           </p>
         </blockquote>
-        <figcaption className="mt-5 text-xs font-semibold uppercase tracking-[0.3em] text-brand-300">Habakkuk 2:2 · KJV</figcaption>
+        <figcaption className="mt-5 text-xs font-semibold uppercase tracking-[0.3em] text-brand-300">Proverbs 21:5 · ESV</figcaption>
         <p className="mx-auto mt-4 max-w-md text-[17px] leading-relaxed text-zinc-300">
-          Write it down. Make it plain. Then run with it. That’s what Dizayr is for.
+          Plan it with care instead of in a hurry, then keep at it. That’s what Dizayr is for.
         </p>
       </figure>
     </section>
@@ -614,8 +637,9 @@ function PrayAct() {
             you’re believing for, then show up for it, month after month.
           </p>
           <p className="mt-8 border-l border-brand-300/40 pl-4 text-zinc-400">
-            <span className="font-verse text-xl italic text-zinc-200">“Faith without works is dead.”</span>
-            <span className="mt-1 block text-xs uppercase tracking-[0.2em] text-brand-300">James 2:26</span>
+            {/* Word for word as in the ESV */}
+            <span className="font-verse text-xl italic text-zinc-200">“For as the body apart from the spirit is dead, so also faith apart from works is dead.”</span>
+            <span className="mt-1 block text-xs uppercase tracking-[0.2em] text-brand-300">James 2:26 · ESV</span>
           </p>
         </div>
 
@@ -920,7 +944,7 @@ export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; co
             Less than a coffee a month.
           </h2>
           <p className="mt-4 text-lg text-zinc-300">Everything included, on every device. Pay {dollars(PLANS.annual.price)} a year, or {dollars(PLANS.lifetime.price)} once and never again.</p>
-          {!user && signin && (
+          {!user && signin && !trialEndedHere() && (
             <div className="mt-7 rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-5">
               <p className="text-[15px] text-zinc-300">
                 <span className="font-semibold text-white">Rather try it first?</span> Every feature free for {TRIAL_DAYS} days, with one Wants mode
@@ -1159,7 +1183,7 @@ function FinalCta({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           <span className="text-brand-300">Build it.</span>
         </h2>
         <p className="mx-auto mt-7 max-w-lg text-lg leading-relaxed text-zinc-300">
-          Start free today. In a few minutes you’ll know what your goals cost and what this month needs to look like.
+          Start your {TRIAL_DAYS}-day free trial today. In a few minutes you’ll know what your goals cost and what this month needs to look like.
         </p>
         <div className="mt-10 flex justify-center">{signedIn ? <OpenApp big /> : <GoogleButton signin={signin} big />}</div>
         <p className="mt-5 text-balance text-sm text-zinc-400">
@@ -1197,14 +1221,22 @@ function SectionHead({ id, eyebrow, title, sub }: { id?: string; eyebrow: string
 export function TrialEnded() {
   const user = useCloud((s) => s.user)
   const activating = useAccess((s) => s.activating)
+  // No trial on this account at all: the free trial was already used on this device (see watchAccess).
+  const usedHere = useAccess((s) => s.trialUsedHere)
   const [contact, setContact] = useState(false)
   return (
     <div className="about relative min-h-screen overflow-x-clip bg-[#07080c] px-5 pb-16 pt-12 text-zinc-100 antialiased sm:px-8 sm:pt-20">
       <Glow />
       <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
         <Logo size="h-12 w-12" />
-        <h1 className="mt-7 font-display font-semibold tracking-[-0.035em] text-5xl leading-[1.02] text-white sm:text-6xl">Your free trial has ended.</h1>
-        <p className="mx-auto mt-5 max-w-xl text-lg text-zinc-300">Everything you planned is saved and waiting. Choose a plan to keep building the life you want.</p>
+        <h1 className="mt-7 font-display font-semibold tracking-[-0.035em] text-5xl leading-[1.02] text-white sm:text-6xl">
+          {usedHere ? 'The free trial on this device has been used.' : 'Your free trial has ended.'}
+        </h1>
+        <p className="mx-auto mt-5 max-w-xl text-lg text-zinc-300">
+          {usedHere
+            ? 'Each device gets one free trial. Choose a plan to start building the life you want.'
+            : 'Everything you planned is saved and waiting. Choose a plan to keep building the life you want.'}
+        </p>
         {activating && (
           <p className="animate-fade mx-auto mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200">
             <Loader2 className="h-4 w-4 animate-spin" /> Payment received, unlocking your plan…
@@ -1216,7 +1248,10 @@ export function TrialEnded() {
       </div>
       <div className="relative mt-10 flex flex-col items-center gap-2 text-sm text-zinc-400">
         <p>Signed in as {user?.email}</p>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+          <a href="/about" className="inline-flex items-center gap-1.5 text-zinc-300 hover:text-white">
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to home
+          </a>
           {paymentsReady() && (
             <button type="button" onClick={() => void openBilling()} className="text-zinc-300 underline-offset-4 hover:text-white hover:underline">
               Already paid? Check your billing

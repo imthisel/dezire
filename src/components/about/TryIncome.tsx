@@ -4,6 +4,7 @@ import type { IncomeSource, PlanStep } from '../../lib/types'
 import { IncomePlanView, type IncomeApi, type IncomeData } from '../MoneyPlan'
 import { Toolbar, compute, money, moneyShort } from './TryOverview'
 import { DEMO_OFFSETS, monthLabel, useDemo } from './demoStore'
+import { curSymbol, fromShown, toShown, useAboutCurrency } from './currency'
 
 /*
  * A playable copy of the Income plan on the About page: the app's own page, on plans kept in this page's memory.
@@ -82,6 +83,7 @@ export function TryIncome() {
   // The first month's goal to make, worked out from its net worth goal when it has one (as the app's Income plan does).
   const months = useDemo((d) => d.months)
   const goal = useMemo(() => compute(months, undefined, DEMO_OFFSETS)[0].goal, [months])
+  const cur = useAboutCurrency((s) => s.cur)
   const api = useMemo<IncomeApi>(
     () => ({
       use: (pick) => useIncomeDemo(pick),
@@ -91,8 +93,9 @@ export function TryIncome() {
       alt: null,
       remember: false,
       openFirst: true,
+      money: { symbol: curSymbol(), toShown, fromShown },
     }),
-    [goal],
+    [goal, cur],
   )
   return (
     <div>

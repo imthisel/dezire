@@ -7,6 +7,7 @@ import { DEFAULT_KINDS, TREND, kindColor, kindIcon } from '../../lib/meta'
 import { DEFAULT_EXPENSE_CATS, MAX_ITEM_NAME, MAX_PLACE_NAME, addDays, catColor, catIcon, fromKey, longDate } from '../../lib/expenses'
 import { MAX_LINKS, pastedUrl } from '../../lib/links'
 import { parseMoney, plain } from '../../lib/money'
+import { curSymbol, fmtMoney, fromShown, toShown } from './currency'
 import { MONTHS_SHORT } from '../../lib/time'
 import type { Category, ItemLink, Trend } from '../../lib/types'
 
@@ -16,11 +17,12 @@ import type { Category, ItemLink, Trend } from '../../lib/types'
  * nothing touches the account, the device or the server.
  */
 
-const peso = (n: number) => `${n < -0.005 ? '−' : ''}₱${Math.round(Math.abs(n)).toLocaleString('en-US')}`
+/** Amounts are pesos; shown in the About page's currency (see currency.ts). */
+const peso = fmtMoney
 
-// ---- Money box (the app's MoneyInput, always in pesos) ----
+// ---- Money box (the app's MoneyInput; holds pesos, shows and takes the page's currency) ----
 
-const toText = (v: number | null) => (v === null || v === 0 ? '' : plain(v))
+const toText = (v: number | null) => (v === null || v === 0 ? '' : plain(Math.round(toShown(v))))
 
 function MoneyBox({ value, onChange, placeholder = '0', ariaLabel, autoFocus }: { value: number | null; onChange: (v: number | null) => void; placeholder?: string; ariaLabel?: string; autoFocus?: boolean }) {
   const [text, setText] = useState(() => toText(value))
@@ -40,13 +42,13 @@ function MoneyBox({ value, onChange, placeholder = '0', ariaLabel, autoFocus }: 
     } else if (Number.isNaN(p)) setBad(true)
     else {
       setBad(false)
-      onChange(p)
+      onChange(fromShown(p))
     }
   }
 
   return (
     <div className="relative min-w-0">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base text-zinc-500">₱</span>
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base text-zinc-500">{curSymbol()}</span>
       <input
         inputMode="decimal"
         autoComplete="off"

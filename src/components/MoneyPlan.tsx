@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { Calculator, Check, ChevronDown, GripVertical, Lightbulb, ListChecks, NotebookPen, Plus, Rocket, Target, Trash2, Wand2, X } from 'lucide-react'
 import { useFmt, usePlan, useStore, useAlt, type SourcePatch } from '../store'
 import { SOURCE_KIND, SOURCE_KINDS, SOURCE_STAGE, SOURCE_STAGES } from '../lib/meta'
@@ -48,9 +48,21 @@ export type IncomeApi = {
   remember: boolean
   /** Start with the first plan open (the About page's playground) */
   openFirst?: boolean
+  /**
+   * Money boxes in another currency than the app's (the About page's PHP/USD switch): the sign, and the conversion
+   * from the stored amount to the shown one and back. Not set = the app's own currency.
+   */
+  money?: { symbol: string; toShown: (n: number) => number; fromShown: (n: number) => number }
 }
 const IncomeCtx = createContext<IncomeApi | null>(null)
 const useApi = () => useContext(IncomeCtx)!
+
+/** A money box in the plans' currency (see IncomeApi.money). */
+function PlanMoneyInput({ value, onChange, ...rest }: ComponentProps<typeof MoneyInput>) {
+  const m = useApi().money
+  if (!m) return <MoneyInput value={value} onChange={onChange} {...rest} />
+  return <MoneyInput {...rest} symbol={m.symbol} value={value === null ? null : Math.round(m.toShown(value))} onChange={(v) => onChange(v === null ? null : m.fromShown(v))} />
+}
 
 // Which plans are open, remembered on this device. Not set = the default (open only when it's the only plan).
 const OPEN_KEY = 'dz-plan-open'
@@ -641,7 +653,7 @@ function Goal({ s, set }: { s: IncomeSource; set: (p: Partial<IncomeSource>) => 
   return (
     <Part title="Goal to make from this">
       <div className="flex items-center gap-2">
-        <MoneyInput value={s.monthlyGoal} onChange={(v) => set({ monthlyGoal: v ?? 0 })} size="md" className="max-w-[14rem] flex-1" ariaLabel="Monthly goal" />
+        <PlanMoneyInput value={s.monthlyGoal} onChange={(v) => set({ monthlyGoal: v ?? 0 })} size="md" className="max-w-[14rem] flex-1" ariaLabel="Monthly goal" />
         <span className="text-sm text-zinc-500">a month</span>
       </div>
       <p className="mt-1.5 text-xs tabular-nums text-zinc-500">
@@ -713,13 +725,13 @@ function MoneyMath({ s, set }: { s: IncomeSource; set: (p: Partial<IncomeSource>
       <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr]">
         <div className="grid grid-cols-3 gap-2">
           <Small label={`Price per ${one}`}>
-            <MoneyInput value={s.price} onChange={(v) => set({ price: v ?? 0 })} ariaLabel={`Price per ${one}`} />
+            <PlanMoneyInput value={s.price} onChange={(v) => set({ price: v ?? 0 })} ariaLabel={`Price per ${one}`} />
           </Small>
           <Small label={`Cost per ${one}`}>
-            <MoneyInput value={s.costPerSale} onChange={(v) => set({ costPerSale: v ?? 0 })} ariaLabel={`Cost per ${one}`} />
+            <PlanMoneyInput value={s.costPerSale} onChange={(v) => set({ costPerSale: v ?? 0 })} ariaLabel={`Cost per ${one}`} />
           </Small>
           <Small label="Monthly costs">
-            <MoneyInput value={s.monthlyCosts} onChange={(v) => set({ monthlyCosts: v ?? 0 })} ariaLabel="Monthly costs (rent, tools, ads)" />
+            <PlanMoneyInput value={s.monthlyCosts} onChange={(v) => set({ monthlyCosts: v ?? 0 })} ariaLabel="Monthly costs (rent, tools, ads)" />
           </Small>
         </div>
         <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5 text-sm leading-relaxed">

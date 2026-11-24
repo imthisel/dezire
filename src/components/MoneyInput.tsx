@@ -12,13 +12,16 @@ interface Props {
   ariaLabel?: string
   autoFocus?: boolean
   size?: 'sm' | 'md'
+  /** A currency sign other than the app's (the About page, in its own currency) */
+  symbol?: string
 }
 
 const toText = (v: number | null, nullable?: boolean) => (v === null || (v === 0 && !nullable) ? '' : plain(v))
 
 /** Money box that accepts "100k", "1.5m", "250,000" and updates totals as you type. */
-export function MoneyInput({ value, onChange, placeholder = '0', nullable, className = '', ariaLabel, autoFocus, size = 'sm' }: Props) {
-  const symbol = useStore((s) => s.currency.main.symbol)
+export function MoneyInput({ value, onChange, placeholder = '0', nullable, className = '', ariaLabel, autoFocus, size = 'sm', symbol: symbolOverride }: Props) {
+  const appSymbol = useStore((s) => s.currency.main.symbol)
+  const symbol = symbolOverride ?? appSymbol
   const masked = useStore((s) => s.device.masked)
   const [text, setText] = useState(() => toText(value, nullable))
   const [focused, setFocused] = useState(false)

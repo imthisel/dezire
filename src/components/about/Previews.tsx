@@ -1,20 +1,23 @@
 import { BookOpen, Briefcase, Building2, Car, Check, Dumbbell, Fuel, Minus, StickyNote, ShoppingCart, TrendingDown, TrendingUp, UtensilsCrossed, Watch, Waves, type LucideIcon } from 'lucide-react'
 import { SOURCE_KIND, SOURCE_STAGE } from '../../lib/meta'
 import type { SourceKind, SourceStage } from '../../lib/types'
+import { curSymbol, fmtMoney, fmtShort, toShown } from './currency'
 
 /*
  * Small pictures of the app for the About page, drawn in code (not screenshots), so they stay sharp and load instantly.
  * The amounts are examples: someone planning a very comfortable life, priced realistically in pesos.
  */
 
-/** "₱28,500,000" */
-export const peso = (n: number) => `₱${Math.round(n).toLocaleString('en-US')}`
+/** "₱23,000,000" (or in dollars, when the page shows dollars: see currency.ts). Amounts are pesos. */
+export const peso = fmtMoney
 
 /** "₱612M", "₱1.2B" */
 export function pesoShort(n: number) {
-  if (n >= 1e9) return `₱${+(n / 1e9).toFixed(1)}B`
-  if (n >= 1e6) return `₱${+(n / 1e6).toFixed(1)}M`
-  if (n >= 1e3) return `₱${+(n / 1e3).toFixed(1)}K`
+  const v = toShown(n)
+  const s = curSymbol()
+  if (v >= 1e9) return `${s}${+(v / 1e9).toFixed(1)}B`
+  if (v >= 1e6) return `${s}${+(v / 1e6).toFixed(1)}M`
+  if (v >= 1e3) return `${s}${+(v / 1e3).toFixed(1)}K`
   return peso(n)
 }
 
@@ -70,7 +73,7 @@ export function NetWorthFloat() {
     <div className={`${card} w-56 p-3.5`}>
       <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">Net worth by 2035</p>
       <p className="mt-1 flex items-center gap-2 text-xl font-semibold tabular-nums text-white">
-        ₱1.2B
+        {pesoShort(1_200_000_000)}
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
           <TrendingUp className="h-3 w-3" /> on track
         </span>
@@ -297,7 +300,7 @@ export function CostPreview() {
     <div className="flex items-center gap-2 rounded-2xl border border-white/[0.07] bg-black/30 p-3.5 text-center">
       <div className="min-w-0 flex-1">
         <p className="text-[10px] uppercase tracking-wider text-zinc-400">3 dreams</p>
-        <p className="mt-0.5 text-[13px] font-semibold tabular-nums text-white">₱40.9M</p>
+        <p className="mt-0.5 text-[13px] font-semibold tabular-nums text-white">{fmtShort(35_400_000)}</p>
       </div>
       <span className="text-brand-300" aria-hidden>→</span>
       <div className="min-w-0 flex-1">
@@ -307,7 +310,7 @@ export function CostPreview() {
       <span className="text-brand-300" aria-hidden>→</span>
       <div className="min-w-0 flex-1 rounded-xl bg-brand-300/10 py-1.5 ring-1 ring-inset ring-brand-300/25">
         <p className="text-[10px] uppercase tracking-wider text-brand-200">a month</p>
-        <p className="mt-0.5 text-[13px] font-semibold tabular-nums text-brand-100">₱2.15M</p>
+        <p className="mt-0.5 text-[13px] font-semibold tabular-nums text-brand-100">{fmtShort(35_400_000 / 19)}</p>
       </div>
     </div>
   )
