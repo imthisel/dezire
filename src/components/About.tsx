@@ -345,12 +345,12 @@ type TryTab = 'wants' | 'goals' | 'assets' | 'income' | 'expenses' | 'setups'
 /** Opens a tab of "Try it now" from elsewhere on the page (detail: the tab). */
 const TRY_EVENT = 'dz-try-tab'
 const TRY_TABS: { id: TryTab; label: string; sub: string }[] = [
-  { id: 'wants', label: 'Wants', sub: 'Plan three months: set a goal, a budget, a net worth to reach, and add what you want.' },
+  { id: 'wants', label: 'Wants', sub: 'Plan three Decembers, a year apart: set a goal, a budget, a net worth to reach, and add what you want.' },
   { id: 'goals', label: 'Goals', sub: 'Your goals for the year, by area of life. Tick them off, drag them around, and open any goal’s notes.' },
   { id: 'assets', label: 'Assets', sub: 'Everything you plan to own, what it costs, and what it’ll be worth years from now.' },
   { id: 'income', label: 'Income', sub: 'Every way you earn, whether it covers the month’s goal, and the next step for each.' },
   { id: 'expenses', label: 'Expenses', sub: 'Your money on hand, and every expense coming off it. Budget and breakdown update as you log.' },
-  { id: 'setups', label: 'Setups', sub: 'Drag the GT3 RS onto a property. Take one off and it counts as sold.' },
+  { id: 'setups', label: 'Setups', sub: 'Drag the Ferrari 812 Superfast onto a property. Take one off and it counts as sold.' },
 ]
 
 /**

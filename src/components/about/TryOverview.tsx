@@ -4,10 +4,10 @@ import { overLimitIds, valueAfter } from '../../lib/calc'
 import { DEFAULT_KINDS, TREND, kindColor, kindIcon } from '../../lib/meta'
 import type { Item, MonthData } from '../../lib/types'
 import { DemoItemModal, type PlaceChoice } from './DemoDialogs'
-import { DEMO_MONTHS, monthLabel, nextId, placedOf, useDemo } from './demoStore'
+import { DEMO_MONTHS, DEMO_OFFSETS, monthLabel, nextId, placedOf, shortLabel, useDemo } from './demoStore'
 
 /*
- * A playable copy of the Overview on the About page: November 2027 and the two months after, with the same maths as the app
+ * A playable copy of the Overview on the About page: December 2027, 2028 and 2029, with the same maths as the app
  * (net worth goal → goal to make, budget, spent, running totals, items that don't fit shown in red, assets that gain or lose value).
  * It lives only in this page's memory: nothing is saved anywhere, and leaving or refreshing the page starts it over.
  */
@@ -33,18 +33,22 @@ export function moneyShort(n: number) {
 
 const kindOf = (id: string) => DEFAULT_KINDS.find((k) => k.id === id) ?? DEFAULT_KINDS[3]
 
-// ---- The maths (the app's computeAll, for three months) ----
+// ---- The maths (the app's computeAll, for the planned months) ----
 
 export type Calc = { goal: number; fromNetWorth: boolean; spent: number; cumEarned: number; cumSpent: number; cash: number; available: number; assets: number; netWorth: number }
 
 /** What came before the first month: earned and spent so far, and what's already owned is worth (in the first month). */
 export type Before = { earned: number; spent: number; assets: number }
 
-export function compute(months: MonthData[], before: Before = { earned: 0, spent: 0, assets: 0 }): Calc[] {
+/**
+ * `offsets`: each month's distance in months from the first (the playground's months are a year apart), so what's
+ * bought grows or loses value by the real time in between. By default they're one month apart.
+ */
+export function compute(months: MonthData[], before: Before = { earned: 0, spent: 0, assets: 0 }, offsets: number[] = months.map((_, i) => i)): Calc[] {
   const n = months.length
   const assets = new Array<number>(n).fill(before.assets)
   months.forEach((m, i) => m.items.forEach((it) => {
-    for (let t = i; t < n; t++) assets[t] += valueAfter(it, t - i)
+    for (let t = i; t < n; t++) assets[t] += valueAfter(it, offsets[t] - offsets[i])
   }))
   let cumEarned = before.earned
   let cumSpent = before.spent
@@ -61,11 +65,11 @@ export function compute(months: MonthData[], before: Before = { earned: 0, spent
 
 // ---- The playground ----
 
-/** `part`: the three months to plan, or the summary of them ("at a glance"); the About page shows them as two tabs. */
+/** `part`: the three Decembers to plan, or the summary of them ("at a glance"); the About page shows them as two tabs. */
 export function TryOverview({ part = 'plan' }: { part?: 'plan' | 'glance' }) {
   const months = useDemo((s) => s.months)
   const update = useDemo((s) => s.update)
-  const calc = useMemo(() => compute(months), [months])
+  const calc = useMemo(() => compute(months, undefined, DEMO_OFFSETS), [months])
   const strip = useRef<HTMLDivElement>(null)
   const [page, setPage] = useState(0)
   const onStrip = () => {
@@ -455,7 +459,7 @@ function SimItem({ it, keptAt, over, onEdit, onRemove, onStar }: { it: Item; kep
 function Summary({ months, calc }: { months: MonthData[]; calc: Calc[] }) {
   const last = calc[calc.length - 1]
   const stats = [
-    { k: `Net worth by ${DEMO_MONTHS[2].short}`, v: money(last.netWorth), cls: last.netWorth < 0 ? 'text-rose-300' : 'text-brand-200' },
+    { k: `Net worth by ${shortLabel(2)}`, v: money(last.netWorth), cls: last.netWorth < 0 ? 'text-rose-300' : 'text-brand-200' },
     { k: 'Total earned', v: money(last.cumEarned), cls: 'text-emerald-300' },
     { k: 'Total spent', v: money(last.cumSpent), cls: 'text-rose-300' },
     { k: 'Money left', v: money(last.cash), cls: last.cash < 0 ? 'text-rose-300' : 'text-white' },
@@ -463,7 +467,7 @@ function Summary({ months, calc }: { months: MonthData[]; calc: Calc[] }) {
   ]
   return (
     <div className="rounded-[24px] border border-white/[0.08] bg-[#0b0c10] p-5 sm:p-6">
-      <h3 className="font-semibold text-white">Your next three months, at a glance</h3>
+      <h3 className="font-semibold text-white">Three Decembers, at a glance</h3>
       <p className="mt-1 text-sm text-zinc-400">Change anything under Wants and these follow.</p>
       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((s) => (
@@ -483,7 +487,7 @@ function Summary({ months, calc }: { months: MonthData[]; calc: Calc[] }) {
 
 function NetWorthLine({ calc, goals }: { calc: Calc[]; goals: (number | null)[] }) {
   const values = [0, ...calc.map((c) => c.netWorth)]
-  const labels = ['Start', ...DEMO_MONTHS.map((m) => m.short)]
+  const labels = ['Start', ...DEMO_MONTHS.map((_, i) => shortLabel(i))]
   const all = [...values, ...goals.filter((g): g is number => g !== null)]
   const max = Math.max(1, ...all)
   const min = Math.min(0, ...all)
@@ -539,7 +543,7 @@ function SpentBars({ months, calc }: { months: MonthData[]; calc: Calc[] }) {
   return (
     <figure className="rounded-2xl border border-white/[0.06] bg-black/20 p-4">
       <figcaption className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <span className="font-medium text-zinc-200">Each month</span>
+        <span className="font-medium text-zinc-200">Each December</span>
         <span className="flex gap-3 text-[11px] text-zinc-400">
           <Legend cls="bg-emerald-400/70">To make</Legend>
           <Legend cls="bg-white/20">Budget</Legend>
@@ -555,13 +559,13 @@ function SpentBars({ months, calc }: { months: MonthData[]; calc: Calc[] }) {
               <div
                 className="flex flex-1 items-end justify-center gap-1.5"
                 role="img"
-                aria-label={`${NAMES[i]}: goal to make ${money(c.goal)}, budget ${money(m.budget)}, spent ${money(c.spent)}`}
+                aria-label={`${monthLabel(i)}: goal to make ${money(c.goal)}, budget ${money(m.budget)}, spent ${money(c.spent)}`}
               >
                 <Bar h={pct(c.goal)} cls="bg-emerald-400/70" title={`To make ${money(c.goal)}`} />
                 <Bar h={pct(m.budget)} cls="bg-white/20" title={`Budget ${money(m.budget)}`} />
                 <Bar h={pct(c.spent)} cls={overBudget ? 'bg-rose-400' : 'bg-brand-400'} title={`Spent ${money(c.spent)}`} />
               </div>
-              <p className="mt-2 text-center text-[12px] text-zinc-400">{NAMES[i].slice(0, 3)}</p>
+              <p className="mt-2 text-center text-[12px] text-zinc-400">{DEMO_MONTHS[i].year}</p>
             </div>
           )
         })}

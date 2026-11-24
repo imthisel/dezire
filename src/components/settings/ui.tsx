@@ -145,6 +145,8 @@ export function Select<T extends string | number>({ value, options, onChange, la
 
 const TONES = {
   primary: 'bg-gradient-to-r from-indigo-500 to-indigo-400 text-white shadow-lg shadow-indigo-500/20 hover:brightness-110',
+  /** The site's own blue (as on the About page's buttons) */
+  brand: 'bg-brand-600 text-white shadow-lg shadow-brand-600/20 hover:bg-brand-500',
   plain: 'border border-white/10 text-zinc-200 hover:bg-white/5 hover:text-white',
   danger: 'bg-red-500/90 text-white hover:bg-red-500',
 }

@@ -90,7 +90,7 @@ export function DreamsPreview() {
   const target = 1_000_000_000
   const dreams: { t: string; when: string; price: number; icon: LucideIcon; kind: Kind }[] = [
     { t: 'Beachfront villa in Siargao', when: 'Dec 2030', price: 38_000_000, icon: Waves, kind: 'property' },
-    { t: 'Porsche 911 GT3 RS', when: 'Jun 2028', price: 28_500_000, icon: Car, kind: 'vehicle' },
+    { t: '2026 Porsche 911 GT3 Manual', when: 'Jun 2028', price: 23_000_000, icon: Car, kind: 'vehicle' },
     { t: 'Patek Philippe Nautilus', when: 'Jun 2028', price: 10_000_000, icon: Watch, kind: 'status' },
     { t: 'BGC penthouse for Mom and Dad', when: 'Mar 2032', price: 85_000_000, icon: Building2, kind: 'property' },
   ]
@@ -137,7 +137,7 @@ export function DreamsPreview() {
 export function ExpensesPreview() {
   const budget = 180_000
   const cats: { label: string; amount: number; bar: string }[] = [
-    { label: 'Shopping', amount: 48_500, bar: 'bg-fuchsia-400' },
+    { label: 'Shopping', amount: 73_428, bar: 'bg-fuchsia-400' },
     { label: 'Bills', amount: 43_400, bar: 'bg-sky-400' },
     { label: 'Tithe', amount: 20_000, bar: 'bg-amber-300' },
     { label: 'Groceries', amount: 11_600, bar: 'bg-emerald-400' },
@@ -196,11 +196,11 @@ export function ExpensesPreview() {
 
 /** The Income plan: how much of this month's goal each way of earning covers, and the one thing to do next. */
 export function IncomePreview() {
-  const goal = 2_150_000
+  const goal = 1_500_000
   const rows: { name: string; kind: SourceKind; stage: SourceStage; amount: number }[] = [
-    { name: 'Specialty coffee roastery', kind: 'business', stage: 'running', amount: 1_200_000 },
-    { name: 'Head of Sales', kind: 'job', stage: 'running', amount: 500_000 },
-    { name: 'Brand strategy retainers', kind: 'freelance', stage: 'starting', amount: 900_000 },
+    { name: 'SaaS', kind: 'business', stage: 'running', amount: 1_000_000 },
+    { name: 'Software engineer', kind: 'job', stage: 'running', amount: 180_000 },
+    { name: 'Digital products', kind: 'online', stage: 'starting', amount: 100_000 },
   ]
   const earning = rows.filter((r) => r.stage === 'running').reduce((n, r) => n + r.amount, 0)
   const planned = rows.reduce((n, r) => n + r.amount, 0)
@@ -245,7 +245,7 @@ export function IncomePreview() {
       </ul>
       <p className="mt-2.5 flex items-center gap-2 rounded-lg border border-brand-300/20 bg-brand-300/[0.06] px-2.5 py-2 text-[11.5px] text-zinc-200">
         <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-brand-200">Next up</span>
-        <span className="truncate">Package one retainer offer</span>
+        <span className="truncate">Finish the Notion template pack</span>
       </p>
     </div>
   )
@@ -255,7 +255,7 @@ export function IncomePreview() {
 export function ListsPreview() {
   const tabs = ['Vehicles', 'Property', 'Travel', 'Watches']
   const rows: { t: string; p: number; trend: Trend; rate?: string }[] = [
-    { t: 'Porsche 911 GT3 RS', p: 28_500_000, trend: 'up', rate: '3%/yr' },
+    { t: '2026 Porsche 911 GT3 Manual', p: 23_000_000, trend: 'up', rate: '2%/yr' },
     { t: 'Mercedes-AMG G 63', p: 16_900_000, trend: 'down', rate: '9%/yr' },
     { t: 'Toyota Land Cruiser 300', p: 5_900_000, trend: 'down', rate: '7%/yr' },
   ]

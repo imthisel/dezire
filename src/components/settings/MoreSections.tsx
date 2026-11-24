@@ -118,7 +118,7 @@ export function HelpSection() {
           }
         >
           {update ? (
-            <Button tone="primary" icon={Sparkles} onClick={() => void applyUpdate()}>
+            <Button tone="brand" icon={Sparkles} onClick={() => void applyUpdate()}>
               Update now
             </Button>
           ) : (

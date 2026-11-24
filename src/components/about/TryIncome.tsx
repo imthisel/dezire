@@ -2,8 +2,8 @@ import { useMemo } from 'react'
 import { create } from 'zustand'
 import type { IncomeSource, PlanStep } from '../../lib/types'
 import { IncomePlanView, type IncomeApi, type IncomeData } from '../MoneyPlan'
-import { Toolbar, money, moneyShort } from './TryOverview'
-import { monthLabel, useDemo } from './demoStore'
+import { Toolbar, compute, money, moneyShort } from './TryOverview'
+import { DEMO_OFFSETS, monthLabel, useDemo } from './demoStore'
 
 /*
  * A playable copy of the Income plan on the About page: the app's own page, on plans kept in this page's memory.
@@ -20,21 +20,32 @@ const source = (s: Partial<IncomeSource> & Pick<IncomeSource, 'name' | 'kind' | 
 function example(): IncomeSource[] {
   return [
     source({
-      name: 'Specialty coffee roastery', kind: 'business', stage: 'running', monthlyGoal: 1_200_000,
-      price: 1_450, costPerSale: 520, monthlyCosts: 180_000,
-      steps: [step('Lock in a second café wholesale account', true), step('Launch the monthly subscription box'), step('Hire a weekend roaster')],
-      notes: 'Wholesale is 60% of sales. Subscriptions smooth out the slow months.',
+      name: 'SaaS', kind: 'business', stage: 'running', monthlyGoal: 1_000_000,
+      price: 2_990, costPerSale: 300, monthlyCosts: 150_000,
+      steps: [step('Ship the annual plan with 2 months free', true), step('Add a referral program'), step('Hire a part-time support person')],
+      notes: 'Subscriptions at ₱2,990 a month. Servers, tools and payment fees are the costs.',
     }),
     source({
-      name: 'Head of Sales', kind: 'job', stage: 'running', monthlyGoal: 450_000,
-      steps: [step('Close Q4 above target', true), step('Ask for the regional role at review')],
+      name: 'Software engineer', kind: 'job', stage: 'running', monthlyGoal: 180_000,
+      steps: [step('Finish the payments migration', true), step('Ask for the senior raise at review')],
     }),
     source({
-      name: 'Brand strategy retainers', kind: 'freelance', stage: 'starting', monthlyGoal: 900_000,
-      price: 180_000, costPerSale: 20_000,
-      steps: [step('Package one retainer offer'), step('Message 10 founders I already know')],
+      name: 'Memecoins', kind: 'invest', stage: 'running', monthlyGoal: 200_000,
+      steps: [step('Take profits every month, never all in', true), step('Cap it at 5% of net worth')],
+      notes: 'Side hustle, high risk: only money I can afford to lose.',
     }),
-    source({ name: 'Rent out the BGC condo', kind: 'invest', stage: 'idea', monthlyGoal: 95_000 }),
+    source({
+      name: 'Digital products', kind: 'online', stage: 'starting', monthlyGoal: 100_000,
+      price: 1_499, costPerSale: 90,
+      steps: [step('Finish the Notion template pack'), step('Launch it to the TikTok audience')],
+    }),
+    source({
+      name: 'TikTok affiliate', kind: 'online', stage: 'running', monthlyGoal: 30_000,
+      price: 150, costPerSale: 0,
+      steps: [step('Post one review a day', true), step('Pin the best-selling links')],
+    }),
+    source({ name: 'Dropshipping', kind: 'online', stage: 'idea' }),
+    source({ name: 'YouTube automation', kind: 'online', stage: 'idea' }),
   ]
 }
 
@@ -68,7 +79,9 @@ const useIncomeDemo = create<IncomeData & { reset: () => void; clear: () => void
 }))
 
 export function TryIncome() {
-  const goal = useDemo((d) => d.months[0].goal)
+  // The first month's goal to make, worked out from its net worth goal when it has one (as the app's Income plan does).
+  const months = useDemo((d) => d.months)
+  const goal = useMemo(() => compute(months, undefined, DEMO_OFFSETS)[0].goal, [months])
   const api = useMemo<IncomeApi>(
     () => ({
       use: (pick) => useIncomeDemo(pick),

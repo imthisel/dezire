@@ -5,7 +5,7 @@ import { TREND } from '../../lib/meta'
 import type { Item } from '../../lib/types'
 import { DemoItemModal } from './DemoDialogs'
 import { compute, money, moneyShort, placesFor } from './TryOverview'
-import { DEMO_MONTHS, SETUP_MONTH, monthLabel, placedOf, useDemo, type Placed } from './demoStore'
+import { DEMO_OFFSETS, SETUP_MONTH, monthLabel, monthsBetween, placedOf, shortLabel, useDemo, type Placed } from './demoStore'
 
 /*
  * A playable copy of Assets → Setups: where each vehicle is in one month's setup. Drag a vehicle onto a property to keep
@@ -14,9 +14,9 @@ import { DEMO_MONTHS, SETUP_MONTH, monthLabel, placedOf, useDemo, type Placed } 
  */
 
 const LABEL = monthLabel(SETUP_MONTH)
-const SHORT = `${DEMO_MONTHS[SETUP_MONTH].short} ${DEMO_MONTHS[SETUP_MONTH].year}`
+const SHORT = shortLabel(SETUP_MONTH)
 /** What `p` is worth by the setup's month. */
-const worth = (p: Placed) => valueAfter(p.item, SETUP_MONTH - p.month)
+const worth = (p: Placed) => valueAfter(p.item, monthsBetween(p.month, SETUP_MONTH))
 const NONE = '__none__'
 
 export function TrySetups() {
@@ -97,7 +97,7 @@ export function TrySetups() {
   const dragging = dragId ? vehicles.find((v) => v.item.id === dragId)?.item : undefined
 
   const edit = (p: Placed) => setEditing(p)
-  const calc = useMemo(() => compute(months), [months])
+  const calc = useMemo(() => compute(months, undefined, DEMO_OFFSETS), [months])
 
   if (!vehicles.length && !properties.length)
     return (
@@ -191,7 +191,7 @@ export function TrySetups() {
             <div {...zone(NONE)} className={`rounded-xl transition ${over === NONE ? 'ring-2 ring-rose-400/50' : ''}`}>
               <Group tone="rose" title="Not at a property" note="sold" count={unplaced.length} empty={dragging && at.has(dragging.id) ? 'Drop here to take it off its property' : 'Everything you still have is at a property'}>
                 {unplaced.map((v) => (
-                  <Box key={v.item.id} v={v} sub={`Bought ${DEMO_MONTHS[v.month].short} ${DEMO_MONTHS[v.month].year}`} tone="rose" drag={drag(v.item)} dragging={dragId === v.item.id} onEdit={() => edit(v)}>
+                  <Box key={v.item.id} v={v} sub={`Bought ${shortLabel(v.month)}`} tone="rose" drag={drag(v.item)} dragging={dragId === v.item.id} onEdit={() => edit(v)}>
                     <PutAt v={v.item} properties={properties} onPut={put} />
                   </Box>
                 ))}
@@ -227,7 +227,7 @@ export function TrySetups() {
                   <button onClick={() => edit(p)} className="min-w-0 flex-1 text-left" title={`Edit ${p.item.name}`}>
                     <span className="block truncate font-semibold text-white">{p.item.name}</span>
                     <span className="block text-xs text-zinc-500">
-                      Bought {DEMO_MONTHS[p.month].short} {DEMO_MONTHS[p.month].year} · {money(p.item.price)}
+                      Bought {shortLabel(p.month)} · {money(p.item.price)}
                     </span>
                   </button>
                   <span className="shrink-0 text-right">

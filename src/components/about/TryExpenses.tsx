@@ -48,7 +48,7 @@ function example(): Exp[] {
     exp(12, 549, 'Subscriptions', 'fun', 'Netflix', 'bank'),
     exp(13, 5_600, 'Dinner', 'food', 'Manam'),
     exp(15, 3_200, 'Fuel', 'transport', 'Shell'),
-    exp(16, 48_500, 'Loro Piana Summer Walk', 'shopping', 'Loro Piana Greenbelt', 'bank'),
+    exp(16, 73_428, 'Loro Piana Summer Walk', 'shopping', 'Loro Piana Greenbelt', 'bank'),
     exp(20, 5_400, 'Groceries', 'groceries', 'S&R', 'gcash'),
     exp(21, 2_300, 'Night out', 'fun'),
   ]

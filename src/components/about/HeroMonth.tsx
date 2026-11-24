@@ -18,12 +18,17 @@ const may2030 = (): MonthData => ({
   netWorthGoal: null,
   budget: 100_000_000,
   earned: null,
-  notes: 'The GT3 RS month. Paid in full, no loans.',
+  notes: 'The GT3 month. Paid in full, no loans.',
   items: [
-    item('gt3', 'Porsche 911 GT3 RS', 'vehicle', 'appreciating', 28_500_000, 3, { favorite: true }),
+    // Manual 992.2 GT3s trade above sticker; a modest 2%/yr is the careful view.
+    item('gt3', '2026 Porsche 911 GT3 (992.2) Manual', 'vehicle', 'appreciating', 23_000_000, 2, { favorite: true }),
+    // About 35% lost over 5 years (iSeeCars), ~7%/yr.
+    item('gx', 'Lexus GX 550 Premier', 'vehicle', 'depreciating', 8_858_000, 7),
+    item('batangas', 'Batangas rest house', 'property', 'appreciating', 20_000_000, 5),
     item('patek', 'Patek Philippe Nautilus 5711/1A', 'status', 'appreciating', 10_000_000, 6),
     item('alps', 'Swiss Alps · Zermatt chalet, 7 nights', 'travel', 'stable', 2_400_000),
-    item('birkin', 'Hermès Birkin 25', 'status', 'appreciating', 1_600_000, 5),
+    // Loro Piana's list price, US$1,150, at ₱63.85 to the dollar (BSP reference rate, Nov 24, 2026). Worn shoes resell for little.
+    item('lp', 'Loro Piana Summer Walk loafers, suede', 'status', 'depreciating', 73_428, 40),
   ],
 })
 

@@ -3,11 +3,11 @@ import { ArrowUpDown, CalendarDays, ChevronDown, Gem, Home, Star } from 'lucide-
 import { valueAfter } from '../../lib/calc'
 import { DEFAULT_KINDS, TREND, kindColor, kindIcon } from '../../lib/meta'
 import type { Item, Trend } from '../../lib/types'
-import { DEMO_MONTHS, useDemo } from './demoStore'
+import { DEMO_MONTHS, shortLabel, useDemo } from './demoStore'
 import { money } from './TryOverview'
 
 /*
- * A playable copy of Assets on the About page: everything in the Wants playground's three months, by kind, with what it
+ * A playable copy of Assets on the About page: everything in the Wants playground's three Decembers, by kind, with what it
  * cost, what it will be worth, and how it changes in value, as the app shows it. Star one to make it a favorite, pick how
  * far ahead to look, filter and sort. It shares the playground's plan, so changes under Wants show here too.
  */
@@ -20,10 +20,9 @@ const SORTS: { id: Sort; label: string }[] = [
   { id: 'price', label: 'By price' },
   { id: 'name', label: 'By name' },
 ]
-/** How far ahead "worth" looks, in months after the first month. */
+/** How far ahead "worth" looks, in months after the first month (December 2027). */
 const AHEAD: { id: number; label: string; short: string }[] = [
-  { id: 2, label: `End of ${DEMO_MONTHS[2].name}`, short: `${DEMO_MONTHS[2].short} ${DEMO_MONTHS[2].year}` },
-  { id: 12, label: 'In 1 year', short: 'in 1 year' },
+  { id: DEMO_MONTHS[2].offset, label: `End of ${DEMO_MONTHS[2].name} ${DEMO_MONTHS[2].year}`, short: `by ${shortLabel(2)}` },
   { id: 60, label: 'In 5 years', short: 'in 5 years' },
   { id: 120, label: 'In 10 years', short: 'in 10 years' },
 ]
@@ -40,7 +39,7 @@ export function TryAssets({ onOpenMonth }: { onOpenMonth: () => void }) {
   const [sort, setSort] = useState<Sort>('date')
 
   const all = useMemo<Asset[]>(() => months.flatMap((m, month) => m.items.map((item) => ({ item, month }))), [months])
-  const worthOf = (a: Asset) => valueAfter(a.item, Math.max(0, ahead - a.month))
+  const worthOf = (a: Asset) => valueAfter(a.item, Math.max(0, ahead - DEMO_MONTHS[a.month].offset))
   const ofKind = cat === 'all' ? all : all.filter((a) => a.item.category === cat)
   const trendOn = trend !== 'all' && ofKind.some((a) => a.item.trend === trend) ? trend : 'all'
   const shown = useMemo(() => {
@@ -79,7 +78,7 @@ export function TryAssets({ onOpenMonth }: { onOpenMonth: () => void }) {
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-xl font-bold tracking-tight text-white sm:text-2xl">{kind ? kind.label : 'All assets'}</h3>
             <p className="truncate text-sm text-zinc-400">
-              {ofKind.length} item{ofKind.length === 1 ? '' : 's'} · {DEMO_MONTHS[0].short} – {DEMO_MONTHS[2].short} {DEMO_MONTHS[2].year}
+              {ofKind.length} item{ofKind.length === 1 ? '' : 's'} · {shortLabel(0)} – {shortLabel(2)}
             </p>
           </div>
         </div>
@@ -219,7 +218,7 @@ export function TryAssets({ onOpenMonth }: { onOpenMonth: () => void }) {
                     <div className="min-w-0 flex-1">
                       <h4 className="truncate font-semibold text-white">{item.name}</h4>
                       <p className="truncate text-xs text-zinc-400">
-                        {k.label} · {DEMO_MONTHS[a.month].short} {DEMO_MONTHS[a.month].year}
+                        {k.label} · {shortLabel(a.month)}
                       </p>
                     </div>
                     <button
