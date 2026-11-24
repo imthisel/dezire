@@ -52,7 +52,7 @@ interface Session {
   /** null: still checking */
   state: 'checking' | 'in' | 'out' | 'not_configured' | 'offline'
   expires: number | null
-  /** When not configured: which Vercel settings are missing or broken */
+  /** When not configured: which Cloudflare settings are missing or broken */
   problems: string[]
 }
 export const useSession = create<Session>(() => ({ state: 'checking', expires: null, problems: [] }))
@@ -114,7 +114,7 @@ export function errorText(e: unknown) {
     case 'network':
       return 'Can’t reach the server. Check your connection.'
     case 'no_api':
-      return 'The admin API isn’t running here. Use the deployed site, or `vercel dev` locally.'
+      return 'The admin API isn’t running here. Use the deployed site, or `npm run cf:dev` locally.'
     case 'signed_out':
       return 'Your admin session ended. Sign in again.'
     case 'not_found':

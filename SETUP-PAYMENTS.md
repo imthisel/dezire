@@ -1,6 +1,6 @@
 # Dizayr payments: what you sell, and how to set it up (Paddle)
 
-**Your live address is `https://dizayr.com`.** Use it everywhere below. Don't use `www.dizayr.com` or an old `.vercel.app` address.
+**Your live address is `https://dizayr.com`.** Use it everywhere below. Don't use `www.dizayr.com` or a `.workers.dev` address.
 
 - **Part 1** is what the app sells today.
 - **Part 2** is the setup, in order. It takes about an hour, plus a few business days for Paddle to approve your account and website.
@@ -93,7 +93,7 @@ Keep Notepad open. You'll collect these values (sandbox first, then live ones in
 
 ## Step 1: Make Google sign-in work on dizayr.com
 
-Skip this if it's already done. The site already loads on `dizayr.com`, and `www.dizayr.com` already redirects to it. Don't change that in Vercel, because payment messages must reach `dizayr.com` directly.
+Skip this if it's already done. The site already loads on `dizayr.com`, and `www.dizayr.com` already redirects to it. Don't change that in Cloudflare (it's a Redirect Rule there), because payment messages must reach `dizayr.com` directly.
 
 **1a. Firebase**
 1. Go to **https://console.firebase.google.com** and open project **dezire-ce767**. The old name in the project ID is normal and can't be changed.
@@ -113,7 +113,7 @@ Dizayr signs people in through its own address, so Google has to allow that addr
 
 **Check it:** open `https://dizayr.com` in a private window and sign in with Google. You should reach the app. If you see `redirect_uri_mismatch`, redo 1b.
 
-**Leave `vercel.json`'s rewrites alone.** The `dezire-ce767.firebaseapp.com` entries in it are correct.
+**Leave `FIREBASE_HOSTING` in `worker/index.ts` alone.** It passes `/__/auth` and `/__/firebase` through to `dezire-ce767.firebaseapp.com`, which is correct.
 
 ## Step 2: Create your Paddle accounts, and get your website ready for review
 
@@ -163,41 +163,44 @@ Use **one product with two prices**: Yearly (recurring) and Lifetime (one-time).
 3. In the Firebase editor, press **Ctrl+A**, then **Ctrl+V**.
 4. Click **Publish**.
 
-**5b. Download the service account key.** Skip this if `FIREBASE_SERVICE_ACCOUNT` is already in Vercel.
+**5b. Download the service account key.** Skip this if `FIREBASE_SERVICE_ACCOUNT` is already in Cloudflare.
 1. Click the **gear icon ⚙ → Project settings → Service accounts**.
 2. Click **Generate new private key → Generate key**. A `.json` file downloads.
 3. **Keep it secret.** Don't put it in the project folder or on GitHub, and don't send it to anyone. It gives full control of your database.
 
-## Step 6: Remove the old Lemon Squeezy settings from Vercel
+## Step 6: Remove the old Lemon Squeezy webhook
 
-In **Vercel → your project → Settings → Environment Variables**, delete these if they're there. The app no longer reads them:
+If you set up a webhook in Lemon Squeezy, delete it there (**Settings → Webhooks**). Its address, `/api/lemonsqueezy`, no longer exists. Don't add any `LS_…` or `LEMONSQUEEZY_…` settings to Cloudflare: the app no longer reads them.
 
-`VITE_LS_CHECKOUT_ANNUAL`, `VITE_LS_CHECKOUT_SEMIANNUAL`, `VITE_LS_STORE_URL`, `LS_VARIANT_ANNUAL`, `LS_VARIANT_SEMIANNUAL`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LS_ALLOW_TEST_MODE`
+## Step 7: Add the settings to Cloudflare
 
-If you set up a webhook in Lemon Squeezy, delete it there too (**Settings → Webhooks**). Its address, `/api/lemonsqueezy`, no longer exists.
+Open **https://dash.cloudflare.com → Workers & Pages → dizayr → Settings**. Cloudflare keeps settings in **two different places**, and some must go in both:
 
-## Step 7: Add the Paddle settings to Vercel
+- **Build → Variables and secrets** (under Settings → Build): values baked into the app when it's built. The browser needs these.
+- **Variables and Secrets** (under Settings, near the top): values the server (`/api/…`) reads while it runs.
 
-1. In **Vercel → Settings → Environment Variables**, add each of these with **Production** and **Preview** ticked:
+| Key (copy exactly) | Build variables | Variables and Secrets (server) | Value |
+|---|---|---|---|
+| `VITE_FIREBASE_API_KEY` | ✅ | ✅ type **Text** | From `.env.local` |
+| `VITE_FIREBASE_AUTH_DOMAIN` | ✅ | | From `.env.local` |
+| `VITE_FIREBASE_PROJECT_ID` | ✅ | | From `.env.local` |
+| `VITE_FIREBASE_APP_ID` | ✅ | | From `.env.local` |
+| `VITE_PADDLE_ENV` | ✅ | ✅ type **Text** | `sandbox` (while testing) |
+| `VITE_PADDLE_CLIENT_TOKEN` | ✅ | | Client-side token |
+| `VITE_PADDLE_PRICE_ANNUAL` | ✅ | ✅ type **Text** | Yearly price ID |
+| `VITE_PADDLE_PRICE_LIFETIME` | ✅ | ✅ type **Text** | Lifetime price ID |
+| `PADDLE_API_KEY` | | ✅ type **Secret** | API key |
+| `PADDLE_WEBHOOK_SECRET` | | ✅ type **Secret** | Webhook secret key (from Step 8; add it then) |
+| `FIREBASE_SERVICE_ACCOUNT` | | ✅ type **Secret** | The whole service account file, from the first `{` to the last `}` |
+| `ADMIN_PASSWORD` | | ✅ type **Secret** | A password of 8+ characters for `https://dizayr.com/admin` |
 
-| Key (copy exactly) | Type | Value |
-|---|---|---|
-| `VITE_PADDLE_ENV` | **Config** | `sandbox` (while testing) |
-| `VITE_PADDLE_CLIENT_TOKEN` | **Config** | Client-side token |
-| `VITE_PADDLE_PRICE_ANNUAL` | **Config** | Yearly price ID |
-| `VITE_PADDLE_PRICE_LIFETIME` | **Config** | Lifetime price ID |
-| `PADDLE_API_KEY` | Secret | API key |
-| `PADDLE_WEBHOOK_SECRET` | Secret | Webhook secret key (from Step 8; add it then) |
-| `FIREBASE_SERVICE_ACCOUNT` | Secret | The whole service account file (if not there yet) |
-| `ADMIN_PASSWORD` | Secret | A password of 8+ characters for `https://dizayr.com/admin` (if not there yet) |
+The `VITE_` values are meant to be public (the checkout runs in the customer's browser), so type **Text** is right for them. Don't rename them. The four marked in both columns must have **the same value in both places**: the server uses them to check who's asking for **Manage billing**, which payments are test ones, and which price is Yearly or Lifetime.
 
-   Vercel warns about the `VITE_` prefix on the first four. That's expected: they're meant to be public, because the checkout runs in the customer's browser. Click **Change to Config**. Don't rename them.
+**After a change:**
+- **Variables and Secrets** (server): click **Deploy** when Cloudflare asks. It takes effect within seconds; no rebuild needed.
+- **Build variables**: they only apply to a new build. Go to **Deployments**, open the latest build, and click **Retry build** (or push any commit).
 
-   `VITE_FIREBASE_API_KEY` must also be there (it already is if sign-in works). The server uses it to check who's asking for **Manage billing**.
-
-2. **Redeploy:** go to **Deployments**, click **⋯** on the latest one, then **Redeploy**. Settings only apply to a new deployment. Do this every time you change one.
-
-**To try checkout on your own computer (optional):** add only these four lines to `.env.local`. The others are server secrets and must stay out of it. (Manage billing needs the server, so it only works on Vercel.)
+**To try checkout on your own computer (optional):** add only these four lines to `.env.local`. The others are server secrets and must stay out of it. (Manage billing needs the server: it works on the deployed site, or with `npm run cf:dev` and a `.dev.vars` file, see `.dev.vars.example`.)
 
 ```
 VITE_PADDLE_ENV=sandbox
@@ -224,9 +227,9 @@ VITE_PADDLE_PRICE_LIFETIME=your lifetime pri_ ID
    - `subscription.imported`
    - `transaction.completed` (Lifetime purchases)
    - `adjustment.created` and `adjustment.updated` (refunds and chargebacks, so a refunded Lifetime is taken back)
-5. Save. Then open the destination (**⋯ → Edit destination**) and copy its **Secret key** (`pdl_ntfset_…`). Add it to Vercel as `PADDLE_WEBHOOK_SECRET` and **Redeploy**.
+5. Save. Then open the destination (**⋯ → Edit destination**) and copy its **Secret key** (`pdl_ntfset_…`). Add it in Cloudflare as `PADDLE_WEBHOOK_SECRET` (**Variables and Secrets**, type Secret) and click **Deploy**.
 
-**Test vs real payments:** sandbox and live have **different** secret keys. Whichever one is in Vercel decides which payments count. With the sandbox key, only test payments unlock accounts. With the live key, test payments are refused. You swap it in Step 11.
+**Test vs real payments:** sandbox and live have **different** secret keys. Whichever one is in Cloudflare decides which payments count. With the sandbox key, only test payments unlock accounts. With the live key, test payments are refused. You swap it in Step 11.
 
 **Your own account** (otherwise your trial runs out too). Skip this if you already have lifetime access.
 1. Sign in at `https://dizayr.com` with your own Google account.
@@ -291,18 +294,18 @@ In Paddle, go to **Customers → Subscriptions** (or search for the `sub_…` ID
 1. Wait for Paddle to approve your live account and website (Step 2).
 2. Add your payout details in the live dashboard (**Business account → Payouts**).
 3. **Repeat Steps 2.5, 3, 4 and 8 in the live account.** Live prices, tokens, keys and the webhook secret are all **different** from sandbox ones. In live, the default payment link must be `https://dizayr.com`.
-4. In Vercel, replace these with the live values, then **Redeploy**:
-   - `VITE_PADDLE_ENV`: delete it, or set it to `production`
-   - `VITE_PADDLE_CLIENT_TOKEN` (`live_…`)
-   - `VITE_PADDLE_PRICE_ANNUAL`
-   - `VITE_PADDLE_PRICE_LIFETIME`
-   - `PADDLE_API_KEY` (live key)
-   - `PADDLE_WEBHOOK_SECRET` (live destination's secret key)
+4. In Cloudflare, replace these with the live values (in **every** place Step 7 lists them), then **Retry build**:
+   - `VITE_PADDLE_ENV`: set it to `production` (build variables **and** server)
+   - `VITE_PADDLE_CLIENT_TOKEN` (`live_…`, build variables)
+   - `VITE_PADDLE_PRICE_ANNUAL` (build variables **and** server)
+   - `VITE_PADDLE_PRICE_LIFETIME` (build variables **and** server)
+   - `PADDLE_API_KEY` (live key, server)
+   - `PADDLE_WEBHOOK_SECRET` (live destination's secret key, server)
 5. **Real purchase test:** with a spare account, buy Yearly with your real card.
    - Check Firestore shows `plan: annual` and `testMode: false`, and that the webhook shows **200**.
    - Refund it and cancel it immediately (Step 10).
 
-**Tip:** to keep testing safely after going live, use a Vercel **Preview** deployment with the sandbox values (set them for **Preview** only), and point a sandbox notification destination at that preview's address.
+**Tip:** to keep testing safely after going live, test with sandbox values on your own computer (`npm run cf:dev` with a `.dev.vars` file), never by switching the live site back to sandbox.
 
 ---
 
@@ -310,7 +313,7 @@ In Paddle, go to **Customers → Subscriptions** (or search for the `sub_…` ID
 
 **Change a price**
 1. Paddle (live): add a new price on the product (Paddle prices can't be edited once used). Archive the old one.
-2. Vercel: put the new price's `pri_…` ID in `VITE_PADDLE_PRICE_ANNUAL` or `VITE_PADDLE_PRICE_LIFETIME`, and redeploy. Existing subscribers stay on the old price unless you move them in Paddle.
+2. Cloudflare: put the new price's `pri_…` ID in `VITE_PADDLE_PRICE_ANNUAL` or `VITE_PADDLE_PRICE_LIFETIME` (in **both** build variables and server, Step 7), and retry the build. Existing subscribers stay on the old price unless you move them in Paddle.
 3. `src/lib/plans.ts`: change `price` (the admin revenue figure reads it from there too).
 4. Change the prices in the `<noscript>` text in `index.html`.
 5. Push to GitHub.
@@ -336,14 +339,14 @@ In Paddle, go to **Customers → Subscriptions** (or search for the `sub_…` ID
 |---|---|---|
 | `redirect_uri_mismatch` at Google sign-in | Google doesn't allow `dizayr.com` yet | Step 1b |
 | Sign-in popup closes with an error | Domain not authorized in Firebase | Step 1a |
-| "Payments aren't set up yet" | Token or price IDs missing from the build | Check the four `VITE_PADDLE_…` settings (Step 7), then **Redeploy** |
+| "Payments aren't set up yet" | Token or price IDs missing from the build | Check the four `VITE_PADDLE_…` **build variables** (Step 7), then **Retry build** |
 | "Couldn't open the checkout" | Paddle.js didn't load (ad blocker, offline), or a sandbox token with `VITE_PADDLE_ENV` not set to `sandbox` (or the other way round) | Try without the ad blocker; check `VITE_PADDLE_ENV` matches the token (`test_` = sandbox) |
 | Checkout opens then shows an error | Default payment link not set, or the website isn't approved yet (live) | Step 2.4 and 2.5 |
-| Checkout blocked, browser console mentions "Content Security Policy" | Paddle loaded something from a new address | Add that address to the CSP in `vercel.json` and push |
+| Checkout blocked, browser console mentions "Content Security Policy" | Paddle loaded something from a new address | Add that address to the `Content-Security-Policy` in `public/_headers` and push |
 | Paid, but the account stays locked | The webhook isn't getting through | See the webhook codes below |
 | Paid $149 but the account isn't Lifetime | `transaction.completed` isn't ticked on the webhook, or `VITE_PADDLE_PRICE_LIFETIME` is wrong | Fix it (Step 8 / Step 7), redeploy, then replay the `transaction.completed` event from the notification logs |
 | Bought Lifetime but Yearly still renews | The API key can't write subscriptions | Give it **Subscriptions (write)** (Step 4), and cancel that subscription by hand in Paddle |
-| **Manage billing** says it couldn't open | `PADDLE_API_KEY` missing or from the other environment (sandbox vs live) | Step 4 / Step 11, then redeploy. Details in Vercel **Logs**, filter `/api/billing` |
+| **Manage billing** says it couldn't open | `PADDLE_API_KEY` missing or from the other environment (sandbox vs live) | Step 4 / Step 11. Details in Cloudflare → dizayr → **Logs**, search `billing` |
 | **Manage billing** says there's no payment | The account has no Paddle customer saved yet (the webhook never reached it) | Check the webhook |
 | Refunded customer still has access | A refund alone doesn't lock | Cancel the subscription immediately (Step 10) |
 | Someone uses the app after their trial | Rules not published | Step 5a |
@@ -354,12 +357,12 @@ In Paddle, go to **Customers → Subscriptions** (or search for the `sub_…` ID
 
 | Code | Meaning | Fix |
 |---|---|---|
-| **401** | The secret key doesn't match Vercel, or it's the other environment's key, or the server's clock is far off | Copy the destination's secret key into `PADDLE_WEBHOOK_SECRET` again, then redeploy |
+| **401** | The secret key doesn't match Cloudflare's, or it's the other environment's key, or the server's clock is far off | Copy the destination's secret key into `PADDLE_WEBHOOK_SECRET` again, then click **Deploy** |
 | **404** | Wrong URL, or the code isn't deployed | It must be exactly `https://dizayr.com/api/paddle` |
 | **307 or 308** | The URL is redirecting | Remove `www` and any `/` at the end |
 | **500** | `FIREBASE_SERVICE_ACCOUNT` is wrong or incomplete | Paste the whole file again, then redeploy |
 | **503** | `PADDLE_WEBHOOK_SECRET` isn't set | Step 8, then redeploy |
 
-Paddle retries failed deliveries for a while. After you fix the problem, **replay the failed event** from the destination's logs, or the customer stays locked. For error details, go to Vercel → your project → **Logs** and filter by `/api/paddle`.
+Paddle retries failed deliveries for a while. After you fix the problem, **replay the failed event** from the destination's logs, or the customer stays locked. For error details, go to Cloudflare → Workers & Pages → dizayr → **Logs** and search `paddle`.
 
 **Quick check:** open `https://dizayr.com/api/paddle` in a browser. "Method not allowed" (405) is correct, because that address only accepts messages from Paddle. A 404 means the code isn't deployed.

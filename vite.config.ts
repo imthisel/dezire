@@ -4,11 +4,11 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 /**
- * Which version of the app this is: the commit it was built from (Vercel gives it on every deploy), so each push is a new
+ * Which version of the app this is: the commit it was built from (Cloudflare's builds give it on every deploy), so each push is a new
  * version. Written into the app and into /version.json, which the app checks to offer the update (see src/appUpdate.ts).
  */
 function commit() {
-  if (process.env.VERCEL_GIT_COMMIT_SHA) return process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7)
+  if (process.env.WORKERS_CI_COMMIT_SHA) return process.env.WORKERS_CI_COMMIT_SHA.slice(0, 7)
   try {
     return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
   } catch {

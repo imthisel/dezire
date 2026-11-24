@@ -1,0 +1,16 @@
+# Only for running the whole site (with /api) on your computer: `npm run cf:dev`.
+# Copy this file to .dev.vars (it's ignored by git) and fill it in. Use SANDBOX Paddle values here, never live ones.
+# On Cloudflare itself these go in Workers & Pages → dizayr → Settings → Variables and Secrets instead.
+
+# The server reads these too (same values as in .env.local):
+VITE_FIREBASE_API_KEY=
+VITE_PADDLE_ENV=sandbox
+VITE_PADDLE_PRICE_ANNUAL=
+VITE_PADDLE_PRICE_LIFETIME=
+
+# Server secrets:
+PADDLE_API_KEY=
+PADDLE_WEBHOOK_SECRET=
+# The whole service account .json file on one line, in single quotes.
+FIREBASE_SERVICE_ACCOUNT='{"type":"service_account",...}'
+ADMIN_PASSWORD=

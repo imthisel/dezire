@@ -171,11 +171,11 @@ function Login() {
               {state === 'offline' ? (
                 <>
                   This page needs the server functions in <code className="text-zinc-200">/api</code>. Open it on the deployed site, or run{' '}
-                  <code className="text-zinc-200">vercel dev</code> instead of <code className="text-zinc-200">npm run dev</code>.
+                  <code className="text-zinc-200">npm run cf:dev</code> instead of <code className="text-zinc-200">npm run dev</code>.
                 </>
               ) : (
                 <>
-                  Fix this in Vercel → Settings → Environment Variables, then redeploy:
+                  Fix this in Cloudflare → Workers &amp; Pages → dizayr → Settings → Variables and Secrets:
                   {problems.length > 0 && (
                     <ul className="mt-2 list-disc space-y-1 pl-5 text-zinc-300">
                       {problems.map((p) => (

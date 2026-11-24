@@ -1,12 +1,10 @@
-import crypto from 'node:crypto'
+import { accessToken, type ServiceAccount } from './google'
 
 /**
- * Firebase sign-in accounts, through Google's Identity Toolkit web API, using only Node's own crypto.
- * Used instead of `firebase-admin/auth`, which loads a package (jose) in a way Vercel's functions can't run.
+ * Firebase sign-in accounts, through Google's Identity Toolkit web API, with only fetch and Web Crypto
+ * (firebase-admin doesn't run on Cloudflare Workers).
  * Covers what the admin page needs: list, look up, disable / enable, sign out everywhere, delete.
  */
-
-export type ServiceAccount = { project_id?: string; client_email?: string; private_key?: string }
 
 export type Account = {
   uid: string
@@ -28,36 +26,6 @@ export class AccountError extends Error {
     super(message)
     this.code = code
   }
-}
-
-const b64 = (v: string | Buffer) => Buffer.from(v).toString('base64url')
-
-let token: { value: string; until: number } | null = null
-
-/** A Google access token for the service account (signed JWT → OAuth token), reused until shortly before it expires. */
-async function accessToken(sa: ServiceAccount) {
-  if (token && token.until > Date.now() + 60_000) return token.value
-  const now = Math.floor(Date.now() / 1000)
-  const head = b64(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
-  const claims = b64(
-    JSON.stringify({
-      iss: sa.client_email,
-      scope: 'https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/identitytoolkit',
-      aud: 'https://oauth2.googleapis.com/token',
-      iat: now,
-      exp: now + 3600,
-    }),
-  )
-  const sig = crypto.createSign('RSA-SHA256').update(`${head}.${claims}`).sign(sa.private_key!)
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${head}.${claims}.${b64(sig)}` }),
-  })
-  const body = (await res.json()) as { access_token?: string; expires_in?: number; error_description?: string; error?: string }
-  if (!res.ok || !body.access_token) throw new AccountError('auth/token', `Google sign-in for the server failed: ${body.error_description ?? body.error ?? res.status}`)
-  token = { value: body.access_token, until: Date.now() + (body.expires_in ?? 3600) * 1000 }
-  return token.value
 }
 
 type RawUser = {
@@ -94,6 +62,7 @@ export function accounts(sa: ServiceAccount) {
       method: init.method ?? (init.body ? 'POST' : 'GET'),
       headers: { Authorization: `Bearer ${await accessToken(sa)}`, 'Content-Type': 'application/json' },
       body: init.body ? JSON.stringify(init.body) : undefined,
+      signal: AbortSignal.timeout(15_000),
     })
     const body = (await res.json().catch(() => ({}))) as T & { error?: { message?: string } }
     if (!res.ok) {

@@ -9,8 +9,8 @@
  * owner can see or change its billing. The Paddle customer and subscription come from subscriptions/{uid}, which
  * only the webhook writes. Needs PADDLE_API_KEY (server only), FIREBASE_SERVICE_ACCOUNT and VITE_FIREBASE_API_KEY.
  */
-import { firebase } from './_lib/admin.js'
-import { PaddleError, paddle, paddleId } from './_lib/paddle.js'
+import { firebase } from './lib/admin'
+import { PaddleError, paddle, paddleId } from './lib/paddle'
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } })

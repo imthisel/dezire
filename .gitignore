@@ -6,3 +6,8 @@ dist
 .vscode/*
 !.vscode/extensions.json
 *.tsbuildinfo
+
+# Cloudflare (local runs and server secrets for `wrangler dev`)
+.wrangler
+.dev.vars*
+!.dev.vars.example

@@ -112,7 +112,7 @@ export function Activity() {
         <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-400/25 bg-amber-500/[0.07] px-4 py-3 text-sm text-amber-100">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
           <p>
-            {failed24} wrong admin password attempt{failed24 === 1 ? '' : 's'} in the last 24 hours. If that wasn’t you, change <code>ADMIN_PASSWORD</code> in Vercel: it
+            {failed24} wrong admin password attempt{failed24 === 1 ? '' : 's'} in the last 24 hours. If that wasn’t you, change <code>ADMIN_PASSWORD</code> in Cloudflare: it
             also signs out every admin session.
           </p>
         </div>

@@ -1,0 +1,23 @@
+// Cloudflare Workers settings for dizayr.com (see README.md, "Deploy (Cloudflare)").
+// `npm run build` makes dist/; `npx wrangler deploy` uploads it with the server in worker/.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Must be the same as the Worker's name in the Cloudflare dashboard.
+  "name": "dizayr",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-11-01",
+  // Node's Buffer and crypto (used by the admin sign-in), and process.env filled from the Worker's variables and secrets.
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // /about, /auth, /admin… (anything that isn't a file) open the app, which shows the right page.
+    "not_found_handling": "single-page-application",
+    // The server and Firebase's sign-in pages; everything else is a static file.
+    "run_worker_first": ["/api/*", "/__/*"]
+  },
+  // Keeps the variables added in the dashboard (Settings → Variables and Secrets) when a new version deploys.
+  "keep_vars": true,
+  // Server logs in the dashboard (Workers → dizayr → Logs).
+  "observability": { "enabled": true }
+}

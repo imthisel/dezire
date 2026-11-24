@@ -21,26 +21,19 @@
  * - Events that arrive out of order never overwrite newer ones.
  * - Lifetime is only taken away by a refund of the very payment that gave it (its transaction id is kept).
  */
-import { cert, getApps, initializeApp } from 'firebase-admin/app'
-import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore'
+import { FieldValue, Timestamp, firestore } from './lib/firestore'
+import { serviceAccount } from './lib/google'
 import {
   accessFor, lifetimePurchase, takesPaymentBack, validSignature,
   type PaddleAdjustment, type PaddleSubscription, type PaddleTransaction,
-} from './_lib/subscription.js'
-import { paddle, paddleId, paddleSandbox } from './_lib/paddle.js'
+} from './lib/subscription'
+import { paddle, paddleId, paddleSandbox } from './lib/paddle'
 
 type Payload<T = unknown> = { event_id?: string; event_type: string; occurred_at?: string; data: T }
 
 const MAX_BODY = 512 * 1024
 
-function db() {
-  if (!getApps().length) {
-    const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT ?? '{}')
-    if (sa.private_key) sa.private_key = String(sa.private_key).replace(/\\n/g, '\n')
-    initializeApp({ credential: cert(sa) })
-  }
-  return getFirestore()
-}
+const db = () => firestore(serviceAccount())
 
 const ts = (d: Date | null) => (d ? Timestamp.fromDate(d) : null)
 const text = (body: string, status: number) => new Response(body, { status, headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' } })

@@ -46,13 +46,15 @@ Press your profile picture → **Settings** (or Settings in the side menu). It h
    ```
    These values identify your project but are not secrets. The Firestore rules are what keep data private.
 
-## Deploy (Vercel)
+## Deploy (Cloudflare)
+
+The site runs on Cloudflare Workers: the built app (`dist/`) is served as static files with the headers in [`public/_headers`](public/_headers), and the small server in [`worker/`](worker/) answers `/api/admin`, `/api/billing` and `/api/paddle`, and passes Firebase's sign-in pages (`/__/auth`, `/__/firebase`) through from `dezire-ce767.firebaseapp.com`. Settings are in [`wrangler.jsonc`](wrangler.jsonc).
 
 1. Push this repo to GitHub.
-2. Go to https://vercel.com, sign in with GitHub, click **Add New → Project**, and import the repo. Vercel detects Vite automatically (build `npm run build`, output `dist`).
-3. Before clicking **Deploy**, open **Environment Variables** and add the same four `VITE_FIREBASE_*` values.
-4. Click **Deploy**. Every later `git push` to `main` redeploys automatically.
-5. Back in Firebase: **Authentication → Settings → Authorized domains → Add domain**, and add your Vercel domain (e.g. `dizayr.vercel.app`) plus any custom domain. Google sign-in is blocked on domains that aren't listed.
+2. In the Cloudflare dashboard: **Workers & Pages → Create → Import a repository**, pick the repo. Project name **`dizayr`** (it must match `name` in `wrangler.jsonc`), build command `npm run build`, deploy command `npx wrangler deploy`.
+3. Add the settings (full list in [SETUP-PAYMENTS.md](SETUP-PAYMENTS.md), "Cloudflare settings"). Values the browser needs (`VITE_…`) go under **Settings → Build → Variables and secrets** (they're built into the app); the server's go under **Settings → Variables and Secrets**.
+4. Every later `git push` to `main` builds and deploys automatically. To deploy from your computer instead: `npx wrangler login`, then `npm run deploy`.
+5. Back in Firebase: **Authentication → Settings → Authorized domains → Add domain**, and add your domain (`dizayr.com`). Google sign-in is blocked on domains that aren't listed.
 6. **Sign-in on phones** goes to Google and comes back to the site's own `/auth` page (see `src/googleRedirect.ts`), so Google must allow it: open https://console.cloud.google.com/apis/credentials for the same project, click **Web client (auto created by Google Service)**, and under **Authorized redirect URIs** add `https://your-domain/auth` (e.g. `https://dizayr.com/auth`). Keep the `/__/auth/handler` ones that are already there (computers still use them). Without it, phones get **Error 400: redirect_uri_mismatch** from Google.
 
 ## The app (install, offline, updates)
@@ -63,9 +65,9 @@ Dizayr installs as an app straight from the website (it's a Progressive Web App)
 
 ## Payments: 14-day free trial and plans (Paddle)
 
-How it works: anyone who signs in with Google gets **14 days free** (no card). The trial start is saved once in Firestore (`subscriptions/{uid}`) and can't be restarted. After that, they pick **Yearly ($24.99 a year)** or **Lifetime ($149 once)** in a Paddle checkout that opens over the page. Paddle tells the site about every subscription change, Lifetime purchase and refund through a webhook (`api/paddle.ts`), which unlocks or locks the account. The Firestore rules enforce the same thing, so nobody can use the app past their trial without paying, even by editing the page. **Manage billing** (Paddle's customer portal) goes through `api/billing.ts`.
+How it works: anyone who signs in with Google gets **14 days free** (no card). The trial start is saved once in Firestore (`subscriptions/{uid}`) and can't be restarted. After that, they pick **Yearly ($24.99 a year)** or **Lifetime ($149 once)** in a Paddle checkout that opens over the page. Paddle tells the site about every subscription change, Lifetime purchase and refund through a webhook (`worker/paddle.ts`), which unlocks or locks the account. The Firestore rules enforce the same thing, so nobody can use the app past their trial without paying, even by editing the page. **Manage billing** (Paddle's customer portal) goes through `worker/billing.ts`.
 
-**Full step-by-step setup (Paddle, Firebase rules and keys, Vercel settings, testing, going live): see [SETUP-PAYMENTS.md](SETUP-PAYMENTS.md).**
+**Full step-by-step setup (Paddle, Firebase rules and keys, Cloudflare settings, testing, going live): see [SETUP-PAYMENTS.md](SETUP-PAYMENTS.md).**
 
 **Reviews** on the About page: add them in [`src/content/reviews.ts`](src/content/reviews.ts). The section only shows on the live site once there's at least one.
 
@@ -77,10 +79,10 @@ The About page is what signed-out visitors see, and it's always at `/about`.
 
 A private console for the owner: every account with its email, membership and activity; each person's dreams/items, goals, money plans, spending, calendar and notes; a read-only view of their whole planner; and actions (lifetime access, free membership for any number of days, a new trial, disable / sign out everywhere, private notes, delete, CSV export).
 
-- **Turn it on:** Vercel → Settings → Environment Variables → add `ADMIN_PASSWORD` (8+ characters, Production and Preview) → redeploy. It also needs `FIREBASE_SERVICE_ACCOUNT` (see Payments). Without both, `/admin` stays locked.
+- **Turn it on:** Cloudflare → Workers & Pages → dizayr → Settings → Variables and Secrets → add `ADMIN_PASSWORD` (type Secret, 8+ characters) → Deploy. It also needs `FIREBASE_SERVICE_ACCOUNT` (see Payments). Without both, `/admin` stays locked.
 - **Open it:** `https://YOUR-SITE/admin`. It's never linked from the app.
-- **Security:** the password lives only in Vercel, never in the code. Sessions are HttpOnly cookies that end after 8 hours (or 30 minutes idle), 5 wrong passwords lock that address out for 15 minutes, and every sign-in and change is listed under **Activity log** (Firestore `admin_log`). Changing `ADMIN_PASSWORD` signs every admin session out.
+- **Security:** the password lives only in Cloudflare, never in the code. Sessions are HttpOnly cookies that end after 8 hours (or 30 minutes idle), 5 wrong passwords lock that address out for 15 minutes, and every sign-in and change is listed under **Activity log** (Firestore `admin_log`). Changing `ADMIN_PASSWORD` signs every admin session out.
 - **Free memberships** are saved as `compUntil` on `subscriptions/{uid}`; republish [`firestore.rules`](firestore.rules) after updating so they count.
-- **Locally:** `npm run dev` doesn't run the `/api` functions, so the admin page says so. Use the deployed site, or `vercel dev`.
+- **Locally:** `npm run dev` doesn't run the `/api` server, so the admin page says so. Use the deployed site, or `npm run cf:dev` (needs a `.dev.vars` file, see [`.dev.vars.example`](.dev.vars.example)).
 
 Built with Vite, React, TypeScript, Tailwind CSS v4, Zustand and Firebase (Auth + Firestore).

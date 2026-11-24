@@ -1,0 +1,39 @@
+# Headers for the site's files (Cloudflare reads this file; it isn't served). The server's own answers (/api) get
+# theirs in worker/index.ts. A header set by two rules here is joined with a comma, so each header is set once per path
+# (or removed first with "! Name").
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://apis.google.com https://www.gstatic.com https://cdn.paddle.com https://sandbox-cdn.paddle.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.paddle.com https://sandbox-cdn.paddle.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://fonts.gstatic.com https://apis.google.com https://open.er-api.com https://*.paddle.com; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://*.paddle.com; worker-src 'self'; manifest-src 'self'; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://*.paddle.com; frame-ancestors 'none'; upgrade-insecure-requests
+  Strict-Transport-Security: max-age=63072000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), usb=(), serial=(), bluetooth=(), hid=(), midi=(), magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=()
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+  X-DNS-Prefetch-Control: off
+  X-Permitted-Cross-Domain-Policies: none
+
+# Built files: their names change with every version, so they can be kept for good.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/sw.js
+  Cache-Control: no-cache
+
+/version.json
+  Cache-Control: no-store
+
+/manifest.webmanifest
+  Content-Type: application/manifest+json
+
+/admin
+  X-Robots-Tag: noindex, nofollow
+  ! Referrer-Policy
+  Referrer-Policy: no-referrer
+  Cache-Control: no-store
+
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+  ! Referrer-Policy
+  Referrer-Policy: no-referrer
+  Cache-Control: no-store

@@ -1,37 +1,19 @@
 import crypto from 'node:crypto'
-import type { Firestore } from 'firebase-admin/firestore'
-import { accounts, type ServiceAccount } from './accounts.js'
+import { accounts } from './accounts'
+import { firestore } from './firestore'
+import { serviceAccount } from './google'
 
 /**
- * Admin sign-in. The password is only ever in the ADMIN_PASSWORD environment variable (Vercel → Settings →
- * Environment Variables), never in the code. A session is a signed cookie (HttpOnly, so page scripts can't read it)
+ * Admin sign-in. The password is only ever in the ADMIN_PASSWORD environment variable (Cloudflare → Workers →
+ * dizayr → Settings → Variables and Secrets), never in the code. A session is a signed cookie (HttpOnly, so page scripts can't read it)
  * that lasts a few hours. Its signing key comes from the password and the Firebase service account's private key,
  * so changing the password signs every admin session out.
  */
 
-let account: ServiceAccount | null = null
-/** The key file pasted into FIREBASE_SERVICE_ACCOUNT. A broken paste reads as "no key" (and is reported), never a crash. */
-function serviceAccount(): ServiceAccount {
-  if (account) return account
-  try {
-    const parsed = JSON.parse((process.env.FIREBASE_SERVICE_ACCOUNT ?? '').trim() || '{}') as ServiceAccount
-    // Some copies turn the key's line breaks into the two characters "\n"; the key needs real ones.
-    if (parsed.private_key) parsed.private_key = parsed.private_key.replace(/\\n/g, '\n')
-    account = parsed
-  } catch {
-    account = {}
-  }
-  return account
-}
-
-/**
- * Firebase, loaded the first time it's needed rather than when the function starts: if loading it ever fails,
- * the request gets a readable error (see `safe` in api/admin.ts) instead of the whole function failing to start.
- */
-export async function firebase(): Promise<{ db: Firestore; auth: ReturnType<typeof accounts> }> {
-  const [{ cert, getApps, initializeApp }, { getFirestore }] = await Promise.all([import('firebase-admin/app'), import('firebase-admin/firestore')])
-  if (!getApps().length) initializeApp({ credential: cert(serviceAccount() as Record<string, string>) })
-  return { db: getFirestore(), auth: accounts(serviceAccount()) }
+/** Firestore and the sign-in accounts, both through Google's web APIs with the service account. */
+export function firebase() {
+  const sa = serviceAccount()
+  return { db: firestore(sa), auth: accounts(sa) }
 }
 
 const password = () => process.env.ADMIN_PASSWORD ?? ''
@@ -98,8 +80,9 @@ export function cookieOf(request: Request, name: string) {
 export const sessionCookie = (token: string, maxAgeSec: number) =>
   `${COOKIE}=${token}; Path=/api/admin; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAgeSec}`
 
+/** The visitor's address, as Cloudflare saw it (CF-Connecting-IP can't be set by the visitor). */
 export const clientIp = (request: Request) =>
-  request.headers.get('x-real-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
 
 /** Short, stable id for an address (used as a document id for login lockouts). */
 export const ipKey = (ip: string) => sha256(`ip:${ip}`).toString('hex').slice(0, 32)

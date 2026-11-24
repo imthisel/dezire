@@ -1,7 +1,7 @@
 /**
  * Admin API, used by the admin page at /admin. Everything here runs on the server with the Firebase service account,
  * so the Firestore rules (which keep each user to their own data) don't apply: every request except `login` must carry
- * a valid admin session (see _lib/admin.ts).
+ * a valid admin session (see lib/admin.ts).
  *
  * GET  /api/admin?action=session | users | user&uid=… | log | feedback
  * POST /api/admin  { action: login | logout | lifetime | comp | endComp | trial | disable | revoke | note | delete | feedback, … }
@@ -10,10 +10,10 @@
  * sessions are HttpOnly, SameSite=Strict cookies that expire after 8 hours; changes must come from this site
  * (Origin check + a custom header); and every sign-in and change is written to the `admin_log` collection.
  */
-import { FieldValue, Timestamp, type DocumentSnapshot } from 'firebase-admin/firestore'
+import { FieldValue, Timestamp, type DocumentSnapshot } from './lib/firestore'
 import {
   COOKIE, SESSION_MS, adminConfigured, checkSession, clientIp, cookieOf, firebase, ipKey, newSession, passwordMatches, sessionCookie, setupProblems,
-} from './_lib/admin.js'
+} from './lib/admin'
 
 const MAX_TRIES = 5
 const LOCK_MS = 15 * 60_000
@@ -28,10 +28,10 @@ const json = (data: unknown, status = 200, headers: Record<string, string> = {})
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', ...headers },
   })
 const fail = (status: number, error: string, extra: Record<string, unknown> = {}) => json({ error, ...extra }, status)
-/** Says which Vercel setting is missing or broken (names only, never values). */
+/** Says which Cloudflare setting is missing or broken (names only, never values). */
 const notConfigured = () => fail(503, 'not_configured', { problems: setupProblems() })
 
-/** Anything unexpected becomes a JSON error the page can show, instead of Vercel's bare "server error". */
+/** Anything unexpected becomes a JSON error the page can show, instead of a bare "server error". */
 const safe =
   (handler: (request: Request) => Promise<Response>) =>
   async (request: Request) => {

@@ -281,7 +281,7 @@ const PAGES: Record<LegalPage, { title: string; body: ReactNode }> = {
         <p>We use a few trusted services. Each gets only what it needs:</p>
         <ul>
           <li><b>Google Firebase</b>: sign-in and the database that stores and syncs your plan.</li>
-          <li><b>Vercel</b>: hosts the website and the small server that talks to Paddle.</li>
+          <li><b>Cloudflare</b>: hosts the website and the small server that talks to Paddle.</li>
           <li>
             <b>Paddle</b>: our reseller and Merchant of Record, which processes payments, handles tax and invoices, and runs the billing portal.
             Paddle collects your payment details directly, under{' '}
