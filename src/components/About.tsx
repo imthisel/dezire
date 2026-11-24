@@ -275,7 +275,7 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
   // floating cards step aside and the headline shrinks a little, so nothing is ever cut off.
   return (
     <section ref={ref} id="top" aria-label="Dizayr" className="relative flex scroll-mt-16 flex-col overflow-x-clip lg:min-h-[calc(100svh-4rem-1px)]">
-      <div className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-[minmax(0,1fr)] items-center gap-10 px-5 sm:px-8 lg:grid-cols-[1.08fr_1fr] lg:gap-14 lg:py-[clamp(1.5rem,4svh,3rem)]">
+      <div className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-[minmax(0,1fr)] items-center gap-10 px-5 sm:px-8 lg:grid-cols-[1.08fr_1fr] lg:gap-14 lg:py-[clamp(1.5rem,4svh,3rem)] [@media(min-width:1024px)_and_(max-height:1000px)]:py-[clamp(0.75rem,2.25svh,3rem)]">
         <div className="flex flex-col justify-center pb-2 pt-12 text-center sm:pt-16 lg:py-0 lg:text-left">
           <p
             className="hero-in mx-auto mb-6 inline-flex max-w-full items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.025] px-3.5 py-1.5 text-xs text-zinc-400 lg:mx-0 lg:self-start [@media(max-height:700px)]:mb-4"
@@ -679,7 +679,7 @@ function TrustBar() {
     { icon: Smartphone, text: 'Phone, tablet & computer' },
   ]
   return (
-    <div aria-label="Built on trusted infrastructure" role="region" className="border-y border-white/[0.06] bg-white/[0.015] px-5 py-6 sm:px-8">
+    <div aria-label="Built on trusted infrastructure" role="region" className="border-y border-white/[0.06] bg-white/[0.015] px-5 py-6 sm:px-8 [@media(min-width:1024px)_and_(max-height:1000px)]:py-4">
       <ul className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-5 gap-y-2.5 text-[13px] text-zinc-400 sm:gap-x-10 sm:gap-y-3 sm:text-sm">
         {items.map((it) => (
           <li key={it.text} className="flex items-center gap-2 whitespace-nowrap">
