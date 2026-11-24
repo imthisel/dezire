@@ -4,15 +4,14 @@ import { DEFAULT_EXPENSE_CATS, catColor, catIcon, toKey } from '../../lib/expens
 import type { ExpenseCategory } from '../../lib/types'
 import { MoneyField, Toolbar, money, moneyShort } from './TryOverview'
 import { DemoExpenseModal, type NewExpense } from './DemoDialogs'
-import { useDemo } from './demoStore'
 import { TryMoney, exampleWallet } from './TryMoney'
 import { walletState, type Wallet } from '../../lib/wallet'
 import { FitText } from '../FitText'
 
 /*
  * A playable copy of Expenses on the About page: this month, with Your money (money on hand, which every expense comes
- * off), and the same "Add expense" window, overview, budget, chart by day and "where it went" breakdown as the app. As in
- * the app, the budget is this month's budget under Wants: change it in either place. It lives only in this page's memory.
+ * off), and the same "Add expense" window, overview, budget, chart by day and "where it went" breakdown as the app. It has
+ * its own monthly budget (the Wants playground plans Decembers years ahead, not this month). It lives only in this page's memory.
  */
 
 // This month, so "Today" and "Yesterday" mean what they do in the app.
@@ -23,6 +22,8 @@ const TODAY = NOW.getDate()
 const DAYS = new Date(YEAR, MONTH + 1, 0).getDate()
 const MONTH_NAME = NOW.toLocaleDateString('en-US', { month: 'long' })
 const MONTH_SHORT = NOW.toLocaleDateString('en-US', { month: 'short' })
+/** A comfortable month's spending budget for the example. */
+const EXAMPLE_BUDGET = 180_000
 const WEEKDAYS = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays']
 const keyOf = (day: number) => toKey(new Date(YEAR, MONTH, day))
 const dayOf = (key: string) => Number(key.slice(8, 10))
@@ -63,9 +64,8 @@ const dayLabel = (day: number) => new Date(YEAR, MONTH, day).toLocaleDateString(
 
 export function TryExpenses() {
   const [list, setList] = useState<Exp[]>(example)
-  // This month's budget in the Planner playground, as Expenses uses the Planner's budget in the app.
-  const budget = useDemo((s) => s.months[0]?.budget ?? 0)
-  const setBudget = (v: number) => useDemo.getState().update(0, { budget: v })
+  // This month's spending budget (the same one as the Expenses feature card further down the page).
+  const [budget, setBudget] = useState(EXAMPLE_BUDGET)
   const [filter, setFilter] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   // Money on hand: counted on the 1st, every expense comes off the account that paid.
@@ -98,11 +98,13 @@ export function TryExpenses() {
       <Toolbar
         onReset={() => {
           setList(example())
+          setBudget(EXAMPLE_BUDGET)
           setWallet(exampleWallet(keyOf(1), keyOf(Math.max(1, Math.ceil((15 / 31) * TODAY)))))
           setFilter(null)
         }}
         onClear={() => {
           setList([])
+          setBudget(0)
           setWallet((w) => ({ ...w, entries: w.entries.filter((e) => e.kind === 'set').map((e) => ({ ...e, amount: 0 })) }))
           setFilter(null)
         }}
@@ -121,7 +123,7 @@ export function TryExpenses() {
           <div className="mt-5">
             <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
               <span className="inline-flex items-center gap-1.5 text-zinc-400">
-                <Target className="h-3.5 w-3.5" /> Month’s budget <span className="text-zinc-500">(from Wants)</span>
+                <Target className="h-3.5 w-3.5" /> {MONTH_NAME}’s budget
               </span>
               <div className="w-36">
                 <MoneyField value={budget} onChange={(v) => setBudget(v ?? 0)} label="Month's budget" />
@@ -147,10 +149,9 @@ export function TryExpenses() {
                     ? `${money(total - budget)} over budget`
                     : `${money(budget - total)} left${pace > budget ? ` · at this pace you'll go ${moneyShort(pace - budget)} over` : ' · on track'}`}
                 </p>
-                <p className="mt-1 text-[11px] text-zinc-500">The same budget as {MONTH_NAME} under Wants. Change it in either place.</p>
               </>
             ) : (
-              <p className="text-xs text-zinc-500">No budget for {MONTH_NAME} yet. Set one here or under Wants.</p>
+              <p className="text-xs text-zinc-500">No budget for {MONTH_NAME} yet. Set one here.</p>
             )}
           </div>
         </div>

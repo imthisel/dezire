@@ -109,7 +109,8 @@ export const DEFAULT_DEVICE: DevicePrefs = {
 }
 
 export const ACCENTS: { id: Accent; label: string; swatch: string }[] = [
-  { id: 'indigo', label: 'Indigo', swatch: '#6366f1' },
+  // The id stays 'indigo' (saved settings use it); the colour is the brand blue (see index.css).
+  { id: 'indigo', label: 'Dizayr blue', swatch: '#3a6df0' },
   { id: 'violet', label: 'Violet', swatch: '#8b5cf6' },
   { id: 'blue', label: 'Blue', swatch: '#3b82f6' },
   { id: 'teal', label: 'Teal', swatch: '#0d9488' },

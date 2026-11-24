@@ -315,7 +315,7 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
         </div>
 
         {/* The app itself: one month of the life you're planning, the same card as in Try it now and the app */}
-        <div className="hero-in relative mx-auto mb-12 w-full max-w-[440px] lg:mb-0 lg:mr-0 lg:max-w-[calc((72rem-2rem)/3)]" style={{ ['--d' as string]: '220ms' }}>
+        <div className="hero-in relative mx-auto mb-8 w-full max-w-[440px] lg:mb-0 lg:mr-0 lg:max-w-[calc((72rem-2rem)/3)]" style={{ ['--d' as string]: '220ms' }}>
           <div aria-hidden className="absolute -inset-10 rounded-full bg-[radial-gradient(closest-side,rgb(58_109_240/0.12),transparent)]" />
           {/* Shorter laptop screens: a little smaller, so the month and the bar under it still fit the first screen */}
           <div className="hero-month parallax-a relative">
@@ -340,7 +340,7 @@ function Problem() {
     <section aria-labelledby="problem-title" className="border-t border-white/[0.06] px-5 sm:px-8 sec">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="reveal max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">Why it doesn’t happen</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">The quiet problem</p>
           <h2 id="problem-title" className="mt-5 font-display font-semibold tracking-[-0.035em] text-[2.6rem] leading-[1.02] text-white sm:text-6xl">
             Most people never visualize what they want.
           </h2>
@@ -354,7 +354,7 @@ function Problem() {
           ))}
         </div>
         <p data-reveal className="reveal mt-12 max-w-2xl text-xl leading-relaxed text-zinc-300">
-          Wanting it isn’t the problem. Not having a plan is. <span className="text-white">Dizayr gives you the plan, and shows you if you’re on track.</span>
+          Wanting it isn’t the problem. Not having a plan is. <span className="text-white">Dizayr keeps your why in front of you, and turns it into a plan you’ll actually follow, month after month.</span>
         </p>
       </div>
     </section>
@@ -951,7 +951,7 @@ export function Pricing({ signin, compact = false, tone }: { signin?: SignIn; co
                 and one Needs mode. No card, no commitment.
               </p>
               <div className="mt-4 flex justify-center lg:justify-start">
-                <GoogleButton signin={signin} label={`Try it free for ${TRIAL_DAYS} days`} />
+                <GoogleButton signin={signin} />
               </div>
             </div>
           )}

@@ -349,7 +349,7 @@ html.zooming [data-zoom-item] {
 }
 
 ::selection {
-  background: rgb(129 140 248 / 0.35);
+  background: color-mix(in oklab, var(--color-indigo-400) 35%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -363,7 +363,23 @@ html.zooming [data-zoom-item] {
  * Settings → Appearance. Every accent-coloured thing in the app is written with Tailwind's indigo, and Tailwind reads its
  * colours from these variables, so changing them recolours the whole app at once. Teal and orange use one step darker
  * for the middle shades, so white text on their buttons stays readable.
+ *
+ * The default ("indigo", shown as "Dizayr blue") is the brand blue from the About page, so the app and the site look like one.
  */
+html:not([data-accent]),
+html[data-accent="indigo"] {
+  --color-indigo-50: #eef4ff;
+  --color-indigo-100: #dbe7ff;
+  --color-indigo-200: #bcd3ff;
+  --color-indigo-300: #8fb6ff;
+  --color-indigo-400: #5b8cff;
+  --color-indigo-500: #3a6df0;
+  --color-indigo-600: #2a55d6;
+  --color-indigo-700: #2244ab;
+  --color-indigo-800: #1e3a8f;
+  --color-indigo-900: #1c3274;
+  --color-indigo-950: #131f47;
+}
 html[data-accent="violet"] {
   --color-indigo-50: oklch(96.9% 0.016 293.756);
   --color-indigo-100: oklch(94.3% 0.029 294.588);
@@ -456,7 +472,7 @@ html[data-noglow] [class~="blur-[120px]"] { display: none; }
 
 /* Settings: a setting arrived at from search lights up for a moment */
 @keyframes setting-found {
-  0%, 60% { background: rgb(129 140 248 / 0.16); }
+  0%, 60% { background: color-mix(in oklab, var(--color-indigo-400) 16%, transparent); }
   100% { background: transparent; }
 }
 .setting-found { animation: setting-found 1.8s ease-out; }

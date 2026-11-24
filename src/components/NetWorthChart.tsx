@@ -102,8 +102,8 @@ export function NetWorthChart() {
     >
       <defs>
         <linearGradient id="nw-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#818cf8" stopOpacity="0.28" />
-          <stop offset="1" stopColor="#818cf8" stopOpacity="0" />
+          <stop offset="0" style={{ stopColor: 'var(--color-indigo-400)' }} stopOpacity="0.28" />
+          <stop offset="1" style={{ stopColor: 'var(--color-indigo-400)' }} stopOpacity="0" />
         </linearGradient>
       </defs>
 
@@ -148,12 +148,12 @@ export function NetWorthChart() {
       </text>
 
       <path d={g.area} fill="url(#nw-fill)" />
-      <path d={g.line} fill="none" stroke="#a5b4fc" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+      <path d={g.line} fill="none" stroke="var(--color-indigo-300)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
 
       {hover !== null && (
         <g>
           <line x1={g.x(hover)} x2={g.x(hover)} y1={PAD.t} y2={H - PAD.b} stroke="rgba(255,255,255,0.35)" />
-          <circle cx={g.x(hover)} cy={g.y(g.vals[hover])} r={5} fill="#a5b4fc" stroke="#0b0d12" strokeWidth={2} />
+          <circle cx={g.x(hover)} cy={g.y(g.vals[hover])} r={5} fill="var(--color-indigo-300)" stroke="#0b0d12" strokeWidth={2} />
         </g>
       )}
     </svg>

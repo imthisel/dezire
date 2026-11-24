@@ -119,19 +119,25 @@ export function TryOverview({ part = 'plan' }: { part?: 'plan' | 'glance' }) {
   )
 }
 
+const toolBtn =
+  'inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/10 px-2.5 text-[13px] text-zinc-300 transition hover:border-white/20 hover:text-white sm:h-9 sm:px-3.5 sm:text-sm'
+
 export function Toolbar({ onReset, onClear }: { onReset: () => void; onClear: () => void }) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
       <p className="text-sm text-zinc-400">
         <span className="font-medium text-zinc-200">Change anything.</span> Nothing here is saved: leave or refresh the page and it starts over.
       </p>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <CurrencyToggle />
-        <button onClick={onReset} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/10 px-3.5 text-sm text-zinc-300 transition hover:border-white/20 hover:text-white">
-          <RotateCcw className="h-3.5 w-3.5" /> Example
+      {/* One row on every phone: smaller on phones, the icons go on the narrowest ones, and "Start blank" becomes "Blank". */}
+      <div className="flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2">
+        <CurrencyToggle compact />
+        <button onClick={onReset} className={toolBtn}>
+          <RotateCcw className="h-3.5 w-3.5 max-[379px]:hidden" /> Example
         </button>
-        <button onClick={onClear} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/10 px-3.5 text-sm text-zinc-300 transition hover:border-white/20 hover:text-white">
-          <Eraser className="h-3.5 w-3.5" /> Start blank
+        <button onClick={onClear} className={toolBtn}>
+          <Eraser className="h-3.5 w-3.5 max-[379px]:hidden" />
+          <span className="max-[359px]:hidden">Start blank</span>
+          <span className="hidden max-[359px]:inline">Blank</span>
         </button>
       </div>
     </div>

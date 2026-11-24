@@ -5,8 +5,11 @@ const OPTIONS: { id: AboutCurrency; label: string }[] = [
   { id: 'USD', label: '$ USD' },
 ]
 
-/** The About page's small PHP / USD switch. Every amount on the page follows it. */
-export function CurrencyToggle({ className = '' }: { className?: string }) {
+/**
+ * The About page's small PHP / USD switch. Every amount on the page follows it.
+ * `compact`: a little narrower on phones (the Try it now toolbar, which has to fit on one row).
+ */
+export function CurrencyToggle({ className = '', compact = false }: { className?: string; compact?: boolean }) {
   const cur = useAboutCurrency((s) => s.cur)
   return (
     <div
@@ -21,7 +24,7 @@ export function CurrencyToggle({ className = '' }: { className?: string }) {
           type="button"
           aria-pressed={cur === o.id}
           onClick={() => setAboutCurrency(o.id)}
-          className={`h-6 rounded-full px-2.5 text-[11px] font-semibold tabular-nums transition ${
+          className={`h-6 whitespace-nowrap rounded-full text-[11px] font-semibold tabular-nums transition ${compact ? 'px-2 sm:px-2.5' : 'px-2.5'} ${
             cur === o.id ? 'bg-brand-600 text-white shadow-[0_4px_14px_-6px_rgb(58_109_240/0.8)]' : 'text-zinc-400 hover:text-white'
           }`}
         >

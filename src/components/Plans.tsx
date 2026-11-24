@@ -14,10 +14,10 @@ export function TrialBanner() {
   return (
     <div
       className={`relative z-30 flex items-center justify-center gap-3 px-4 py-2 text-center text-[13px] ${
-        urgent ? 'bg-gradient-to-r from-amber-500/20 via-rose-500/20 to-amber-500/20 text-amber-50' : 'bg-gradient-to-r from-indigo-500/15 via-fuchsia-500/15 to-indigo-500/15 text-indigo-50'
+        urgent ? 'bg-gradient-to-r from-amber-500/20 via-rose-500/20 to-amber-500/20 text-amber-50' : 'bg-gradient-to-r from-brand-600/25 via-brand-500/15 to-brand-600/25 text-brand-50'
       }`}
     >
-      <Sparkles className={`hidden h-4 w-4 shrink-0 sm:block ${urgent ? 'text-amber-300' : 'text-indigo-300'}`} />
+      <Sparkles className={`hidden h-4 w-4 shrink-0 sm:block ${urgent ? 'text-amber-300' : 'text-brand-300'}`} />
       <span>
         <span className="font-semibold">Free trial</span> · {days === 0 ? 'ends today' : `${days} of ${TRIAL_DAYS} days left`}
         <span className="hidden sm:inline"> · keep everything you plan</span>
