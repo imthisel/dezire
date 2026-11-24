@@ -8,12 +8,16 @@ import tailwindcss from '@tailwindcss/vite'
  * version. Written into the app and into /version.json, which the app checks to offer the update (see src/appUpdate.ts).
  */
 function commit() {
-  if (process.env.WORKERS_CI_COMMIT_SHA) return process.env.WORKERS_CI_COMMIT_SHA.slice(0, 7)
+  // Only a real commit id counts: a branch name such as "main" would be the same on every build, and the app would never
+  // see a new version. Failing both, the build time, which is different every time.
+  const sha = (v: string | undefined) => (v && /^[0-9a-f]{7,40}$/i.test(v.trim()) ? v.trim().slice(0, 7).toLowerCase() : null)
+  let git: string | undefined
   try {
-    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+    git = execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString()
   } catch {
-    return Date.now().toString(36)
+    // not a git checkout
   }
+  return sha(process.env.WORKERS_CI_COMMIT_SHA) ?? sha(git) ?? Date.now().toString(36)
 }
 const version = commit()
 const builtAt = new Date().toISOString()
