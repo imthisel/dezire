@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut as fbSignOut, type User } from 'firebase/auth'
+import { getRedirectResult, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut as fbSignOut, type User } from 'firebase/auth'
 import { doc, getDoc, getDocFromCache, onSnapshot, serverTimestamp, setDoc, waitForPendingWrites, type DocumentReference, type DocumentSnapshot } from 'firebase/firestore'
 import { auth, db, googleProvider } from './lib/firebase'
 import { savedModes, useStore } from './store'
@@ -7,6 +7,7 @@ import { DEFAULT_PREFS } from './lib/prefs'
 import type { Expense } from './lib/types'
 import { toast } from './toast'
 import { stopAccess, watchAccess } from './billing'
+import { platform } from './appUpdate'
 import { leaveSettings } from './settingsNav'
 import { clearHistory, quietly } from './history'
 import { mergeSchool, parseSchool, unstamped, type School } from './lib/school'
@@ -72,6 +73,11 @@ let started = false
 export function startCloud() {
   if (!auth || !db || started) return
   started = true
+  // Back from a same-tab sign-in that didn't go through: say so (a successful one arrives through onAuthStateChanged).
+  getRedirectResult(auth).catch((e) => {
+    console.error(e)
+    toast.error('Sign-in didn’t go through. Please try again.')
+  })
   onAuthStateChanged(auth, (user) => {
     void stopSync?.()
     stopSync = null
@@ -266,8 +272,16 @@ async function connect(user: User) {
   useCloud.setState({ ready: true, status: navigator.onLine ? 'saved' : 'offline' })
 }
 
+/**
+ * Phones and tablets sign in in the same tab. A sign-in pop-up opens there as a separate tab, which can lose the
+ * sign-in's saved state on the way back from Google ("missing initial state"). The same-tab way needs sign-in to run
+ * on this site's own address (see firebase.ts), so on localhost the pop-up is kept.
+ */
+const sameTab = () => platform() !== 'desktop' && !['localhost', '127.0.0.1'].includes(location.hostname)
+
 export async function signIn() {
   if (!auth) return
+  if (sameTab()) return signInWithRedirect(auth, googleProvider)
   try {
     await signInWithPopup(auth, googleProvider)
   } catch (e) {
