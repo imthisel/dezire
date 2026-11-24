@@ -338,6 +338,16 @@ html.zooming [data-zoom-item] {
   .premium-sheen::after { animation: none !important; }
 }
 
+/* The Overview shown again after being hidden: its cards rise back into place one after another (--i: each card's turn). */
+.ov-in .ov-item {
+  animation: ov-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@keyframes ov-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
 ::selection {
   background: rgb(129 140 248 / 0.35);
 }

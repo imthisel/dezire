@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Landmark, PiggyBank, Wallet } from 'lucide-react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Eye, EyeOff, Landmark, PiggyBank, Wallet } from 'lucide-react'
 import { useFmt, useKinds, usePlan, useStore, useAlt } from '../store'
 import { lastDataIndex, portfolioAt } from '../lib/calc'
 import { END_YEAR, START_YEAR, currentIndex, indexOf, labelOf } from '../lib/time'
@@ -9,11 +9,13 @@ import { NetWorthChart } from './NetWorthChart'
 import { ChartToggle, useChartHidden } from './ChartToggle'
 import { useIsPhone } from '../lib/useMedia'
 import { ModeStrip } from './Modes'
-import { BlurAll, BlurToggle, Blurred } from './Blur'
+import { BlurToggle, Blurred } from './Blur'
 import { FitText } from './FitText'
 
-/** The Overview's cards that can be blurred. */
-const BLUR_IDS = ['w-earned', 'w-spent', 'w-left', 'w-networth', 'w-chart', 'w-assets']
+/** The whole overview (totals, chart, assets) folded away with the eye button; kept with the other hidden cards (remembered). */
+const OVERVIEW = 'overview'
+/** The n-th card to rise back into place when the overview is shown again (see .ov-in in index.css). */
+const riseStyle = (i: number) => ({ '--i': i }) as CSSProperties
 
 export const card =
   'rounded-2xl border border-white/[0.07] bg-white/[0.025] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]'
@@ -30,6 +32,20 @@ export function Dashboard() {
   const phone = useIsPhone()
   const chartHidden = useChartHidden('networth')
   const assetsHidden = useChartHidden('assets')
+  const overviewHidden = useChartHidden(OVERVIEW)
+  // Just shown again: the cards rise back in, one after another.
+  const [rising, setRising] = useState(false)
+  const riseTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(riseTimer.current), [])
+  function toggleOverview() {
+    const showing = overviewHidden
+    useStore.setState({ peeking: null })
+    useStore.getState().toggleChart(OVERVIEW)
+    clearTimeout(riseTimer.current)
+    setRising(showing)
+    if (showing) riseTimer.current = setTimeout(() => setRising(false), 1200)
+  }
+  const eyeText = overviewHidden ? 'Show the overview' : 'Hide the overview'
   // One folded away: it becomes a slim bar and the other takes the full width. Both: two slim bars side by side.
   const wide = chartHidden !== assetsHidden ? 'lg:col-span-3' : ''
 
@@ -88,7 +104,20 @@ export function Dashboard() {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <BlurAll ids={BLUR_IDS} what="the overview" className="h-[42px] w-[42px]" />
+          <button
+            type="button"
+            onClick={toggleOverview}
+            aria-pressed={overviewHidden}
+            aria-expanded={!overviewHidden}
+            aria-controls="overview-body"
+            aria-label={eyeText}
+            title={eyeText}
+            className={`grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl border transition ${
+              overviewHidden ? 'border-indigo-400/30 bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25' : 'border-white/10 bg-white/[0.03] text-zinc-400 hover:border-white/20 hover:text-white'
+            }`}
+          >
+            {overviewHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          </button>
           <div className="inline-flex shrink-0 rounded-xl border border-white/10 bg-white/[0.03] p-1 text-sm">
             {(['plan', 'year'] as const).map((m) => {
               const on = (m === 'year') === yearMode
@@ -109,6 +138,22 @@ export function Dashboard() {
         </div>
       </div>
 
+      {overviewHidden && (
+        <button
+          type="button"
+          onClick={toggleOverview}
+          className={`${card} animate-fade flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-zinc-400 transition hover:border-white/15 hover:text-zinc-200`}
+        >
+          <span className="flex items-center gap-2">
+            <EyeOff className="h-4 w-4 shrink-0" /> Overview hidden
+          </span>
+          <span className="inline-flex items-center gap-1.5 font-medium text-indigo-200">
+            <Eye className="h-4 w-4" /> Show
+          </span>
+        </button>
+      )}
+
+      <Fold id="overview-body" open={!overviewHidden} className={rising ? 'ov-in' : ''}>
       {phone ? (
         <PhoneStats
           netWorth={c.netWorth}
@@ -123,6 +168,7 @@ export function Dashboard() {
       ) : (
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat
+          i={0}
           blurId="w-earned"
           icon={<ArrowUpRight className="h-4 w-4" />}
           iconCls="bg-emerald-500/15 text-emerald-300"
@@ -133,6 +179,7 @@ export function Dashboard() {
           progress={goalPct !== null ? goalPct / 100 : undefined}
         />
         <Stat
+          i={1}
           blurId="w-spent"
           icon={<ArrowDownRight className="h-4 w-4" />}
           iconCls="bg-red-500/15 text-red-300"
@@ -144,6 +191,7 @@ export function Dashboard() {
           warn
         />
         <Stat
+          i={2}
           blurId="w-left"
           icon={<Wallet className="h-4 w-4" />}
           iconCls="bg-sky-500/15 text-sky-300"
@@ -154,6 +202,7 @@ export function Dashboard() {
           sub={yearMode ? `Earned − spent in ${year}` : 'Total earned − total spent'}
         />
         <Stat
+          i={3}
           highlight
           blurId="w-networth"
           icon={<Landmark className="h-4 w-4" />}
@@ -172,7 +221,7 @@ export function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className={`${card} min-w-0 ${chartHidden ? 'px-4 py-2.5 sm:px-5' : 'p-4 sm:p-5'} ${wide || 'lg:col-span-2'}`}>
+        <div style={riseStyle(4)} className={`ov-item ${card} min-w-0 ${chartHidden ? 'px-4 py-2.5 sm:px-5' : 'p-4 sm:p-5'} ${wide || 'lg:col-span-2'}`}>
           <div className={`flex items-center justify-between gap-3 ${chartHidden ? '' : 'mb-3'}`}>
             <div className="flex min-w-0 items-baseline gap-2.5">
               <h3 className="shrink-0 font-semibold text-white">Net worth over time</h3>
@@ -191,7 +240,7 @@ export function Dashboard() {
           )}
         </div>
 
-        <div className={`${card} flex min-w-0 flex-col ${assetsHidden ? 'px-4 py-2.5 sm:px-5' : 'p-4 sm:p-5'} ${wide}`}>
+        <div style={riseStyle(5)} className={`ov-item ${card} flex min-w-0 flex-col ${assetsHidden ? 'px-4 py-2.5 sm:px-5' : 'p-4 sm:p-5'} ${wide}`}>
           <div className={`flex items-center justify-between gap-3 ${assetsHidden ? '' : 'mb-4'}`}>
             <h3 className="shrink-0 font-semibold text-white">{yearMode ? `Bought in ${year}` : 'Assets'}</h3>
             <div className="flex min-w-0 items-center gap-3">
@@ -260,11 +309,36 @@ export function Dashboard() {
           )}
         </div>
       </div>
+      </Fold>
     </section>
   )
 }
 
+/**
+ * Folds its content away (height and opacity together) and back. Clipped only while folded or folding, so shadows and the
+ * chart's tooltips aren't cut off once it's open. Folded, nothing inside can be reached or read out.
+ */
+function Fold({ id, open, className = '', children }: { id?: string; open: boolean; className?: string; children: ReactNode }) {
+  const [settled, setSettled] = useState(open)
+  useEffect(() => {
+    if (!open) setSettled(false)
+  }, [open])
+  return (
+    <div
+      id={id}
+      aria-hidden={!open || undefined}
+      inert={!open || undefined}
+      onTransitionEnd={(e) => e.target === e.currentTarget && e.propertyName === 'grid-template-rows' && open && setSettled(true)}
+      className={`grid transition-[grid-template-rows,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+    >
+      <div className={`min-h-0 space-y-4 ${settled ? '' : 'overflow-hidden'} ${className}`}>{children}</div>
+    </div>
+  )
+}
+
 function Stat(props: {
+  /** Its place when the overview rises back in */
+  i: number
   blurId: string
   icon: ReactNode
   iconCls: string
@@ -282,7 +356,8 @@ function Stat(props: {
   const altCode = useStore((s) => s.currency.alt.code)
   return (
     <div
-      className={`${card} group/blur relative overflow-hidden p-5 ${
+      style={riseStyle(props.i)}
+      className={`ov-item ${card} group/blur relative overflow-hidden p-5 ${
         props.highlight ? 'border-indigo-400/30 bg-gradient-to-br from-indigo-500/[0.14] via-white/[0.02] to-emerald-500/[0.08]' : ''
       }`}
     >
@@ -324,7 +399,8 @@ function PhoneStats(p: {
   return (
     <div className="space-y-2.5">
       <div
-        className={`${card} group/blur relative overflow-hidden border-indigo-400/30 bg-gradient-to-br from-indigo-500/[0.16] via-white/[0.02] to-emerald-500/[0.08] p-4`}
+        style={riseStyle(0)}
+        className={`ov-item ${card} group/blur relative overflow-hidden border-indigo-400/30 bg-gradient-to-br from-indigo-500/[0.16] via-white/[0.02] to-emerald-500/[0.08] p-4`}
       >
         <div className="flex items-center gap-2">
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-500/20 text-indigo-200">
@@ -353,19 +429,19 @@ function PhoneStats(p: {
         </Blurred>
       </div>
       <div className="grid grid-cols-3 gap-2.5">
-        <MiniStat blurId="w-earned" icon={<ArrowUpRight className="h-3.5 w-3.5" />} iconCls="bg-emerald-500/15 text-emerald-300" label="Earned" value={f(p.earned, true)} usd={u(p.earned, true)} progress={p.goalPct !== null ? p.goalPct / 100 : undefined} />
-        <MiniStat blurId="w-spent" icon={<ArrowDownRight className="h-3.5 w-3.5" />} iconCls="bg-red-500/15 text-red-300" label="Spent" value={f(p.spent, true)} usd={u(p.spent, true)} progress={p.budgetPct} warn />
-        <MiniStat blurId="w-left" icon={<Wallet className="h-3.5 w-3.5" />} iconCls="bg-sky-500/15 text-sky-300" label="Left" value={f(p.left, true)} usd={u(p.left, true)} valueCls={p.left < 0 ? 'text-red-300' : undefined} />
+        <MiniStat i={1} blurId="w-earned" icon={<ArrowUpRight className="h-3.5 w-3.5" />} iconCls="bg-emerald-500/15 text-emerald-300" label="Earned" value={f(p.earned, true)} usd={u(p.earned, true)} progress={p.goalPct !== null ? p.goalPct / 100 : undefined} />
+        <MiniStat i={2} blurId="w-spent" icon={<ArrowDownRight className="h-3.5 w-3.5" />} iconCls="bg-red-500/15 text-red-300" label="Spent" value={f(p.spent, true)} usd={u(p.spent, true)} progress={p.budgetPct} warn />
+        <MiniStat i={3} blurId="w-left" icon={<Wallet className="h-3.5 w-3.5" />} iconCls="bg-sky-500/15 text-sky-300" label="Left" value={f(p.left, true)} usd={u(p.left, true)} valueCls={p.left < 0 ? 'text-red-300' : undefined} />
       </div>
     </div>
   )
 }
 
-function MiniStat(props: { blurId: string; icon: ReactNode; iconCls: string; label: string; value: string; usd: string; valueCls?: string; progress?: number; warn?: boolean }) {
+function MiniStat(props: { i: number; blurId: string; icon: ReactNode; iconCls: string; label: string; value: string; usd: string; valueCls?: string; progress?: number; warn?: boolean }) {
   const p = props.progress
   const barCls = props.warn && p !== undefined && p > 1 ? 'bg-red-400' : props.warn ? 'bg-amber-300/80' : 'bg-emerald-400/80'
   return (
-    <div className={`${card} group/blur relative min-w-0 overflow-hidden p-3`}>
+    <div style={riseStyle(props.i)} className={`ov-item ${card} group/blur relative min-w-0 overflow-hidden p-3`}>
       {/* Icon and hide button on top, the label on its own line: three cards side by side leave no room for all three in a row. */}
       <div className="flex items-center justify-between gap-1">
         <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md ${props.iconCls}`}>{props.icon}</span>
