@@ -7,7 +7,7 @@ import { toast } from './toast'
  * - Every deploy has a version (the commit it was built from), written into the app and into /version.json.
  *   The app compares the two when it opens, when it comes back to the screen, and every 15 minutes. When the site has a
  *   newer version than the one running (e.g. the app was left open, or opened offline), it offers "Update now".
- * - After an update, a short "Dizayr was updated" note confirms it.
+ * - After an update, a short "Dizayr was updated" note confirms it (inside the app only, not on the About page).
  * - Install: browsers that can install (Chrome, Edge, Android…) hand over an install prompt, kept here for the
  *   Download buttons; elsewhere (iPhone, Safari, Firefox) the buttons show the steps instead.
  * Saved data is untouched by all of this: it lives in the account and in this browser's storage, as before.
@@ -80,10 +80,13 @@ export function startApp() {
 
   if (__APP_VERSION__ === 'dev') return
 
-  // Just updated: say so (not on the very first visit).
+  // Just updated: say so (not on the very first visit, and not on the About page, where it means nothing to visitors).
   try {
     const seen = localStorage.getItem(SEEN)
-    if (seen && seen !== __APP_VERSION__) setTimeout(() => toast.success('Dizayr was updated to the latest version.'), 1200)
+    if (seen && seen !== __APP_VERSION__)
+      setTimeout(() => {
+        if (!document.querySelector('.about')) toast.success('Dizayr was updated to the latest version.')
+      }, 1200)
     localStorage.setItem(SEEN, __APP_VERSION__)
   } catch {
     // Not remembered; fine.
