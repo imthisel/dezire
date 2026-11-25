@@ -137,7 +137,7 @@ export function About() {
   // Every amount on the page is shown in this currency (see about/currency.ts): changing it redraws the page.
   useAboutCurrency((s) => s.cur)
   useReveal()
-  useTitle('Dizayr')
+  useTitle('Dizayr: Dream Life & Goal Planner')
 
   return (
     <div className="about relative min-h-screen overflow-x-clip bg-[#07080c] text-zinc-100 antialiased">

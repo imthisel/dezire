@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#07080c" />
-    <title>Dizayr</title>
+    <title>Dizayr: Dream Life &amp; Goal Planner</title>
     <meta name="description" content="Visualize your dream life, then go get it. Price everything you want, see what to make each month, and track your goals, spending and net worth in one plan." />
     <link rel="canonical" href="https://dizayr.com/" />
     <meta name="application-name" content="Dizayr" />
@@ -25,6 +25,39 @@
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Dizayr" />
     <meta name="twitter:description" content="Visualize your dream life, then go get it. Price everything you want and see exactly what to make each month to get there." />
+    <!-- Tells Google what Dizayr is (brand name, logo, app and price) so a search for "Dizayr" shows it properly. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://dizayr.com/#org",
+            "name": "Dizayr",
+            "url": "https://dizayr.com/",
+            "logo": "https://dizayr.com/icon-512-v2.png",
+            "email": "dizayrofficial@gmail.com"
+          },
+          {
+            "@type": "WebSite",
+            "name": "Dizayr",
+            "alternateName": ["Dizayr App", "dizayr.com"],
+            "url": "https://dizayr.com/",
+            "publisher": { "@id": "https://dizayr.com/#org" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "Dizayr",
+            "url": "https://dizayr.com/",
+            "applicationCategory": "FinanceApplication",
+            "operatingSystem": "Web, iOS, Android, Windows, macOS",
+            "description": "Visualize your dream life, then go get it. Price everything you want, see what to make each month, and track your goals, spending and net worth in one plan.",
+            "offers": { "@type": "Offer", "price": "24.99", "priceCurrency": "USD" },
+            "publisher": { "@id": "https://dizayr.com/#org" }
+          }
+        ]
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
