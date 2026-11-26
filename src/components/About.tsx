@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import {
   ArrowLeft, ArrowRight, BadgeCheck, Check, ChevronDown, ChevronLeft, ChevronRight, Cloud, CreditCard, Download, EyeOff, Fingerprint, KeyRound, Loader2, Lock, LogOut, Quote, Server,
-  Laptop, ShieldCheck, Smartphone, Star,
+  Laptop, RefreshCw, ShieldCheck, Smartphone, Star,
 } from 'lucide-react'
-import { signIn, signOut, useCloud } from '../cloud'
+import { signIn, signOut, switchAccount, useCloud } from '../cloud'
 import { forgetIntent, openBilling, openCheckout, rememberIntent, trialEndedHere, useAccess } from '../billing'
 import { toast } from '../toast'
 import { useAboutCurrency } from './about/currency'
@@ -27,22 +27,15 @@ import { ContactButton } from './EmailContact'
 
 // ---- Actions ----
 
-/** Whether the free trial is used up: this account's (when signed in), or any account's on this device. */
-const trialUsedUp = () => useAccess.getState().state === 'ended' || trialEndedHere()
-
-/** To the plans, saying why: the free trial can only be had once. */
-function toPlans() {
-  toast.info('The free trial on this device has ended. Pick a plan to keep going.')
-  document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
 /**
  * Signs in with Google (starts the free trial on the first time); errors are shown where the button is.
- * `go`: just signing in. `tryFree`: the "Try it free" buttons, which go to the plans instead once the trial is used up.
+ * `usedHere`: this device's free trial is already used, so the "Try it free" buttons become plain "Sign in" ones:
+ * an account with a plan opens as usual, and one without is shown the plans (see TrialEnded).
  */
 function useSignIn() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [usedHere] = useState(trialEndedHere)
   async function go() {
     setBusy(true)
     setError(null)
@@ -55,11 +48,7 @@ function useSignIn() {
       setBusy(false)
     }
   }
-  function tryFree() {
-    if (trialUsedUp()) return toPlans()
-    void go()
-  }
-  return { busy, error, go, tryFree }
+  return { busy, error, go, usedHere }
 }
 
 /**
@@ -188,10 +177,11 @@ function Logo({ size = 'h-9 w-9' }: { size?: string }) {
 const primaryBtn =
   'group inline-flex items-center justify-center gap-2.5 rounded-full bg-brand-600 sm:gap-3 font-semibold text-white shadow-[0_12px_40px_-12px_rgb(58_109_240/0.55)] transition duration-300 hover:-translate-y-0.5 hover:bg-brand-500 hover:shadow-[0_18px_50px_-12px_rgb(58_109_240/0.7)] active:translate-y-0 disabled:opacity-60'
 
-function GoogleButton({ signin, label = `Try free for ${TRIAL_DAYS} days`, big = false }: { signin: SignIn; label?: string; big?: boolean }) {
+function GoogleButton({ signin, label, big = false }: { signin: SignIn; label?: string; big?: boolean }) {
+  label ??= signin.usedHere ? 'Sign in with Google' : `Try free for ${TRIAL_DAYS} days`
   return (
     <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:items-start">
-      <button onClick={signin.tryFree} disabled={signin.busy} className={`${primaryBtn} w-full sm:w-auto ${big ? 'h-14 px-5 text-[15px] sm:px-7 sm:text-base' : 'h-12 px-5 text-[15px] sm:px-6'}`}>
+      <button onClick={() => void signin.go()} disabled={signin.busy} className={`${primaryBtn} w-full sm:w-auto ${big ? 'h-14 px-5 text-[15px] sm:px-7 sm:text-base' : 'h-12 px-5 text-[15px] sm:px-6'}`}>
         <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white">
           {signin.busy ? <Loader2 className="h-4 w-4 animate-spin text-brand-600" /> : <GoogleIcon />}
         </span>
@@ -247,15 +237,17 @@ function Nav({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           <OpenApp />
         ) : (
           <div className="flex items-center gap-1">
-            <button onClick={signin.go} className="hidden h-10 rounded-full px-4 text-sm font-medium text-zinc-300 transition hover:text-white sm:block">
-              Sign in
-            </button>
+            {!signin.usedHere && (
+              <button onClick={() => void signin.go()} className="hidden h-10 rounded-full px-4 text-sm font-medium text-zinc-300 transition hover:text-white sm:block">
+                Sign in
+              </button>
+            )}
             <button
-              onClick={signin.tryFree}
+              onClick={() => void signin.go()}
               disabled={signin.busy}
               className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-full bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-60"
             >
-              {signin.busy && <Loader2 className="h-4 w-4 animate-spin" />} Try {TRIAL_DAYS} days free
+              {signin.busy && <Loader2 className="h-4 w-4 animate-spin" />} {signin.usedHere ? 'Sign in' : `Try ${TRIAL_DAYS} days free`}
             </button>
           </div>
         )}
@@ -300,7 +292,8 @@ function Hero({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
           </div>
           {!signedIn && (
             <p className="hero-in mt-2 text-balance text-sm text-zinc-400 sm:mt-5" style={{ ['--d' as string]: '380ms' }}>
-              {TRIAL_DAYS} days free · No card needed<span className="hidden sm:inline"> ·</span> <br className="sm:hidden" />
+              {signin.usedHere ? 'Already a member? Sign in to pick up where you left off' : `${TRIAL_DAYS} days free · No card needed`}
+              <span className="hidden sm:inline"> ·</span> <br className="sm:hidden" />
               <a href="#pricing" className="text-brand-200 underline decoration-brand-300/40 underline-offset-4 transition hover:text-brand-100">
                 or plans from {perMonth(PLANS.annual)}/month
               </a>
@@ -1187,7 +1180,7 @@ function FinalCta({ signedIn, signin }: { signedIn: boolean; signin: SignIn }) {
         </p>
         <div className="mt-10 flex justify-center">{signedIn ? <OpenApp big /> : <GoogleButton signin={signin} big />}</div>
         <p className="mt-5 text-balance text-sm text-zinc-400">
-          {TRIAL_DAYS} days free · no card needed · cancel anytime
+          {!signedIn && signin.usedHere ? 'Members sign in to continue' : `${TRIAL_DAYS} days free · no card needed · cancel anytime`}
           {!signedIn && (
             <>
               <span className="hidden sm:inline"> · </span>
@@ -1224,6 +1217,18 @@ export function TrialEnded() {
   // No trial on this account at all: the free trial was already used on this device (see watchAccess).
   const usedHere = useAccess((s) => s.trialUsedHere)
   const [contact, setContact] = useState(false)
+  const [switching, setSwitching] = useState(false)
+  async function switchTo() {
+    setSwitching(true)
+    try {
+      await switchAccount()
+    } catch (e) {
+      console.error(e)
+      toast.error('Sign-in didn’t go through. Please try again.')
+    } finally {
+      setSwitching(false)
+    }
+  }
   return (
     <div className="about relative min-h-screen overflow-x-clip bg-[#07080c] px-5 pb-16 pt-12 text-zinc-100 antialiased sm:px-8 sm:pt-20">
       <Glow />
@@ -1248,6 +1253,18 @@ export function TrialEnded() {
       </div>
       <div className="relative mt-10 flex flex-col items-center gap-2 text-sm text-zinc-400">
         <p>Signed in as {user?.email}</p>
+        {/* A plan on another account (e.g. bought with a different email): open that one instead. */}
+        <div className="mb-2 flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={switchTo}
+            disabled={switching}
+            className="inline-flex h-11 items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 text-sm font-semibold text-white transition hover:border-white/30 hover:bg-white/[0.08] disabled:opacity-60"
+          >
+            {switching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Use a different account
+          </button>
+          <p className="text-xs text-zinc-500">Have a plan on another Google account? Sign in with it to pick up where you left off.</p>
+        </div>
         <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
           <a href="/about" className="inline-flex items-center gap-1.5 text-zinc-300 hover:text-white">
             <ArrowLeft className="h-3.5 w-3.5" /> Back to home

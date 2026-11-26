@@ -294,6 +294,15 @@ export async function signIn() {
   }
 }
 
+/**
+ * Signs out of this account and straight into another (Google asks which one). For someone whose free trial is over
+ * who has a plan on a different account: that account opens as usual, whatever this device's trial says.
+ */
+export async function switchAccount() {
+  await signOut()
+  await signIn()
+}
+
 /** Signs out and clears this browser, so the next person to sign in here never sees this account's data. */
 export async function signOut() {
   if (!auth) return
