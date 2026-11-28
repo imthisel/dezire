@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, CalendarDays, Check, Receipt, Sparkles } from 'lucide-react'
+import { ArrowRight, Check, Receipt } from 'lucide-react'
 import { useFmt, useItemIndex, useStore, type SpendInput } from '../store'
-import { dayLabel, todayKey } from '../lib/expenses'
+import { addDays, dayLabel, longDate, todayKey } from '../lib/expenses'
 import { fmt } from '../lib/money'
 import { spentDay } from '../lib/needs'
 import { round, walletState, type AccountState } from '../lib/wallet'
 import type { NeedItem } from '../lib/types'
 import { Modal } from './Modal'
 import { ICONS, colorOf } from './Wallet'
-import { PAID_KEY, lastPaid } from './ExpenseModal'
+import { Chip, PAID_KEY, lastPaid } from './ExpenseModal'
+import { Calendar } from './Calendar'
 import { toast } from '../toast'
 
 /*
@@ -48,21 +49,10 @@ function remember(account: string) {
   }
 }
 
-/** Marks Wants items spent (or not). Asks which account paid when that matters. `what`: how to name them, like “Rolex”. */
+/** Marks Wants items spent (or not). Marking asks which account paid and on what day. `what`: how to name them, like “Rolex”. */
 export function markWantsSpent(ids: string[], on: boolean, what?: string) {
-  const s = useStore.getState()
-  const accounts = tracked()
-  if (on && accounts.length) {
-    const today = todayKey()
-    const past = ids.some((id) => {
-      for (const m of Object.entries(s.months)) if (m[1].items.some((i) => i.id === id)) return m[0] < today.slice(0, 7)
-      return false
-    })
-    // More than one place it could have come from, or a past month (pick the day): ask.
-    if (accounts.length > 1 || past) return s.openModal({ type: 'pay', kind: 'wants', ids, what })
-    return doWants(ids, { account: accounts[0].account.id, date: today }, what)
-  }
-  doWants(ids, on ? {} : undefined, what, on)
+  if (on) return useStore.getState().openModal({ type: 'pay', kind: 'wants', ids, what })
+  doWants(ids, undefined, what, false)
 }
 
 function doWants(ids: string[], pay: SpendInput | undefined, what?: string, on = true) {
@@ -137,10 +127,9 @@ export function PayModal({ kind, ids, what }: { kind: PayKind; ids: string[]; wh
     return ids.includes(last) ? last : (ids[0] ?? '')
   })
 
-  // Wants from past months: paid today (comes off your money now), or in its own month.
-  const pastDates = kind === 'wants' ? [...new Set(lines.map((l) => l.date).filter((d) => d < today))] : []
-  const [when, setWhen] = useState<'today' | 'month'>('today')
-  const dateOf = (l: Line) => (kind === 'wants' && when === 'today' ? today : l.date)
+  // Wants: the day it was paid, picked on the calendar (today unless you pick another).
+  const [day, setDay] = useState(today)
+  const dateOf = (l: Line) => (kind === 'wants' ? day : l.date)
 
   const chosen = accounts.find((a) => a.account.id === account)
   const counted = chosen ? round(asked.filter((l) => takesOff(chosen, dateOf(l), today)).reduce((n, l) => n + l.amount, 0)) : 0
@@ -157,7 +146,7 @@ export function PayModal({ kind, ids, what }: { kind: PayKind; ids: string[]; wh
     close()
     if (account) remember(account)
     const picked = lines.map((l) => l.id)
-    if (kind === 'wants') doWants(picked, { account, date: when === 'today' ? today : undefined }, what)
+    if (kind === 'wants') doWants(picked, { ...(account ? { account } : {}), date: day }, what)
     else doNeeds(picked, true, account, what)
   }
 
@@ -249,32 +238,19 @@ export function PayModal({ kind, ids, what }: { kind: PayKind; ids: string[]; wh
           </div>
         )}
 
-        {pastDates.length > 0 && (
+        {kind === 'wants' && (
           <div>
             <p className="mb-2 text-xs font-medium text-zinc-400">When did you pay?</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(
-                [
-                  ['today', 'Today', 'Comes off your money now', Sparkles],
-                  ['month', pastDates.length === 1 ? dayLabel(pastDates[0], today).replace(/^\w+, /, '') : 'In its own month', 'Back then', CalendarDays],
-                ] as const
-              ).map(([id, label, hint, Icon]) => (
-                <button
-                  key={id}
-                  type="button"
-                  aria-pressed={when === id}
-                  onClick={() => setWhen(id)}
-                  className={`rounded-xl border px-3 py-2.5 text-left transition active:scale-[0.98] ${
-                    when === id ? 'border-indigo-400/50 bg-indigo-500/15' : 'border-white/[0.08] hover:border-white/20 hover:bg-white/[0.03]'
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-100">
-                    <Icon className="h-3.5 w-3.5 text-zinc-400" /> {label}
-                  </span>
-                  <span className="mt-0.5 block text-[11px] text-zinc-500">{hint}</span>
-                </button>
-              ))}
+            <div className="mb-2 flex gap-1.5">
+              <Chip on={day === today} onClick={() => setDay(today)}>
+                Today
+              </Chip>
+              <Chip on={day === addDays(today, -1)} onClick={() => setDay(addDays(today, -1))}>
+                Yesterday
+              </Chip>
             </div>
+            <Calendar value={day} onChange={setDay} />
+            <p className="mt-2 text-center text-xs text-zinc-500">{longDate(day)}</p>
           </div>
         )}
 

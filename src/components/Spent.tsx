@@ -53,6 +53,6 @@ export function useSpentOf(items: { expenseId?: string; price: number }[]) {
 
 /**
  * Marks or unmarks items as spent, and says what happened with a way to undo it. `what`: how to name them, like “Rolex”.
- * Marking takes it off your money: when you track more than one account, it asks which one paid.
+ * Marking asks which account paid and on what day, then takes it off your money.
  */
 export const flipSpent = (ids: string[], on: boolean, what?: string) => markWantsSpent(ids, on, what)
