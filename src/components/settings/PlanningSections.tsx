@@ -46,8 +46,8 @@ function useLiveRate() {
   useEffect(() => setState('idle'), [main.code, alt.code])
 
   async function fetchRate() {
-    if (!navigator.onLine) return toast.info('You’re offline. Connect to the internet to get today’s rate.')
-    if (main.code === alt.code) return toast.info('Both currencies are the same, so the rate is always 1.')
+    if (!navigator.onLine) return toast.notice('You’re offline. Connect to the internet to get today’s rate.')
+    if (main.code === alt.code) return toast.notice('Both currencies are the same, so the rate is always 1.')
     setState('busy')
     try {
       const res = await fetch(`https://open.er-api.com/v6/latest/${encodeURIComponent(alt.code)}`)
@@ -214,6 +214,7 @@ export function CalendarSection() {
 export function NotificationsSection() {
   const device = useStore((s) => s.device)
   const budgetWarnings = useStore((s) => s.prefs.budgetWarnings)
+  const confirmations = useStore((s) => s.prefs.confirmations)
   const { setDevice, setPrefs } = useStore.getState()
   const [permission, setPermission] = useState(() => (notificationsSupported() ? Notification.permission : 'unsupported'))
 
@@ -223,7 +224,7 @@ export function NotificationsSection() {
     const answer = await askNotifications()
     setPermission(answer)
     if (answer === 'granted') toast.success('Reminders are on.')
-    else toast.info('Reminders are on inside the app. Allow notifications in your browser to get them outside it too.')
+    else toast.notice('Reminders are on inside the app. Allow notifications in your browser to get them outside it too.')
   }
 
   const blocked = permission === 'denied' || permission === 'unsupported'
@@ -253,6 +254,7 @@ export function NotificationsSection() {
       </Group>
 
       <Group title="Messages in the app">
+        <ToggleRow id="confirmations" title="Confirmation messages" hint="The short messages in the corner after you do something, like “Added to expenses”. Errors, warnings and reminders still show. Ctrl+Z still undoes." on={confirmations} onChange={(on) => setPrefs({ confirmations: on })} />
         <ToggleRow id="budget-warnings" title="Budget warnings" hint="Say so when an item goes over its month’s budget or money left. It’s still marked red on the month." on={budgetWarnings} onChange={(on) => setPrefs({ budgetWarnings: on })} />
         <Row id="backup-reminder" title="Backup reminder" hint="A nudge to download a copy of your plan. On this device.">
           <Select<BackupEvery>

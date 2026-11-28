@@ -2249,7 +2249,7 @@ if (typeof document !== 'undefined') {
   if (opening.startPage !== 'last') useStore.setState({ view: opening.startPage })
   const sync = () => {
     const { currency, prefs, device } = useStore.getState()
-    Object.assign(live, { weekStart: prefs.weekStart, clock: prefs.clock, masked: device.masked, budgetWarnings: prefs.budgetWarnings, eventLength: prefs.eventLength })
+    Object.assign(live, { weekStart: prefs.weekStart, clock: prefs.clock, masked: device.masked, budgetWarnings: prefs.budgetWarnings, confirmations: prefs.confirmations, eventLength: prefs.eventLength })
     root.toggleAttribute('data-alt-off', !currency.alt.show)
     root.dataset.accent = prefs.accent
     root.dataset.text = device.textSize

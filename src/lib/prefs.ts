@@ -29,6 +29,8 @@ export type Prefs = {
   eventLength: number
   /** Say so when a new or moved item doesn't fit its month (it's still marked red on the month) */
   budgetWarnings: boolean
+  /** Short messages confirming what you just did, like “Added to expenses” (errors, warnings and reminders always show) */
+  confirmations: boolean
   /** Buttons taken out of the header */
   hideBackup: boolean
   hideReset: boolean
@@ -80,6 +82,7 @@ export const DEFAULT_PREFS: Prefs = {
   clock: '12',
   eventLength: 60,
   budgetWarnings: true,
+  confirmations: true,
   hideBackup: false,
   hideReset: false,
   hideCurrency: false,
@@ -140,6 +143,7 @@ export function parsePrefs(raw: unknown): Prefs {
     clock: oneOf(r.clock, ['12', '24'] as const, d.clock),
     eventLength: oneOf(r.eventLength, EVENT_LENGTHS, d.eventLength),
     budgetWarnings: bool(r.budgetWarnings, d.budgetWarnings),
+    confirmations: bool(r.confirmations, d.confirmations),
     hideBackup: bool(r.hideBackup, d.hideBackup),
     hideReset: bool(r.hideReset, d.hideReset),
     hideCurrency: bool(r.hideCurrency, d.hideCurrency),
@@ -178,7 +182,7 @@ export function parseDevice(raw: unknown): DevicePrefs {
  * The few settings plain helpers need (formatting an amount, working out a week), kept here so those helpers don't have to
  * know about the store. The store keeps them up to date before anything redraws.
  */
-export const live = { weekStart: 0 as WeekStart, clock: '12' as Clock, masked: false, budgetWarnings: true, eventLength: 60 }
+export const live = { weekStart: 0 as WeekStart, clock: '12' as Clock, masked: false, budgetWarnings: true, confirmations: true, eventLength: 60 }
 
 /** A saved side menu order, cleaned up: unknown or repeated blocks dropped, any missing ones added where they'd be by default. */
 export function parseSideOrder(raw: unknown): SideBlock[] {

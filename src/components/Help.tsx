@@ -674,7 +674,7 @@ function Contact({ embedded }: { embedded?: boolean }) {
       return
     }
     const wait = lastSent + WAIT_MS - Date.now()
-    if (wait > 0) return toast.info(`Please wait ${Math.ceil(wait / 1000)} seconds before sending another message.`)
+    if (wait > 0) return toast.notice(`Please wait ${Math.ceil(wait / 1000)} seconds before sending another message.`)
     setBusy(true)
     try {
       const id = await sendFeedback({ kind, topic: topic || 'other', subject, message, rating: kind === 'praise' || kind === 'idea' ? rating : 0, private: hideName, withContext })

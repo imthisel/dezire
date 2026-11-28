@@ -101,11 +101,11 @@ export function startApp() {
 /** Asks the site which version is newest. `manual`: from the Check for updates button, so it always answers. */
 export async function checkForUpdate(manual = false) {
   if (__APP_VERSION__ === 'dev') {
-    if (manual) toast.info('Updates are checked on the live site, not while developing.')
+    if (manual) toast.notice('Updates are checked on the live site, not while developing.')
     return
   }
   if (!navigator.onLine) {
-    if (manual) toast.info('You’re offline. Dizayr will check for updates when you’re back online.')
+    if (manual) toast.notice('You’re offline. Dizayr will check for updates when you’re back online.')
     return
   }
   useApp.setState({ checking: true })
@@ -115,7 +115,7 @@ export async function checkForUpdate(manual = false) {
     const latest = (await res.json()) as { version: string; builtAt: string }
     const newer = latest.version && latest.version !== __APP_VERSION__
     useApp.setState({ update: newer ? latest : null, snoozed: newer && !manual ? useApp.getState().snoozed : false })
-    if (manual && !newer) toast.success('You’re on the latest version.')
+    if (manual && !newer) toast.notice('You’re on the latest version.')
   } catch {
     if (manual) toast.error('Couldn’t check for updates. Try again in a moment.')
   } finally {

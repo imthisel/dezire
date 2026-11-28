@@ -138,9 +138,9 @@ export function startHistory() {
     if (typing(document.activeElement)) return
     e.preventDefault()
     if (isUndo) {
-      if (undo()) toast.action('Undone.', 'Redo', redo)
+      if (undo()) toast.done('Undone.', 'Redo', redo)
       else toast.info('Nothing to undo.')
-    } else if (redo()) toast.action('Redone.', 'Undo', undo)
+    } else if (redo()) toast.done('Redone.', 'Undo', undo)
     else toast.info('Nothing to redo.')
   })
 }

@@ -32,7 +32,7 @@ async function systemNotice(title: string, body: string, tag: string) {
 
 /** A system notification when the app isn't on screen; a message inside it when it is (or when notifications aren't allowed). */
 async function remind(title: string, body: string, tag: string) {
-  if (document.visibilityState === 'visible' || !(await systemNotice(title, body, tag))) toast.info(`${title} · ${body}`)
+  if (document.visibilityState === 'visible' || !(await systemNotice(title, body, tag))) toast.notice(`${title} · ${body}`)
 }
 
 /** Asks for permission if it hasn't been answered yet. Returns the answer. */
@@ -46,7 +46,7 @@ export async function askNotifications(): Promise<NotificationPermission | 'unsu
 export async function sendTestNotice() {
   const sent = await systemNotice('Dizayr reminder', 'This is how your reminders will look.', 'dizayr-test')
   if (sent) toast.success('Test notification sent.')
-  else toast.info('This is how a reminder looks inside the app. Allow notifications to get them outside it too.')
+  else toast.notice('This is how a reminder looks inside the app. Allow notifications to get them outside it too.')
 }
 
 function readSent(): Record<string, number> {

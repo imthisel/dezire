@@ -50,6 +50,7 @@ export const SEARCH: { id: string; section: SettingsSection; title: string; word
   { id: 'reminders', section: 'notifications', title: 'Event & task reminders', words: 'notification alert before push' },
   { id: 'reminder-lead', section: 'notifications', title: 'Remind me', words: 'minutes before early time' },
   { id: 'reminder-test', section: 'notifications', title: 'Send a test', words: 'notification try' },
+  { id: 'confirmations', section: 'notifications', title: 'Confirmation messages', words: 'toast popup pop-up notification message corner added saved deleted hide quiet' },
   { id: 'budget-warnings', section: 'notifications', title: 'Budget warnings', words: 'over limit money left item fit' },
   { id: 'backup-reminder', section: 'notifications', title: 'Backup reminder', words: 'weekly monthly export' },
 

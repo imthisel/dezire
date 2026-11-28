@@ -70,7 +70,7 @@ function askForMore(limit: number, kind: ModeKind, name?: string) {
   const title = kindOf(kind).title
   const held = name ? `“${name}” is kept safe. ` : ''
   openPlans()
-  toast.info(limit === 1 ? `${held}Your free trial includes 1 ${title} mode. Pick a plan to have more.` : `${held}Your plan includes ${limit} ${title} modes. Pick a plan for unlimited.`)
+  toast.notice(limit === 1 ? `${held}Your free trial includes 1 ${title} mode. Pick a plan to have more.` : `${held}Your plan includes ${limit} ${title} modes. Pick a plan for unlimited.`)
 }
 
 /** Opens a mode. Crossing between Wants and Needs lands on that section's main page. */

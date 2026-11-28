@@ -128,7 +128,7 @@ const sheet = (rows: unknown[][]) => '\ufeff' + rows.map((r) => r.map(cell).join
 
 export function downloadExpensesCsv() {
   const { expenses, expenseCats, currency } = useStore.getState()
-  if (!expenses.length) return toast.info('No expenses to download yet.')
+  if (!expenses.length) return toast.notice('No expenses to download yet.')
   const name = new Map(expenseCats.map((c) => [c.id, c.label]))
   const rows = [...expenses].sort((a, b) => a.date.localeCompare(b.date)).map((e) => [e.date, e.amount, currency.main.code, e.name, name.get(e.category) ?? '', e.place, e.notes])
   download(`dizayr-expenses-${today()}.csv`, sheet([['Date', 'Amount', 'Currency', 'Item', 'Category', 'Place', 'Notes'], ...rows]), 'text/csv')
@@ -144,7 +144,7 @@ export function downloadItemsCsv() {
     const key = keyOf(i)
     for (const it of months[key]?.items ?? []) rows.push([labelOfKey(key), it.name, name.get(it.category) ?? '', it.trend, it.price, currency.main.code, it.trend === 'stable' ? '' : it.rate, it.favorite ? 'Yes' : '', it.notes ?? '', (it.links ?? []).map((l) => `${linkName(l)}: ${l.url}`).join('\n')])
   }
-  if (!rows.length) return toast.info('No items to download yet.')
+  if (!rows.length) return toast.notice('No items to download yet.')
   download(`dizayr-items-${today()}.csv`, sheet([['Month', 'Item', 'Kind', 'Value', 'Price', 'Currency', 'Yearly %', 'Favorite', 'Notes', 'Links'], ...rows]), 'text/csv')
   toast.success(`Downloaded ${rows.length} item${rows.length === 1 ? '' : 's'}.`)
 }
@@ -153,7 +153,7 @@ export function downloadGoalsCsv() {
   const { goals, goalAreas } = useStore.getState()
   const name = new Map(goalAreas.map((a) => [a.id, a.label]))
   const rows = Object.keys(goals).sort().flatMap((y) => goals[y].map((g) => [y, name.get(g.area) ?? '', g.text, g.done ? 'Yes' : 'No', g.notes ?? '']))
-  if (!rows.length) return toast.info('No goals to download yet.')
+  if (!rows.length) return toast.notice('No goals to download yet.')
   download(`dizayr-goals-${today()}.csv`, sheet([['Year', 'Area', 'Goal', 'Done', 'Notes'], ...rows]), 'text/csv')
   toast.success(`Downloaded ${rows.length} goal${rows.length === 1 ? '' : 's'}.`)
 }
@@ -189,7 +189,7 @@ function fold(line: string) {
 /** Downloads every event and dated task as a file that Google Calendar, Apple Calendar and Outlook can import. */
 export function downloadCalendar() {
   const tasks = useStore.getState().tasks.filter((t) => t.date)
-  if (!tasks.length) return toast.info('Nothing with a date to download yet.')
+  if (!tasks.length) return toast.notice('Nothing with a date to download yet.')
   const stamp = `${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Dizayr//Planner//EN', 'CALSCALE:GREGORIAN']
   for (const t of tasks) {

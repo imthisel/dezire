@@ -22,7 +22,7 @@ export function SubjectsModal({ onClose, onPick }: { onClose: () => void; onPick
     const name = adding.trim()
     if (!name) return
     if (school.subjects.some((x) => x.name.toLowerCase() === name.toLowerCase())) {
-      toast.info(`“${name}” is already in your subjects.`)
+      toast.notice(`“${name}” is already in your subjects.`)
       return setAdding('')
     }
     // Added here on purpose: it's one you take now, so it starts starred.

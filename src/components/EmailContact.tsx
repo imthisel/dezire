@@ -47,7 +47,7 @@ export function EmailContactDialog({ onClose, topic = 'question' }: { onClose: (
       toast.success('Email address copied.')
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      toast.info(`Our email is ${LEGAL.email}`)
+      toast.notice(`Our email is ${LEGAL.email}`)
     }
   }
 
